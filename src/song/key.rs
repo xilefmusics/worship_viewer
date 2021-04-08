@@ -9,7 +9,7 @@ impl Key {
         let main = iter.next();
         let extension = iter.next();
         match iter.next() {
-            Some(_) => return Err(format!("{} is not a valid Key", string)),
+            Some(_) => return Err(format!("\"{}\" is not a valid Key", string)),
             None => {},
         }
         let mut level: i8 = match main {
