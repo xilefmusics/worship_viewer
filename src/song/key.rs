@@ -1,5 +1,5 @@
 pub struct Key {
-    pub level: i8,
+    level: i8,
 }
 
 impl Key {
@@ -45,5 +45,9 @@ impl Key {
 
     pub fn transpose(&self, halftones: i8) -> Key {
         Key{level: (self.level+halftones).rem_euclid(12)}
+    }
+
+    pub fn level(&self) -> i8 {
+        self.level
     }
 }

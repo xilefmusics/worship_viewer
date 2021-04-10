@@ -1,5 +1,5 @@
-use super::Chord;
-use super::Key;
+use super::{Key, Chord, Textline};
+
 
 pub struct Line {
     text: Option<String>,
@@ -55,5 +55,27 @@ impl Line {
             result.push_str(&translation);
         }
         Ok(result)
+    }
+
+    pub fn textlines(&self, key: &Key) -> Result<Vec<Textline>, String> {
+        let mut textlines: Vec<Textline> = Vec::new();
+        if self.chords.len() > 0 {
+            let mut chordstr: String = String::new();
+            for (chord_offset, chord) in self.chord_offsets.iter().zip(self.chords.iter()) {
+                let len = chordstr.len();
+                for i in 0..*chord_offset-len {
+                    chordstr.push_str(" ");
+                }
+                chordstr.push_str(&chord.to_string(key)?);
+            }
+            textlines.push(Textline::CHORD(chordstr));
+        }
+        if let Some(text) = self.text.clone() {
+            textlines.push(Textline::TEXT(text));
+        }
+        if let Some(translation) = self.translation.clone() {
+            textlines.push(Textline::TRANSLATION(translation));
+        }
+        Ok(textlines)
     }
 }

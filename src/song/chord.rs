@@ -12,31 +12,31 @@ impl Chord {
         for c in string.chars() {
             match c {
                 'C' => {
-                    levels.push((0 - key.level).rem_euclid(12));
+                    levels.push((0 - key.level()).rem_euclid(12));
                     chars.push('$');
                 },
                 'D' => {
-                    levels.push((2 - key.level).rem_euclid(12));
+                    levels.push((2 - key.level()).rem_euclid(12));
                     chars.push('$');
                 },
                 'E' => {
-                    levels.push((4 - key.level).rem_euclid(12));
+                    levels.push((4 - key.level()).rem_euclid(12));
                     chars.push('$');
                 },
                 'F' => {
-                    levels.push((5 - key.level).rem_euclid(12));
+                    levels.push((5 - key.level()).rem_euclid(12));
                     chars.push('$');
                 },
                 'G' => {
-                    levels.push((7 - key.level).rem_euclid(12));
+                    levels.push((7 - key.level()).rem_euclid(12));
                     chars.push('$');
                 },
                 'A' => {
-                    levels.push((9 - key.level).rem_euclid(12));
+                    levels.push((9 - key.level()).rem_euclid(12));
                     chars.push('$');
                 },
                 'B' => {
-                    levels.push((11 - key.level).rem_euclid(12));
+                    levels.push((11 - key.level()).rem_euclid(12));
                     chars.push('$');
                 },
                 'b' => match levels.pop() {

@@ -1,17 +1,10 @@
 mod song;
 
-use song::Key;
-use song::Chord;
-use song::Line;
 use song::Song;
+use song::Textline;
 
 fn main() {
-    let key = Key::from_string("C").unwrap();
-    let key_new = key.transpose(-127);
-    let chord = Chord::from_string("A#/C", &key);
-    //let line = Line::from_string("[G/B]Hello W[Cmay7]orld. & Hallo Welt.", &key).unwrap();
-    let line = Line::from_string("denn ich weiß es [Bm]nicht, mein Verstand ist zu [A]klein.", &key).unwrap();
-    let _song = Song::from_string("{title: Du hast einen Plan}
+    let mut song = Song::from_string("{title: Du hast einen Plan}
 {artist: Felix Rollbühler}
 {key: D}
 {meta: section Intro}
@@ -35,12 +28,18 @@ was wir jetzt nicht [Em7]verstehn gibt später einen [A]Sinn.
 {meta: section Interlude 2}
 [Bm A/C# Bm G Bm A/C# Bm A]
 {meta: section Bridge}
-Ich [Bm]werde warten Herr, [G]warten Berr,
+Ich [Bm]werde warten Herr, [G]warten Herr,
 [Em]warten Herr, bis du [A]sprichst.
 Ich werd` [Bm]vertrauen Herr, [G]vertrauen Herr,
 ver[Em]trauen Herr, auf deinen [A]Plan. (2x)").unwrap();
 
-    println!("Key: {}", key.to_string());
-    println!("Chord: {}", chord.to_string(&key_new).unwrap());
-    println!("Line: {}", line.to_string(&key_new).unwrap());
+    song.transpose(1);
+    for textline in song.textlines().unwrap() {
+        match textline {
+            Textline::KEYWORD(keyword) => println!{"\x1b[31;1m{}\x1b[0m", keyword},
+            Textline::CHORD(chord) => println!{"\x1b[32;1m  {}\x1b[0m", chord},
+            Textline::TEXT(text) => println!{"  \x1b[32m{}\x1b[0m", text},
+            Textline::TRANSLATION(translation) => println!{"  {}", translation},
+        }
+    }
 }
