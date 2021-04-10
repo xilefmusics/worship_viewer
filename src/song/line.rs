@@ -25,7 +25,10 @@ impl Line {
             };
             chord_offsets.push(chord_start);
             chords.push(Chord::from_string(&first[chord_start+1..chord_stop], key));
-            first = first.chars().take(chord_start).chain(first.chars().skip(chord_stop+1)).collect();
+            let v1 = &(first.clone())[..chord_start];
+            let v2 = &(first.clone())[chord_stop+1..];
+            first = String::from(v1.clone());
+            first.push_str(v2);
         }
         let text: Option<String> = Some(first.to_string());
         Ok(Line{text, translation, chords, chord_offsets})
