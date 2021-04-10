@@ -33,7 +33,7 @@ Ich [Bm]werde warten Herr, [G]warten Herr,
 Ich werd` [Bm]vertrauen Herr, [G]vertrauen Herr,
 ver[Em]trauen Herr, auf deinen [A]Plan. (2x)").unwrap();
 
-    song.transpose(1);
+    song.transpose(-3);
     for textline in song.textlines().unwrap() {
         match textline {
             Textline::KEYWORD(keyword) => println!{"\x1b[31;1m{}\x1b[0m", keyword},

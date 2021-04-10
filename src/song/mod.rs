@@ -18,3 +18,12 @@ pub use section::Section;
 
 mod song;
 pub use song::Song;
+
+pub fn cfind(string: &str, chr: char) -> Option<usize> {
+    for (idx, c) in string.chars().enumerate() {
+        if c == chr {
+            return Some(idx);
+        }
+    }
+    None
+}
