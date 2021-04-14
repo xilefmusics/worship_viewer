@@ -24,20 +24,27 @@ fn chord_to_level(chord: &str) -> i8 {
 
 pub struct Transpose<I> where I: Iterator<Item = Line> {
     iter: I,
-    key_new: i8,
+    key_new: Option<i8>,
     key_old: Option<i8>,
 }
 
 impl<I> Transpose<I> where I: Iterator<Item = Line> {
 
     fn new(iter: I, key: &str) -> Self {
-        Self{iter, key_new: chord_to_level(key), key_old: None}
+        let key_new = match key {
+            "Self" => None,
+            key => Some(chord_to_level(key))
+        };
+        Self{iter, key_new, key_old: None}
     }
 
 
     fn t(&self, line: Option<Line>) -> Option<Line> {
         let line = line?;
-        let key_new = self.key_new;
+        let key_new = match self.key_new {
+            Some(key) => key,
+            None => return Some(line),
+        };
         let key_old = self.key_old?;
         if let TextChordTrans(line) = line {
             let scale = match  key_new {
