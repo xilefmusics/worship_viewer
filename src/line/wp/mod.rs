@@ -11,4 +11,4 @@ mod chord_iterator;
 pub use chord_iterator::{ChordIterator, ChordIteratorItem::{self, Transposabel, NotTransposable}};
 
 mod from_str;
-pub use from_str::from_str;
+pub use from_str::{from_str, IntoFromStr};

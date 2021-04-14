@@ -1,5 +1,5 @@
 mod line;
-use line::{wp_to_multi, str_to_wp, IntoTranspose, Multiline};
+use line::{wp_to_multi, IterExtToWp, IterExtTranspose, Multiline};
 
 fn main() {
     let string = "{title: Du hast einen Plan}
@@ -31,7 +31,9 @@ Ich [Bm]werde warten Herr, [G]warten Herr,
 Ich werd` [Bm]vertrauen Herr, [G]vertrauen Herr,
 ver[Em]trauen Herr, auf deinen [A]Plan. (2x)";
 
-string.lines().map(|line| str_to_wp(&line)).transpose("Eb").map(|line| wp_to_multi(&line)).flatten().for_each(|line| {
+//string.lines().map(|line| str_to_wp(&line)).transpose("Eb").map(|line| wp_to_multi(&line)).flatten().for_each(|line| {
+
+string.lines().to_wp().transpose("Eb").map(|line| wp_to_multi(&line)).flatten().for_each(|line| {
     match line {
         Multiline::Keyword(keyword) => println!{"\x1b[31;1m{}\x1b[0m", keyword},
         Multiline::Chord(chord) => println!{"\x1b[32;1m  {}\x1b[0m", chord},

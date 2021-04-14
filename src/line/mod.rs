@@ -1,5 +1,6 @@
 mod wp;
-pub use wp::IntoTranspose;
+pub use wp::IntoTranspose as IterExtTranspose;
+pub use wp::IntoFromStr as IterExtToWp;
 pub use wp::from_str as str_to_wp;
 
 mod multi;
