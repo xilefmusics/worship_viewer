@@ -44,3 +44,24 @@ pub fn wp_to_multi(line: &wp::Line) -> Vec<multi::Line> {
         },
     }
 }
+
+pub struct WpToMulti<I> where I: Iterator<Item = wp::Line> {
+    iter: I,
+}
+
+
+impl<I> Iterator for WpToMulti<I> where I: Iterator<Item = wp::Line> {
+    type Item = Vec<multi::Line>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(wp_to_multi(&self.iter.next()?))
+    }
+}
+
+pub trait IntoWpToMulti: Iterator {
+    fn to_multi(self) -> std::iter::Flatten<WpToMulti<Self>> where Self: Sized + Iterator<Item = wp::Line> {
+        WpToMulti{iter: self}.flatten()
+    }
+}
+
+impl<I> IntoWpToMulti for I where I: Sized + Iterator<Item = wp::Line> {}
