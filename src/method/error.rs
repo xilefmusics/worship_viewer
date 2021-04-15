@@ -5,6 +5,10 @@ use std::fmt;
 pub enum Error {
     ParseArgs(String),
     FileNotFound(String),
+    IO,
+    Tui,
+    NoSong,
+    Other(String),
 }
 
 impl fmt::Display for Error {
@@ -12,6 +16,10 @@ impl fmt::Display for Error {
         match self {
             Self::ParseArgs(message) => write!(f, "{}", message),
             Self::FileNotFound(file) => write!(f, "File not found ({})", file),
+            Self::Other(message) => write!(f, "{}", message),
+            Self::IO => write!(f, "Some IO error occoured"),
+            Self::Tui => write!(f, "Some Tui rendering error occoured"),
+            Self::NoSong => write!(f, "Called render on SongView with no song choosen"),
         }
 
     }

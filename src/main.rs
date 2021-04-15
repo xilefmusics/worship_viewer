@@ -10,7 +10,10 @@ fn main() {
             "show" => method::show(args).unwrap_or_else(|err| {
                 eprintln!("Error: {}", err)
             }),
-            method => eprintln!("Error: No method {}", method),
+            "tui" => method::tui(args).unwrap_or_else(|err| {
+                eprintln!("Error: {}", err)
+            }),
+            method => eprintln!("Error: No such method ({})", method),
         }
         None => eprintln!("Error: No method given"),
     }
