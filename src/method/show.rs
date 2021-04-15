@@ -1,8 +1,8 @@
 use std::env;
 use std::fs;
-use std::error::Error;
 
 use super::super::line::{IterExtToWp, IterExtTranspose, IterExtToMulti, Multiline};
+use super::Error;
 
 fn get_color_code(name: &str) -> &str {
     match name {
@@ -37,7 +37,8 @@ struct Config {
 }
 
 impl Config {
-    pub fn new(mut args: env::Args) -> Self { let mut filename: Option<String> = None;
+    pub fn new(mut args: env::Args) -> Result<Self, Error> {
+        let mut filename: Option<String> = None;
         let mut new_key = String::from("Self");
         let mut text_color: Option<String> = None;
         let mut chord_color: Option<String> = None;
@@ -49,45 +50,56 @@ impl Config {
             match arg.as_str() {
                 "-k" => match args.next() {
                     Some(key) => new_key = key,
-                    None => () // handle Error here
+                    None => return Err(Error::ParseArgs(String::from("No value for option -k given"))),
                 },
                 "-Ct" => match args.next() {
                     Some(color) => text_color = Some(get_color_code(&color).to_string()),
-                    None => () // handle Error here
+                    None => return Err(Error::ParseArgs(String::from("No value for option -Ct given"))),
                 },
                 "-Cc" => match args.next() {
                     Some(color) => chord_color = Some(get_color_code(&color).to_string()),
-                    None => () // handle Error here
+                    None => return Err(Error::ParseArgs(String::from("No value for option -Cc given"))),
                 },
                 "-Ck" => match args.next() {
                     Some(color) => keyword_color = Some(get_color_code(&color).to_string()),
-                    None => () // handle Error here
+                    None => return Err(Error::ParseArgs(String::from("No value for option -Ck given"))),
                 },
                 "-CT" => match args.next() {
                     Some(color) => translation_color = Some(get_color_code(&color).to_string()),
-                    None => () // handle Error here
+                    None => return Err(Error::ParseArgs(String::from("No value for option -CT given"))),
                 },
                 "-s" => match args.next() {
                     Some(s) => spacecnt = s.parse::<usize>().unwrap_or(2),
-                    None => () // handle Error here
+                    None => return Err(Error::ParseArgs(String::from("No value for option -s given"))),
                 },
                 f => filename = Some(String::from(f)),
             }
         }
 
-        let filename = filename.unwrap_or(String::from("./testsong.wp")); // handle Error here
+        let filename = match filename {
+            Some(f) => f,
+            None => return Err(Error::ParseArgs(String::from("No filename given"))),
+        };
         let mut spaces = String::new();
         for _ in 0..spacecnt {
             spaces.push_str(" ");
         }
-        Config{filename, new_key, text_color, chord_color, keyword_color, translation_color, spaces}
+        Ok(Config{filename, new_key, text_color, chord_color, keyword_color, translation_color, spaces})
     }
 }
 
-pub fn show(args: env::Args) -> Result<(), Box<dyn Error>> {
-    let config = Config::new(args);
+pub fn show(args: env::Args) -> Result<(), Error> {
+    let config = Config::new(args)?;
     let mut first_section = true;
-    fs::read_to_string(&config.filename)?.lines().to_wp().transpose(&config.new_key).to_multi().for_each(|line| {
+    fs::read_to_string(&config.filename)
+        .map_err(|_| {
+            Error::FileNotFound(config.filename.clone())
+        })?
+        .lines()
+        .to_wp()
+        .transpose(&config.new_key)
+        .to_multi()
+        .for_each(|line| {
         match line {
             Multiline::Keyword(keyword) => {
                 if first_section {

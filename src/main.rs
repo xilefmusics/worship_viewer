@@ -8,7 +8,7 @@ fn main() {
     match args.next() {
         Some(method) => match method.as_str() {
             "show" => method::show(args).unwrap_or_else(|err| {
-                eprintln!("Error: {}", err);
+                eprintln!("Error: {}", err)
             }),
             method => eprintln!("Error: No method {}", method),
         }
