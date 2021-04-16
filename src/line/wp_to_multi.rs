@@ -27,7 +27,7 @@ pub fn wp_to_multi(line: &wp::Line) -> Vec<multi::Line> {
                         text.push_str(&t);
                         new_text_len = t.chars().count();
                     },
-                    wp::LineIteratorItem::Translation(t) => translation = t,
+                    wp::LineIteratorItem::Translation(t) => translation = t.to_string(),
                 }
             }
 
