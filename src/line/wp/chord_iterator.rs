@@ -1,90 +1,99 @@
 #[derive(Debug, Clone, PartialEq)]
-pub enum ChordIteratorItem {
-    Transposabel(String),
-    NotTransposable(String),
+pub enum ChordIteratorItem<'a> {
+    Transposabel(&'a str),
+    NotTransposable(&'a str),
 }
 
 #[derive(Debug, Clone)]
-pub struct ChordIterator {
-    chord: String,
-    index: usize,
+pub struct ChordIterator<'a> {
+    chord: &'a str,
 }
 
-impl ChordIterator {
-    pub fn new(chord: &str) -> Self {
-        Self{chord: chord.to_string(), index: 0}
+impl<'a> ChordIterator<'a> {
+    pub fn new(chord: &'a str) -> Self {
+        Self { chord }
     }
 }
 
-impl Iterator for ChordIterator {
-    type Item = ChordIteratorItem;
+impl<'a> Iterator for ChordIterator<'a> {
+    type Item = ChordIteratorItem<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let string: String = self.chord[self.index..].to_string();
-        let mut iter = string.chars();
-        let first = iter.next()?;
-        let transposable = match first {
-            'A'|'B'|'C'|'D'|'E'|'F'|'G' => true,
-            _ => false,
+        let mut chars = self.chord.chars();
+
+        let transposable = match chars.next() {
+            Some(c) => match c {
+                'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' => true,
+                _ => false,
+            },
+            None => return None,
         };
 
-
         if transposable {
-            match iter.next() {
-                Some('b') => {
-                    self.index += 2;
-                    Some(ChordIteratorItem::Transposabel([first, 'b'].iter().collect()))
-                },
-                Some('#') => {
-                    self.index += 2;
-                    Some(ChordIteratorItem::Transposabel([first, '#'].iter().collect()))
-                },
+            match chars.next() {
+                Some('b') | Some('#') => {
+                    let res = &self.chord[..2];
+                    self.chord = &self.chord[2..];
+                    Some(ChordIteratorItem::Transposabel(res))
+                }
                 _ => {
-                    self.index += 1;
-                    Some(ChordIteratorItem::Transposabel(first.to_string()))
-                },
-            }
-        } else {
-            let mut result = String::new();
-            for c in string.chars() {
-                match c {
-                    'A'|'B'|'C'|'D'|'E'|'F'|'G' => break,
-                    c => result.push_str(&c.to_string()),
+                    let res = &self.chord[..1];
+                    self.chord = &self.chord[1..];
+                    Some(ChordIteratorItem::Transposabel(res))
                 }
             }
-            self.index += result.len();
-            Some(ChordIteratorItem::NotTransposable(result))
+        } else {
+            let mut len = 1;
+            while let Some(c) = chars.next() {
+                match c {
+                    'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' => {
+                        let res = &self.chord[..len];
+                        self.chord = &self.chord[len..];
+                        return Some(ChordIteratorItem::NotTransposable(res));
+                    }
+                    c => len += c.len_utf8(),
+                }
+            }
+            let res = &self.chord[..];
+            self.chord = "";
+            Some(ChordIteratorItem::NotTransposable(res))
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::ChordIteratorItem::Transposabel as T;
     use super::ChordIteratorItem::NotTransposable as N;
+    use super::ChordIteratorItem::Transposabel as T;
+    use super::*;
 
     #[test]
     fn asci() {
         let mut iter = ChordIterator::new("Ab/Eb A#m79 ADb");
-        assert_eq!(iter.next(), Some(T("Ab".to_string())));
-        assert_eq!(iter.next(), Some(N("/".to_string())));
-        assert_eq!(iter.next(), Some(T("Eb".to_string())));
-        assert_eq!(iter.next(), Some(N(" ".to_string())));
-        assert_eq!(iter.next(), Some(T("A#".to_string())));
-        assert_eq!(iter.next(), Some(N("m79 ".to_string())));
-        assert_eq!(iter.next(), Some(T("A".to_string())));
-        assert_eq!(iter.next(), Some(T("Db".to_string())));
+        assert_eq!(iter.next(), Some(T("Ab")));
+        assert_eq!(iter.next(), Some(N("/")));
+        assert_eq!(iter.next(), Some(T("Eb")));
+        assert_eq!(iter.next(), Some(N(" ")));
+        assert_eq!(iter.next(), Some(T("A#")));
+        assert_eq!(iter.next(), Some(N("m79 ")));
+        assert_eq!(iter.next(), Some(T("A")));
+        assert_eq!(iter.next(), Some(T("Db")));
         assert_eq!(iter.next(), None);
     }
 
     #[test]
     fn unicode() {
         let mut iter = ChordIterator::new(" ?ßF#HäÖA");
-        assert_eq!(iter.next(), Some(N(" ?ß".to_string())));
-        assert_eq!(iter.next(), Some(T("F#".to_string())));
-        assert_eq!(iter.next(), Some(N("HäÖ".to_string())));
-        assert_eq!(iter.next(), Some(T("A".to_string())));
+        assert_eq!(iter.next(), Some(N(" ?ß")));
+        assert_eq!(iter.next(), Some(T("F#")));
+        assert_eq!(iter.next(), Some(N("HäÖ")));
+        assert_eq!(iter.next(), Some(T("A")));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn empty() {
+        let mut iter = ChordIterator::new("");
         assert_eq!(iter.next(), None);
     }
 }
