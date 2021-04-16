@@ -1,8 +1,10 @@
+#[derive(Debug, Clone, PartialEq)]
 pub enum ChordIteratorItem {
     Transposabel(String),
     NotTransposable(String),
 }
 
+#[derive(Debug, Clone)]
 pub struct ChordIterator {
     chord: String,
     index: usize,
@@ -53,5 +55,36 @@ impl Iterator for ChordIterator {
             self.index += result.len();
             Some(ChordIteratorItem::NotTransposable(result))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::ChordIteratorItem::Transposabel as T;
+    use super::ChordIteratorItem::NotTransposable as N;
+
+    #[test]
+    fn asci() {
+        let mut iter = ChordIterator::new("Ab/Eb A#m79 ADb");
+        assert_eq!(iter.next(), Some(T("Ab".to_string())));
+        assert_eq!(iter.next(), Some(N("/".to_string())));
+        assert_eq!(iter.next(), Some(T("Eb".to_string())));
+        assert_eq!(iter.next(), Some(N(" ".to_string())));
+        assert_eq!(iter.next(), Some(T("A#".to_string())));
+        assert_eq!(iter.next(), Some(N("m79 ".to_string())));
+        assert_eq!(iter.next(), Some(T("A".to_string())));
+        assert_eq!(iter.next(), Some(T("Db".to_string())));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn unicode() {
+        let mut iter = ChordIterator::new(" ?ßF#HäÖA");
+        assert_eq!(iter.next(), Some(N(" ?ß".to_string())));
+        assert_eq!(iter.next(), Some(T("F#".to_string())));
+        assert_eq!(iter.next(), Some(N("HäÖ".to_string())));
+        assert_eq!(iter.next(), Some(T("A".to_string())));
+        assert_eq!(iter.next(), None);
     }
 }
