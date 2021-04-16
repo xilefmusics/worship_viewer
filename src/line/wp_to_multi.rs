@@ -16,7 +16,8 @@ pub fn wp_to_multi(line: &wp::Line) -> Vec<multi::Line> {
             for item in wp::LineIterator::new(text_chord_trans) {
                 match item {
                     wp::LineIteratorItem::Chord(c) => {
-                        for _ in 0..(new_text_len-new_chord_len) {
+                        let spaces = std::cmp::max(0, new_text_len as i32 - new_chord_len as i32) as usize;
+                        for _ in 0..spaces {
                             chord.push_str(" ");
                         }
                         chord.push_str(&c);
