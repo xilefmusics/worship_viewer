@@ -12,7 +12,7 @@ pub struct LineIterator<'a> {
 
 impl<'a> LineIterator<'a> {
     pub fn new(line: &'a str) -> Self {
-        LineIterator{line: line.trim()}
+        LineIterator { line: line.trim() }
     }
 }
 
@@ -31,7 +31,7 @@ impl<'a> Iterator for LineIterator<'a> {
         if self.line.starts_with('[') {
             if let Some(end_idx) = self.line.find("]") {
                 let res = &self.line[1..end_idx];
-                self.line = &self.line[end_idx+1..];
+                self.line = &self.line[end_idx + 1..];
                 return Some(LineIteratorItem::Chord(res));
             }
         }
@@ -44,7 +44,10 @@ impl<'a> Iterator for LineIterator<'a> {
         }
 
         // Text
-        let end_idx = std::cmp::min(self.line.find("[").unwrap_or(len), self.line.find("&").unwrap_or(len));
+        let end_idx = std::cmp::min(
+            self.line.find("[").unwrap_or(len),
+            self.line.find("&").unwrap_or(len),
+        );
         let mut res = &self.line[..end_idx];
         if let Some(_) = self.line.find("&") {
             res = res.trim_end();
@@ -56,8 +59,8 @@ impl<'a> Iterator for LineIterator<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::LineIteratorItem::{Chord, Text, Translation};
+    use super::*;
 
     #[test]
     fn empty() {
@@ -129,5 +132,4 @@ mod tests {
         assert_eq!(iter.next(), Some(Translation("ö")));
         assert_eq!(iter.next(), None);
     }
-
 }
