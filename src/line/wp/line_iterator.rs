@@ -49,10 +49,13 @@ impl<'a> Iterator for LineIterator<'a> {
             self.line.find("&").unwrap_or(len),
         );
         let mut res = &self.line[..end_idx];
-        if let Some(_) = self.line.find("&") {
+        if let None = self.line.find("[") {
             res = res.trim_end();
         }
         self.line = &self.line[end_idx..];
+        if res.len() == 0 {
+            return self.next();
+        }
         Some(LineIteratorItem::Text(res))
     }
 }
@@ -116,6 +119,19 @@ mod tests {
         assert_eq!(iter.next(), Some(Translation("Hallo")));
         assert_eq!(iter.next(), None);
     }
+
+    #[test]
+    fn text_chord_translation_with_spaces() {
+        let mut iter = LineIterator::new("[F6/A]This [G7/B]is a line[C] & Das ist eine Zeile");
+        assert_eq!(iter.next(), Some(Chord("F6/A")));
+        assert_eq!(iter.next(), Some(Text("This ")));
+        assert_eq!(iter.next(), Some(Chord("G7/B")));
+        assert_eq!(iter.next(), Some(Text("is a line")));
+        assert_eq!(iter.next(), Some(Chord("C")));
+        assert_eq!(iter.next(), Some(Translation("Das ist eine Zeile")));
+        assert_eq!(iter.next(), None);
+    }
+
 
     #[test]
     fn trailing_spaces() {
