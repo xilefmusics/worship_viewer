@@ -1,2 +1,2 @@
 mod line;
-pub use line::Line::{self, Keyword, Chord, Text, Translation};
+pub use line::Line::{self, Chord, Keyword, Text, Translation};

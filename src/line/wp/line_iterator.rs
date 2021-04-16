@@ -132,7 +132,6 @@ mod tests {
         assert_eq!(iter.next(), None);
     }
 
-
     #[test]
     fn trailing_spaces() {
         let mut iter = LineIterator::new(" Hello ");

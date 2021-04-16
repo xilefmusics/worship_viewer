@@ -1,16 +1,15 @@
 extern crate pancurses;
-use pancurses::{initscr, endwin};
-use pancurses::{Window, Input};
-use pancurses::{A_NORMAL, A_BOLD};
-use pancurses::{COLOR_RED, COLOR_GREEN, COLOR_CYAN, COLOR_WHITE};
+use pancurses::{endwin, initscr};
+use pancurses::{Input, Window};
+use pancurses::{A_BOLD, A_NORMAL};
+use pancurses::{COLOR_CYAN, COLOR_GREEN, COLOR_RED, COLOR_WHITE};
 
-use std::{env, fs};
 use std::path::PathBuf;
+use std::{env, fs};
 
-use super::Error;
-use super::super::line::{IterExtToWp, IterExtToMulti, IterExtTranspose, Multiline};
 use super::super::line::wp;
-
+use super::super::line::{IterExtToMulti, IterExtToWp, IterExtTranspose, Multiline};
+use super::Error;
 
 struct Config {
     folder: String,
@@ -22,7 +21,7 @@ impl Config {
             Some(folder) => folder,
             None => String::from("."),
         };
-        Ok(Self{folder})
+        Ok(Self { folder })
     }
 }
 
@@ -33,7 +32,7 @@ struct Song {
 }
 
 impl Song {
-    fn load_vec(config: &Config) -> Result<Vec<Self>, Error>{
+    fn load_vec(config: &Config) -> Result<Vec<Self>, Error> {
         let mut songs = fs::read_dir(&config.folder)
             .map_err(|_| Error::IO)?
             .map(|res| res.map(|e| e.path()))
@@ -43,22 +42,21 @@ impl Song {
                     .map_err(|_| Error::IO)?
                     .lines()
                     .to_wp()
-                    .find(|line| {
-                        match line {
-                            wp::Line::Directive((key, _)) => match key.as_str() {
-                                "title" => true,
-                                _ => false,
-                            },
+                    .find(|line| match line {
+                        wp::Line::Directive((key, _)) => match key.as_str() {
+                            "title" => true,
                             _ => false,
-                        }
+                        },
+                        _ => false,
                     });
 
                 let title = match line {
                     Some(wp::Line::Directive((_, title))) => title,
                     _ => String::new(),
                 };
-                Ok(Song{title, path})
-        }).collect::<Result<Vec<Song>, Error>>()?;
+                Ok(Song { title, path })
+            })
+            .collect::<Result<Vec<Song>, Error>>()?;
 
         songs.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
         Ok(songs)
@@ -75,22 +73,33 @@ struct Sidebar {
 impl Sidebar {
     fn new(parent_window: &Window, width: i32, songs: Vec<Song>) -> Result<Self, Error> {
         let current_index = 0;
-        let window = parent_window.subwin(parent_window.get_max_y(), width, 0, 0).map_err(|_| Error::Tui)?;
+        let window = parent_window
+            .subwin(parent_window.get_max_y(), width, 0, 0)
+            .map_err(|_| Error::Tui)?;
         let width = width as usize;
         window.draw_box(0, 0);
         window.keypad(true);
-        Ok(Self{current_index, window, songs, width})
+        Ok(Self {
+            current_index,
+            window,
+            songs,
+            width,
+        })
     }
 
     fn render(&self) {
-        for (idx, Song{path , title}) in self.songs.iter().enumerate() {
+        for (idx, Song { path, title }) in self.songs.iter().enumerate() {
             if idx == self.current_index {
                 self.window.attrset(A_BOLD);
                 self.window.color_set(4);
             }
-            self.window.mvprintw((idx+1) as i32, 1, " ");
+            self.window.mvprintw((idx + 1) as i32, 1, " ");
             self.window.printw(title);
-            self.window.printw(&std::iter::repeat(" ").take(self.width-3-title.chars().count()).collect::<String>());
+            self.window.printw(
+                &std::iter::repeat(" ")
+                    .take(self.width - 3 - title.chars().count())
+                    .collect::<String>(),
+            );
 
             if idx == self.current_index {
                 self.window.attrset(A_NORMAL);
@@ -111,11 +120,11 @@ impl Sidebar {
     }
 
     fn prev(&mut self) -> Song {
-        self.current_index = (self.current_index as i32 - 1).rem_euclid(self.songs.len() as i32) as usize;
+        self.current_index =
+            (self.current_index as i32 - 1).rem_euclid(self.songs.len() as i32) as usize;
         self.render();
         self.get_song()
     }
-
 }
 
 struct SongView {
@@ -126,11 +135,19 @@ struct SongView {
 
 impl SongView {
     fn new(parent_window: &Window, x_start: i32) -> Result<Self, Error> {
-        let window = parent_window.subwin(parent_window.get_max_y(), parent_window.get_max_x()-x_start, 0, x_start).map_err(|_| Error::Tui)?; let song = None;
+        let window = parent_window
+            .subwin(
+                parent_window.get_max_y(),
+                parent_window.get_max_x() - x_start,
+                0,
+                x_start,
+            )
+            .map_err(|_| Error::Tui)?;
+        let song = None;
         let key = String::from("Self");
         window.draw_box(0, 0);
         window.keypad(true);
-        Ok(Self{window, song, key})
+        Ok(Self { window, song, key })
     }
 
     fn set_key(&mut self, key: &str) -> Result<(), Error> {
@@ -141,7 +158,12 @@ impl SongView {
         if self.key == "Self" {
             return Ok(());
         }
-        self.key = self.key.chars().take(1).chain("b".chars()).collect::<String>();
+        self.key = self
+            .key
+            .chars()
+            .take(1)
+            .chain("b".chars())
+            .collect::<String>();
         self.render()
     }
 
@@ -149,7 +171,12 @@ impl SongView {
         if self.key == "Self" {
             return Ok(());
         }
-        self.key = self.key.chars().take(1).chain("#".chars()).collect::<String>();
+        self.key = self
+            .key
+            .chars()
+            .take(1)
+            .chain("#".chars())
+            .collect::<String>();
         self.render()
     }
 
@@ -160,50 +187,46 @@ impl SongView {
             let mut idx = 0;
             let mut first_section = true;
             fs::read_to_string(&song.path)
-                .map_err(|_| {
-                    Error::IO
-                })?
+                .map_err(|_| Error::IO)?
                 .lines()
                 .to_wp()
                 .transpose(&self.key)
                 .to_multi()
-                .for_each(|line| {
-                    match line {
-                        Multiline::Keyword(keyword) => {
-                            if first_section {
-                                first_section = false;
-                            } else {
-                                idx += 1;
-                            }
-                            self.window.attrset(A_BOLD);
-                            self.window.color_set(1);
-                            self.window.mvprintw(idx+1, 2, keyword);
-                            self.window.color_set(0);
-                            self.window.attrset(A_NORMAL);
+                .for_each(|line| match line {
+                    Multiline::Keyword(keyword) => {
+                        if first_section {
+                            first_section = false;
+                        } else {
                             idx += 1;
-                        },
+                        }
+                        self.window.attrset(A_BOLD);
+                        self.window.color_set(1);
+                        self.window.mvprintw(idx + 1, 2, keyword);
+                        self.window.color_set(0);
+                        self.window.attrset(A_NORMAL);
+                        idx += 1;
+                    }
 
-                        Multiline::Chord(chord) => {
-                            self.window.attrset(A_BOLD);
-                            self.window.color_set(2);
-                            self.window.mvprintw(idx+1, 4, chord);
-                            self.window.color_set(0);
-                            self.window.attrset(A_NORMAL);
-                            idx += 1;
-                        },
-                        Multiline::Text(text) => {
-                            self.window.color_set(2);
-                            self.window.mvprintw(idx+1, 4, text);
-                            self.window.color_set(0);
-                            idx += 1;
-                        },
+                    Multiline::Chord(chord) => {
+                        self.window.attrset(A_BOLD);
+                        self.window.color_set(2);
+                        self.window.mvprintw(idx + 1, 4, chord);
+                        self.window.color_set(0);
+                        self.window.attrset(A_NORMAL);
+                        idx += 1;
+                    }
+                    Multiline::Text(text) => {
+                        self.window.color_set(2);
+                        self.window.mvprintw(idx + 1, 4, text);
+                        self.window.color_set(0);
+                        idx += 1;
+                    }
 
-                        Multiline::Translation(translation) => {
-                            self.window.color_set(3);
-                            self.window.mvprintw(idx+1, 4, translation);
-                            self.window.color_set(0);
-                            idx += 1;
-                        },
+                    Multiline::Translation(translation) => {
+                        self.window.color_set(3);
+                        self.window.mvprintw(idx + 1, 4, translation);
+                        self.window.color_set(0);
+                        idx += 1;
                     }
                 });
             self.window.refresh();
@@ -225,7 +248,6 @@ pub fn tui(args: env::Args) -> Result<(), Error> {
     endwin();
     result
 }
-
 
 pub fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
     let config = Config::new(args)?;
@@ -249,12 +271,12 @@ pub fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
 
     loop {
         match window.getch() {
-            Some(Input::KeyDown)|Some(Input::Character('j')) => {
+            Some(Input::KeyDown) | Some(Input::Character('j')) => {
                 song_view.load_song(sidebar.next())?;
-            },
-            Some(Input::KeyUp)|Some(Input::Character('k')) => {
+            }
+            Some(Input::KeyUp) | Some(Input::Character('k')) => {
                 song_view.load_song(sidebar.prev())?;
-            },
+            }
             Some(Input::Character('q')) => break,
             Some(Input::Character('A')) => song_view.set_key("A")?,
             Some(Input::Character('B')) => song_view.set_key("B")?,
@@ -268,7 +290,7 @@ pub fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
             Some(Input::Character('r')) => song_view.set_key("Self")?,
             _ => (),
         }
-    };
+    }
 
     Ok(())
 }

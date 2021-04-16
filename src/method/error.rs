@@ -21,7 +21,6 @@ impl fmt::Display for Error {
             Self::Tui => write!(f, "Some Tui rendering error occoured"),
             Self::NoSong => write!(f, "Called render on SongView with no song choosen"),
         }
-
     }
 }
 
