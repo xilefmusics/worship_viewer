@@ -7,8 +7,7 @@ use pancurses::{COLOR_CYAN, COLOR_GREEN, COLOR_RED, COLOR_WHITE};
 use std::path::PathBuf;
 use std::{env, fs};
 
-use super::super::line::wp;
-use super::super::line::{IterExtToMulti, IterExtToWp, IterExtTranspose, Multiline};
+use super::super::line::{IterExtToMulti, IterExtToWp, IterExtTranspose, Multiline, WpLine};
 use super::Error;
 
 struct Config {
@@ -43,7 +42,7 @@ impl Song {
                     .lines()
                     .to_wp()
                     .find(|line| match line {
-                        wp::Line::Directive((key, _)) => match key.as_str() {
+                        WpLine::Directive((key, _)) => match key.as_str() {
                             "title" => true,
                             _ => false,
                         },
@@ -51,7 +50,7 @@ impl Song {
                     });
 
                 let title = match line {
-                    Some(wp::Line::Directive((_, title))) => title,
+                    Some(WpLine::Directive((_, title))) => title,
                     _ => String::new(),
                 };
                 Ok(Song { title, path })
