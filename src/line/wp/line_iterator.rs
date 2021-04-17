@@ -21,7 +21,6 @@ impl<'a> Iterator for LineIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let len = self.line.len();
-
         // End
         if len <= 0 {
             return None;
@@ -34,6 +33,12 @@ impl<'a> Iterator for LineIterator<'a> {
                 self.line = &self.line[end_idx + 1..];
                 return Some(LineIteratorItem::Chord(res));
             }
+
+            // interprete non-closing Chord as Text
+            let end_idx = self.line.find("&").unwrap_or(len);
+            let res = &self.line[0..end_idx];
+            self.line = &self.line[end_idx..];
+            return Some(LineIteratorItem::Text(res));
         }
 
         // Translation
@@ -145,6 +150,14 @@ mod tests {
         assert_eq!(iter.next(), Some(Text("ß")));
         assert_eq!(iter.next(), Some(Chord("ä")));
         assert_eq!(iter.next(), Some(Translation("ö")));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn not_closing_chord() {
+        let mut iter = LineIterator::new("Before[ChordAfter");
+        assert_eq!(iter.next(), Some(Text("Before")));
+        assert_eq!(iter.next(), Some(Text("[ChordAfter")));
         assert_eq!(iter.next(), None);
     }
 }
