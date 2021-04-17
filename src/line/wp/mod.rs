@@ -13,7 +13,7 @@ pub use line_iterator::{
 mod chord_iterator;
 pub use chord_iterator::{
     ChordIterator,
-    ChordIteratorItem::{self, NotTransposable, Transposabel},
+    ChordIteratorItem::{self, NotTransposable, Transposable},
 };
 
 mod from_str;

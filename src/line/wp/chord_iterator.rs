@@ -1,6 +1,6 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum ChordIteratorItem<'a> {
-    Transposabel(&'a str),
+    Transposable(&'a str),
     NotTransposable(&'a str),
 }
 
@@ -34,12 +34,12 @@ impl<'a> Iterator for ChordIterator<'a> {
                 Some('b') | Some('#') => {
                     let res = &self.chord[..2];
                     self.chord = &self.chord[2..];
-                    Some(ChordIteratorItem::Transposabel(res))
+                    Some(ChordIteratorItem::Transposable(res))
                 }
                 _ => {
                     let res = &self.chord[..1];
                     self.chord = &self.chord[1..];
-                    Some(ChordIteratorItem::Transposabel(res))
+                    Some(ChordIteratorItem::Transposable(res))
                 }
             }
         } else {
@@ -64,7 +64,7 @@ impl<'a> Iterator for ChordIterator<'a> {
 #[cfg(test)]
 mod tests {
     use super::ChordIteratorItem::NotTransposable as N;
-    use super::ChordIteratorItem::Transposabel as T;
+    use super::ChordIteratorItem::Transposable as T;
     use super::*;
 
     #[test]
