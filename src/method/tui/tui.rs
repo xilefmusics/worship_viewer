@@ -6,7 +6,7 @@ use std::env;
 
 use super::super::Error;
 
-use super::{Config, Setlist, Sidebar, Song, SongView};
+use super::{Config, PanelSong, Setlist, Song};
 
 pub fn tui(args: env::Args) -> Result<(), Error> {
     let window = initscr();
@@ -33,32 +33,15 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
     pancurses::init_pair(3, COLOR_CYAN, -1);
     pancurses::init_pair(4, COLOR_WHITE, COLOR_GREEN);
 
-    let mut song_view = SongView::new(&window, 40)?;
-    let mut sidebar = Sidebar::new(&window, 40, songs)?;
-
-    sidebar.render();
-    song_view.load_song(sidebar.get_song())?;
+    let mut panel_song = PanelSong::new(&window, 40, songs)?;
 
     loop {
         match window.getch() {
-            Some(Input::KeyDown) | Some(Input::Character('j')) | Some(Input::Character(' ')) => {
-                song_view.load_song(sidebar.next())?;
-            }
-            Some(Input::KeyUp) | Some(Input::Character('k')) => {
-                song_view.load_song(sidebar.prev())?;
-            }
             Some(Input::Character('q')) => break,
-            Some(Input::Character('A')) => song_view.set_key("A")?,
-            Some(Input::Character('B')) => song_view.set_key("B")?,
-            Some(Input::Character('C')) => song_view.set_key("C")?,
-            Some(Input::Character('D')) => song_view.set_key("D")?,
-            Some(Input::Character('E')) => song_view.set_key("E")?,
-            Some(Input::Character('F')) => song_view.set_key("F")?,
-            Some(Input::Character('G')) => song_view.set_key("G")?,
-            Some(Input::Character('b')) => song_view.set_b()?,
-            Some(Input::Character('#')) => song_view.set_sharp()?,
-            Some(Input::Character('r')) => song_view.set_key("Self")?,
-            _ => (),
+            Some(Input::KeyResize) => {
+                pancurses::resize_term(0, 0);
+            }
+            input => panel_song.handle_input(input)?,
         }
     }
 
