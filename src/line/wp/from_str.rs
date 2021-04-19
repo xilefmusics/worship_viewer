@@ -1,4 +1,4 @@
-use super::{Directive, Empty, Line, TextChordTrans};
+use super::{Directive, Line, TextChordTrans};
 
 pub fn from_str(string: &str) -> Line {
     let string = string.trim();

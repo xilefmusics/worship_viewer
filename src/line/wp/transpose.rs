@@ -44,14 +44,12 @@ fn transpose_chord_part(chord: &str, halftones: i8, scale: usize) -> &str {
 }
 
 fn transpose_chord(chord: &str, halftones: i8, scale: usize) -> String {
-    let mut chord_new = String::new();
-    for part in ChordIterator::new(chord) {
-        match part {
-            Transposable(t) => chord_new.push_str(transpose_chord_part(t, halftones, scale)),
-            NotTransposable(t) => chord_new.push_str(t),
-        }
-    }
-    chord_new
+    ChordIterator::new(chord)
+        .map(|item| match item {
+            Transposable(item) => transpose_chord_part(item, halftones, scale),
+            NotTransposable(item) => item,
+        })
+        .collect()
 }
 
 fn transpose_line(line: Line, halftones: i8, scale: usize) -> Line {

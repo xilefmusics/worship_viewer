@@ -35,6 +35,13 @@ impl Song {
         let mut songs = fs::read_dir(&config.folder)
             .map_err(|_| Error::IO)?
             .map(|res| res.map(|e| e.path()))
+            .filter(|path| {
+                if let Ok(path) = path {
+                    !path.is_dir()
+                } else {
+                    false
+                }
+            })
             .map(|path| {
                 let path = path.map_err(|_| Error::IO)?.clone();
                 let line = fs::read_to_string(&path)
@@ -87,7 +94,7 @@ impl Sidebar {
     }
 
     fn render(&self) {
-        for (idx, Song { path, title }) in self.songs.iter().enumerate() {
+        for (idx, Song { title, .. }) in self.songs.iter().enumerate() {
             if idx == self.current_index {
                 self.window.attrset(A_BOLD);
                 self.window.color_set(4);
