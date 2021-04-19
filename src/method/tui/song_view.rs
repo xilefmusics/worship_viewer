@@ -68,11 +68,15 @@ impl SongView {
         if let Some(song) = &self.song {
             let mut idx = 0;
             let mut first_section = true;
+            let key = match self.key.as_str() {
+                "Self" => song.key.as_str(),
+                key => key,
+            };
             fs::read_to_string(&song.path)
                 .map_err(|_| Error::IO)?
                 .lines()
                 .to_wp()
-                .transpose(&self.key)
+                .transpose(key)
                 .to_multi()
                 .for_each(|line| match line {
                     Multiline::Keyword(keyword) => {

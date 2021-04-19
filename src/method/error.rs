@@ -4,6 +4,7 @@ use std::fmt;
 #[derive(Debug, Clone)]
 pub enum Error {
     ParseArgs(String),
+    ParseSetlist(String),
     FileNotFound(String),
     IO,
     Tui,
@@ -15,6 +16,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::ParseArgs(message) => write!(f, "{}", message),
+            Self::ParseSetlist(message) => write!(f, "Parsing setlist {}", message),
             Self::FileNotFound(file) => write!(f, "File not found ({})", file),
             Self::Other(message) => write!(f, "{}", message),
             Self::IO => write!(f, "Some IO error occoured"),

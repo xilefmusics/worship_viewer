@@ -6,7 +6,7 @@ use std::env;
 
 use super::super::Error;
 
-use super::{Config, Sidebar, Song, SongView};
+use super::{Config, Setlist, Sidebar, Song, SongView};
 
 pub fn tui(args: env::Args) -> Result<(), Error> {
     let window = initscr();
@@ -17,7 +17,11 @@ pub fn tui(args: env::Args) -> Result<(), Error> {
 
 fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
     let config = Config::new(args)?;
-    let songs = Song::load_vec(&config)?;
+
+    let songs = match config.setlist_path {
+        Some(path) => Setlist::load(path)?.songs(),
+        None => Song::load_all(&config.root_path),
+    }?;
 
     pancurses::noecho();
     pancurses::curs_set(0);
@@ -37,7 +41,7 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
 
     loop {
         match window.getch() {
-            Some(Input::KeyDown) | Some(Input::Character('j')) => {
+            Some(Input::KeyDown) | Some(Input::Character('j')) | Some(Input::Character(' ')) => {
                 song_view.load_song(sidebar.next())?;
             }
             Some(Input::KeyUp) | Some(Input::Character('k')) => {

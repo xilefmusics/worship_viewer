@@ -5,17 +5,16 @@ use super::super::super::line::{IterExtToWp, WpLine};
 
 use super::super::Error;
 
-use super::Config;
-
 #[derive(Debug, Clone)]
 pub struct Song {
     pub title: String,
+    pub key: String,
     pub path: PathBuf,
 }
 
 impl Song {
-    pub fn load_vec(config: &Config) -> Result<Vec<Self>, Error> {
-        let mut songs = fs::read_dir(&config.folder)
+    pub fn load_all(path: &PathBuf) -> Result<Vec<Self>, Error> {
+        let mut songs = fs::read_dir(path)
             .map_err(|_| Error::IO)?
             .map(|res| res.map(|e| e.path()))
             .filter(|path| {
@@ -43,9 +42,10 @@ impl Song {
                     Some(WpLine::Directive((_, title))) => title,
                     _ => String::new(),
                 };
-                Ok(Song { title, path })
+                let key = "Self".to_string();
+                Ok(Self { title, key, path })
             })
-            .collect::<Result<Vec<Song>, Error>>()?;
+            .collect::<Result<Vec<Self>, Error>>()?;
 
         songs.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
         Ok(songs)
