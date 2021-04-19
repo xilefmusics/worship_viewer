@@ -1,5 +1,6 @@
 /target
+/react/node_modules
 
-testsong.wp
 .gitignore
-.gitignore
+
+react/yarn.lock
