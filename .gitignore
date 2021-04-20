@@ -1,6 +1,10 @@
 /target
 /react/node_modules
 
+react/yarn.lock
+react/package-lock.json
+
 .gitignore
 
-react/yarn.lock
+.gitignore
+.gitignore
