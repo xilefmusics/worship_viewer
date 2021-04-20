@@ -1,9 +1,11 @@
 use std::fs;
 use std::path::PathBuf;
 
-use super::super::line::{IterExtToWp, WpLine};
+use super::super::line::{
+    IterExtToMulti, IterExtToSection, IterExtToWp, IterExtTranspose, Section, WpLine,
+};
 
-use super::Error;
+use super::{Error, SectionSong};
 
 #[derive(Debug, Clone)]
 pub struct Song {
@@ -57,5 +59,18 @@ impl Song {
             .lines()
             .to_wp()
             .collect())
+    }
+
+    pub fn load_section_song(&self, key: &str) -> Result<SectionSong, Error> {
+        let title = self.title.clone();
+        let sections = fs::read_to_string(&self.path)
+            .map_err(|_| Error::IO)?
+            .lines()
+            .to_wp()
+            .transpose(key)
+            .to_multi()
+            .to_section()
+            .collect::<Vec<Section>>();
+        Ok(SectionSong::new(title, sections))
     }
 }
