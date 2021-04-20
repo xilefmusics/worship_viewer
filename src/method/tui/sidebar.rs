@@ -3,7 +3,7 @@ use pancurses::{A_BOLD, A_NORMAL};
 
 use super::super::Error;
 
-use super::Song;
+use super::super::super::song::Song;
 
 pub struct Sidebar {
     current_index: usize,

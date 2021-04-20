@@ -76,11 +76,17 @@ where
 }
 
 pub trait IntoWpToMulti: Iterator {
-    fn to_multi(self) -> std::iter::Flatten<WpToMulti<Self>>
+    fn to_multi_flatten(self) -> std::iter::Flatten<WpToMulti<Self>>
     where
         Self: Sized + Iterator<Item = wp::Line>,
     {
         WpToMulti { iter: self }.flatten()
+    }
+    fn to_multi(self) -> WpToMulti<Self>
+    where
+        Self: Sized + Iterator<Item = wp::Line>,
+    {
+        WpToMulti { iter: self }
     }
 }
 

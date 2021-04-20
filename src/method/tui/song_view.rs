@@ -1,13 +1,10 @@
 use pancurses::Window;
 use pancurses::{A_BOLD, A_NORMAL};
 
-use std::fs;
-
-use super::super::super::line::{IterExtToMulti, IterExtToWp, IterExtTranspose, Multiline};
+use super::super::super::line::{IterExtToMulti, IterExtTranspose, Multiline};
+use super::super::super::song::Song;
 
 use super::super::Error;
-
-use super::Song;
 
 pub struct SongView {
     window: Window,
@@ -72,12 +69,11 @@ impl SongView {
                 "Self" => song.key.as_str(),
                 key => key,
             };
-            fs::read_to_string(&song.path)
+            song.load_lines()
                 .map_err(|_| Error::IO)?
-                .lines()
-                .to_wp()
+                .into_iter()
                 .transpose(key)
-                .to_multi()
+                .to_multi_flatten()
                 .for_each(|line| match line {
                     Multiline::Keyword(keyword) => {
                         if first_section {

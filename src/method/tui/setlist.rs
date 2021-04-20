@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use super::super::Error;
 
-use super::Song;
+use super::super::super::song::Song;
 
 #[derive(Debug, Clone)]
 pub struct Setlist {

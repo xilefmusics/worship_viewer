@@ -9,6 +9,7 @@ fn main() {
         Some(method) => match method.as_str() {
             "show" => method::show(args).unwrap_or_else(|err| eprintln!("Error: {}", err)),
             "tui" => method::tui(args).unwrap_or_else(|err| eprintln!("Error: {}", err)),
+            "server" => method::server(args).unwrap_or_else(|err| eprintln!("Error: {}", err)),
             method => eprintln!("Error: No such method ({})", method),
         },
         None => eprintln!("Error: No method given"),

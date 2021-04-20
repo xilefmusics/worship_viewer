@@ -1,10 +1,5 @@
-extern crate pancurses;
-
 mod config;
 use config::Config;
-
-mod song;
-use song::Song;
 
 mod setlist;
 use setlist::Setlist;

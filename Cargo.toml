@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 pancurses = "0.16"
 rocket = "0.4.7"
+rocket_contrib = "0.4.7"

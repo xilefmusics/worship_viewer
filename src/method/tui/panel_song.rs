@@ -1,7 +1,8 @@
 use pancurses::{Input, Window};
 
+use super::super::super::song::Song;
 use super::super::Error;
-use super::{Sidebar, Song, SongView};
+use super::{Sidebar, SongView};
 
 pub struct PanelSong {
     sidebar: Sidebar,

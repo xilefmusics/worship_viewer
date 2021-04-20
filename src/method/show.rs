@@ -128,7 +128,7 @@ pub fn show(args: env::Args) -> Result<(), Error> {
         .lines()
         .to_wp()
         .transpose(&config.new_key)
-        .to_multi()
+        .to_multi_flatten()
         .for_each(|line| match line {
             Multiline::Keyword(keyword) => {
                 if first_section {
