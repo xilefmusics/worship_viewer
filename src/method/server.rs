@@ -1,5 +1,7 @@
+use rocket::response::NamedFile;
 use rocket::State;
 use rocket_contrib::json::Json;
+use rocket_contrib::serve::StaticFiles;
 
 use std::env;
 use std::path::PathBuf;
@@ -10,24 +12,36 @@ use super::Error;
 
 pub struct Config {
     pub path: PathBuf,
+    pub web_path: PathBuf,
 }
 
 impl Config {
     pub fn new(mut args: env::Args) -> Result<Self, Error> {
         let mut path: Option<String> = None;
+        let mut web_path: Option<String> = None;
         while let Some(arg) = args.next() {
             match arg.as_str() {
+                "-w" => match args.next() {
+                    Some(p) => web_path = Some(p),
+                    None => {
+                        return Err(Error::ParseArgs("No value for option -w given".to_string()))
+                    }
+                },
                 f => path = Some(f.to_string()),
             }
         }
         let path = PathBuf::from(path.unwrap_or(".".to_string()));
-        Ok(Self { path })
+        let web_path = match web_path {
+            Some(web_path) => PathBuf::from(web_path),
+            None => path.join("www"),
+        };
+        Ok(Self { path, web_path })
     }
 }
 
 #[get("/")]
-fn index() -> &'static str {
-    "Hello, world!"
+fn index(config: State<Config>) -> Option<NamedFile> {
+    NamedFile::open(config.web_path.join("index.html")).ok()
 }
 
 #[get("/song/<title>/<key>")]
@@ -56,12 +70,14 @@ fn get_titles(config: State<Config>) -> Result<Json<Vec<String>>, ()> {
 }
 
 pub fn server(args: env::Args) -> Result<(), Error> {
+    let config = Config::new(args)?;
     rocket::ignite()
         .mount(
             "/",
             routes![index, get_song, get_titles, get_song_without_key],
         )
-        .manage(Config::new(args)?)
+        .mount("/static", StaticFiles::from(config.web_path.join("static")))
+        .manage(config)
         .launch();
     Ok(())
 }
