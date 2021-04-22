@@ -7,5 +7,8 @@ pub use tui::tui;
 mod server;
 pub use server::server;
 
+mod ws_console;
+pub use ws_console::ws_console;
+
 mod error;
 pub use error::Error;

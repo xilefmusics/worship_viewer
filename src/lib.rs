@@ -3,6 +3,7 @@
 extern crate rocket;
 extern crate rocket_contrib;
 extern crate serde;
+extern crate ws;
 
 extern crate pancurses;
 

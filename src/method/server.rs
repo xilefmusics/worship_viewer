@@ -3,8 +3,11 @@ use rocket::State;
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
+use ws::listen;
+
 use std::env;
 use std::path::PathBuf;
+use std::thread;
 
 use crate::song::{SectionSong, Song};
 
@@ -71,6 +74,13 @@ fn get_titles(config: State<Config>) -> Result<Json<Vec<String>>, ()> {
 
 pub fn server(args: env::Args) -> Result<(), Error> {
     let config = Config::new(args)?;
+
+    // websocket broadcaster
+    thread::spawn(|| {
+        listen("0.0.0.0:8001", |out| move |msg| out.broadcast(msg)).unwrap();
+    });
+
+    // REST API
     rocket::ignite()
         .mount(
             "/",

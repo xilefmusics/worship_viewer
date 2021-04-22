@@ -10,6 +10,9 @@ fn main() {
             "show" => method::show(args).unwrap_or_else(|err| eprintln!("Error: {}", err)),
             "tui" => method::tui(args).unwrap_or_else(|err| eprintln!("Error: {}", err)),
             "server" => method::server(args).unwrap_or_else(|err| eprintln!("Error: {}", err)),
+            "ws_console" => {
+                method::ws_console(args).unwrap_or_else(|err| eprintln!("Error: {}", err))
+            }
             method => eprintln!("Error: No such method ({})", method),
         },
         None => eprintln!("Error: No method given"),

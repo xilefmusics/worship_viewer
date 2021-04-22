@@ -7,6 +7,7 @@ pub enum Error {
     ParseSetlist(String),
     FileNotFound(String),
     IO,
+    WS,
     Tui,
     NoSong,
     Other(String),
@@ -20,6 +21,7 @@ impl fmt::Display for Error {
             Self::FileNotFound(file) => write!(f, "File not found ({})", file),
             Self::Other(message) => write!(f, "{}", message),
             Self::IO => write!(f, "Some IO error occoured"),
+            Self::WS => write!(f, "Some web socket error occoured"),
             Self::Tui => write!(f, "Some Tui rendering error occoured"),
             Self::NoSong => write!(f, "Called render on SongView with no song choosen"),
         }
