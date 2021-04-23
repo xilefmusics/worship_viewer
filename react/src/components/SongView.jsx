@@ -1,15 +1,20 @@
-import { Typography, Box } from "@material-ui/core";
-import useStyles from "./style";
+import { Box } from "@material-ui/core";
 
 const SongView = ({ song }) => {
-  const classes = useStyles();
-
-  if (!song) {
+  if (song === null) {
     return null;
   }
 
   return (
-    <div className={classes.SongView}>
+    <div
+      style={{
+        whiteSpace: "pre",
+        height: "100vh",
+        overflow: "auto",
+        paddingLeft: "1em",
+        paddingBottom: "1em",
+      }}
+    >
       {song.sections.map((section, section_idx) => (
         <div key={section_idx}>
           <Box fontFamily="Monospace"> </Box>

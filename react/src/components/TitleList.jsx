@@ -1,11 +1,13 @@
 import { List, ListItem, ListItemText } from "@material-ui/core";
-import useStyles from "./style";
 
 const TitleList = ({ titles, selectTitle, idx }) => {
-  const classes = useStyles();
-
   return (
-    <div className={classes.TitleList}>
+    <div
+      style={{
+        height: "100%",
+        overflow: "auto",
+      }}
+    >
       <List>
         {titles.map((title, title_idx) => (
           <ListItem
