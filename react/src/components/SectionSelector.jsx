@@ -1,6 +1,6 @@
 import { Grid, Card, CardContent, Typography } from "@material-ui/core";
 
-const SectionSelector = ({ song, selectSection }) => {
+const SectionSelector = ({ song, selectSection, clearBeamer }) => {
   if (song === null) {
     return null;
   }
@@ -8,7 +8,10 @@ const SectionSelector = ({ song, selectSection }) => {
   song.sections.forEach((section, idx) => (section.idx = idx));
 
   return (
-    <div style={{ padding: "16px", overflow: "auto", height: "100vh" }}>
+    <div
+      style={{ padding: "16px", overflow: "auto", height: "100vh" }}
+      onDoubleClick={clearBeamer}
+    >
       <Grid container spacing={2} justify="flex-start">
         {song.sections
           .filter(

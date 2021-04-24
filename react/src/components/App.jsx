@@ -4,11 +4,17 @@ import { Grid, CssBaseline } from "@material-ui/core";
 import { MuiThemeProvider, createMuiTheme } from "@material-ui/core/styles";
 
 import { fetchTitles, fetchSong } from "../api";
-import { ws, sendLoadSong, sendDisplaySection } from "../websocket";
+import {
+  ws,
+  sendLoadSong,
+  sendDisplaySection,
+  sendClearBeamer,
+} from "../websocket";
 
 import TitleList from "./TitleList";
 import SongView from "./SongView";
 import SectionSelector from "./SectionSelector";
+import Beamer from "./Beamer";
 
 const appTheme = createMuiTheme({
   palette: {
@@ -21,17 +27,22 @@ class App extends React.Component {
     super(props);
     this.state = {
       title_idx: 0,
+      section_idx: null,
       titles: [],
       song: null,
       key: null,
-      display: "SectionSelector",
-      //display: "SongView",
+      display: "SongView",
     };
 
     ws.addEventListener("message", (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === "load song") {
         this.loadSong(msg.title, null, msg.key);
+        this.displaySection(null);
+      } else if (msg.type === "display section") {
+        this.displaySection(msg.idx);
+      } else if (msg.type === "clear beamer") {
+        this.displaySection(null);
       }
     });
 
@@ -58,8 +69,16 @@ class App extends React.Component {
         this.setDisplay("SongView");
       } else if (e.key === "2") {
         this.setDisplay("SectionSelector");
+      } else if (e.key === "3") {
+        this.setDisplay("Beamer");
       }
     };
+  }
+
+  displaySection(section_idx) {
+    this.setState(() => ({
+      section_idx: section_idx,
+    }));
   }
 
   setDisplay(display) {
@@ -126,28 +145,38 @@ class App extends React.Component {
       <MuiThemeProvider theme={appTheme}>
         <CssBaseline />
         <div>
-          <Grid container>
-            <Grid item style={{ width: "20vw", height: "100vh" }}>
-              <TitleList
-                titles={this.state.titles}
-                idx={this.state.title_idx}
-                selectTitle={(title) => sendLoadSong(title, null)}
-              />
-            </Grid>
-            <Grid item style={{ width: "80vw", height: "100vh" }}>
-              {this.state.display === "SongView" && (
-                <SongView song={this.state.song} />
-              )}
-              {this.state.display === "SectionSelector" && (
-                <SectionSelector
-                  song={this.state.song}
-                  selectSection={(idx) =>
-                    sendDisplaySection(this.state.song.title, idx)
-                  }
+          {this.state.display !== "Beamer" && (
+            <Grid container>
+              <Grid item style={{ width: "20vw", height: "100vh" }}>
+                <TitleList
+                  titles={this.state.titles}
+                  idx={this.state.title_idx}
+                  selectTitle={(title) => sendLoadSong(title, null)}
                 />
-              )}
+              </Grid>
+              <Grid item style={{ width: "80vw", height: "100vh" }}>
+                {this.state.display === "SongView" && (
+                  <SongView song={this.state.song} />
+                )}
+                {this.state.display === "SectionSelector" && (
+                  <SectionSelector
+                    song={this.state.song}
+                    selectSection={(idx) =>
+                      sendDisplaySection(this.state.song.title, idx)
+                    }
+                    clearBeamer={sendClearBeamer}
+                  />
+                )}
+              </Grid>
             </Grid>
-          </Grid>
+          )}
+
+          {this.state.display === "Beamer" && (
+            <Beamer
+              section={this.state.song.sections[this.state.section_idx]}
+              title={this.state.song.title}
+            />
+          )}
         </div>
       </MuiThemeProvider>
     );

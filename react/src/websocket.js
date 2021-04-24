@@ -23,4 +23,12 @@ const sendDisplaySection = (title, idx) => {
   );
 };
 
-export { ws, sendLoadSong, sendDisplaySection };
+const sendClearBeamer = () => {
+  ws.send(
+    JSON.stringify({
+      type: "clear beamer",
+    })
+  );
+};
+
+export { ws, sendLoadSong, sendDisplaySection, sendClearBeamer };
