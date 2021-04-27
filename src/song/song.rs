@@ -65,6 +65,32 @@ impl Song {
         self.lines.clone()
     }
 
+    pub fn transpose(&self, key: String) -> Self {
+        let title = self.title.clone();
+        let lines = self
+            .lines()
+            .into_iter()
+            .transpose(&key)
+            .map(|line| {
+                if let WpLine::Directive((k, _)) = &line {
+                    match k.as_str() {
+                        "key" => WpLine::Directive(("key".to_string(), key.clone())),
+                        _ => line,
+                    }
+                } else {
+                    line
+                }
+            })
+            .collect::<Vec<WpLine>>();
+        let path = self.path.clone();
+        Self {
+            title,
+            lines,
+            path,
+            key,
+        }
+    }
+
     pub fn to_section_song(&self, key: &str) -> Result<SectionSong, Error> {
         let title = self.title.clone();
         let sections = self

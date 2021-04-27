@@ -3,7 +3,6 @@ use std::path::PathBuf;
 
 use super::super::Error;
 
-use crate::line::WpLine;
 use crate::song::Song;
 
 #[derive(Debug, Clone)]
@@ -47,31 +46,24 @@ impl Setlist {
         Ok(Self { title, path })
     }
 
-    pub fn songs(&self) -> Result<Vec<Song>, Error> {
+    pub fn songs(&self, songs: &Vec<Song>) -> Result<Vec<Song>, Error> {
         fs::read_to_string(&self.path)
             .map_err(|_| Error::IO)?
             .lines()
             .map(|content| {
                 let mut iter = content.split(";");
-                let title: String = match iter.next() {
-                    Some(title) => Ok(title.to_string()),
-                    None => Err(Error::ParseSetlist("no title".to_string())),
-                }?;
-                let path = match iter.next() {
-                    Some(path) => Ok(PathBuf::from(path)),
-                    None => Err(Error::ParseSetlist("no path".to_string())),
-                }?;
+                let title = iter
+                    .next()
+                    .ok_or(Error::ParseSetlist("no title".to_string()))?;
                 let key: String = iter
                     .next()
                     .and_then(|key| Some(key.to_string()))
                     .unwrap_or("Self".to_string());
-                let lines: Vec<WpLine> = Vec::new();
-                Ok(Song {
-                    title,
-                    key,
-                    path,
-                    lines,
-                })
+                Ok(songs
+                    .iter()
+                    .find(|song| song.title == title)
+                    .ok_or(Error::ParseSetlist("Song not found".to_string()))?
+                    .transpose(key))
             })
             .collect::<Result<Vec<Song>, Error>>()
     }

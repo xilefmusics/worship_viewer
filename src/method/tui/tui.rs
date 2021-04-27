@@ -19,11 +19,12 @@ pub fn tui(args: env::Args) -> Result<(), Error> {
 
 fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
     let config = Config::new(args)?;
+    let songs_all = Song::load_all(&config.root_path).map_err(|_| Error::IO)?;
 
     let songs = match config.setlist_path {
-        Some(path) => Setlist::load(path)?.songs(),
-        None => Song::load_all(&config.root_path).map_err(|_| Error::IO),
-    }?;
+        Some(path) => Setlist::load(path)?.songs(&songs_all)?,
+        None => songs_all,
+    };
 
     pancurses::noecho();
     pancurses::curs_set(0);
