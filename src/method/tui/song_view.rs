@@ -69,8 +69,7 @@ impl SongView {
                 "Self" => song.key.as_str(),
                 key => key,
             };
-            song.load_lines()
-                .map_err(|_| Error::IO)?
+            song.lines()
                 .into_iter()
                 .transpose(key)
                 .to_multi_flatten()

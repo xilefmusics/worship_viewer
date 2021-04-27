@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use super::super::line::{
+use crate::line::{
     IterExtToMulti, IterExtToSection, IterExtToWp, IterExtTranspose, Section, WpLine,
 };
 
@@ -11,62 +11,65 @@ use super::{Error, SectionSong};
 pub struct Song {
     pub title: String,
     pub key: String,
+    pub lines: Vec<WpLine>,
     pub path: PathBuf,
 }
 
 impl Song {
+    pub fn load(path: PathBuf) -> Result<Self, Error> {
+        let mut title: Option<String> = None;
+        let mut key: Option<String> = None;
+
+        let lines = fs::read_to_string(&path)
+            .map_err(|_| Error::IO)?
+            .lines()
+            .to_wp()
+            .map(|line| {
+                if let WpLine::Directive((k, v)) = &line {
+                    match k.as_str() {
+                        "title" => title = Some(v.clone()),
+                        "key" => key = Some(v.clone()),
+                        _ => (),
+                    }
+                }
+                line
+            })
+            .collect::<Vec<WpLine>>();
+
+        let title = title.ok_or(Error::SongParse("No title given".to_string()))?;
+        let key = key.ok_or(Error::SongParse("No key given".to_string()))?;
+        Ok(Self {
+            title,
+            key,
+            lines,
+            path,
+        })
+    }
+
     pub fn load_all(path: &PathBuf) -> Result<Vec<Self>, Error> {
         let mut songs = fs::read_dir(path)
             .map_err(|_| Error::IO)?
             .map(|res| res.map(|e| e.path()))
-            .filter(|path| {
-                if let Ok(path) = path {
-                    !path.is_dir()
-                } else {
-                    false
-                }
-            })
-            .map(|path| {
-                let path = path.map_err(|_| Error::IO)?.clone();
-                let line = fs::read_to_string(&path)
-                    .map_err(|_| Error::IO)?
-                    .lines()
-                    .to_wp()
-                    .find(|line| match line {
-                        WpLine::Directive((key, _)) => match key.as_str() {
-                            "title" => true,
-                            _ => false,
-                        },
-                        _ => false,
-                    });
-
-                let title = match line {
-                    Some(WpLine::Directive((_, title))) => title,
-                    _ => String::new(),
-                };
-                let key = "Self".to_string();
-                Ok(Self { title, key, path })
-            })
+            .filter(|path| path.is_ok() && !path.as_ref().unwrap().is_dir())
+            .map(|path| Self::load(path.map_err(|_| Error::IO)?.clone()))
             .collect::<Result<Vec<Self>, Error>>()?;
-
         songs.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
         Ok(songs)
     }
 
-    pub fn load_lines(&self) -> Result<Vec<WpLine>, Error> {
-        Ok(fs::read_to_string(&self.path)
-            .map_err(|_| Error::IO)?
-            .lines()
-            .to_wp()
-            .collect())
+    pub fn lines_ref(&self) -> &Vec<WpLine> {
+        &self.lines
     }
 
-    pub fn load_section_song(&self, key: &str) -> Result<SectionSong, Error> {
+    pub fn lines(&self) -> Vec<WpLine> {
+        self.lines.clone()
+    }
+
+    pub fn to_section_song(&self, key: &str) -> Result<SectionSong, Error> {
         let title = self.title.clone();
-        let sections = fs::read_to_string(&self.path)
-            .map_err(|_| Error::IO)?
+        let sections = self
             .lines()
-            .to_wp()
+            .into_iter()
             .transpose(key)
             .to_multi()
             .to_section()

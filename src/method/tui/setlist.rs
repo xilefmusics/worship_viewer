@@ -3,7 +3,8 @@ use std::path::PathBuf;
 
 use super::super::Error;
 
-use super::super::super::song::Song;
+use crate::line::WpLine;
+use crate::song::Song;
 
 #[derive(Debug, Clone)]
 pub struct Setlist {
@@ -64,7 +65,13 @@ impl Setlist {
                     .next()
                     .and_then(|key| Some(key.to_string()))
                     .unwrap_or("Self".to_string());
-                Ok(Song { title, key, path })
+                let lines: Vec<WpLine> = Vec::new();
+                Ok(Song {
+                    title,
+                    key,
+                    path,
+                    lines,
+                })
             })
             .collect::<Result<Vec<Song>, Error>>()
     }

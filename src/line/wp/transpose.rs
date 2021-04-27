@@ -52,7 +52,7 @@ fn transpose_chord(chord: &str, halftones: i8, scale: usize) -> String {
         .collect()
 }
 
-fn transpose_line(line: Line, halftones: i8, scale: usize) -> Line {
+fn transpose_line(line: &Line, halftones: i8, scale: usize) -> Line {
     if let TextChordTrans(line) = line {
         let mut line_new = String::new();
         for part in LineIterator::new(&line) {
@@ -71,7 +71,7 @@ fn transpose_line(line: Line, halftones: i8, scale: usize) -> Line {
         }
         TextChordTrans(line_new)
     } else {
-        line
+        line.clone()
     }
 }
 
@@ -132,7 +132,7 @@ where
                 if let Some(halftones) = self.halftones {
                     if let Some(scale) = self.scale {
                         if let Some(line) = line {
-                            return Some(transpose_line(line, halftones, scale));
+                            return Some(transpose_line(&line, halftones, scale));
                         }
                     }
                 }
@@ -160,26 +160,26 @@ mod tests {
     #[test]
     fn fn_directive() {
         let line = Line::Directive(("key".to_string(), "value".to_string()));
-        assert_eq!(transpose_line(line.clone(), 0, 0), line);
+        assert_eq!(transpose_line(&line, 0, 0), line);
     }
 
     #[test]
     fn fn_text_chord_trans_self() {
         let line = Line::TextChordTrans("This is a [C]line & Das ist eine Zeile".to_string());
-        assert_eq!(transpose_line(line.clone(), 0, 0), line);
+        assert_eq!(transpose_line(&line, 0, 0), line);
     }
 
     #[test]
     fn fn_text_chord_trans_plus_one() {
         let line = Line::TextChordTrans("This is a [C]line & Das ist eine Zeile".to_string());
         let line_new = Line::TextChordTrans("This is a [Db]line & Das ist eine Zeile".to_string());
-        assert_eq!(transpose_line(line, 1, 1), line_new);
+        assert_eq!(transpose_line(&line, 1, 1), line_new);
     }
 
     #[test]
     fn fn_text_chord_trans_minus() {
         let line = Line::TextChordTrans("This is a [C]line & Das ist eine Zeile".to_string());
-        assert_eq!(transpose_line(line.clone(), -120, 0), line);
+        assert_eq!(transpose_line(&line, -120, 0), line);
     }
 
     #[test]

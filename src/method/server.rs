@@ -53,7 +53,7 @@ fn get_song(title: String, key: String, config: State<Config>) -> Option<Json<Se
         .ok()?
         .into_iter()
         .find(|song| song.title == title)?;
-    Some(Json(song.load_section_song(&key).ok()?))
+    Some(Json(song.to_section_song(&key).ok()?))
 }
 
 #[get("/song/<title>")]
