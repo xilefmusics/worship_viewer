@@ -1,8 +1,8 @@
 use pancurses::Window;
 use pancurses::{A_BOLD, A_NORMAL};
 
-use super::super::super::line::{IterExtToMulti, IterExtTranspose, Multiline};
-use super::super::super::song::Song;
+use crate::line::{IterExtToMulti, IterExtTranspose, Multiline};
+use crate::song::Song;
 
 use super::super::Error;
 

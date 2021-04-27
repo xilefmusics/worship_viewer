@@ -1,9 +1,6 @@
 mod config;
 use config::Config;
 
-mod sidebar;
-use sidebar::Sidebar;
-
 mod song_view;
 use song_view::SongView;
 

@@ -1,33 +1,59 @@
 use pancurses::{Input, Window};
 
-use super::super::super::song::Song;
+use crate::song::Song;
+use crate::tui::List;
+
 use super::super::Error;
-use super::{Sidebar, SongView};
+use super::SongView;
 
 pub struct PanelSong {
-    sidebar: Sidebar,
+    sidebar: List<String>,
     song_view: SongView,
+    songs: Vec<Song>,
 }
 
 impl PanelSong {
     pub fn new(window: &Window, width: i32, songs: Vec<Song>) -> Result<Self, Error> {
-        let sidebar = Sidebar::new(window, width, songs)?;
+        let titles = songs
+            .iter()
+            .map(|song| song.title.clone())
+            .collect::<Vec<String>>();
+        let sidbar_window = window
+            .subwin(window.get_max_y(), width, 0, 0)
+            .map_err(|_| Error::Tui)?;
+        let sidebar = List::new(sidbar_window, titles);
         let song_view = SongView::new(window, width)?;
-        let mut s = Self { sidebar, song_view };
-        s.song_view.load_song(s.sidebar.get_song())?;
+        let first_song = songs[0].clone();
+        let mut s = Self {
+            sidebar,
+            song_view,
+            songs,
+        };
+        s.song_view.load_song(first_song)?;
         s.render()?;
         Ok(s)
     }
 
-    pub fn next(&mut self) -> Result<(), Error> {
-        let song = self.sidebar.next();
+    pub fn load_selected_song(&mut self) -> Result<(), Error> {
+        let song = self
+            .songs
+            .iter()
+            .find(|song| song.title == self.sidebar.selected_item())
+            .ok_or(Error::Tui)?
+            .clone();
         self.song_view.load_song(song)?;
         Ok(())
     }
 
+    pub fn next(&mut self) -> Result<(), Error> {
+        self.sidebar.next();
+        self.load_selected_song()?;
+        Ok(())
+    }
+
     pub fn prev(&mut self) -> Result<(), Error> {
-        let song = self.sidebar.prev();
-        self.song_view.load_song(song)?;
+        self.sidebar.prev();
+        self.load_selected_song()?;
         Ok(())
     }
 
@@ -55,6 +81,14 @@ impl PanelSong {
             Some(Input::Character('b')) => self.song_view.set_b()?,
             Some(Input::Character('#')) => self.song_view.set_sharp()?,
             Some(Input::Character('r')) => self.song_view.set_key("Self")?,
+            Some(Input::Character('/')) => {
+                self.sidebar.isearch(false);
+                self.load_selected_song()?;
+            }
+            Some(Input::Character('?')) => {
+                self.sidebar.isearch(true);
+                self.load_selected_song()?;
+            }
             _ => (),
         };
         Ok(())

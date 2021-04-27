@@ -11,3 +11,4 @@ pub mod line;
 pub mod method;
 pub mod setlist;
 pub mod song;
+pub mod tui;
