@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use super::super::Error;
+use super::Error;
 
 use crate::song::Song;
 

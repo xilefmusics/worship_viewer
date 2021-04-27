@@ -4,11 +4,12 @@ use pancurses::{COLOR_CYAN, COLOR_GREEN, COLOR_RED, COLOR_WHITE};
 
 use std::env;
 
-use super::super::super::song::Song;
+use crate::setlist::Setlist;
+use crate::song::Song;
 
 use super::super::Error;
 
-use super::{Config, PanelSong, Setlist};
+use super::{Config, PanelSong};
 
 pub fn tui(args: env::Args) -> Result<(), Error> {
     let window = initscr();
@@ -22,7 +23,10 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
     let songs_all = Song::load_all(&config.root_path).map_err(|_| Error::IO)?;
 
     let songs = match config.setlist_path {
-        Some(path) => Setlist::load(path)?.songs(&songs_all)?,
+        Some(path) => Setlist::load(path)
+            .map_err(|err| Error::Other(format!("{}", err)))?
+            .songs(&songs_all)
+            .map_err(|err| Error::Other(format!("{}", err)))?,
         None => songs_all,
     };
 

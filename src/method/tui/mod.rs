@@ -1,9 +1,6 @@
 mod config;
 use config::Config;
 
-mod setlist;
-use setlist::Setlist;
-
 mod sidebar;
 use sidebar::Sidebar;
 
