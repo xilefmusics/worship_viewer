@@ -18,10 +18,8 @@ impl PanelSong {
             .iter()
             .map(|song| song.title.clone())
             .collect::<Vec<String>>();
-        let sidbar_window = window
-            .subwin(window.get_max_y(), width, 0, 0)
-            .map_err(|_| Error::Tui)?;
-        let sidebar = List::new(sidbar_window, titles);
+        let sidebar =
+            List::new(window.get_max_y(), width, 0, 0, window, titles).map_err(|_| Error::Tui)?;
         let song_view = SongView::new(window, width)?;
         let first_song = songs[0].clone();
         let mut s = Self {
@@ -82,11 +80,11 @@ impl PanelSong {
             Some(Input::Character('#')) => self.song_view.set_sharp()?,
             Some(Input::Character('r')) => self.song_view.set_key("Self")?,
             Some(Input::Character('/')) => {
-                self.sidebar.isearch(false);
+                self.sidebar.isearch(false).map_err(|_| Error::Tui)?;
                 self.load_selected_song()?;
             }
             Some(Input::Character('?')) => {
-                self.sidebar.isearch(true);
+                self.sidebar.isearch(true).map_err(|_| Error::Tui)?;
                 self.load_selected_song()?;
             }
             _ => (),

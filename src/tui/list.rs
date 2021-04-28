@@ -1,8 +1,10 @@
-use pancurses::{Input, Window};
+use pancurses::Window;
 use pancurses::{A_BOLD, A_NORMAL, A_REVERSE};
 
 use std::cell::Cell;
 use std::fmt::Display;
+
+use super::InputBox;
 
 pub struct List<T: Display + Clone> {
     items: Vec<T>,
@@ -11,12 +13,21 @@ pub struct List<T: Display + Clone> {
 }
 
 impl<T: Display + Clone> List<T> {
-    pub fn new(window: Window, items: Vec<T>) -> Self {
+    pub fn new(
+        nlines: i32,
+        ncols: i32,
+        begy: i32,
+        begx: i32,
+        parent: &Window,
+        items: Vec<T>,
+    ) -> Result<Self, i32> {
+        let window = parent.subwin(nlines, ncols, begy, begx)?;
         let idx = Cell::new(0);
-        Self { items, window, idx }
+        Ok(Self { items, window, idx })
     }
 
     pub fn render(&self) {
+        self.window.clear();
         self.window.draw_box(0, 0);
 
         let idx_first = std::cmp::max(
@@ -52,45 +63,24 @@ impl<T: Display + Clone> List<T> {
         self.window.refresh();
     }
 
-    pub fn isearch(&self, backwards: bool) {
-        let mut s = String::new();
-        let window_search = self
-            .window
-            .subwin(
-                3,
-                self.window.get_max_x() - 2,
-                self.window.get_max_y() - 4,
-                1,
-            )
-            .unwrap();
-        window_search.clear();
-        window_search.draw_box(0, 0);
-        if backwards {
-            window_search.mvprintw(1, 1, "? ");
-        } else {
-            window_search.mvprintw(1, 1, "/ ");
-        }
-        window_search.refresh();
-
-        loop {
-            match self.window.getch() {
-                Some(Input::Character('\n')) => break,
-                Some(Input::Character(c)) => {
-                    s.push(c);
-                    window_search.printw(c.to_string());
-                    window_search.refresh();
-                }
-                _ => (),
+    pub fn isearch(&self, backwards: bool) -> Result<(), i32> {
+        let ibox = InputBox::new(
+            3,
+            self.window.get_max_x() - 2,
+            self.window.get_max_y() - 4,
+            1,
+            &self.window,
+        )?;
+        if let Some(input) = ibox.input() {
+            if backwards {
+                self.bsearch(&input);
+            } else {
+                self.search(&input);
             }
-        }
-
-        self.window.clear();
-
-        if backwards {
-            self.bsearch(&s);
         } else {
-            self.search(&s);
+            self.render();
         }
+        Ok(())
     }
 
     fn search(&self, s: &str) {
