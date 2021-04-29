@@ -45,6 +45,7 @@ impl Song {
         })
     }
 
+    // TODO: remove
     pub fn load_all(path: &PathBuf) -> Result<Vec<Self>, Error> {
         let mut songs = fs::read_dir(path)?
             .map(|res| res.map(|e| e.path()))

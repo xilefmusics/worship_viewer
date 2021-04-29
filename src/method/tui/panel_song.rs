@@ -32,14 +32,15 @@ impl PanelSong {
     }
 
     pub fn load_selected_song(&mut self) -> Result<(), Error> {
-        let title = self.sidebar.selected_item();
-        let song = self
-            .songs
-            .iter()
-            .find(|song| song.title == title)
-            .ok_or(Error::SongNotFound(title))?
-            .clone();
-        self.song_view.load_song(song)?;
+        if let Some(title) = self.sidebar.selected_item() {
+            let song = self
+                .songs
+                .iter()
+                .find(|song| song.title == title)
+                .ok_or(Error::SongNotFound(title))?
+                .clone();
+            self.song_view.load_song(song)?;
+        }
         Ok(())
     }
 

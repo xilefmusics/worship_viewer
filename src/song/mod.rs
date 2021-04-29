@@ -6,3 +6,6 @@ pub use song::Song;
 
 mod section_song;
 pub use section_song::SectionSong;
+
+mod song_pool;
+pub use song_pool::SongPool;

@@ -12,24 +12,6 @@ pub struct Setlist {
 }
 
 impl Setlist {
-    pub fn _load_all(path: PathBuf) -> Result<Vec<Self>, Error> {
-        let mut path = path;
-        path.push("setlists");
-        let mut setlists = fs::read_dir(path)?
-            .map(|res| res.map(|e| e.path()))
-            .filter(|path| {
-                if let Ok(path) = path {
-                    !path.is_dir()
-                } else {
-                    false
-                }
-            })
-            .map(|path| Self::load(path?))
-            .collect::<Result<Vec<Self>, Error>>()?;
-        setlists.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
-        Ok(setlists)
-    }
-
     pub fn load(path: PathBuf) -> Result<Self, Error> {
         let extension = path.extension().and_then(|name| name.to_str());
         let mut title = path
@@ -45,6 +27,7 @@ impl Setlist {
         Ok(Self { title, path })
     }
 
+    // TODO remove
     pub fn songs(&self, songs: &Vec<Song>) -> Result<Vec<Song>, Error> {
         fs::read_to_string(&self.path)?
             .lines()
@@ -64,5 +47,18 @@ impl Setlist {
                     .transpose(key))
             })
             .collect::<Result<Vec<Song>, Error>>()
+    }
+
+    pub fn titles(&self) -> Result<Vec<String>, Error> {
+        fs::read_to_string(&self.path)?
+            .lines()
+            .map(|content| {
+                content
+                    .split(";")
+                    .next()
+                    .ok_or(Error::ParseSetlist("no title".to_string()))
+                    .map(|title| title.to_string())
+            })
+            .collect()
     }
 }

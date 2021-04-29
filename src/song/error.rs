@@ -6,6 +6,7 @@ use std::io;
 pub enum Error {
     IO(String),
     SongParse(String),
+    SongNotFound(String),
 }
 
 impl fmt::Display for Error {
@@ -13,6 +14,7 @@ impl fmt::Display for Error {
         match self {
             Self::IO(msg) => write!(f, "IO (msg: {})", msg),
             Self::SongParse(msg) => write!(f, "SongParse (msg: {})", msg),
+            Self::SongNotFound(title) => write!(f, "SongNotFount (title: {})", title),
         }
     }
 }
