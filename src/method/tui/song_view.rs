@@ -14,14 +14,12 @@ pub struct SongView {
 
 impl SongView {
     pub fn new(parent_window: &Window, x_start: i32) -> Result<Self, Error> {
-        let window = parent_window
-            .subwin(
-                parent_window.get_max_y(),
-                parent_window.get_max_x() - x_start,
-                0,
-                x_start,
-            )
-            .map_err(|_| Error::Tui)?;
+        let window = parent_window.subwin(
+            parent_window.get_max_y(),
+            parent_window.get_max_x() - x_start,
+            0,
+            x_start,
+        )?;
         let song = None;
         let key = String::from("Self");
         window.draw_box(0, 0);

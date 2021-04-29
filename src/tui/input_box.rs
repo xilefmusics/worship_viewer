@@ -1,5 +1,7 @@
 use pancurses::{Input, Window};
 
+use super::Error;
+
 pub struct InputBox {
     window: Window,
 }
@@ -11,7 +13,7 @@ impl InputBox {
         begy: i32,
         begx: i32,
         parent: &Window,
-    ) -> Result<Self, i32> {
+    ) -> Result<Self, Error> {
         let window = parent.subwin(nlines, ncols, begy, begx)?;
         Ok(Self { window })
     }
@@ -72,8 +74,7 @@ mod test {
         pancurses::cbreak();
         pancurses::curs_set(0);
 
-        let ibox_window = window.subwin(3, window.get_max_x(), 0, 0).unwrap();
-        let ibox = InputBox::new(ibox_window);
+        let ibox = InputBox::new(3, window.get_max_x(), 0, 0, &window).unwrap();
         assert_eq!(ibox.input(), Some("Hallo".to_string()));
         assert_eq!(ibox.input(), None);
 

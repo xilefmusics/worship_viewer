@@ -20,8 +20,7 @@ impl Song {
         let mut title: Option<String> = None;
         let mut key: Option<String> = None;
 
-        let lines = fs::read_to_string(&path)
-            .map_err(|_| Error::IO)?
+        let lines = fs::read_to_string(&path)?
             .lines()
             .to_wp()
             .map(|line| {
@@ -47,11 +46,10 @@ impl Song {
     }
 
     pub fn load_all(path: &PathBuf) -> Result<Vec<Self>, Error> {
-        let mut songs = fs::read_dir(path)
-            .map_err(|_| Error::IO)?
+        let mut songs = fs::read_dir(path)?
             .map(|res| res.map(|e| e.path()))
             .filter(|path| path.is_ok() && !path.as_ref().unwrap().is_dir())
-            .map(|path| Self::load(path.map_err(|_| Error::IO)?.clone()))
+            .map(|path| Self::load(path?.clone()))
             .collect::<Result<Vec<Self>, Error>>()?;
         songs.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
         Ok(songs)

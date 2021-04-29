@@ -123,8 +123,7 @@ impl Config {
 pub fn show(args: env::Args) -> Result<(), Error> {
     let config = Config::new(args)?;
     let mut first_section = true;
-    fs::read_to_string(&config.filename)
-        .map_err(|_| Error::FileNotFound(config.filename.clone()))?
+    fs::read_to_string(&config.filename)?
         .lines()
         .to_wp()
         .transpose(&config.new_key)

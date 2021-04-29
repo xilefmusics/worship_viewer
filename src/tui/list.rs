@@ -4,6 +4,7 @@ use pancurses::{A_BOLD, A_NORMAL, A_REVERSE};
 use std::cell::Cell;
 use std::fmt::Display;
 
+use super::Error;
 use super::InputBox;
 
 pub struct List<T: Display + Clone> {
@@ -20,7 +21,7 @@ impl<T: Display + Clone> List<T> {
         begx: i32,
         parent: &Window,
         items: Vec<T>,
-    ) -> Result<Self, i32> {
+    ) -> Result<Self, Error> {
         let window = parent.subwin(nlines, ncols, begy, begx)?;
         let idx = Cell::new(0);
         Ok(Self { items, window, idx })
@@ -63,7 +64,7 @@ impl<T: Display + Clone> List<T> {
         self.window.refresh();
     }
 
-    pub fn isearch(&self, backwards: bool) -> Result<(), i32> {
+    pub fn isearch(&self, backwards: bool) -> Result<(), Error> {
         let ibox = InputBox::new(
             3,
             self.window.get_max_x() - 2,
@@ -140,10 +141,7 @@ mod test {
         let items = (0..100)
             .map(|n| format!("Item {}", n))
             .collect::<Vec<String>>();
-        let list_window = window
-            .subwin(window.get_max_y(), window.get_max_x(), 0, 0)
-            .unwrap();
-        let list = List::new(list_window, items);
+        let list = List::new(window.get_max_x(), window.get_max_y(), 0, 0, &window, items).unwrap();
         list.render();
 
         loop {
@@ -151,8 +149,8 @@ mod test {
                 Some(Input::Character('q')) => break,
                 Some(Input::Character('j')) => list.next(),
                 Some(Input::Character('k')) => list.prev(),
-                Some(Input::Character('/')) => list.isearch(false),
-                Some(Input::Character('?')) => list.isearch(true),
+                Some(Input::Character('/')) => list.isearch(false).unwrap(),
+                Some(Input::Character('?')) => list.isearch(true).unwrap(),
                 _ => (),
             }
         }

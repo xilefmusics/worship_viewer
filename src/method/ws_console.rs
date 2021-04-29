@@ -23,7 +23,6 @@ pub fn ws_console(_args: env::Args) -> Result<(), Error> {
             println!("{}", msg);
             Ok(())
         }
-    })
-    .map_err(|_| Error::WS)?;
+    })?;
     Ok(())
 }

@@ -15,8 +15,7 @@ impl Setlist {
     pub fn _load_all(path: PathBuf) -> Result<Vec<Self>, Error> {
         let mut path = path;
         path.push("setlists");
-        let mut setlists = fs::read_dir(path)
-            .map_err(|_| Error::IO)?
+        let mut setlists = fs::read_dir(path)?
             .map(|res| res.map(|e| e.path()))
             .filter(|path| {
                 if let Ok(path) = path {
@@ -25,7 +24,7 @@ impl Setlist {
                     false
                 }
             })
-            .map(|path| Self::load(path.map_err(|_| Error::IO)?))
+            .map(|path| Self::load(path?))
             .collect::<Result<Vec<Self>, Error>>()?;
         setlists.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
         Ok(setlists)
@@ -36,7 +35,7 @@ impl Setlist {
         let mut title = path
             .file_name()
             .and_then(|name| name.to_str())
-            .ok_or(Error::IO)?
+            .ok_or(Error::IO("Can't parse title".to_string()))?
             .to_string();
         if let Some(extension) = extension {
             if let Some(pos) = title.find(extension) {
@@ -47,8 +46,7 @@ impl Setlist {
     }
 
     pub fn songs(&self, songs: &Vec<Song>) -> Result<Vec<Song>, Error> {
-        fs::read_to_string(&self.path)
-            .map_err(|_| Error::IO)?
+        fs::read_to_string(&self.path)?
             .lines()
             .map(|content| {
                 let mut iter = content.split(";");

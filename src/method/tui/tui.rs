@@ -20,13 +20,10 @@ pub fn tui(args: env::Args) -> Result<(), Error> {
 
 fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
     let config = Config::new(args)?;
-    let songs_all = Song::load_all(&config.root_path).map_err(|_| Error::IO)?;
+    let songs_all = Song::load_all(&config.root_path)?;
 
     let songs = match config.setlist_path {
-        Some(path) => Setlist::load(path)
-            .map_err(|err| Error::Other(format!("{}", err)))?
-            .songs(&songs_all)
-            .map_err(|err| Error::Other(format!("{}", err)))?,
+        Some(path) => Setlist::load(path)?.songs(&songs_all)?,
         None => songs_all,
     };
 

@@ -18,8 +18,7 @@ impl PanelSong {
             .iter()
             .map(|song| song.title.clone())
             .collect::<Vec<String>>();
-        let sidebar =
-            List::new(window.get_max_y(), width, 0, 0, window, titles).map_err(|_| Error::Tui)?;
+        let sidebar = List::new(window.get_max_y(), width, 0, 0, window, titles)?;
         let song_view = SongView::new(window, width)?;
         let first_song = songs[0].clone();
         let mut s = Self {
@@ -33,11 +32,12 @@ impl PanelSong {
     }
 
     pub fn load_selected_song(&mut self) -> Result<(), Error> {
+        let title = self.sidebar.selected_item();
         let song = self
             .songs
             .iter()
-            .find(|song| song.title == self.sidebar.selected_item())
-            .ok_or(Error::Tui)?
+            .find(|song| song.title == title)
+            .ok_or(Error::SongNotFound(title))?
             .clone();
         self.song_view.load_song(song)?;
         Ok(())
@@ -80,11 +80,11 @@ impl PanelSong {
             Some(Input::Character('#')) => self.song_view.set_sharp()?,
             Some(Input::Character('r')) => self.song_view.set_key("Self")?,
             Some(Input::Character('/')) => {
-                self.sidebar.isearch(false).map_err(|_| Error::Tui)?;
+                self.sidebar.isearch(false)?;
                 self.load_selected_song()?;
             }
             Some(Input::Character('?')) => {
-                self.sidebar.isearch(true).map_err(|_| Error::Tui)?;
+                self.sidebar.isearch(true)?;
                 self.load_selected_song()?;
             }
             _ => (),
