@@ -1,73 +1,120 @@
 use pancurses::{Input, Window};
 
-use crate::song::Song;
+use std::rc::Rc;
+
+use crate::setlist::{SetlistItem, SetlistPool};
+use crate::song::SongPool;
 use crate::tui::List;
 
 use super::super::Error;
 use super::SongView;
 
+enum Mode {
+    Song,
+    Setlist,
+}
+
 pub struct PanelSong {
-    sidebar: List<String>,
+    sidebar_setlist: List<String>,
+    sidebar_song: List<SetlistItem>,
     song_view: SongView,
-    songs: Vec<Song>,
+    song_pool: Rc<SongPool>,
+    setlist_pool: Rc<SetlistPool>,
+    mode: Mode,
 }
 
 impl PanelSong {
-    pub fn new(window: &Window, width: i32, songs: Vec<Song>) -> Result<Self, Error> {
-        let titles = songs
-            .iter()
-            .map(|song| song.title.clone())
-            .collect::<Vec<String>>();
-        let sidebar = List::new(window.get_max_y(), width, 0, 0, window, titles)?;
+    pub fn new(
+        window: &Window,
+        width: i32,
+        song_pool: Rc<SongPool>,
+        setlist_pool: Rc<SetlistPool>,
+    ) -> Result<Self, Error> {
+        let sidebar_setlist = List::new(window.get_max_y(), width, 0, 0, window, vec![])?;
+        let sidebar_song = List::new(
+            window.get_max_y(),
+            width,
+            0,
+            0,
+            window,
+            setlist_pool.all_songs().items(),
+        )?;
         let song_view = SongView::new(window, width)?;
-        let first_song = songs[0].clone();
+        let mode = Mode::Song;
         let mut s = Self {
-            sidebar,
+            sidebar_setlist,
+            sidebar_song,
             song_view,
-            songs,
+            song_pool,
+            setlist_pool,
+            mode,
         };
-        s.song_view.load_song(first_song)?;
+        s.load_selected_song()?;
         s.render()?;
         Ok(s)
     }
 
     pub fn load_selected_song(&mut self) -> Result<(), Error> {
-        if let Some(title) = self.sidebar.selected_item() {
-            let song = self
-                .songs
-                .iter()
-                .find(|song| song.title == title)
-                .ok_or(Error::SongNotFound(title))?
-                .clone();
-            self.song_view.load_song(song)?;
+        if let Some(SetlistItem { title, key }) = self.sidebar_song.selected_item() {
+            if let Some(song) = self.song_pool.get(title) {
+                self.song_view.load_song(song.transpose(key))?;
+            }
         }
         Ok(())
     }
 
     pub fn next(&mut self) -> Result<(), Error> {
-        self.sidebar.next();
+        self.sidebar_song.next();
         self.load_selected_song()?;
         Ok(())
     }
 
     pub fn prev(&mut self) -> Result<(), Error> {
-        self.sidebar.prev();
+        self.sidebar_song.prev();
         self.load_selected_song()?;
         Ok(())
     }
 
     pub fn render(&self) -> Result<(), Error> {
-        self.sidebar.render();
+        match self.mode {
+            Mode::Song => self.sidebar_song.render(),
+            Mode::Setlist => self.sidebar_setlist.render(),
+        }
         self.song_view.render()?;
         Ok(())
     }
 
     pub fn handle_input(&mut self, input: Option<Input>) -> Result<(), Error> {
+        match self.mode {
+            Mode::Song => self.handle_input_mode_song(input),
+            Mode::Setlist => self.handle_input_mode_setlist(input),
+        }
+    }
+
+    pub fn select_setlist(&mut self) -> Result<(), Error> {
+        self.sidebar_setlist
+            .change_items(self.setlist_pool.titles());
+        self.mode = Mode::Setlist;
+        Ok(())
+    }
+
+    pub fn load_setlist(&mut self) -> Result<(), Error> {
+        if let Some(title) = self.sidebar_setlist.selected_item() {
+            if let Some(setlist) = self.setlist_pool.get(title) {
+                self.sidebar_song.change_items(setlist.items());
+            }
+            self.load_selected_song()?;
+            self.mode = Mode::Song;
+        }
+        Ok(())
+    }
+
+    pub fn handle_input_mode_song(&mut self, input: Option<Input>) -> Result<(), Error> {
         match input {
-            Some(Input::KeyDown) | Some(Input::Character('j')) | Some(Input::Character(' ')) => {
+            Some(Input::Character('j')) | Some(Input::Character(' ')) => {
                 self.next()?;
             }
-            Some(Input::KeyUp) | Some(Input::Character('k')) => {
+            Some(Input::Character('k')) => {
                 self.prev()?;
             }
             Some(Input::Character('A')) => self.song_view.set_key("A")?,
@@ -81,15 +128,24 @@ impl PanelSong {
             Some(Input::Character('#')) => self.song_view.set_sharp()?,
             Some(Input::Character('r')) => self.song_view.set_key("Self")?,
             Some(Input::Character('/')) => {
-                self.sidebar.isearch(false)?;
+                self.sidebar_song.isearch(false)?;
                 self.load_selected_song()?;
             }
             Some(Input::Character('?')) => {
-                self.sidebar.isearch(true)?;
+                self.sidebar_song.isearch(true)?;
                 self.load_selected_song()?;
             }
+            Some(Input::Character('\t')) => self.select_setlist()?,
             _ => (),
         };
+        Ok(())
+    }
+
+    pub fn handle_input_mode_setlist(&mut self, input: Option<Input>) -> Result<(), Error> {
+        match input {
+            Some(Input::Character(' ')) => self.load_setlist()?,
+            input => self.sidebar_setlist.handle_input(input)?,
+        }
         Ok(())
     }
 }

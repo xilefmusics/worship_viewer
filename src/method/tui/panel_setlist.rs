@@ -42,8 +42,9 @@ impl PanelSetlist {
             width,
             &window,
             setlist_pool
-                .get(setlist_pool.titles()[0].clone())?
-                .titles()?,
+                .get_first()
+                .map(|setlist| setlist.titles())
+                .unwrap_or(vec![]),
         )?;
         let list_all_songs =
             List::new(nlines, width, 0, ncols - width, &window, song_pool.titles())?;
@@ -96,8 +97,8 @@ impl PanelSetlist {
                     self.list_setlist_songs.remove();
                 } else if self.current_list.get() == 0 {
                     if let Some(title) = self.list_setlist.selected_item() {
-                        if let Ok(setlist) = self.setlist_pool.get(title) {
-                            self.list_setlist_songs.change_items(setlist.titles()?);
+                        if let Some(setlist) = self.setlist_pool.get(title) {
+                            self.list_setlist_songs.change_items(setlist.titles());
                         }
                     }
                 }

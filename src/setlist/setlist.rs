@@ -1,18 +1,23 @@
 use std::fs;
 use std::path::PathBuf;
 
-use super::Error;
-
-use crate::song::Song;
+use super::{Error, SetlistItem};
 
 #[derive(Debug, Clone)]
 pub struct Setlist {
     pub title: String,
-    pub path: PathBuf,
+    pub path: Option<PathBuf>,
+    items: Vec<SetlistItem>,
 }
 
 impl Setlist {
+    pub fn new(title: String, items: Vec<SetlistItem>) -> Self {
+        let path = None;
+        Self { title, path, items }
+    }
+
     pub fn load(path: PathBuf) -> Result<Self, Error> {
+        // get title from filename
         let extension = path.extension().and_then(|name| name.to_str());
         let mut title = path
             .file_name()
@@ -24,41 +29,37 @@ impl Setlist {
                 title = title[..pos - 1].to_string();
             }
         }
-        Ok(Self { title, path })
-    }
 
-    // TODO remove
-    pub fn songs(&self, songs: &Vec<Song>) -> Result<Vec<Song>, Error> {
-        fs::read_to_string(&self.path)?
+        // parse setlist items
+        let items = fs::read_to_string(&path)?
             .lines()
             .map(|content| {
                 let mut iter = content.split(";");
                 let title = iter
                     .next()
-                    .ok_or(Error::ParseSetlist("no title".to_string()))?;
-                let key: String = iter
+                    .ok_or(Error::ParseSetlist("no title".to_string()))
+                    .map(|title| title.to_string())?;
+                let key = iter
                     .next()
-                    .and_then(|key| Some(key.to_string()))
-                    .unwrap_or("Self".to_string());
-                Ok(songs
-                    .iter()
-                    .find(|song| song.title == title)
-                    .ok_or(Error::ParseSetlist("Song not found".to_string()))?
-                    .transpose(key))
+                    .ok_or(Error::ParseSetlist("no key".to_string()))
+                    .map(|key| key.to_string())?;
+                Ok(SetlistItem { title, key })
             })
-            .collect::<Result<Vec<Song>, Error>>()
+            .collect::<Result<Vec<SetlistItem>, Error>>()?;
+
+        let path = Some(path);
+        Ok(Self { title, path, items })
     }
 
-    pub fn titles(&self) -> Result<Vec<String>, Error> {
-        fs::read_to_string(&self.path)?
-            .lines()
-            .map(|content| {
-                content
-                    .split(";")
-                    .next()
-                    .ok_or(Error::ParseSetlist("no title".to_string()))
-                    .map(|title| title.to_string())
-            })
-            .collect()
+    pub fn items(&self) -> Vec<SetlistItem> {
+        self.items.clone()
+    }
+
+    pub fn titles(&self) -> Vec<String> {
+        self.items.iter().map(|item| item.title.clone()).collect()
+    }
+
+    pub fn ref_titles(&self) -> Vec<&str> {
+        self.items.iter().map(|item| item.title.as_str()).collect()
     }
 }

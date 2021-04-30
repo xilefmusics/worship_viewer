@@ -18,11 +18,10 @@ impl SongPool {
         Ok(Self { songs })
     }
 
-    pub fn get(&self, title: String) -> Result<Song, Error> {
+    pub fn get(&self, title: String) -> Option<Song> {
         self.songs
             .iter()
             .find(|song| song.title == title)
-            .ok_or(Error::SongNotFound(title))
             .map(|song| song.clone())
     }
 

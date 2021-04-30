@@ -15,7 +15,6 @@ pub enum Error {
     WS(String),
     Tui(i32),
     NoSong,
-    SongNotFound(String),
     SetlistNotFound(String),
     Other(String),
 }
@@ -31,7 +30,6 @@ impl fmt::Display for Error {
             Self::WS(msg) => write!(f, "WS (msg: {})", msg),
             Self::Tui(code) => write!(f, "Tui rendering with code {}", code),
             Self::NoSong => write!(f, "Called render on SongView with no song choosen"),
-            Self::SongNotFound(title) => write!(f, "SongNotFound (title: {})", title),
             Self::SetlistNotFound(title) => write!(f, "SongNotFound (title: {})", title),
         }
     }
@@ -41,7 +39,6 @@ impl From<song::Error> for Error {
     fn from(err: song::Error) -> Self {
         match err {
             song::Error::IO(msg) => Self::IO(msg),
-            song::Error::SongNotFound(title) => Self::SongNotFound(title),
             other => Self::Other(other.to_string()),
         }
     }
@@ -51,7 +48,6 @@ impl From<setlist::Error> for Error {
     fn from(err: setlist::Error) -> Self {
         match err {
             setlist::Error::IO(msg) => Self::IO(msg),
-            setlist::Error::SetlistNotFound(title) => Self::SetlistNotFound(title),
             other => Self::Other(other.to_string()),
         }
     }

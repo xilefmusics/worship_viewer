@@ -6,8 +6,8 @@ use std::env;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::setlist::{Setlist, SetlistPool};
-use crate::song::{Song, SongPool};
+use crate::setlist::SetlistPool;
+use crate::song::SongPool;
 
 use super::super::Error;
 
@@ -25,14 +25,8 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
     let song_pool = Rc::new(SongPool::new(&config.root_path)?);
     let mut setlist_pool_path = config.root_path.clone();
     setlist_pool_path.push(PathBuf::from("setlists"));
-    let setlist_pool = Rc::new(SetlistPool::new(&setlist_pool_path)?);
-    let songs_all = Song::load_all(&config.root_path)?;
+    let setlist_pool = Rc::new(SetlistPool::new(&setlist_pool_path, song_pool.clone())?);
     let mut curr_pannel = 1;
-
-    let songs = match config.setlist_path {
-        Some(path) => Setlist::load(path)?.songs(&songs_all)?,
-        None => songs_all,
-    };
 
     pancurses::noecho();
     pancurses::curs_set(0);
@@ -50,11 +44,11 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
         0,
         0,
         &window,
-        song_pool,
-        setlist_pool,
+        song_pool.clone(),
+        setlist_pool.clone(),
     )?;
 
-    let mut panel_song = PanelSong::new(&window, 40, songs)?;
+    let mut panel_song = PanelSong::new(&window, 40, song_pool, setlist_pool)?;
 
     loop {
         match window.getch() {
@@ -64,7 +58,7 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
             }
             Some(Input::Character('1')) => {
                 curr_pannel = 1;
-                panel_song.render();
+                panel_song.render()?;
             }
             Some(Input::Character('2')) => {
                 curr_pannel = 2;

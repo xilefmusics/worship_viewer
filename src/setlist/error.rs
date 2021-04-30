@@ -6,7 +6,6 @@ use std::io;
 pub enum Error {
     IO(String),
     ParseSetlist(String),
-    SetlistNotFound(String),
 }
 
 impl fmt::Display for Error {
@@ -14,7 +13,6 @@ impl fmt::Display for Error {
         match self {
             Self::IO(msg) => write!(f, "IO (msg: {})", msg),
             Self::ParseSetlist(msg) => write!(f, "ParseSetlist (msg: {})", msg),
-            Self::SetlistNotFound(title) => write!(f, "SetlistNotFound (title: {})", title),
         }
     }
 }
