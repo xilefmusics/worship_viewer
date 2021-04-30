@@ -9,3 +9,4 @@ pub use setlist_pool::SetlistPool;
 
 mod setlist_item;
 pub use setlist_item::SetlistItem;
+pub use setlist_item::SetlistItemFmtWithKeyWrapper;

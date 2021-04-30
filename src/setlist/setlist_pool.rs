@@ -37,6 +37,13 @@ impl SetlistPool {
             .collect()
     }
 
+    pub fn true_titles(&self) -> Vec<String> {
+        self.setlists
+            .iter()
+            .map(|setlist| setlist.title.clone())
+            .collect()
+    }
+
     pub fn all_songs(&self) -> Setlist {
         let items = self
             .song_pool

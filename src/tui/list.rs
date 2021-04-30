@@ -168,6 +168,9 @@ impl<T: Display + Clone + Ord> List<T> {
         }
         self.items.remove(self.idx.get());
         self.render();
+        if self.idx.get() == self.items.len() {
+            self.prev();
+        }
     }
 
     pub fn move_up(&mut self) {
@@ -182,6 +185,12 @@ impl<T: Display + Clone + Ord> List<T> {
     pub fn change_items(&mut self, items: Vec<T>) {
         self.items = items;
         self.select(0);
+        self.render();
+    }
+
+    pub fn change_selected_item(&mut self, item: T) {
+        self.items[self.idx.get()] = item;
+        self.render();
     }
 
     pub fn move_down(&mut self) {
