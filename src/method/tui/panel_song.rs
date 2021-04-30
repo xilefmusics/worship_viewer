@@ -143,7 +143,7 @@ impl PanelSong {
 
     pub fn handle_input_mode_setlist(&mut self, input: Option<Input>) -> Result<(), Error> {
         match input {
-            Some(Input::Character(' ')) => self.load_setlist()?,
+            Some(Input::Character(' ')) | Some(Input::Character('\t')) => self.load_setlist()?,
             input => self.sidebar_setlist.handle_input(input)?,
         }
         Ok(())

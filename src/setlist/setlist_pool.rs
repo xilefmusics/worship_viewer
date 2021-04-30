@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -7,7 +8,7 @@ use crate::song::SongPool;
 use super::{Error, Setlist, SetlistItem};
 
 pub struct SetlistPool {
-    setlists: Vec<Setlist>,
+    setlists: RefCell<Vec<Setlist>>,
     song_pool: Rc<SongPool>,
 }
 
@@ -25,6 +26,7 @@ impl SetlistPool {
             .map(|path| Setlist::load(path?))
             .collect::<Result<Vec<Setlist>, Error>>()?;
         setlists.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+        let setlists = RefCell::new(setlists);
         Ok(Self {
             setlists,
             song_pool,
@@ -33,12 +35,18 @@ impl SetlistPool {
 
     pub fn titles(&self) -> Vec<String> {
         std::iter::once("All Songs".to_string())
-            .chain(self.setlists.iter().map(|setlist| setlist.title.clone()))
+            .chain(
+                self.setlists
+                    .borrow()
+                    .iter()
+                    .map(|setlist| setlist.title.clone()),
+            )
             .collect()
     }
 
     pub fn true_titles(&self) -> Vec<String> {
         self.setlists
+            .borrow()
             .iter()
             .map(|setlist| setlist.title.clone())
             .collect()
@@ -62,6 +70,7 @@ impl SetlistPool {
             "All Songs" => Some(self.all_songs()),
             _ => self
                 .setlists
+                .borrow()
                 .iter()
                 .find(|setlist| setlist.title == title)
                 .map(|setlist| setlist.clone()),
@@ -69,6 +78,21 @@ impl SetlistPool {
     }
 
     pub fn get_first(&self) -> Option<Setlist> {
-        self.setlists.get(0).map(|setlist| setlist.clone())
+        self.setlists.borrow().get(0).map(|setlist| setlist.clone())
+    }
+
+    pub fn update_setlist(&self, setlist: Setlist) -> Result<(), Error> {
+        let mut setlists = self.setlists.borrow_mut();
+        if let Some((idx, _)) = setlists
+            .iter()
+            .enumerate()
+            .find(|(_, sl)| sl.title == setlist.title)
+        {
+            setlists[idx] = setlist;
+        } else {
+            setlists.push(setlist);
+            setlists.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+        }
+        Ok(())
     }
 }

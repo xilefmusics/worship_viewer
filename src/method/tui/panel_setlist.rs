@@ -2,9 +2,9 @@ use ::pancurses::{Input, Window};
 
 use std::rc::Rc;
 
-use crate::setlist::{SetlistItem, SetlistItemFmtWithKeyWrapper, SetlistPool};
+use crate::setlist::{Setlist, SetlistItem, SetlistItemFmtWithKeyWrapper, SetlistPool};
 use crate::song::SongPool;
-use crate::tui::List;
+use crate::tui::{ConfirmationBox, List};
 
 use super::super::Error;
 
@@ -22,6 +22,8 @@ pub struct PanelSetlist {
     setlist_pool: Rc<SetlistPool>,
     song_pool: Rc<SongPool>,
     mode: Mode,
+    current_setlist_title: Option<String>,
+    confirmation_box: ConfirmationBox,
 }
 
 impl PanelSetlist {
@@ -62,6 +64,11 @@ impl PanelSetlist {
         let list_all_songs =
             List::new(nlines, width, 0, ncols - width, &window, song_pool.titles())?;
 
+        let current_setlist_title = setlist_pool.get_first().map(|setlist| setlist.title);
+
+        let confirmation_box =
+            ConfirmationBox::new(3, window.get_max_x(), window.get_max_y() - 3, 0, &window)?;
+
         Ok(Self {
             window,
             list_setlist,
@@ -70,6 +77,8 @@ impl PanelSetlist {
             setlist_pool,
             song_pool,
             mode,
+            current_setlist_title,
+            confirmation_box,
         })
     }
 
@@ -150,22 +159,52 @@ impl PanelSetlist {
         }
     }
 
+    fn write_current_setlist(&self) -> Result<(), Error> {
+        if let Some(title) = self.current_setlist_title.clone() {
+            if self
+                .confirmation_box
+                .confirm_on(&format!("Do you want to write the setlist \"{}\"", title))
+            {
+                let items = self
+                    .list_setlist_songs
+                    .items()
+                    .into_iter()
+                    .map(|item| item.setlist_item)
+                    .collect::<Vec<SetlistItem>>();
+                let setlist = Setlist::new(title, items);
+                self.setlist_pool.update_setlist(setlist)?;
+            }
+        }
+        self.render();
+        Ok(())
+    }
+
+    fn select_setlist(&mut self, title: String) {
+        self.current_setlist_title = Some(title.clone());
+        if let Some(setlist) = self.setlist_pool.get(title) {
+            self.list_setlist_songs.change_items(
+                setlist
+                    .items()
+                    .into_iter()
+                    .map(|setlist_item| SetlistItemFmtWithKeyWrapper { setlist_item })
+                    .collect::<Vec<SetlistItemFmtWithKeyWrapper>>(),
+            );
+        } else {
+            self.list_setlist_songs.change_items(vec![])
+        }
+    }
+
     pub fn handle_input_mode_setlist(&mut self, input: Option<Input>) -> Result<(), Error> {
         match input {
-            Some(Input::Character('n')) => self.list_setlist.new_item()?,
+            Some(Input::Character('n')) => {
+                if let Some(title) = self.list_setlist.new_item()? {
+                    self.list_setlist.sort();
+                    self.select_setlist(title)
+                }
+            }
             Some(Input::Character(' ')) => {
                 if let Some(title) = self.list_setlist.selected_item() {
-                    if let Some(setlist) = self.setlist_pool.get(title) {
-                        self.list_setlist_songs.change_items(
-                            setlist
-                                .items()
-                                .into_iter()
-                                .map(|setlist_item| SetlistItemFmtWithKeyWrapper { setlist_item })
-                                .collect::<Vec<SetlistItemFmtWithKeyWrapper>>(),
-                        );
-                    } else {
-                        self.list_setlist_songs.change_items(vec![])
-                    }
+                    self.select_setlist(title);
                 }
             }
             input => self.list_setlist.handle_input(input)?,
@@ -207,6 +246,7 @@ impl PanelSetlist {
 
     pub fn handle_input(&mut self, input: Option<Input>) -> Result<(), Error> {
         match input {
+            Some(Input::Character('w')) => self.write_current_setlist()?,
             Some(Input::Character('h')) => self.next_prev_mode(true),
             Some(Input::Character('l')) | Some(Input::Character('\t')) => {
                 self.next_prev_mode(false)

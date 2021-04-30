@@ -151,6 +151,10 @@ impl<T: Display + Clone + Ord> List<T> {
         Some(self.items[self.idx.get()].clone())
     }
 
+    pub fn items(&self) -> Vec<T> {
+        self.items.clone()
+    }
+
     pub fn sort(&mut self) {
         self.items.sort();
         self.idx.set(0);
@@ -219,7 +223,7 @@ impl<T: Display + Clone + Ord> List<T> {
 }
 
 impl List<String> {
-    pub fn new_item(&mut self) -> Result<(), Error> {
+    pub fn new_item(&mut self) -> Result<Option<String>, Error> {
         let ibox = InputBox::new(
             3,
             self.window.get_max_x() - 2,
@@ -228,9 +232,10 @@ impl List<String> {
             &self.window,
         )?;
         if let Some(input) = ibox.input() {
-            self.insert(input);
+            self.insert(input.clone());
+            return Ok(Some(input));
         }
-        Ok(())
+        Ok(None)
     }
 }
 
