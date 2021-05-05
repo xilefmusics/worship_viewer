@@ -9,8 +9,8 @@ use std::env;
 use std::path::PathBuf;
 use std::thread;
 
-use crate::song::Song as SectionSong;
-use crate::song::SongIntern as Song;
+use crate::setlist::SetlistItem;
+use crate::song::{Song, SongPool};
 
 use super::Error;
 
@@ -43,38 +43,35 @@ impl Config {
     }
 }
 
+pub struct MyState {
+    pub config: Config,
+    pub song_pool: SongPool,
+}
+
 #[get("/")]
-fn index(config: State<Config>) -> Option<NamedFile> {
-    NamedFile::open(config.web_path.join("index.html")).ok()
+fn index(state: State<MyState>) -> Option<NamedFile> {
+    NamedFile::open(state.config.web_path.join("index.html")).ok()
 }
 
 #[get("/song/<title>/<key>")]
-fn get_song(title: String, key: String, config: State<Config>) -> Option<Json<SectionSong>> {
-    let song = Song::load_all(&config.path)
-        .ok()?
-        .into_iter()
-        .find(|song| song.title == title)?;
-    Some(Json(song.to_section_song(&key)))
+fn get_song(title: String, key: String, state: State<MyState>) -> Option<Json<Song>> {
+    Some(Json(state.song_pool.get(&SetlistItem { title, key })?))
 }
 
 #[get("/song/<title>")]
-fn get_song_without_key(title: String, config: State<Config>) -> Option<Json<SectionSong>> {
-    get_song(title, "Self".to_string(), config)
+fn get_song_without_key(title: String, state: State<MyState>) -> Option<Json<Song>> {
+    get_song(title, "Self".to_string(), state)
 }
 
 #[get("/titles")]
-fn get_titles(config: State<Config>) -> Result<Json<Vec<String>>, ()> {
-    Ok(Json(
-        Song::load_all(&config.path)
-            .map_err(|_| ())?
-            .into_iter()
-            .map(|song| song.title)
-            .collect(),
-    ))
+fn get_titles(state: State<MyState>) -> Result<Json<Vec<String>>, ()> {
+    Ok(Json(state.song_pool.titles()))
 }
 
 pub fn server(args: env::Args) -> Result<(), Error> {
     let config = Config::new(args)?;
+    let song_pool = SongPool::new(&config.path)?;
+    let state = MyState { config, song_pool };
 
     // websocket broadcaster
     thread::spawn(|| {
@@ -87,8 +84,11 @@ pub fn server(args: env::Args) -> Result<(), Error> {
             "/",
             routes![index, get_song, get_titles, get_song_without_key],
         )
-        .mount("/static", StaticFiles::from(config.web_path.join("static")))
-        .manage(config)
+        .mount(
+            "/static",
+            StaticFiles::from(state.config.web_path.join("static")),
+        )
+        .manage(state)
         .launch();
     Ok(())
 }
