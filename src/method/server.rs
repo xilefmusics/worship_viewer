@@ -9,7 +9,8 @@ use std::env;
 use std::path::PathBuf;
 use std::thread;
 
-use crate::song::{SectionSong, Song};
+use crate::song::Song as SectionSong;
+use crate::song::SongIntern as Song;
 
 use super::Error;
 
@@ -53,7 +54,7 @@ fn get_song(title: String, key: String, config: State<Config>) -> Option<Json<Se
         .ok()?
         .into_iter()
         .find(|song| song.title == title)?;
-    Some(Json(song.to_section_song(&key).ok()?))
+    Some(Json(song.to_section_song(&key)))
 }
 
 #[get("/song/<title>")]

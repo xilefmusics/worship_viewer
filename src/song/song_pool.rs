@@ -1,31 +1,27 @@
-use std::fs;
 use std::path::PathBuf;
 
-use super::{Error, Song};
+use super::{Error, Song, SongPoolLocal};
+use crate::setlist::SetlistItem;
 
-pub struct SongPool {
-    songs: Vec<Song>,
+pub enum SongPool {
+    Local(SongPoolLocal),
 }
 
 impl SongPool {
     pub fn new(path: &PathBuf) -> Result<Self, Error> {
-        let mut songs = fs::read_dir(path)?
-            .map(|res| res.map(|e| e.path()))
-            .filter(|path| path.is_ok() && !path.as_ref().unwrap().is_dir())
-            .map(|path| Song::load(path?.clone()))
-            .collect::<Result<Vec<Song>, Error>>()?;
-        songs.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
-        Ok(Self { songs })
+        let song_pool_local = SongPoolLocal::new(path)?;
+        Ok(Self::Local(song_pool_local))
     }
 
-    pub fn get(&self, title: String) -> Option<Song> {
-        self.songs
-            .iter()
-            .find(|song| song.title == title)
-            .map(|song| song.clone())
+    pub fn get(&self, setlist_item: &SetlistItem) -> Option<Song> {
+        match self {
+            Self::Local(song_pool_local) => song_pool_local.get(setlist_item),
+        }
     }
 
     pub fn titles(&self) -> Vec<String> {
-        self.songs.iter().map(|song| song.title.clone()).collect()
+        match self {
+            Self::Local(song_pool_local) => song_pool_local.titles(),
+        }
     }
 }

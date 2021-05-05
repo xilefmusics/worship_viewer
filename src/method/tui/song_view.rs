@@ -1,30 +1,42 @@
 use pancurses::Window;
 use pancurses::{A_BOLD, A_NORMAL};
 
-use crate::line::{IterExtToMulti, IterExtTranspose, Multiline};
-use crate::song::Song;
+use std::rc::Rc;
+
+use crate::setlist::SetlistItem;
+use crate::song::SongPool;
 
 use super::super::Error;
 
 pub struct SongView {
     window: Window,
-    song: Option<Song>,
+    setlist_item: Option<SetlistItem>,
+    song_pool: Rc<SongPool>,
     key: String,
 }
 
 impl SongView {
-    pub fn new(parent_window: &Window, x_start: i32) -> Result<Self, Error> {
+    pub fn new(
+        parent_window: &Window,
+        x_start: i32,
+        song_pool: Rc<SongPool>,
+    ) -> Result<Self, Error> {
         let window = parent_window.subwin(
             parent_window.get_max_y(),
             parent_window.get_max_x() - x_start,
             0,
             x_start,
         )?;
-        let song = None;
+        let setlist_item = None;
         let key = String::from("Self");
         window.draw_box(0, 0);
         window.keypad(true);
-        Ok(Self { window, song, key })
+        Ok(Self {
+            window,
+            setlist_item,
+            song_pool,
+            key,
+        })
     }
 
     pub fn set_key(&mut self, key: &str) -> Result<(), Error> {
@@ -60,62 +72,59 @@ impl SongView {
     pub fn render(&self) -> Result<(), Error> {
         self.window.clear();
         self.window.draw_box(0, 0);
-        if let Some(song) = &self.song {
-            let mut idx = 0;
-            let mut first_section = true;
-            let key = match self.key.as_str() {
-                "Self" => song.key.as_str(),
-                key => key,
-            };
-            song.lines()
-                .into_iter()
-                .transpose(key)
-                .to_multi_flatten()
-                .for_each(|line| match line {
-                    Multiline::Keyword(keyword) => {
-                        if first_section {
-                            first_section = false;
-                        } else {
-                            idx += 1;
-                        }
-                        self.window.attrset(A_BOLD);
-                        self.window.color_set(1);
-                        self.window.mvprintw(idx + 1, 2, keyword);
-                        self.window.color_set(0);
-                        self.window.attrset(A_NORMAL);
-                        idx += 1;
-                    }
-
-                    Multiline::Chord(chord) => {
-                        self.window.attrset(A_BOLD);
-                        self.window.color_set(2);
-                        self.window.mvprintw(idx + 1, 4, chord);
-                        self.window.color_set(0);
-                        self.window.attrset(A_NORMAL);
-                        idx += 1;
-                    }
-                    Multiline::Text(text) => {
-                        self.window.color_set(2);
-                        self.window.mvprintw(idx + 1, 4, text);
-                        self.window.color_set(0);
-                        idx += 1;
-                    }
-
-                    Multiline::Translation(translation) => {
-                        self.window.color_set(3);
-                        self.window.mvprintw(idx + 1, 4, translation);
-                        self.window.color_set(0);
-                        idx += 1;
-                    }
-                });
-            self.window.refresh();
-            return Ok(());
+        if self.setlist_item.is_none() {
+            return Err(Error::NoSong);
         }
-        Err(Error::NoSong)
+        let mut setlist_item = self
+            .setlist_item
+            .clone()
+            .expect("None case is already covered");
+        if self.key != "Self" {
+            setlist_item.key = self.key.to_string();
+        }
+        self.window.printw(format!("{:?}", setlist_item));
+        let song = self.song_pool.get(&setlist_item).ok_or(Error::NoSong)?;
+
+        let mut idx = 0;
+        for section in song.sections {
+            if let Some(keyword) = section.keyword {
+                self.window.attrset(A_BOLD);
+                self.window.color_set(1);
+                self.window.mvprintw(idx + 1, 2, keyword);
+                self.window.color_set(0);
+                self.window.attrset(A_NORMAL);
+                idx += 1;
+            }
+            for line in section.lines {
+                if let Some(chord) = line.chord {
+                    self.window.attrset(A_BOLD);
+                    self.window.color_set(2);
+                    self.window.mvprintw(idx + 1, 4, chord);
+                    self.window.color_set(0);
+                    self.window.attrset(A_NORMAL);
+                    idx += 1;
+                }
+                if let Some(text) = line.text {
+                    self.window.color_set(2);
+                    self.window.mvprintw(idx + 1, 4, text);
+                    self.window.color_set(0);
+                    idx += 1;
+                }
+                if let Some(translation) = line.translation {
+                    self.window.color_set(3);
+                    self.window.mvprintw(idx + 1, 4, translation);
+                    self.window.color_set(0);
+                    idx += 1;
+                }
+            }
+            idx += 1;
+        }
+        self.window.refresh();
+        Ok(())
     }
 
-    pub fn load_song(&mut self, song: Song) -> Result<(), Error> {
-        self.song = Some(song);
+    pub fn load_setlist_item(&mut self, setlist_item: SetlistItem) -> Result<(), Error> {
+        self.setlist_item = Some(setlist_item);
         self.render()?;
         Ok(())
     }

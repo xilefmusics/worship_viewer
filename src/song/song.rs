@@ -5,7 +5,8 @@ use crate::line::{
     IterExtToMulti, IterExtToSection, IterExtToWp, IterExtTranspose, Section, WpLine,
 };
 
-use super::{Error, SectionSong};
+use super::Error;
+use super::Song as SectionSong;
 
 #[derive(Debug, Clone)]
 pub struct Song {
@@ -90,15 +91,20 @@ impl Song {
         }
     }
 
-    pub fn to_section_song(&self, key: &str) -> Result<SectionSong, Error> {
+    pub fn to_section_song(&self, key: &str) -> SectionSong {
         let title = self.title.clone();
+        let key = key.to_string();
         let sections = self
             .lines()
             .into_iter()
-            .transpose(key)
+            .transpose(&key)
             .to_multi()
             .to_section()
             .collect::<Vec<Section>>();
-        Ok(SectionSong::new(title, sections))
+        SectionSong {
+            title,
+            key,
+            sections,
+        }
     }
 }

@@ -131,8 +131,10 @@ impl PanelSetlist {
     }
 
     fn add_title_to_setlist(&mut self, title: String) {
-        if let Some(song) = self.song_pool.get(title) {
-            let title = song.title.clone();
+        if let Some(song) = self.song_pool.get(&SetlistItem {
+            title: title.clone(),
+            key: "Self".to_string(),
+        }) {
             let key = song.key.clone();
             let setlist_item = SetlistItem { title, key };
             let wrapper = SetlistItemFmtWithKeyWrapper { setlist_item };
