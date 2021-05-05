@@ -52,29 +52,29 @@ impl SetlistPool {
             .collect()
     }
 
-    pub fn all_songs(&self) -> Setlist {
+    pub fn all_songs(&self) -> Result<Setlist, Error> {
         let items = self
             .song_pool
-            .titles()
+            .titles()?
             .into_iter()
             .map(|title| SetlistItem {
                 title,
                 key: "Self".to_string(),
             })
             .collect::<Vec<SetlistItem>>();
-        Setlist::new("All Songs".to_string(), items)
+        Ok(Setlist::new("All Songs".to_string(), items))
     }
 
-    pub fn get(&self, title: String) -> Option<Setlist> {
-        match title.as_str() {
-            "All Songs" => Some(self.all_songs()),
+    pub fn get(&self, title: String) -> Result<Option<Setlist>, Error> {
+        Ok(match title.as_str() {
+            "All Songs" => Some(self.all_songs()?),
             _ => self
                 .setlists
                 .borrow()
                 .iter()
                 .find(|setlist| setlist.title == title)
                 .map(|setlist| setlist.clone()),
-        }
+        })
     }
 
     pub fn get_first(&self) -> Option<Setlist> {

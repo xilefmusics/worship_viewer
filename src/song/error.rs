@@ -6,6 +6,7 @@ use std::io;
 pub enum Error {
     IO(String),
     SongParse(String),
+    Network(String),
 }
 
 impl fmt::Display for Error {
@@ -13,6 +14,7 @@ impl fmt::Display for Error {
         match self {
             Self::IO(msg) => write!(f, "IO (msg: {})", msg),
             Self::SongParse(msg) => write!(f, "SongParse (msg: {})", msg),
+            Self::Network(msg) => write!(f, "Network (msg: {})", msg),
         }
     }
 }
@@ -20,6 +22,12 @@ impl fmt::Display for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Self::IO(err.to_string())
+    }
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Self::Network(err.to_string())
     }
 }
 

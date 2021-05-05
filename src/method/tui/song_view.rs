@@ -83,7 +83,10 @@ impl SongView {
             setlist_item.key = self.key.to_string();
         }
         self.window.printw(format!("{:?}", setlist_item));
-        let song = self.song_pool.get(&setlist_item).ok_or(Error::NoSong)?;
+        let song = match self.song_pool.get(&setlist_item) {
+            Ok(Some(song)) => song,
+            _ => return Ok(()),
+        };
 
         let mut idx = 0;
         for section in song.sections {

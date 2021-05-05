@@ -36,7 +36,7 @@ impl PanelSong {
             0,
             0,
             window,
-            setlist_pool.all_songs().items(),
+            setlist_pool.all_songs()?.items(),
         )?;
         let song_view = SongView::new(window, width, song_pool)?;
         let mode = Mode::Song;
@@ -95,7 +95,7 @@ impl PanelSong {
 
     pub fn load_setlist(&mut self) -> Result<(), Error> {
         if let Some(title) = self.sidebar_setlist.selected_item() {
-            if let Some(setlist) = self.setlist_pool.get(title) {
+            if let Some(setlist) = self.setlist_pool.get(title)? {
                 self.sidebar_song.change_items(setlist.items());
             }
             self.load_selected_song()?;

@@ -54,23 +54,30 @@ fn index(state: State<MyState>) -> Option<NamedFile> {
 }
 
 #[get("/song/<title>/<key>")]
-fn get_song(title: String, key: String, state: State<MyState>) -> Option<Json<Song>> {
-    Some(Json(state.song_pool.get(&SetlistItem { title, key })?))
+fn get_song(title: String, key: String, state: State<MyState>) -> Result<Option<Json<Song>>, ()> {
+    let song = state
+        .song_pool
+        .get(&SetlistItem { title, key })
+        .map_err(|_| ())?;
+    match song {
+        Some(song) => Ok(Some(Json(song))),
+        None => Ok(None),
+    }
 }
 
 #[get("/song/<title>")]
-fn get_song_without_key(title: String, state: State<MyState>) -> Option<Json<Song>> {
+fn get_song_without_key(title: String, state: State<MyState>) -> Result<Option<Json<Song>>, ()> {
     get_song(title, "Self".to_string(), state)
 }
 
 #[get("/titles")]
 fn get_titles(state: State<MyState>) -> Result<Json<Vec<String>>, ()> {
-    Ok(Json(state.song_pool.titles()))
+    Ok(Json(state.song_pool.titles().map_err(|_| ())?))
 }
 
 pub fn server(args: env::Args) -> Result<(), Error> {
     let config = Config::new(args)?;
-    let song_pool = SongPool::new(&config.path)?;
+    let song_pool = SongPool::new_local(&config.path)?;
     let state = MyState { config, song_pool };
 
     // websocket broadcaster

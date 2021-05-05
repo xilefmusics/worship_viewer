@@ -22,7 +22,7 @@ pub fn tui(args: env::Args) -> Result<(), Error> {
 
 fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
     let config = Config::new(args)?;
-    let song_pool = Rc::new(SongPool::new(&config.root_path)?);
+    let song_pool = Rc::new(SongPool::new_local(&config.root_path)?);
     let mut setlist_pool_path = config.root_path.clone();
     setlist_pool_path.push(PathBuf::from("setlists"));
     let setlist_pool = Rc::new(SetlistPool::new(&setlist_pool_path, song_pool.clone())?);

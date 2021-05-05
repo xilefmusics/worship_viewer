@@ -61,8 +61,14 @@ impl PanelSetlist {
                 .unwrap_or(vec![]),
         )?;
 
-        let list_all_songs =
-            List::new(nlines, width, 0, ncols - width, &window, song_pool.titles())?;
+        let list_all_songs = List::new(
+            nlines,
+            width,
+            0,
+            ncols - width,
+            &window,
+            song_pool.titles()?,
+        )?;
 
         let current_setlist_title = setlist_pool.get_first().map(|setlist| setlist.title);
 
@@ -131,7 +137,7 @@ impl PanelSetlist {
     }
 
     fn add_title_to_setlist(&mut self, title: String) {
-        if let Some(song) = self.song_pool.get(&SetlistItem {
+        if let Ok(Some(song)) = self.song_pool.get(&SetlistItem {
             title: title.clone(),
             key: "Self".to_string(),
         }) {
@@ -181,9 +187,9 @@ impl PanelSetlist {
         Ok(())
     }
 
-    fn select_setlist(&mut self, title: String) {
+    fn select_setlist(&mut self, title: String) -> Result<(), Error> {
         self.current_setlist_title = Some(title.clone());
-        if let Some(setlist) = self.setlist_pool.get(title) {
+        Ok(if let Some(setlist) = self.setlist_pool.get(title)? {
             self.list_setlist_songs.change_items(
                 setlist
                     .items()
@@ -193,7 +199,7 @@ impl PanelSetlist {
             );
         } else {
             self.list_setlist_songs.change_items(vec![])
-        }
+        })
     }
 
     pub fn handle_input_mode_setlist(&mut self, input: Option<Input>) -> Result<(), Error> {
@@ -201,12 +207,12 @@ impl PanelSetlist {
             Some(Input::Character('n')) => {
                 if let Some(title) = self.list_setlist.new_item()? {
                     self.list_setlist.sort();
-                    self.select_setlist(title)
+                    self.select_setlist(title)?
                 }
             }
             Some(Input::Character(' ')) => {
                 if let Some(title) = self.list_setlist.selected_item() {
-                    self.select_setlist(title);
+                    self.select_setlist(title)?;
                 }
             }
             input => self.list_setlist.handle_input(input)?,
