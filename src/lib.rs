@@ -7,7 +7,6 @@ extern crate ws;
 
 extern crate pancurses;
 
-pub mod line;
 pub mod method;
 pub mod setlist;
 pub mod song;

@@ -1,8 +1,8 @@
 use std::env;
-use std::fs;
+use std::path::PathBuf;
 
-use super::super::line::{IterExtToMulti, IterExtToWp, IterExtTranspose, Multiline};
 use super::Error;
+use crate::song::SongPool;
 
 fn get_color_code(name: &str) -> &str {
     match name {
@@ -27,7 +27,7 @@ fn get_color_code(name: &str) -> &str {
 }
 
 struct Config {
-    filename: String,
+    path: PathBuf,
     new_key: String,
     text_color: Option<String>,
     chord_color: Option<String>,
@@ -100,8 +100,8 @@ impl Config {
             }
         }
 
-        let filename = match filename {
-            Some(f) => f,
+        let path = match filename {
+            Some(f) => PathBuf::from(&f),
             None => return Err(Error::ParseArgs(String::from("No filename given"))),
         };
         let mut spaces = String::new();
@@ -109,7 +109,7 @@ impl Config {
             spaces.push_str(" ");
         }
         Ok(Config {
-            filename,
+            path,
             new_key,
             text_color,
             chord_color,
@@ -122,36 +122,36 @@ impl Config {
 
 pub fn show(args: env::Args) -> Result<(), Error> {
     let config = Config::new(args)?;
-    let mut first_section = true;
-    fs::read_to_string(&config.filename)?
-        .lines()
-        .to_wp()
-        .transpose(&config.new_key)
-        .to_multi_flatten()
-        .for_each(|line| match line {
-            Multiline::Keyword(keyword) => {
-                if first_section {
-                    first_section = false;
-                } else {
-                    println!("");
-                }
-                match &config.keyword_color {
-                    Some(color) => println! {"{}{}\x1b[0m", color, keyword},
-                    None => println! {"{}", keyword},
+    let song = SongPool::lazy_load_file(config.path, &config.new_key)?;
+
+    for section in song.sections {
+        if let Some(keyword) = section.keyword {
+            match &config.keyword_color {
+                Some(color) => println! {"{}{}\x1b[0m", color, keyword},
+                None => println! {"{}", keyword},
+            }
+        }
+        for line in section.lines {
+            if let Some(chord) = line.chord {
+                match &config.chord_color {
+                    Some(color) => println! {"{}{}{}\x1b[0m", config.spaces, color, chord},
+                    None => println! {"{}{}", config.spaces, chord},
                 }
             }
-            Multiline::Chord(chord) => match &config.chord_color {
-                Some(color) => println! {"{}{}{}\x1b[0m", config.spaces, color, chord},
-                None => println! {"{}{}", config.spaces, chord},
-            },
-            Multiline::Text(text) => match &config.text_color {
-                Some(color) => println! {"{}{}{}\x1b[0m", config.spaces, color, text},
-                None => println! {"{}{}", config.spaces, text},
-            },
-            Multiline::Translation(translation) => match &config.translation_color {
-                Some(color) => println! {"{}{}{}\x1b[0m", config.spaces, color, translation},
-                None => println! {"{}{}", config.spaces, translation},
-            },
-        });
+            if let Some(text) = line.text {
+                match &config.text_color {
+                    Some(color) => println! {"{}{}{}\x1b[0m", config.spaces, color, text},
+                    None => println! {"{}{}", config.spaces, text},
+                }
+            }
+            if let Some(translation) = line.translation {
+                match &config.translation_color {
+                    Some(color) => println! {"{}{}{}\x1b[0m", config.spaces, color, translation},
+                    None => println! {"{}{}", config.spaces, translation},
+                }
+            }
+        }
+        println!("");
+    }
     Ok(())
 }

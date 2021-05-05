@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use crate::line::{
+use super::line::{
     IterExtToMulti, IterExtToSection, IterExtToWp, IterExtTranspose, Section, WpLine,
 };
 

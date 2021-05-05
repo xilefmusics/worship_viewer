@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::line::Section;
+use super::line::Section;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SectionSong {
