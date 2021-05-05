@@ -1,10 +1,12 @@
 use std::path::PathBuf;
 
-use super::{Error, Song, SongIntern, SongPoolLocal};
+use super::super::{Error, Song, SongIntern};
+use super::{SongPoolDist, SongPoolLocal};
 use crate::setlist::SetlistItem;
 
 pub enum SongPool {
     Local(SongPoolLocal),
+    Dist(SongPoolDist),
 }
 
 impl SongPool {
@@ -19,13 +21,15 @@ impl SongPool {
 
     pub fn get(&self, setlist_item: &SetlistItem) -> Option<Song> {
         match self {
-            Self::Local(song_pool_local) => song_pool_local.get(setlist_item),
+            Self::Local(song_pool) => song_pool.get(setlist_item),
+            Self::Dist(song_pool) => song_pool.get(setlist_item),
         }
     }
 
     pub fn titles(&self) -> Vec<String> {
         match self {
-            Self::Local(song_pool_local) => song_pool_local.titles(),
+            Self::Local(song_pool) => song_pool.titles(),
+            Self::Dist(song_pool) => song_pool.titles(),
         }
     }
 }

@@ -1,5 +1,5 @@
 mod line;
-pub use line::Line::{self, Directive, Empty, TextChordTrans};
+pub use line::Line::{self, Directive, TextChordTrans};
 
 mod transpose;
 pub use transpose::{IntoTranspose, Transpose};

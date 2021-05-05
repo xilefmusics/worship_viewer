@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use super::{Error, Song, SongIntern};
+use super::super::{Error, Song, SongIntern};
 use crate::setlist::SetlistItem;
 
 pub struct SongPoolLocal {

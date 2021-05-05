@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use super::{Error, Song};
+use super::super::{Error, Song};
+use crate::setlist::SetlistItem;
 
 pub struct SongPoolDist {
     _songs: Vec<Song>,
@@ -11,7 +12,7 @@ impl SongPoolDist {
         Err(Error::IO("Todo".to_string()))
     }
 
-    pub fn get(&self, _title: String) -> Option<Song> {
+    pub fn get(&self, _setlist_item: &SetlistItem) -> Option<Song> {
         None
     }
 

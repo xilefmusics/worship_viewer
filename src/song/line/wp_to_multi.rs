@@ -2,7 +2,6 @@ use super::{multi, wp};
 
 pub fn wp_to_multi(line: &wp::Line) -> Vec<multi::Line> {
     match line {
-        wp::Empty => Vec::new(),
         wp::Directive((key, value)) => match key.as_str() {
             "section" => vec![multi::Keyword((*value).trim().to_string())],
             _ => Vec::new(),
@@ -53,15 +52,6 @@ where
     I: Iterator<Item = wp::Line>,
 {
     iter: I,
-}
-
-impl<I> WpToMulti<I>
-where
-    I: Iterator<Item = wp::Line>,
-{
-    pub fn new(iter: I) -> Self {
-        Self { iter }
-    }
 }
 
 impl<I> Iterator for WpToMulti<I>
