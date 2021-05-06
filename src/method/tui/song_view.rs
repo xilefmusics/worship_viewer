@@ -1,7 +1,7 @@
 use pancurses::Window;
 use pancurses::{A_BOLD, A_NORMAL};
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::setlist::SetlistItem;
 use crate::song::SongPool;
@@ -11,7 +11,7 @@ use super::super::Error;
 pub struct SongView {
     window: Window,
     setlist_item: Option<SetlistItem>,
-    song_pool: Rc<SongPool>,
+    song_pool: Arc<SongPool>,
     key: String,
 }
 
@@ -19,7 +19,7 @@ impl SongView {
     pub fn new(
         parent_window: &Window,
         x_start: i32,
-        song_pool: Rc<SongPool>,
+        song_pool: Arc<SongPool>,
     ) -> Result<Self, Error> {
         let window = parent_window.subwin(
             parent_window.get_max_y(),
@@ -82,7 +82,6 @@ impl SongView {
         if self.key != "Self" {
             setlist_item.key = self.key.to_string();
         }
-        self.window.printw(format!("{:?}", setlist_item));
         let song = match self.song_pool.get(&setlist_item) {
             Ok(Some(song)) => song,
             _ => return Ok(()),

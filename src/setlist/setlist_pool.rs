@@ -1,98 +1,63 @@
-use std::cell::RefCell;
-use std::fs;
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::song::SongPool;
 
-use super::{Error, Setlist, SetlistItem};
+use super::{Error, Setlist, SetlistPoolLocal, SetlistPoolRemote};
 
-pub struct SetlistPool {
-    setlists: RefCell<Vec<Setlist>>,
-    song_pool: Rc<SongPool>,
+pub enum SetlistPool {
+    Local(SetlistPoolLocal),
+    Remote(SetlistPoolRemote),
 }
 
 impl SetlistPool {
-    pub fn new(path: &PathBuf, song_pool: Rc<SongPool>) -> Result<Self, Error> {
-        let mut setlists = fs::read_dir(path)?
-            .map(|res| res.map(|e| e.path()))
-            .filter(|path| {
-                if let Ok(path) = path {
-                    !path.is_dir()
-                } else {
-                    false
-                }
-            })
-            .map(|path| Setlist::load(path?))
-            .collect::<Result<Vec<Setlist>, Error>>()?;
-        setlists.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
-        let setlists = RefCell::new(setlists);
-        Ok(Self {
-            setlists,
-            song_pool,
-        })
+    pub fn new_local(path: &PathBuf, song_pool: Arc<SongPool>) -> Result<Self, Error> {
+        Ok(Self::Local(SetlistPoolLocal::new(path, song_pool)?))
     }
 
-    pub fn titles(&self) -> Vec<String> {
-        std::iter::once("All Songs".to_string())
-            .chain(
-                self.setlists
-                    .borrow()
-                    .iter()
-                    .map(|setlist| setlist.title.clone()),
-            )
-            .collect()
+    pub fn new_remote(url: String) -> Result<Self, Error> {
+        Ok(Self::Remote(SetlistPoolRemote::new(url)))
     }
 
-    pub fn true_titles(&self) -> Vec<String> {
-        self.setlists
-            .borrow()
-            .iter()
-            .map(|setlist| setlist.title.clone())
-            .collect()
+    pub fn titles(&self) -> Result<Vec<String>, Error> {
+        match self {
+            Self::Local(setlist_pool) => Ok(setlist_pool.titles()),
+            Self::Remote(setlist_pool) => setlist_pool.titles(),
+        }
+    }
+
+    pub fn true_titles(&self) -> Result<Vec<String>, Error> {
+        match self {
+            Self::Local(setlist_pool) => Ok(setlist_pool.true_titles()),
+            Self::Remote(setlist_pool) => setlist_pool.true_titles(),
+        }
     }
 
     pub fn all_songs(&self) -> Result<Setlist, Error> {
-        let items = self
-            .song_pool
-            .titles()?
-            .into_iter()
-            .map(|title| SetlistItem {
-                title,
-                key: "Self".to_string(),
-            })
-            .collect::<Vec<SetlistItem>>();
-        Ok(Setlist::new("All Songs".to_string(), items))
+        match self {
+            Self::Local(setlist_pool) => setlist_pool.all_songs(),
+            Self::Remote(setlist_pool) => setlist_pool.all_songs(),
+        }
     }
 
     pub fn get(&self, title: String) -> Result<Option<Setlist>, Error> {
-        Ok(match title.as_str() {
-            "All Songs" => Some(self.all_songs()?),
-            _ => self
-                .setlists
-                .borrow()
-                .iter()
-                .find(|setlist| setlist.title == title)
-                .map(|setlist| setlist.clone()),
-        })
+        match self {
+            Self::Local(setlist_pool) => setlist_pool.get(title),
+            Self::Remote(setlist_pool) => setlist_pool.get(title),
+        }
     }
 
-    pub fn get_first(&self) -> Option<Setlist> {
-        self.setlists.borrow().get(0).map(|setlist| setlist.clone())
+    pub fn get_first(&self) -> Result<Option<Setlist>, Error> {
+        match self {
+            Self::Local(setlist_pool) => Ok(setlist_pool.get_first()),
+            Self::Remote(setlist_pool) => setlist_pool.get_first(),
+        }
     }
 
     pub fn update_setlist(&self, setlist: Setlist) -> Result<(), Error> {
-        let mut setlists = self.setlists.borrow_mut();
-        if let Some((idx, _)) = setlists
-            .iter()
-            .enumerate()
-            .find(|(_, sl)| sl.title == setlist.title)
-        {
-            setlists[idx] = setlist;
-        } else {
-            setlists.push(setlist);
-            setlists.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+        match self {
+            Self::Local(setlist_pool) => setlist_pool.update_setlist(setlist),
+            Self::Remote(_) => Err(Error::Other("remote mut not yet implemented".to_string())),
         }
-        Ok(())
     }
 }

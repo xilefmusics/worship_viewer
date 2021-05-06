@@ -1,6 +1,6 @@
 use pancurses::{Input, Window};
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::setlist::{SetlistItem, SetlistPool};
 use crate::song::SongPool;
@@ -18,7 +18,7 @@ pub struct PanelSong {
     sidebar_setlist: List<String>,
     sidebar_song: List<SetlistItem>,
     song_view: SongView,
-    setlist_pool: Rc<SetlistPool>,
+    setlist_pool: Arc<SetlistPool>,
     mode: Mode,
 }
 
@@ -26,8 +26,8 @@ impl PanelSong {
     pub fn new(
         window: &Window,
         width: i32,
-        song_pool: Rc<SongPool>,
-        setlist_pool: Rc<SetlistPool>,
+        song_pool: Arc<SongPool>,
+        setlist_pool: Arc<SetlistPool>,
     ) -> Result<Self, Error> {
         let sidebar_setlist = List::new(window.get_max_y(), width, 0, 0, window, vec![])?;
         let sidebar_song = List::new(
@@ -88,7 +88,7 @@ impl PanelSong {
 
     pub fn select_setlist(&mut self) -> Result<(), Error> {
         self.sidebar_setlist
-            .change_items(self.setlist_pool.titles());
+            .change_items(self.setlist_pool.titles()?);
         self.mode = Mode::Setlist;
         Ok(())
     }

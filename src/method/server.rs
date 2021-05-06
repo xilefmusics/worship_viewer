@@ -7,18 +7,19 @@ use ws::listen;
 
 use std::env;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::thread;
 
-use crate::setlist::SetlistItem;
+use crate::setlist::{Setlist, SetlistItem, SetlistPool};
 use crate::song::{Song, SongPool};
 
 use super::Error;
 
 pub struct Config {
-    pub path: PathBuf,
+    pub song_path: PathBuf,
+    pub setlist_path: PathBuf,
     pub web_path: PathBuf,
 }
-
 impl Config {
     pub fn new(mut args: env::Args) -> Result<Self, Error> {
         let mut path: Option<String> = None;
@@ -34,18 +35,24 @@ impl Config {
                 f => path = Some(f.to_string()),
             }
         }
-        let path = PathBuf::from(path.unwrap_or(".".to_string()));
+        let song_path = PathBuf::from(path.unwrap_or(".".to_string()));
         let web_path = match web_path {
             Some(web_path) => PathBuf::from(web_path),
-            None => path.join("www"),
+            None => song_path.join("www"),
         };
-        Ok(Self { path, web_path })
+        let setlist_path = song_path.join("setlists");
+        Ok(Self {
+            song_path,
+            web_path,
+            setlist_path,
+        })
     }
 }
 
 pub struct MyState {
     pub config: Config,
-    pub song_pool: SongPool,
+    pub song_pool: Arc<SongPool>,
+    pub setlist_pool: Arc<SetlistPool>,
 }
 
 #[get("/")]
@@ -70,15 +77,56 @@ fn get_song_without_key(title: String, state: State<MyState>) -> Result<Option<J
     get_song(title, "Self".to_string(), state)
 }
 
-#[get("/titles")]
-fn get_titles(state: State<MyState>) -> Result<Json<Vec<String>>, ()> {
+#[get("/song_titles")]
+fn get_song_titles(state: State<MyState>) -> Result<Json<Vec<String>>, ()> {
     Ok(Json(state.song_pool.titles().map_err(|_| ())?))
+}
+
+#[get("/setlist_titles")]
+fn get_setlist_titles(state: State<MyState>) -> Result<Json<Vec<String>>, ()> {
+    Ok(Json(state.setlist_pool.titles().map_err(|_| ())?))
+}
+
+#[get("/setlist_true_titles")]
+fn get_setlist_true_titles(state: State<MyState>) -> Result<Json<Vec<String>>, ()> {
+    Ok(Json(state.setlist_pool.true_titles().map_err(|_| ())?))
+}
+
+#[get("/setlist_all_songs")]
+fn get_setlist_all_songs(state: State<MyState>) -> Result<Json<Setlist>, ()> {
+    Ok(Json(state.setlist_pool.all_songs().map_err(|_| ())?))
+}
+
+#[get("/setlist/<title>")]
+fn get_setlist(title: String, state: State<MyState>) -> Result<Option<Json<Setlist>>, ()> {
+    let setlist = state.setlist_pool.get(title).map_err(|_| ())?;
+    match setlist {
+        Some(setlist) => Ok(Some(Json(setlist))),
+        None => Ok(None),
+    }
+}
+
+#[get("/setlist_get_first")]
+fn get_first_setlist(state: State<MyState>) -> Result<Option<Json<Setlist>>, ()> {
+    let setlist = state.setlist_pool.get_first().map_err(|_| ())?;
+    match setlist {
+        Some(setlist) => Ok(Some(Json(setlist))),
+        None => Ok(None),
+    }
 }
 
 pub fn server(args: env::Args) -> Result<(), Error> {
     let config = Config::new(args)?;
-    let song_pool = SongPool::new_local(&config.path)?;
-    let state = MyState { config, song_pool };
+    let song_pool = Arc::new(SongPool::new_local(&config.song_path)?);
+    let setlist_pool = Arc::new(SetlistPool::new_local(
+        &config.setlist_path,
+        Arc::clone(&song_pool),
+    )?);
+    let state = MyState {
+        config,
+        song_pool,
+        setlist_pool,
+    };
 
     // websocket broadcaster
     thread::spawn(|| {
@@ -89,7 +137,17 @@ pub fn server(args: env::Args) -> Result<(), Error> {
     rocket::ignite()
         .mount(
             "/",
-            routes![index, get_song, get_titles, get_song_without_key],
+            routes![
+                index,
+                get_song,
+                get_song_titles,
+                get_song_without_key,
+                get_setlist_titles,
+                get_setlist_true_titles,
+                get_setlist_all_songs,
+                get_setlist,
+                get_first_setlist,
+            ],
         )
         .mount(
             "/static",

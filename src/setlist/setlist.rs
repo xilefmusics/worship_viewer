@@ -1,9 +1,11 @@
+use serde::{Deserialize, Serialize};
+
 use std::fs;
 use std::path::PathBuf;
 
 use super::{Error, SetlistItem};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Setlist {
     pub title: String,
     pub path: Option<PathBuf>,

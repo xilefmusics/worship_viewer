@@ -3,8 +3,7 @@ use pancurses::{Input, Window};
 use pancurses::{COLOR_CYAN, COLOR_GREEN, COLOR_RED, COLOR_WHITE};
 
 use std::env;
-use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::setlist::SetlistPool;
 use crate::song::SongPool;
@@ -22,10 +21,22 @@ pub fn tui(args: env::Args) -> Result<(), Error> {
 
 fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
     let config = Config::new(args)?;
-    let song_pool = Rc::new(SongPool::new_local(&config.root_path)?);
-    let mut setlist_pool_path = config.root_path.clone();
-    setlist_pool_path.push(PathBuf::from("setlists"));
-    let setlist_pool = Rc::new(SetlistPool::new(&setlist_pool_path, song_pool.clone())?);
+
+    let (song_pool, setlist_pool) = match &config.url {
+        Some(url) => (
+            Arc::new(SongPool::new_remote(url.clone())),
+            Arc::new(SetlistPool::new_remote(url.clone())?),
+        ),
+        None => {
+            let song_pool = Arc::new(SongPool::new_local(&config.root_path.expect("Not remote"))?);
+            let setlist_pool = Arc::new(SetlistPool::new_local(
+                &config.setlist_path.expect("Not remote"),
+                Arc::clone(&song_pool),
+            )?);
+            (song_pool, setlist_pool)
+        }
+    };
+
     let mut curr_pannel = 1;
 
     pancurses::noecho();
@@ -44,8 +55,8 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
         0,
         0,
         &window,
-        song_pool.clone(),
-        setlist_pool.clone(),
+        Arc::clone(&song_pool),
+        Arc::clone(&setlist_pool),
     )?;
 
     let mut panel_song = PanelSong::new(&window, 40, song_pool, setlist_pool)?;

@@ -1,6 +1,6 @@
 use ::pancurses::{Input, Window};
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::setlist::{Setlist, SetlistItem, SetlistItemFmtWithKeyWrapper, SetlistPool};
 use crate::song::SongPool;
@@ -19,8 +19,8 @@ pub struct PanelSetlist {
     list_setlist: List<String>,
     list_setlist_songs: List<SetlistItemFmtWithKeyWrapper>,
     list_all_songs: List<String>,
-    setlist_pool: Rc<SetlistPool>,
-    song_pool: Rc<SongPool>,
+    setlist_pool: Arc<SetlistPool>,
+    song_pool: Arc<SongPool>,
     mode: Mode,
     current_setlist_title: Option<String>,
     confirmation_box: ConfirmationBox,
@@ -33,14 +33,14 @@ impl PanelSetlist {
         begy: i32,
         begx: i32,
         parent: &Window,
-        song_pool: Rc<SongPool>,
-        setlist_pool: Rc<SetlistPool>,
+        song_pool: Arc<SongPool>,
+        setlist_pool: Arc<SetlistPool>,
     ) -> Result<Self, Error> {
         let window = parent.subwin(nlines, ncols, begy, begx)?;
         let width = ncols / 3;
         let mode = Mode::Setlist;
 
-        let list_setlist = List::new(nlines, width, 0, 0, &window, setlist_pool.true_titles())?;
+        let list_setlist = List::new(nlines, width, 0, 0, &window, setlist_pool.true_titles()?)?;
         list_setlist.set_selected(true);
 
         let list_setlist_songs = List::new(
@@ -50,7 +50,7 @@ impl PanelSetlist {
             width,
             &window,
             setlist_pool
-                .get_first()
+                .get_first()?
                 .map(|setlist| {
                     setlist
                         .items()
@@ -70,7 +70,7 @@ impl PanelSetlist {
             song_pool.titles()?,
         )?;
 
-        let current_setlist_title = setlist_pool.get_first().map(|setlist| setlist.title);
+        let current_setlist_title = setlist_pool.get_first()?.map(|setlist| setlist.title);
 
         let confirmation_box =
             ConfirmationBox::new(3, window.get_max_x(), window.get_max_y() - 3, 0, &window)?;

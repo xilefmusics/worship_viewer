@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use std::cmp;
 use std::fmt;
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct SetlistItem {
     pub title: String,
     pub key: String,
