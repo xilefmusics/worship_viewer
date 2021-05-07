@@ -10,6 +10,7 @@ pub enum Error {
     ParseSetlist(String),
     Network(String),
     Other(String),
+    NoPath,
 }
 
 impl fmt::Display for Error {
@@ -19,6 +20,7 @@ impl fmt::Display for Error {
             Self::ParseSetlist(msg) => write!(f, "ParseSetlist (msg: {})", msg),
             Self::Network(msg) => write!(f, "Network (msg: {})", msg),
             Self::Other(msg) => write!(f, "Other (msg: {})", msg),
+            Self::NoPath => write!(f, "Try to write setlist with no specified path"),
         }
     }
 }

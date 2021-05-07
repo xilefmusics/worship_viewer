@@ -187,6 +187,21 @@ impl PanelSetlist {
         Ok(())
     }
 
+    fn delete_current_setlist(&mut self) -> Result<(), Error> {
+        if let Some(title) = self.current_setlist_title.clone() {
+            if self
+                .confirmation_box
+                .confirm_on(&format!("Do you want to write the setlist \"{}\"", title))
+            {
+                self.setlist_pool.delete_setlist(title)?;
+            }
+        }
+        self.list_setlist.remove();
+        self.list_setlist_songs.change_items(vec![]);
+        self.render();
+        Ok(())
+    }
+
     fn select_setlist(&mut self, title: String) -> Result<(), Error> {
         self.current_setlist_title = Some(title.clone());
         Ok(if let Some(setlist) = self.setlist_pool.get(title)? {
@@ -255,6 +270,7 @@ impl PanelSetlist {
     pub fn handle_input(&mut self, input: Option<Input>) -> Result<(), Error> {
         match input {
             Some(Input::Character('w')) => self.write_current_setlist()?,
+            Some(Input::Character('d')) => self.delete_current_setlist()?,
             Some(Input::Character('h')) => self.next_prev_mode(true),
             Some(Input::Character('l')) | Some(Input::Character('\t')) => {
                 self.next_prev_mode(false)

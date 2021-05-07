@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use std::fs;
+use std::fs::{self, File};
+use std::io::prelude::*;
 use std::path::PathBuf;
 
 use super::{Error, SetlistItem};
@@ -63,5 +64,18 @@ impl Setlist {
 
     pub fn ref_titles(&self) -> Vec<&str> {
         self.items.iter().map(|item| item.title.as_str()).collect()
+    }
+
+    pub fn write(&self) -> Result<(), Error> {
+        let mut file = File::create(self.path.clone().ok_or(Error::NoPath)?)?;
+        for item in &self.items {
+            file.write_fmt(format_args!("{};{}\n", item.title, item.key))?;
+        }
+        Ok(())
+    }
+
+    pub fn remove(&self) -> Result<(), Error> {
+        fs::remove_file(self.path.clone().ok_or(Error::NoPath)?)?;
+        Ok(())
     }
 }

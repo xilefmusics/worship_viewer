@@ -9,11 +9,12 @@ use super::{Error, Setlist, SetlistItem};
 pub struct SetlistPoolLocal {
     setlists: Arc<Mutex<Vec<Setlist>>>,
     song_pool: Arc<SongPool>,
+    path: PathBuf,
 }
 
 impl SetlistPoolLocal {
-    pub fn new(path: &PathBuf, song_pool: Arc<SongPool>) -> Result<Self, Error> {
-        let mut setlists = fs::read_dir(path)?
+    pub fn new(path: PathBuf, song_pool: Arc<SongPool>) -> Result<Self, Error> {
+        let mut setlists = fs::read_dir(&path)?
             .map(|res| res.map(|e| e.path()))
             .filter(|path| {
                 if let Ok(path) = path {
@@ -29,6 +30,7 @@ impl SetlistPoolLocal {
         Ok(Self {
             setlists,
             song_pool,
+            path,
         })
     }
 
@@ -87,18 +89,39 @@ impl SetlistPoolLocal {
             .map(|setlist| setlist.clone())
     }
 
-    pub fn update_setlist(&self, setlist: Setlist) -> Result<(), Error> {
+    pub fn update_setlist(&self, mut setlist: Setlist) -> Result<(), Error> {
         let mut setlists = self.setlists.lock().unwrap();
         if let Some((idx, _)) = setlists
             .iter()
             .enumerate()
             .find(|(_, sl)| sl.title == setlist.title)
         {
+            if setlist.path.is_none() {
+                setlist.path = setlists[idx].path.clone();
+            }
+            setlist.write()?;
             setlists[idx] = setlist;
         } else {
+            setlist.path = Some(self.path.join(format!("{}.sl", setlist.title)));
+            setlist.write()?;
             setlists.push(setlist);
             setlists.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
         }
         Ok(())
+    }
+
+    pub fn delete_setlist(&self, title: String) -> Result<Option<()>, Error> {
+        let mut setlists = self.setlists.lock().unwrap();
+        if let Some((idx, _)) = setlists
+            .iter()
+            .enumerate()
+            .find(|(_, sl)| sl.title == title)
+        {
+            setlists[idx].remove()?;
+            setlists.remove(idx);
+            Ok(Some(()))
+        } else {
+            Ok(None)
+        }
     }
 }

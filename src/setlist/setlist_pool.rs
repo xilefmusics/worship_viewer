@@ -11,7 +11,7 @@ pub enum SetlistPool {
 }
 
 impl SetlistPool {
-    pub fn new_local(path: &PathBuf, song_pool: Arc<SongPool>) -> Result<Self, Error> {
+    pub fn new_local(path: PathBuf, song_pool: Arc<SongPool>) -> Result<Self, Error> {
         Ok(Self::Local(SetlistPoolLocal::new(path, song_pool)?))
     }
 
@@ -57,6 +57,13 @@ impl SetlistPool {
     pub fn update_setlist(&self, setlist: Setlist) -> Result<(), Error> {
         match self {
             Self::Local(setlist_pool) => setlist_pool.update_setlist(setlist),
+            Self::Remote(_) => Err(Error::Other("remote mut not yet implemented".to_string())),
+        }
+    }
+
+    pub fn delete_setlist(&self, title: String) -> Result<Option<()>, Error> {
+        match self {
+            Self::Local(setlist_pool) => setlist_pool.delete_setlist(title),
             Self::Remote(_) => Err(Error::Other("remote mut not yet implemented".to_string())),
         }
     }
