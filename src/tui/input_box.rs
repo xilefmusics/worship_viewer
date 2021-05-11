@@ -67,8 +67,8 @@ mod test {
     use super::*;
     use pancurses::{endwin, initscr, Input};
 
-    #[test]
-    fn basic_ibox() {
+    // #[test]
+    fn _basic_ibox() {
         let window = initscr();
         pancurses::noecho();
         pancurses::cbreak();

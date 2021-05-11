@@ -18,3 +18,6 @@ pub use chord_iterator::{
 
 mod from_str;
 pub use from_str::{from_str, IntoFromStr};
+
+mod to_string;
+pub use to_string::{IntoToString, ToString};
