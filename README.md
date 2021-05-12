@@ -53,25 +53,25 @@ Also, currently only Linux is supported as a platform. However, we hope to be ab
 
 The binary can be calld with different methods:
 
-| Method                  | Functionality                                                        |
-| ----------------------- | -------------------------------------------------------------------- |
-| wv show <FILENAME>      | prints a song from a songfile to stdout                              |
-| wv tui <ROOT_FOLDER>    | starts a curses interface                                            |
-| wv server <ROOT_FOLDER> | starts a Server for webinterface                                     |
-| wv ws_console           | starts console showing websocket messages between web clients        |
-| wv import <URL>         | downloads song from tabs.ultimate-guitar.com and prints it to stdout |
+| Method                | Functionality                                                        |
+| --------------------- | -------------------------------------------------------------------- |
+| wv show FILENAME      | prints a song from a songfile to stdout                              |
+| wv tui ROOT_FOLDER    | starts a curses interface                                            |
+| wv server ROOT_FOLDER | starts a Server for webinterface                                     |
+| wv ws_console         | starts console showing websocket messages between web clients        |
+| wv import URL         | downloads song from tabs.ultimate-guitar.com and prints it to stdout |
 
 ### TUI default panel
 
 | Key           | Action                            |
 | ------------- | --------------------------------- |
-| j or <space>  | next song                         |
+| j or space    | next song                         |
 | k             | previous song                     |
 | A,B,C,D,E,F,G | transpose song into key           |
 | #             | transpose song into sharp variant |
 | b             | transpose song into flat variant  |
 | r             | reset to default key              |
-| <tab>         | toggle setlist selector           |
+| tab           | toggle setlist selector           |
 | 2             | switch to setlist editor          |
 
 ### TUI setlist editor
@@ -82,10 +82,10 @@ The binary can be calld with different methods:
 
 | Key           | Action                                         |
 | ------------- | ---------------------------------------------- |
-| <tab>         | change focus between panes                     |
+| tab           | change focus between panes                     |
 | j             | up                                             |
 | k             | down                                           |
-| <space>       | select setlist, remove song, add song          |
+| space         | select setlist, remove song, add song          |
 | n             | create new setlist ( if first is list focused) |
 | d             | deletes current setlist                        |
 | w             | writes current setlist                         |
@@ -99,13 +99,13 @@ The binary can be calld with different methods:
 
 | Key           | Action                            |
 | ------------- | --------------------------------- |
-| j or <space>  | next song                         |
+| j or space    | next song                         |
 | k             | previous song                     |
 | A,B,C,D,E,F,G | transpose song into key           |
 | #             | transpose song into sharp variant |
 | b             | transpose song into flat variant  |
 | r             | reset to default key              |
-| <tab>         | toggle setlist selector           |
+| tab           | toggle setlist selector           |
 | 1             | switch to default panel           |
 | 2             | switch to beamer control panel    |
 | 3             | switch to beamer panel            |
