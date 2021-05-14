@@ -35,4 +35,18 @@ impl SongPool {
             Self::Remote(song_pool) => song_pool.titles(),
         }
     }
+
+    pub fn reload(&self, setlist_item: &SetlistItem) -> Result<(), Error> {
+        match self {
+            Self::Local(song_pool) => song_pool.reload(setlist_item),
+            Self::Remote(_) => Err(Error::Other("remote edit not yet implemented".to_string())),
+        }
+    }
+
+    pub fn edit(&self, setlist_item: &SetlistItem) -> Result<(), Error> {
+        match self {
+            Self::Local(song_pool) => song_pool.edit(setlist_item),
+            Self::Remote(_) => Err(Error::Other("remote edit not yet implemented".to_string())),
+        }
+    }
 }

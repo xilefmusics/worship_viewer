@@ -7,6 +7,7 @@ pub enum Error {
     IO(String),
     SongParse(String),
     Network(String),
+    Other(String),
 }
 
 impl fmt::Display for Error {
@@ -15,6 +16,7 @@ impl fmt::Display for Error {
             Self::IO(msg) => write!(f, "IO (msg: {})", msg),
             Self::SongParse(msg) => write!(f, "SongParse (msg: {})", msg),
             Self::Network(msg) => write!(f, "Network (msg: {})", msg),
+            Self::Other(msg) => write!(f, "{}", msg),
         }
     }
 }

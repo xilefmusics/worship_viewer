@@ -63,16 +63,17 @@ The binary can be calld with different methods:
 
 ### TUI default panel
 
-| Key           | Action                            |
-| ------------- | --------------------------------- |
-| j or space    | next song                         |
-| k             | previous song                     |
-| A,B,C,D,E,F,G | transpose song into key           |
-| #             | transpose song into sharp variant |
-| b             | transpose song into flat variant  |
-| r             | reset to default key              |
-| tab           | toggle setlist selector           |
-| 2             | switch to setlist editor          |
+| Key           | Action                              |
+| ------------- | ----------------------------------- |
+| j or space    | next song                           |
+| k             | previous song                       |
+| A,B,C,D,E,F,G | transpose song into key             |
+| #             | transpose song into sharp variant   |
+| b             | transpose song into flat variant    |
+| r             | reset to default key                |
+| e             | edit current song in default editor |
+| tab           | toggle setlist selector             |
+| 2             | switch to setlist editor            |
 
 ### TUI setlist editor
 

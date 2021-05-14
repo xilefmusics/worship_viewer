@@ -18,6 +18,7 @@ pub struct PanelSong {
     sidebar_setlist: List<String>,
     sidebar_song: List<SetlistItem>,
     song_view: SongView,
+    song_pool: Arc<SongPool>,
     setlist_pool: Arc<SetlistPool>,
     mode: Mode,
 }
@@ -38,12 +39,13 @@ impl PanelSong {
             window,
             setlist_pool.all_songs()?.items(),
         )?;
-        let song_view = SongView::new(window, width, song_pool)?;
+        let song_view = SongView::new(window, width, Arc::clone(&song_pool))?;
         let mode = Mode::Song;
         let mut s = Self {
             sidebar_setlist,
             sidebar_song,
             song_view,
+            song_pool,
             setlist_pool,
             mode,
         };
@@ -131,6 +133,13 @@ impl PanelSong {
                 self.load_selected_song()?;
             }
             Some(Input::Character('\t')) => self.select_setlist()?,
+            Some(Input::Character('e')) => {
+                if let Some(setlist_item) = self.sidebar_song.selected_item() {
+                    self.song_pool.edit(&setlist_item)?;
+                    self.song_pool.reload(&setlist_item)?;
+                    self.render()?;
+                }
+            }
             _ => (),
         };
         Ok(())

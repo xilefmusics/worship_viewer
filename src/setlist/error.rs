@@ -37,6 +37,7 @@ impl From<song::Error> for Error {
             song::Error::Network(msg) => Self::Network(msg),
             song::Error::IO(msg) => Self::IO(msg),
             song::Error::SongParse(msg) => Self::IO(msg),
+            song::Error::Other(msg) => Self::Other(msg),
         }
     }
 }
