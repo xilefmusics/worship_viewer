@@ -10,7 +10,7 @@ fn chord_lines_to_spaces_and_chords(mut line: &str) -> Vec<(usize, String)> {
             .take_while(|(_, c)| *c == ' ')
             .map(|(idx, _)| start_idx = idx)
             .count();
-        if start_idx > 0 {
+        if line.starts_with(' ') {
             start_idx += 1;
         }
         line = &line[start_idx..];
@@ -135,14 +135,21 @@ mod tests {
 
     #[test]
     fn chord_lines() {
-        let vec = chord_lines_to_spaces_and_chords("F/A     G/B  C");
         assert_eq!(
-            vec,
+            chord_lines_to_spaces_and_chords("F/A     G/B  C"),
             vec![
                 (0, "F/A".to_string()),
                 (5, "G/B".to_string()),
                 (2, "C".to_string())
             ]
+        );
+    }
+
+    #[test]
+    fn chord_lines2() {
+        assert_eq!(
+            chord_lines_to_spaces_and_chords(" G"),
+            vec![(1, "G".to_string()),]
         );
     }
 

@@ -86,11 +86,20 @@ pub fn url_to_song(url: &str) -> Result<Song, Error> {
         .find("\"")
         .ok_or(Error::SongParse("No closing \"".to_string()))?];
 
-    // find artist_name
-    //let mut artist_name = &html[html.find("artist_name").unwrap()..];
-    //artist_name = &artist_name[artist_name.find(":").unwrap()..];
-    //artist_name = &artist_name[artist_name.find("\"").unwrap() + 1..];
-    //artist_name = &artist_name[..artist_name.find("\"").unwrap()];
+    //find artist_name
+    let mut artist_name = &html[html
+        .find("artist_name")
+        .ok_or(Error::SongParse("No artist_name in html".to_string()))?..];
+    artist_name = &artist_name[artist_name
+        .find(":")
+        .ok_or(Error::SongParse("No :".to_string()))?..];
+    artist_name = &artist_name[artist_name
+        .find("\"")
+        .ok_or(Error::SongParse("No opening\"".to_string()))?
+        + 1..];
+    artist_name = &artist_name[..artist_name
+        .find("\"")
+        .ok_or(Error::SongParse("No closing \"".to_string()))?];
 
     // find tonality
     let mut tonality = &html[html
@@ -110,6 +119,7 @@ pub fn url_to_song(url: &str) -> Result<Song, Error> {
     // return song
     Ok(Song {
         title: song_name.to_string(),
+        artist: artist_name.to_string(),
         key: tonality.to_string(),
         sections,
     })

@@ -11,6 +11,7 @@ use super::Song;
 #[derive(Debug, Clone)]
 pub struct SongIntern {
     pub title: String,
+    pub artist: String,
     pub key: String,
     pub lines: Vec<WpLine>,
     pub path: PathBuf,
@@ -19,6 +20,7 @@ pub struct SongIntern {
 impl SongIntern {
     pub fn load(path: PathBuf) -> Result<Self, Error> {
         let mut title: Option<String> = None;
+        let mut artist: Option<String> = None;
         let mut key: Option<String> = None;
 
         let lines = fs::read_to_string(&path)?
@@ -28,6 +30,7 @@ impl SongIntern {
                 if let WpLine::Directive((k, v)) = &line {
                     match k.as_str() {
                         "title" => title = Some(v.clone()),
+                        "artist" => artist = Some(v.clone()),
                         "key" => key = Some(v.clone()),
                         _ => (),
                     }
@@ -37,9 +40,11 @@ impl SongIntern {
             .collect::<Vec<WpLine>>();
 
         let title = title.ok_or(Error::SongParse("No title given".to_string()))?;
+        let artist = artist.ok_or(Error::SongParse("No artist given".to_string()))?;
         let key = key.ok_or(Error::SongParse("No key given".to_string()))?;
         Ok(Self {
             title,
+            artist,
             key,
             lines,
             path,
@@ -52,6 +57,7 @@ impl SongIntern {
 
     pub fn to_section_song(&self, key: &str) -> Song {
         let title = self.title.clone();
+        let artist = self.artist.clone();
         let key = key.to_string();
         let sections = self
             .lines()
@@ -62,6 +68,7 @@ impl SongIntern {
             .collect::<Vec<Section>>();
         Song {
             title,
+            artist,
             key,
             sections,
         }
