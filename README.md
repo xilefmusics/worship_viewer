@@ -72,6 +72,7 @@ The binary can be calld with different methods:
 | b             | transpose song into flat variant    |
 | r             | reset to default key                |
 | e             | edit current song in default editor |
+| t             | transpose current song              |
 | tab           | toggle setlist selector             |
 | 2             | switch to setlist editor            |
 

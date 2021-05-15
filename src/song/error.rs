@@ -8,6 +8,7 @@ pub enum Error {
     SongParse(String),
     Network(String),
     Other(String),
+    NoPath,
 }
 
 impl fmt::Display for Error {
@@ -17,6 +18,7 @@ impl fmt::Display for Error {
             Self::SongParse(msg) => write!(f, "SongParse (msg: {})", msg),
             Self::Network(msg) => write!(f, "Network (msg: {})", msg),
             Self::Other(msg) => write!(f, "{}", msg),
+            Self::NoPath => write!(f, "Try to song setlist with no specified path"),
         }
     }
 }

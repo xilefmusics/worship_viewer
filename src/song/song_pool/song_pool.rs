@@ -10,7 +10,7 @@ pub enum SongPool {
 }
 
 impl SongPool {
-    pub fn new_local(path: &PathBuf) -> Result<Self, Error> {
+    pub fn new_local(path: PathBuf) -> Result<Self, Error> {
         Ok(Self::Local(SongPoolLocal::new(path)?))
     }
 
@@ -46,6 +46,13 @@ impl SongPool {
     pub fn edit(&self, setlist_item: &SetlistItem) -> Result<(), Error> {
         match self {
             Self::Local(song_pool) => song_pool.edit(setlist_item),
+            Self::Remote(_) => Err(Error::Other("remote edit not yet implemented".to_string())),
+        }
+    }
+
+    pub fn transpose(&self, setlist_item: &SetlistItem) -> Result<(), Error> {
+        match self {
+            Self::Local(song_pool) => song_pool.transpose(setlist_item),
             Self::Remote(_) => Err(Error::Other("remote edit not yet implemented".to_string())),
         }
     }

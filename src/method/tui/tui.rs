@@ -28,7 +28,7 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
             Arc::new(SetlistPool::new_remote(url.clone())?),
         ),
         None => {
-            let song_pool = Arc::new(SongPool::new_local(&config.root_path.expect("Not remote"))?);
+            let song_pool = Arc::new(SongPool::new_local(config.root_path.expect("Not remote"))?);
             let setlist_pool = Arc::new(SetlistPool::new_local(
                 config.setlist_path.expect("Not remote"),
                 Arc::clone(&song_pool),

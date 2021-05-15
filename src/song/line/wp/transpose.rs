@@ -126,6 +126,14 @@ where
                     if let Some(key_new) = self.key_new {
                         self.halftones = Some((key_new - chord_to_level(value)).rem_euclid(12));
                     }
+                    if let Some(halftones) = self.halftones {
+                        if let Some(scale) = self.scale {
+                            return Some(Directive((
+                                key.to_string(),
+                                transpose_chord_part(value, halftones, scale).to_string(),
+                            )));
+                        }
+                    }
                 }
             }
             Some(TextChordTrans(_)) => {

@@ -117,7 +117,7 @@ fn get_first_setlist(state: State<MyState>) -> Result<Option<Json<Setlist>>, ()>
 
 pub fn server(args: env::Args) -> Result<(), Error> {
     let config = Config::new(args)?;
-    let song_pool = Arc::new(SongPool::new_local(&config.song_path)?);
+    let song_pool = Arc::new(SongPool::new_local(config.song_path.clone())?);
     let setlist_pool = Arc::new(SetlistPool::new_local(
         config.setlist_path.clone(),
         Arc::clone(&song_pool),

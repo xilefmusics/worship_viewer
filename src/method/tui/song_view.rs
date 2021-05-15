@@ -130,4 +130,18 @@ impl SongView {
         self.render()?;
         Ok(())
     }
+
+    pub fn get_setlist_item(&self) -> Result<SetlistItem, Error> {
+        if self.setlist_item.is_none() {
+            return Err(Error::NoSong);
+        }
+        let mut setlist_item = self
+            .setlist_item
+            .clone()
+            .expect("None case is already covered");
+        if self.key != "Self" {
+            setlist_item.key = self.key.to_string();
+        }
+        Ok(setlist_item)
+    }
 }

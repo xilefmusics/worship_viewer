@@ -1,8 +1,10 @@
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::PathBuf;
 
 use super::line::{
-    IterExtToMulti, IterExtToSection, IterExtToWp, IterExtTranspose, Section, WpLine,
+    IterExtToMulti, IterExtToSection, IterExtToString, IterExtToWp, IterExtTranspose, Section,
+    WpLine,
 };
 
 use super::Error;
@@ -14,7 +16,7 @@ pub struct SongIntern {
     pub artist: String,
     pub key: String,
     pub lines: Vec<WpLine>,
-    pub path: PathBuf,
+    pub path: Option<PathBuf>,
 }
 
 impl SongIntern {
@@ -42,6 +44,7 @@ impl SongIntern {
         let title = title.ok_or(Error::SongParse("No title given".to_string()))?;
         let artist = artist.ok_or(Error::SongParse("No artist given".to_string()))?;
         let key = key.ok_or(Error::SongParse("No key given".to_string()))?;
+        let path = Some(path);
         Ok(Self {
             title,
             artist,
@@ -71,6 +74,33 @@ impl SongIntern {
             artist,
             key,
             sections,
+        }
+    }
+
+    pub fn write(&self) -> Result<(), Error> {
+        let mut file = File::create(self.path.clone().ok_or(Error::NoPath)?)?;
+        for line in self.lines.clone().into_iter().to_string() {
+            file.write_fmt(format_args!("{}\n", line))?;
+        }
+        Ok(())
+    }
+
+    pub fn transpose(&self, key: String) -> Self {
+        let lines = self
+            .lines
+            .clone()
+            .into_iter()
+            .transpose(&key)
+            .collect::<Vec<WpLine>>();
+        let title = self.title.clone();
+        let artist = self.artist.clone();
+        let path = self.path.clone();
+        Self {
+            title,
+            artist,
+            key,
+            lines,
+            path,
         }
     }
 }

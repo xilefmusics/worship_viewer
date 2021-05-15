@@ -140,6 +140,9 @@ impl PanelSong {
                     self.render()?;
                 }
             }
+            Some(Input::Character('t')) => self
+                .song_pool
+                .transpose(&self.song_view.get_setlist_item()?)?,
             _ => (),
         };
         Ok(())
