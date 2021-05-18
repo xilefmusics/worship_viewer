@@ -9,6 +9,7 @@ extern crate serde;
 extern crate ws;
 
 pub mod method;
+pub mod server;
 pub mod setlist;
 pub mod song;
 pub mod tui;
