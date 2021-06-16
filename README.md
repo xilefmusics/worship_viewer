@@ -33,7 +33,7 @@ Also, currently only Linux is supported as a platform. However, we hope to be ab
   sudo cp ./target/release/worship_viewer /bin/wv
 ```
 
-- Recocomended folder structure
+- Create recocomended folder structure
 
 ```
   mkdir ~/Songs
@@ -53,13 +53,14 @@ Also, currently only Linux is supported as a platform. However, we hope to be ab
 
 The binary can be calld with different methods:
 
-| Method                | Functionality                                                        |
-| --------------------- | -------------------------------------------------------------------- |
-| wv show FILENAME      | prints a song from a songfile to stdout                              |
-| wv tui ROOT_FOLDER    | starts a curses interface                                            |
-| wv server ROOT_FOLDER | starts a Server for webinterface                                     |
-| wv ws_console         | starts console showing websocket messages between web clients        |
-| wv import URL         | downloads song from tabs.ultimate-guitar.com and prints it to stdout |
+| Method                  | Functionality                                                        |
+| ------------------------| -------------------------------------------------------------------- |
+| wv show FILENAME        | prints a song from a songfile to stdout                              |
+| wv tui ROOT_FOLDER      | starts a curses interface                                            |
+| wv server ROOT_FOLDER   | starts a Server for webinterface                                     |
+| wv ws_console           | starts console showing websocket messages between web clients        |
+| wv import URL           | downloads song from tabs.ultimate-guitar.com and prints it to stdout |
+| wv online_search TITLE  | searches for tabs.ultimate-guitar.com for song title                 |
 
 ### TUI default panel
 
