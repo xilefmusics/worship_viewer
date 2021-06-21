@@ -3,8 +3,8 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use super::line::{
-    IterExtToMulti, IterExtToSection, IterExtToString, IterExtToWp, IterExtTranspose, Section,
-    WpLine,
+    IterExtGuessKey, IterExtToMulti, IterExtToSection, IterExtToString, IterExtToWp,
+    IterExtTranspose, Section, WpLine,
 };
 
 use super::Error;
@@ -68,9 +68,9 @@ impl SongIntern {
             })
             .collect::<Vec<WpLine>>();
 
-        let title = title.ok_or(Error::SongParse("No title given".to_string()))?;
-        let artist = artist.ok_or(Error::SongParse("No artist given".to_string()))?;
-        let key = key.ok_or(Error::SongParse("No key given".to_string()))?;
+        let title = title.unwrap_or_else(|| String::new());
+        let artist = artist.unwrap_or_else(|| String::new());
+        let key = key.unwrap_or_else(|| lines.clone().into_iter().guess_key());
         let path = Some(path);
         Ok(Self {
             title,

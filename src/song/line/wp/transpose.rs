@@ -201,6 +201,7 @@ mod tests {
     #[test]
     fn with_key() {
         let directive = Line::Directive(("key".to_string(), "C".to_string()));
+        let directive2 = Line::Directive(("key".to_string(), "Db".to_string()));
         let text_chord_trans =
             Line::TextChordTrans("This is a [C]line & Das ist eine Zeile".to_string());
         let text_chord_trans_new =
@@ -209,7 +210,7 @@ mod tests {
             .into_iter()
             .transpose("Db")
             .collect::<Vec<Line>>();
-        let vec_new = vec![directive, text_chord_trans_new];
+        let vec_new = vec![directive2, text_chord_trans_new];
         assert_eq!(vec, vec_new);
     }
 

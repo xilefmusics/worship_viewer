@@ -21,3 +21,6 @@ pub use from_str::{from_str, IntoFromStr};
 
 mod to_string;
 pub use to_string::{IntoToString, ToString};
+
+mod guess_key;
+pub use guess_key::GuessKey;
