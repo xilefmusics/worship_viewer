@@ -108,4 +108,13 @@ impl SongPoolLocal {
             .transpose(setlist_item.key.clone());
         self.update_intern_song(song)
     }
+
+    pub fn create(&self, song: Song) -> Result<(), Error> {
+        let song = SongIntern::new(song, &self.path);
+        song.write()?;
+        let mut songs = self.songs.lock().unwrap();
+        songs.push(song);
+        songs.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+        Ok(())
+    }
 }

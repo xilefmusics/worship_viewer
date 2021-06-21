@@ -20,6 +20,33 @@ pub struct SongIntern {
 }
 
 impl SongIntern {
+    pub fn new(song: Song, path_of_pool: &PathBuf) -> Self {
+        let lines = song.to_wp().collect::<Vec<WpLine>>();
+        let mut title = String::new();
+        let mut artist = String::new();
+        let mut key = String::new();
+        for line in &lines {
+            if let WpLine::Directive((k, v)) = line {
+                match k.as_str() {
+                    "key" => key = v.to_string(),
+                    "title" => title = v.to_string(),
+                    "artist" => artist = v.to_string(),
+                    _ => (),
+                }
+            }
+        }
+        let path = Some(path_of_pool.join(PathBuf::from(
+            format!("{}-{}.wp", title, artist).replace(" ", "_"),
+        )));
+        Self {
+            title,
+            artist,
+            key,
+            lines,
+            path,
+        }
+    }
+
     pub fn load(path: PathBuf) -> Result<Self, Error> {
         let mut title: Option<String> = None;
         let mut artist: Option<String> = None;

@@ -10,7 +10,7 @@ use crate::song::SongPool;
 
 use super::super::Error;
 
-use super::{Config, PanelSetlist, PanelSong};
+use super::{Config, PanelImport, PanelSetlist, PanelSong};
 
 pub fn tui(args: env::Args) -> Result<(), Error> {
     let window = initscr();
@@ -59,7 +59,9 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
         Arc::clone(&setlist_pool),
     )?;
 
-    let mut panel_song = PanelSong::new(&window, 40, song_pool, setlist_pool)?;
+    let mut panel_song = PanelSong::new(&window, 40, Arc::clone(&song_pool), setlist_pool)?;
+
+    let mut panel_import = PanelImport::new(&window, 2 * 40, song_pool)?;
 
     loop {
         match window.getch() {
@@ -69,17 +71,26 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
             }
             Some(Input::Character('1')) => {
                 curr_pannel = 1;
+                window.clear();
                 panel_song.render()?;
             }
             Some(Input::Character('2')) => {
                 curr_pannel = 2;
+                window.clear();
                 panel_setlist.render();
+            }
+            Some(Input::Character('3')) => {
+                curr_pannel = 3;
+                window.clear();
+                panel_import.render()?;
             }
             input => {
                 if curr_pannel == 1 {
                     panel_song.handle_input(input)
                 } else if curr_pannel == 2 {
                     panel_setlist.handle_input(input)
+                } else if curr_pannel == 3 {
+                    panel_import.handle_input(input)
                 } else {
                     Ok(())
                 }?

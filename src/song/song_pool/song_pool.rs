@@ -56,4 +56,13 @@ impl SongPool {
             Self::Remote(_) => Err(Error::Other("remote edit not yet implemented".to_string())),
         }
     }
+
+    pub fn create(&self, song: Song) -> Result<(), Error> {
+        match self {
+            Self::Local(song_pool) => song_pool.create(song),
+            Self::Remote(_) => Err(Error::Other(
+                "remote create not yet implemented".to_string(),
+            )),
+        }
+    }
 }

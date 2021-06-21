@@ -1,9 +1,11 @@
 use pancurses::{Input, Window};
 
 use super::Error;
+use std::cell::Cell;
 
 pub struct InputBox {
     window: Window,
+    selected: Cell<bool>,
 }
 
 impl InputBox {
@@ -15,13 +17,25 @@ impl InputBox {
         parent: &Window,
     ) -> Result<Self, Error> {
         let window = parent.subwin(nlines, ncols, begy, begx)?;
-        Ok(Self { window })
+        let selected = Cell::new(false);
+        Ok(Self { window, selected })
     }
 
     pub fn render(&self) {
         self.window.clear();
+        if self.selected.get() {
+            self.window.color_set(2);
+        }
         self.window.draw_box(0, 0);
+        if self.selected.get() {
+            self.window.color_set(0);
+        }
+
         self.window.refresh();
+    }
+
+    pub fn set_selected(&self, selected: bool) {
+        self.selected.set(selected);
     }
 
     pub fn input(&self) -> Option<String> {

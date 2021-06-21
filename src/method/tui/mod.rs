@@ -12,3 +12,6 @@ pub use tui::tui;
 
 mod panel_setlist;
 pub use panel_setlist::PanelSetlist;
+
+mod panel_import;
+pub use panel_import::PanelImport;

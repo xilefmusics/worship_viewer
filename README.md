@@ -74,8 +74,11 @@ The binary can be calld with different methods:
 | r             | reset to default key                |
 | e             | edit current song in default editor |
 | t             | transpose current song              |
+| /             | search                              |
+| ?             | search backwards                    |
 | tab           | toggle setlist selector             |
 | 2             | switch to setlist editor            |
+| 3             | switch to song importer             |
 
 ### TUI setlist editor
 
@@ -89,14 +92,31 @@ The binary can be calld with different methods:
 | j             | up                                             |
 | k             | down                                           |
 | space         | select setlist, remove song, add song          |
-| n             | create new setlist ( if first is list focused) |
-| d             | deletes current setlist                        |
-| w             | writes current setlist                         |
+| n             | creat new setlist ( if first is list focused)  |
+| d             | delete current setlist                         |
+| w             | write current setlist                          |
 | A,B,C,D,E,F,G | transpose song into key                        |
 | #             | transpose song into sharp variant              |
 | b             | transpose song into flat variant               |
 | r             | reset to default key                           |
+| /             | search                                         |
+| ?             | search backwards                               |
 | 1             | switch to default panel                        |
+| 3             | switch to song importer                        |
+
+### TUI song importer
+- Imports songs from tabs.ultimate-guitar.com
+
+| Key           | Action                              |
+| ------------- | ----------------------------------- |
+| s             | search online                       |
+| w             | write song to library               |
+| j             | down                                |
+| k             | up                                  |
+| /             | search in list                      |
+| ?             | search backwards in list            |
+| 1             | switch to default panel             |
+| 2             | switch to setlist editor            |
 
 ### Web Interface
 
@@ -108,7 +128,6 @@ The binary can be calld with different methods:
 | #             | transpose song into sharp variant |
 | b             | transpose song into flat variant  |
 | r             | reset to default key              |
-| tab           | toggle setlist selector           |
 | 1             | switch to default panel           |
 | 2             | switch to beamer control panel    |
 | 3             | switch to beamer panel            |
