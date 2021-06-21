@@ -49,37 +49,33 @@ impl PanelSong {
             setlist_pool,
             mode,
         };
-        s.load_selected_song()?;
-        s.render()?;
+        s.load_selected_song();
+        s.render();
         Ok(s)
     }
 
-    pub fn load_selected_song(&mut self) -> Result<(), Error> {
+    pub fn load_selected_song(&mut self) {
         if let Some(setlist_item) = self.sidebar_song.selected_item() {
-            self.song_view.load_setlist_item(setlist_item)?;
+            self.song_view.load_setlist_item(setlist_item);
         }
-        Ok(())
     }
 
-    pub fn next(&mut self) -> Result<(), Error> {
+    pub fn next(&mut self) {
         self.sidebar_song.next();
-        self.load_selected_song()?;
-        Ok(())
+        self.load_selected_song();
     }
 
-    pub fn prev(&mut self) -> Result<(), Error> {
+    pub fn prev(&mut self) {
         self.sidebar_song.prev();
-        self.load_selected_song()?;
-        Ok(())
+        self.load_selected_song();
     }
 
-    pub fn render(&self) -> Result<(), Error> {
+    pub fn render(&self) {
         match self.mode {
             Mode::Song => self.sidebar_song.render(),
             Mode::Setlist => self.sidebar_setlist.render(),
         }
-        self.song_view.render()?;
-        Ok(())
+        self.song_view.render();
     }
     pub fn handle_input(&mut self, input: Option<Input>) -> Result<(), Error> {
         match self.mode {
@@ -100,7 +96,7 @@ impl PanelSong {
             if let Some(setlist) = self.setlist_pool.get(title)? {
                 self.sidebar_song.change_items(setlist.items());
             }
-            self.load_selected_song()?;
+            self.load_selected_song();
             self.mode = Mode::Song;
         }
         Ok(())
@@ -109,35 +105,35 @@ impl PanelSong {
     pub fn handle_input_mode_song(&mut self, input: Option<Input>) -> Result<(), Error> {
         match input {
             Some(Input::Character('j')) | Some(Input::Character(' ')) => {
-                self.next()?;
+                self.next();
             }
             Some(Input::Character('k')) => {
-                self.prev()?;
+                self.prev();
             }
-            Some(Input::Character('A')) => self.song_view.set_key("A")?,
-            Some(Input::Character('B')) => self.song_view.set_key("B")?,
-            Some(Input::Character('C')) => self.song_view.set_key("C")?,
-            Some(Input::Character('D')) => self.song_view.set_key("D")?,
-            Some(Input::Character('E')) => self.song_view.set_key("E")?,
-            Some(Input::Character('F')) => self.song_view.set_key("F")?,
-            Some(Input::Character('G')) => self.song_view.set_key("G")?,
-            Some(Input::Character('b')) => self.song_view.set_b()?,
-            Some(Input::Character('#')) => self.song_view.set_sharp()?,
-            Some(Input::Character('r')) => self.song_view.set_key("Self")?,
+            Some(Input::Character('A')) => self.song_view.set_key("A"),
+            Some(Input::Character('B')) => self.song_view.set_key("B"),
+            Some(Input::Character('C')) => self.song_view.set_key("C"),
+            Some(Input::Character('D')) => self.song_view.set_key("D"),
+            Some(Input::Character('E')) => self.song_view.set_key("E"),
+            Some(Input::Character('F')) => self.song_view.set_key("F"),
+            Some(Input::Character('G')) => self.song_view.set_key("G"),
+            Some(Input::Character('b')) => self.song_view.set_b(),
+            Some(Input::Character('#')) => self.song_view.set_sharp(),
+            Some(Input::Character('r')) => self.song_view.set_key("Self"),
             Some(Input::Character('/')) => {
                 self.sidebar_song.isearch(false)?;
-                self.load_selected_song()?;
+                self.load_selected_song();
             }
             Some(Input::Character('?')) => {
                 self.sidebar_song.isearch(true)?;
-                self.load_selected_song()?;
+                self.load_selected_song();
             }
             Some(Input::Character('\t')) => self.select_setlist()?,
             Some(Input::Character('e')) => {
                 if let Some(setlist_item) = self.sidebar_song.selected_item() {
                     self.song_pool.edit(&setlist_item)?;
                     self.song_pool.reload(&setlist_item)?;
-                    self.render()?;
+                    self.render();
                 }
             }
             Some(Input::Character('t')) => self

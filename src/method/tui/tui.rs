@@ -72,7 +72,7 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
             Some(Input::Character('1')) => {
                 curr_pannel = 1;
                 window.clear();
-                panel_song.render()?;
+                panel_song.render();
             }
             Some(Input::Character('2')) => {
                 curr_pannel = 2;
@@ -82,7 +82,7 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
             Some(Input::Character('3')) => {
                 curr_pannel = 3;
                 window.clear();
-                panel_import.render()?;
+                panel_import.render();
             }
             input => {
                 if curr_pannel == 1 {

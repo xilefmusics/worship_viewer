@@ -62,10 +62,9 @@ impl PanelImport {
         })
     }
 
-    pub fn render(&self) -> Result<(), Error> {
+    pub fn render(&self) {
         self.list.render();
         self.song_display.render();
-        Ok(())
     }
 
     pub fn search(&mut self) {
