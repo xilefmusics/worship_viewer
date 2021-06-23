@@ -65,7 +65,7 @@ impl PanelSetlist {
             nlines,
             width,
             0,
-            ncols - width,
+            ncols - width - 1,
             &window,
             song_pool.titles()?,
         )?;
