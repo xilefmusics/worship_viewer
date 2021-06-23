@@ -34,7 +34,7 @@ fn chord_to_level(chord: &str) -> i8 {
 
 fn level_to_scale(level: i8) -> usize {
     match level.rem_euclid(12) {
-        0 | 2 | 5 | 7 | 10 => 0,
+        0 | 2 | 3 | 5 | 7 | 10 => 0,
         _ => 1,
     }
 }
