@@ -32,7 +32,14 @@ class App extends React.Component {
       song: null,
       key: null,
       display: "SongView",
+      window: {
+        width: 0,
+        height: 0,
+      },
+      show_song_selector: false,
     };
+
+    this.updateWindowDimensions = this.updateWindowDimensions.bind(this);
 
     ws.addEventListener("message", (event) => {
       const msg = JSON.parse(event.data);
@@ -71,8 +78,25 @@ class App extends React.Component {
         this.setDisplay("SectionSelector");
       } else if (e.key === "3") {
         this.setDisplay("Beamer");
+      } else if (e.key === "T") {
+        this.toggleSongSelector();
       }
     };
+  }
+
+  toggleSongSelector() {
+    this.setState(() => ({
+      show_song_selector: !this.state.show_song_selector,
+    }));
+  }
+
+  updateWindowDimensions() {
+    this.setState(() => ({
+      window: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      }
+    }));
   }
 
   displaySection(section_idx) {
@@ -105,6 +129,8 @@ class App extends React.Component {
       titles: titles,
       song: song,
     }));
+    this.updateWindowDimensions();
+    window.addEventListener('resize', this.updateWindowDimensions);
   }
 
   nextSong() {
@@ -145,7 +171,7 @@ class App extends React.Component {
       <MuiThemeProvider theme={appTheme}>
         <CssBaseline />
         <div>
-          {this.state.display !== "Beamer" && (
+          {this.state.display !== "Beamer" && this.state.show_song_selector && (
             <Grid container>
               <Grid item style={{ width: "20vw", height: "100vh" }}>
                 <TitleList
@@ -156,7 +182,12 @@ class App extends React.Component {
               </Grid>
               <Grid item style={{ width: "80vw", height: "100vh" }}>
                 {this.state.display === "SongView" && (
-                  <SongView song={this.state.song} />
+                  <SongView
+                    song={this.state.song}
+                    nextSong={this.nextSong.bind(this)}
+                    prevSong={this.prevSong.bind(this)}
+                    toggleSongSelector={this.toggleSongSelector.bind(this)}
+                  />
                 )}
                 {this.state.display === "SectionSelector" && (
                   <SectionSelector
@@ -170,7 +201,23 @@ class App extends React.Component {
               </Grid>
             </Grid>
           )}
-
+          {this.state.display === "SongView" && ! this.state.show_song_selector && (
+            <SongView
+              song={this.state.song}
+              nextSong={this.nextSong.bind(this)}
+              prevSong={this.prevSong.bind(this)}
+              toggleSongSelector={this.toggleSongSelector.bind(this)}
+            />
+          )}
+          {this.state.display === "SectionSelector" && ! this.state.show_song_selector && (
+            <SectionSelector
+              song={this.state.song}
+              selectSection={(idx) =>
+                sendDisplaySection(this.state.song.title, idx)
+              }
+              clearBeamer={sendClearBeamer}
+            />
+          )}
           {this.state.display === "Beamer" && (
             <Beamer
               section={this.state.song.sections[this.state.section_idx]}
