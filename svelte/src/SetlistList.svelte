@@ -1,11 +1,11 @@
 <script>
-  import { fetchTitles } from './api';
+  import { fetchSetlists } from './api';
   import List from './List.svelte';
 
   export let onSelect;
   let list;
 
-  fetchTitles().then((t) => list.setContent(t));
+  fetchSetlists().then((t) => list.setContent(t));
 
   const next = () => list.next();
   const prev = () => list.prev();

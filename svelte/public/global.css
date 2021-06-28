@@ -3,7 +3,20 @@ body {
   font-family: Arial, sans-serif;
   font-size: 1.2em;
   background-color: #222222;
-  color: #AAAAAA;
+  color: #DDDDDD;
+}
+
+button {
+  background-color: #222222;
+  border: none;
+  color: #DDDDDD;
+  font-family: Arial, sans-serif;
+  font-size: 1.2em;
+  padding: 0.8em;
+}
+
+button:hover {
+    background-color: #333333;
 }
 
 ::-webkit-scrollbar {

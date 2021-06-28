@@ -13,4 +13,10 @@ const fetchSong = async (title, key) => {
   return json;
 };
 
-export { fetchTitles, fetchSong };
+const fetchSetlists = async () => {
+  const response = await fetch(`${url}/setlist_titles`);
+  const json = await response.json();
+  return json;
+}
+
+export { fetchTitles, fetchSong, fetchSetlists };
