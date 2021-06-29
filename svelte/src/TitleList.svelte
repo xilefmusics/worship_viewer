@@ -1,5 +1,5 @@
 <script>
-  import { fetchTitles } from './api';
+  import { fetchTitles, fetchSetlist } from './api';
   import List from './List.svelte';
 
   export let onSelect;
@@ -7,9 +7,10 @@
 
   fetchTitles().then((t) => list.setContent(t));
 
+  const load = async (title) => fetchSetlist(title).then((t) => list.setContent(t.items));
   const next = () => list.next();
   const prev = () => list.prev();
-  export {next, prev};
+  export {next, prev, load};
 </script>
 
 <List

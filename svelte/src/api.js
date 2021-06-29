@@ -19,4 +19,19 @@ const fetchSetlists = async () => {
   return json;
 }
 
-export { fetchTitles, fetchSong, fetchSetlists };
+const fetchFirstSetlist = async () => {
+  const response = await fetch(`${url}/setlist_get_first`);
+  const json = await response.json();
+  return json;
+}
+
+const fetchSetlist = async (title) => {
+  if (!title) {
+    return fetchFirstSetlist();
+  }
+  const response = await fetch(`${url}/setlist/${title}`);
+  const json = await response.json();
+  return json;
+}
+
+export { fetchTitles, fetchSong, fetchSetlists, fetchSetlist };

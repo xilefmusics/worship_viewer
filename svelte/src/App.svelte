@@ -32,9 +32,9 @@
     }
     console.log(`Select Song: ${title}`);
   };
-const onSetlistSelect = (title) => {
+const onSetlistSelect = async (title) => {
+  await titleListComponent.load(title);
   changeSetlist = false;
-  console.log(`Select Setlist: ${title}`)
 };
 
   window.onresize = () => isMobile = getIsMobile();
@@ -65,6 +65,7 @@ const onSetlistSelect = (title) => {
   }
   #right-sidebar {
     background-color: #0000FF;
+    flex: 1;
   }
 
   #change-setlist, #change-setlist-back {

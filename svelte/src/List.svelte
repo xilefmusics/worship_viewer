@@ -47,6 +47,6 @@
 
 <ul>
   {#each content as item, idx}
-    <li class={ idx === selectedIdx ? 'selected' : 'not-selected' } on:click={() => selectIdx(idx)}>{item}</li>
+    <li class={ idx === selectedIdx ? 'selected' : 'not-selected' } on:click={() => selectIdx(idx)}>{item.title === undefined ? item : item.title }</li>
   {/each}
 </ul>
