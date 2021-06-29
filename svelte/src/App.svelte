@@ -1,6 +1,9 @@
 <script>
+  import { fetchSong } from './api';
+
   import TitleList from './TitleList.svelte'
   import SetlistList from './SetlistList.svelte'
+  import MusicanView from './MusicanView.svelte'
 
   const getIsMobile = () => window.innerWidth < window.innerHeight;
 
@@ -10,6 +13,7 @@
   let isMobile = getIsMobile();
   let titleListComponent;
   let setlistListComponent;
+  let currentSong;
 
   const toggleLeftSidebar = () => showLeftSidebar = !showLeftSidebar;
   const toggleRightSidebar = () => showRightSidebar = !showRightSidebar;
@@ -26,16 +30,16 @@
     }
   };
 
-  const onSongSelect = (title) => {
+  const onSongSelect = async (item) => {
     if (isMobile) {
       showLeftSidebar = false;
     }
-    console.log(`Select Song: ${title}`);
+    currentSong = await fetchSong(item.title, item.key);
   };
-const onSetlistSelect = async (title) => {
-  await titleListComponent.load(title);
-  changeSetlist = false;
-};
+  const onSetlistSelect = async (title) => {
+    await titleListComponent.load(title);
+    changeSetlist = false;
+  };
 
   window.onresize = () => isMobile = getIsMobile();
 </script>
@@ -60,8 +64,8 @@ const onSetlistSelect = async (title) => {
     height: 100%;
   }
   #center {
-    background-color: #00FF00;
     flex: 2;
+    padding-left: 1em;
   }
   #right-sidebar {
     background-color: #0000FF;
@@ -91,7 +95,11 @@ const onSetlistSelect = async (title) => {
         />
       </div>
     </div>
-    <div id='center' style={isMobile && (showLeftSidebar || showRightSidebar) && "display: none"} on:click={onClickCenter}></div>
+    <div id='center' style={isMobile && (showLeftSidebar || showRightSidebar) && "display: none"} on:click={onClickCenter}>
+      <MusicanView
+        song={currentSong}
+      />
+    </div>
     <div id='right-sidebar' style={!showRightSidebar && "display: none"}></div>
   </div>
 </main>
