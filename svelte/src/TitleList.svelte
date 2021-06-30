@@ -13,7 +13,8 @@
   const load = async (title) => fetchSetlist(title).then((t) => list.setContent(t.items));
   const next = () => list.next();
   const prev = () => list.prev();
-  export {next, prev, load};
+  const select = (title) => list.select(title);
+  export {next, prev, load, select};
 </script>
 
 <List

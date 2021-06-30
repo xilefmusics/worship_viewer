@@ -6,6 +6,7 @@
   #main {
     height: 100%;
     overflow-y: auto;
+    padding-left: 1em;
   }
   p {
     padding: 0;
@@ -17,15 +18,15 @@
   .keyword {
     padding-top: 0.8em;
     padding-bottom: 0.8em;
-    color: red;
+    color: #cc241d;
     font-weight: bold;
   }
   .chord {
-    color: green;
+    color: #98971a;
     font-weight: bold;
   }
   .text {
-    color: green;
+    color: #98971a;
     padding-bottom: 0.2em;
   }
 </style>

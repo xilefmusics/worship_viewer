@@ -2,12 +2,12 @@ body {
   margin: 0;
   font-family: Arial, sans-serif;
   font-size: 1.2em;
-  background-color: #222222;
+  background-color: #262626;
   color: #DDDDDD;
 }
 
 button {
-  background-color: #222222;
+  background-color: #262626;
   border: none;
   color: #DDDDDD;
   font-family: Arial, sans-serif;
@@ -23,11 +23,16 @@ button:hover {
   width: 1em;
 }
 
+.div-fill {
+  height: 100%;
+  width: 100%;
+}
+
 ::-webkit-scrollbar-track {
   background: #333333;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #222222;
+  background: #262626;
   border: 0.2em solid #333333;
 }

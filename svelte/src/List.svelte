@@ -6,12 +6,14 @@
   let content = [];
   let selectedIdx = 0;
 
-  const selectIdx = (idx) => {
+  const selectIdx = (idx, isExtern) => {
     if (idx < 0 || idx >= content.length) {
       return;
     }
     selectedIdx = idx;
-    onSelect(idx, content[idx]);
+    if (!isExtern) {
+      onSelect(idx, content[idx]);
+    }
   }
 
   const next = () => selectIdx(selectedIdx + 1);
@@ -20,8 +22,12 @@
     content = c;
     selectedIdx = 0;
   }
+  const select = (item) => {
+    const idx = content.findIndex(elem => elem.title && elem.title === item || elem === item);
+    selectIdx(idx, true);
+  };
 
-  export {next, prev, setContent};
+  export {next, prev, setContent, select};
 </script>
 
 <style>
