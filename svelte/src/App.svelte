@@ -69,7 +69,7 @@
     }
   };
   const onSectionSelect = (idx, isRemote) => {
-    if (!idx) {
+    if (idx === null) {
       if (!isRemote) {
         sendClearBeamer()
       }
@@ -186,6 +186,7 @@
   }
   .right-sidebar-item {
     display: flex;
+    flex-wrap: wrap;
     background-color: red;
   }
   .right-sidebar-inneritem {
