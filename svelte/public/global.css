@@ -20,6 +20,7 @@ button:hover {
 }
 
 ::-webkit-scrollbar {
+  display: none;
   width: 1em;
 }
 

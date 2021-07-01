@@ -1,5 +1,5 @@
-//const url = "http://localhost:8000";
-const url = window.location.origin;
+const url = "http://localhost:8000";
+//const url = window.location.origin;
 
 const fetchTitles = async () => {
   const response = await fetch(`${url}/song_titles`);

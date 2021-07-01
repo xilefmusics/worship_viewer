@@ -9,8 +9,16 @@
   #main {
     height: 100%;
     overflow-y: auto;
+  }
+  #grid {
+    margin: 0.8em;
     display: grid;
-    padding: 1em;
+  }
+  #clear {
+    font-size: 0.8em;
+    margin: 0 1.6em;
+    text-align: center;
+    color: #cc241d;
   }
   .section {
     background-color: #333333;
@@ -31,24 +39,39 @@
   .text {
 
   }
+  h1 {
+    text-align: center;
+  }
   @media (min-width: 800px) {
-    #main { grid-template-columns: repeat(2, 1fr); }
+    #grid { grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 <div id='main'>
   {#if song}
-    {#each song.sections as section, sidx}
-      {#if !isEmpty(section) }
-        <div class='section' on:click={(e) => {onSectionSelect(sidx);e.stopPropagation();}}>
-          <p class='keyword'>{section.keyword}</p>
-          {#each section.lines as line, lidx}
-            {#if line.text}
-              <p class='text'>{line.text}</p>
-            {/if}
-          {/each}
-        </div>
-      {/if}
-    {/each}
+    <h1>{song.title}</h1>
+    <div
+     class='section'
+     id='clear'
+     on:click={(e) => {
+       onSectionSelect(null);
+      e.stopPropagation();
+    }}>
+     Clear Screen
+    </div>
+    <div id='grid'>
+      {#each song.sections as section, sidx}
+        {#if !isEmpty(section) }
+          <div class='section' on:click={(e) => {onSectionSelect(sidx);e.stopPropagation();}}>
+            <p class='keyword'>{section.keyword}</p>
+            {#each section.lines as line, lidx}
+              {#if line.text}
+                <p class='text'>{line.text}</p>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+      {/each}
+    </div>
   {:else}
     <h1>No song loaded!</h1>
   {/if}

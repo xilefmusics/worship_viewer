@@ -8,9 +8,10 @@
   fetchTitles().then((t) => {
     let items = t.map((title) => {return {title: title, key: null}});
     list.setContent(items)
+    onSelect(items[0]);
   });
 
-  const load = async (title) => fetchSetlist(title).then((t) => list.setContent(t.items));
+const load = async (title) => fetchSetlist(title).then((t) => {list.setContent(t.items);onSelect(t.items[0]);});
   const next = () => list.next();
   const prev = () => list.prev();
   const select = (title) => list.select(title);

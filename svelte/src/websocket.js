@@ -1,5 +1,5 @@
-//const url = "ws://localhost:8001";
-const url = `ws://${window.location.hostname}:8001`;
+const url = "ws://localhost:8001";
+//const url = `ws://${window.location.hostname}:8001`;
 
 const ws = new WebSocket(url);
 const wsID = Math.random().toString(36).substr(2, 9);
@@ -45,4 +45,14 @@ const sendClearBeamer = () => {
   );
 };
 
-export { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer };
+const sendChangeKey = (key) => {
+  ws.send(
+    JSON.stringify({
+      type: "change key",
+      senderID: wsID,
+      key: key,
+    })
+  );
+};
+
+export { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey };

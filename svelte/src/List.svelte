@@ -41,8 +41,6 @@
 
   li {
     padding: 0.8em;
-    margin-left: 0.8em;
-    margin-right: 0.8em;
   }
 
   li:hover, .selected {

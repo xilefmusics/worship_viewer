@@ -1,11 +1,13 @@
 <script>
   export let song;
+  export let fontScale;
+  export let mode;
 </script>
 
 <style>
   #main {
-    height: 100%;
     overflow-y: auto;
+    height: 100%;
     padding-left: 1em;
   }
   p {
@@ -13,7 +15,7 @@
     margin: 0;
     white-space: pre;
     font-family: 'monospace';
-    font-size: 0.8em;
+    /*font-size: 0.8em;*/
   }
   .keyword {
     padding-top: 0.8em;
@@ -30,12 +32,12 @@
     padding-bottom: 0.2em;
   }
 </style>
-<div id='main'>
+<div id='main' style={`font-size: ${fontScale}em`}>
   {#if song}
     {#each song.sections as section, sidx}
       <p class='keyword'>{section.keyword}</p>
       {#each section.lines as line, lidx}
-        {#if line.chord}
+        {#if line.chord && mode != 'singer'}
           <p class='chord'>{line.chord}</p>
         {/if}
         {#if line.text}
