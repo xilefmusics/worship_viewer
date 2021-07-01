@@ -1,5 +1,5 @@
-const url = "ws://localhost:8001";
-//const url = `ws://${window.location.hostname}:8001`;
+//const url = "ws://localhost:8001";
+const url = `ws://${window.location.hostname}:8001`;
 
 const ws = new WebSocket(url);
 const wsID = Math.random().toString(36).substr(2, 9);

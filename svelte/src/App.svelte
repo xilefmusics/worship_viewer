@@ -21,7 +21,7 @@
   let currentCapo = 0;
   let currentKey = 'Self';
   let fontScale = 0.8;
-  let mode = 'musican'; // musican, beamer-control, beamer
+  let mode = 'musican'; // musican, singer, beamer-control, beamer
 
   const toggleLeftSidebar = () => showLeftSidebar = !showLeftSidebar;
   const toggleRightSidebar = () => showRightSidebar = !showRightSidebar;
@@ -49,6 +49,7 @@
     if (!item.key || item.key === 'Self') {
       item.key = currentKey;
     }
+    beamerViewComponent.clear();
     currentSong = await fetchSong(item.title, manipulateKey(item.key, -currentCapo));
   };
   const onSetlistSelect = async (title, isRemote) => {
@@ -148,6 +149,58 @@
       onKeyChange(msg.key, true);
     }
   });
+
+  document.onkeydown = (e) => {
+    if (e.key === " " || e.key === "j" || e.keyCode === 40) {
+      titleListComponent.next();
+    } else if (e.key === "k" || e.keyCode === 38) {
+      titleListComponent.prev();
+    } else if (
+      e.key === "A" ||
+      e.key === "B" ||
+      e.key === "C" ||
+      e.key === "D" ||
+      e.key === "E" ||
+      e.key === "F" ||
+      e.key === "G" ||
+      e.key === "b" ||
+      e.key === "#" ||
+      e.key === "r"
+    ) {
+      let key = e.key === "r" ? "Self" : e.key;
+      if (key === "b" || key === "#") {
+        if (currentKey === 'Self') {
+          return;
+        }
+        key = `${currentKey.substring(0, 1)}${key}`;
+      }
+      onKeyChange(key);
+    } else if (e.key === "1") {
+      onModeChange('musican');
+    } else if (e.key === "2") {
+      onModeChange('singer');
+    } else if (e.key === "3") {
+      onModeChange('beamer-control');
+    } else if (e.key === "4") {
+      onModeChange('beamer');
+    } else if (e.keyCode === 37) {
+      toggleLeftSidebar();
+    } else if (e.keyCode === 39) {
+      toggleRightSidebar();
+    } else if (e.key === '+') {
+      onFontScaleChange('increment');
+    } else if (e.key === '-') {
+      onFontScaleChange('decrement');
+    } else if (e.key === '=') {
+      onFontScaleChange('reset');
+    } else if (e.key === 'c') {
+      onCapoChange(1);
+    } else if (e.key === 'x') {
+      onCapoChange(-1);
+    } else if (e.key === 'v') {
+      onCapoChange(0);
+    }
+  };
 
   window.onresize = () => isMobile = getIsMobile();
 </script>
