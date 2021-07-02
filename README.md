@@ -43,10 +43,10 @@ Also, currently only Linux is supported as a platform. However, we hope to be ab
 - Build Web Interface (optional)
 
 ```
-  cd react
+  cd svelte
   npm install
-  npm run build
-  cp -r ./build ~/Songs/www
+  npm run build-www
+  cp -r ./www ~/Songs/www
 ```
 
 ## Usage
@@ -120,17 +120,26 @@ The binary can be calld with different methods:
 
 ### Web Interface
 
-| Key           | Action                            |
-| ------------- | --------------------------------- |
-| j or space    | next song                         |
-| k             | previous song                     |
-| A,B,C,D,E,F,G | transpose song into key           |
-| #             | transpose song into sharp variant |
-| b             | transpose song into flat variant  |
-| r             | reset to default key              |
-| 1             | switch to default panel           |
-| 2             | switch to beamer control panel    |
-| 3             | switch to beamer panel            |
+| Key                                                | Action                            |
+| -------------------------------------------------- | --------------------------------- |
+| j or Down or space or click on bottom of screen    | next song                         |
+| k or Up or click on top of screen                  | previous song                     |
+| A,B,C,D,E,F,G                                      | transpose song into key           |
+| #                                                  | transpose song into sharp variant |
+| b                                                  | transpose song into flat variant  |
+| r                                                  | reset to default key              |
+| Left or click on left of screen                    | toggle left sidebar               |
+| Right or click on right of screen                  | toggle right sidebar              |
+| 1                                                  | switch to musican panel           |
+| 2                                                  | switch to singer panel            |
+| 3                                                  | switch to beamer control panel    |
+| 4                                                  | switch to beamer panel            |
+| +                                                  | increment font size               |
+| -                                                  | decrement font size               |
+| =                                                  | reset font size                   |
+| c                                                  | increment capo                    |
+| x                                                  | decrement capo                    |
+| v                                                  | reset capo                        |
 
 ## Formats
 
