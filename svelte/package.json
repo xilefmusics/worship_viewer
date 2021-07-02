@@ -1,9 +1,10 @@
 {
-  "name": "svelte-app",
-  "version": "1.0.0",
+  "name": "Worship Viewer",
+  "version": "0.0.1",
   "private": true,
   "scripts": {
     "build": "rollup -c",
+    "build-www": "node build-www.js",
     "dev": "rollup -c -w",
     "start": "sirv public --no-clear"
   },
