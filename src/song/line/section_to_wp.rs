@@ -158,10 +158,12 @@ mod tests {
         let chord = None;
         let text = Some("Das ist eine Zeile".to_string());
         let translation = None;
+        let comment = None;
         let line = section::Line {
             chord,
             text,
             translation,
+            comment,
         };
         assert_eq!(
             section_line_to_wp(line),
@@ -174,10 +176,12 @@ mod tests {
         let chord = Some("Chord".to_string());
         let text = None;
         let translation = None;
+        let comment = None;
         let line = section::Line {
             chord,
             text,
             translation,
+            comment,
         };
         assert_eq!(
             section_line_to_wp(line),
@@ -190,10 +194,12 @@ mod tests {
         let chord = Some("F/A     G/B  C".to_string());
         let text = Some("Das ist eine Zeile".to_string());
         let translation = None;
+        let comment = None;
         let line = section::Line {
             chord,
             text,
             translation,
+            comment,
         };
         assert_eq!(
             section_line_to_wp(line),
@@ -206,10 +212,12 @@ mod tests {
         let chord = Some("     Chord".to_string());
         let text = Some("Text".to_string());
         let translation = None;
+        let comment = None;
         let line = section::Line {
             chord,
             text,
             translation,
+            comment,
         };
         assert_eq!(
             section_line_to_wp(line),
@@ -222,10 +230,12 @@ mod tests {
         let chord = Some("F/A     G/B  C".to_string());
         let text = Some("Das ist eine Zeile".to_string());
         let translation = Some("This is a line".to_string());
+        let comment = None;
         let line = section::Line {
             chord,
             text,
             translation,
+            comment,
         };
         assert_eq!(
             section_line_to_wp(line),
@@ -238,10 +248,12 @@ mod tests {
         let chord = Some("F/A     G/B  C".to_string());
         let text = Some("Daß äst eine Zeile".to_string());
         let translation = Some("This is a line".to_string());
+        let comment = None;
         let line = section::Line {
             chord,
             text,
             translation,
+            comment,
         };
         assert_eq!(
             section_line_to_wp(line),
@@ -288,10 +300,12 @@ mod tests {
         let chord = Some("F/A     G/B  C".to_string());
         let text = Some("Das ist eine Zeile".to_string());
         let translation = Some("This is a line".to_string());
+        let comment = None;
         let line = section::Line {
             chord,
             text,
             translation,
+            comment,
         };
         let lines: Vec<section::Line> = vec![line];
         let section = Section { keyword, lines };

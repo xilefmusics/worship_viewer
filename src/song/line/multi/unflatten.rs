@@ -1,4 +1,4 @@
-use super::{Chord, Keyword, Line, Text, Translation};
+use super::{Chord, Comment, Keyword, Line, Text, Translation};
 
 #[derive(Debug, Clone)]
 pub struct Unflatten<I>
@@ -108,6 +108,13 @@ where
                             self.buffer = Some(vec![line.expect("matched some")]);
                         }
                         self.has_translation = true;
+                    }
+                }
+                Some(Comment(_)) => {
+                    if let Some(buffer) = &mut self.buffer {
+                        buffer.push(line.expect("matched some"));
+                    } else {
+                        self.buffer = Some(vec![line.expect("matched some")]);
                     }
                 }
                 None => return self.buffer.take(),

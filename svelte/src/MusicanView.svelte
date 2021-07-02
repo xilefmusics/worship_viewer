@@ -31,12 +31,19 @@
     color: #98971a;
     padding-bottom: 0.2em;
   }
+  .comment {
+    color: #458588;
+    font-weight: bold;
+  }
 </style>
 <div id='main' style={`font-size: ${fontScale}em`}>
   {#if song}
     {#each song.sections as section, sidx}
       <p class='keyword'>{section.keyword}</p>
       {#each section.lines as line, lidx}
+        {#if line.comment}
+          <p class='comment'>{line.comment}</p>
+        {/if}
         {#if line.chord && mode != 'singer'}
           <p class='chord'>{line.chord}</p>
         {/if}

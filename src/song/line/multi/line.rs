@@ -4,4 +4,5 @@ pub enum Line {
     Chord(String),
     Text(String),
     Translation(String),
+    Comment(String),
 }

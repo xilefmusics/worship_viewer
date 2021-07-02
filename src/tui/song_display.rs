@@ -69,6 +69,14 @@ impl SongDisplay {
                     self.window.color_set(0);
                     idx += 1;
                 }
+                if let Some(comment) = line.comment {
+                    self.window.attrset(A_BOLD);
+                    self.window.color_set(5);
+                    self.window.mvprintw(idx + 1, 4, comment);
+                    self.window.color_set(0);
+                    self.window.attrset(A_NORMAL);
+                    idx += 1;
+                }
             }
             idx += 1;
         }

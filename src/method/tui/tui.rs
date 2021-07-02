@@ -1,6 +1,6 @@
 use pancurses::{endwin, initscr};
 use pancurses::{Input, Window};
-use pancurses::{COLOR_CYAN, COLOR_GREEN, COLOR_RED, COLOR_WHITE};
+use pancurses::{COLOR_BLUE, COLOR_CYAN, COLOR_GREEN, COLOR_RED, COLOR_WHITE};
 
 use std::env;
 use std::sync::Arc;
@@ -48,6 +48,7 @@ fn tui_inner(args: env::Args, window: &Window) -> Result<(), Error> {
     pancurses::init_pair(2, COLOR_GREEN, -1);
     pancurses::init_pair(3, COLOR_CYAN, -1);
     pancurses::init_pair(4, COLOR_WHITE, COLOR_GREEN);
+    pancurses::init_pair(5, COLOR_BLUE, -1);
 
     let mut panel_setlist = PanelSetlist::new(
         window.get_max_y(),

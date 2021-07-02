@@ -4,6 +4,7 @@ pub fn wp_to_multi(line: &wp::Line) -> Vec<multi::Line> {
     match line {
         wp::Directive((key, value)) => match key.as_str() {
             "section" => vec![multi::Keyword((*value).trim().to_string())],
+            "comment" => vec![multi::Comment((*value).trim().to_string())],
             _ => Vec::new(),
         },
         wp::TextChordTrans(text_chord_trans) => {
@@ -192,5 +193,15 @@ mod tests {
         let wp = wp::Line::Directive(("other".to_string(), "don't care".to_string()));
         let vec = wp_to_multi(&wp);
         assert_eq!(vec, vec!());
+    }
+
+    #[test]
+    fn comment() {
+        let wp = wp::Line::Directive(("comment".to_string(), "content of comment".to_string()));
+        let vec = wp_to_multi(&wp);
+        assert_eq!(
+            vec,
+            vec!(multi::Line::Comment("content of comment".to_string()))
+        );
     }
 }

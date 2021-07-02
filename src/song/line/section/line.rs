@@ -5,4 +5,5 @@ pub struct Line {
     pub chord: Option<String>,
     pub text: Option<String>,
     pub translation: Option<String>,
+    pub comment: Option<String>,
 }

@@ -55,6 +55,7 @@ where
                 let mut chord: Option<String> = None;
                 let mut text: Option<String> = None;
                 let mut translation: Option<String> = None;
+                let mut comment: Option<String> = None;
 
                 for multiline in vec {
                     match multiline {
@@ -62,6 +63,7 @@ where
                         multi::Chord(c) => chord = Some(c),
                         multi::Text(t) => text = Some(t),
                         multi::Translation(t) => translation = Some(t),
+                        multi::Comment(c) => comment = Some(c),
                     }
                 }
 
@@ -77,11 +79,12 @@ where
                 }
 
                 // create line
-                if chord.is_some() || text.is_some() || translation.is_some() {
+                if chord.is_some() || text.is_some() || translation.is_some() || comment.is_some() {
                     self.lines.push(section::Line {
                         chord,
                         text,
                         translation,
+                        comment,
                     })
                 }
             } else {
@@ -146,7 +149,8 @@ mod tests {
                 lines: vec!(section::Line {
                     chord: None,
                     text: Some("Text".to_string()),
-                    translation: None
+                    translation: None,
+                    comment: None,
                 }),
             })
         );
@@ -167,7 +171,8 @@ mod tests {
                 lines: vec!(section::Line {
                     chord: None,
                     text: Some("Text".to_string()),
-                    translation: None
+                    translation: None,
+                    comment: None,
                 }),
             })
         );
@@ -191,7 +196,8 @@ mod tests {
                     lines: vec!(section::Line {
                         chord: None,
                         text: Some("Text1".to_string()),
-                        translation: None
+                        translation: None,
+                        comment: None,
                     }),
                 },
                 Section {
@@ -199,7 +205,8 @@ mod tests {
                     lines: vec!(section::Line {
                         chord: None,
                         text: Some("Text2".to_string()),
-                        translation: None
+                        translation: None,
+                        comment: None,
                     }),
                 }
             )
@@ -225,7 +232,8 @@ mod tests {
                 lines: vec!(section::Line {
                     chord: Some("Chord".to_string()),
                     text: Some("Text".to_string()),
-                    translation: Some("Translation".to_string())
+                    translation: Some("Translation".to_string()),
+                    comment: None,
                 }),
             })
         );

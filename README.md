@@ -156,6 +156,7 @@ The song format is almost identical to the well-known ChordPro format
 {section: Intro}
 [C F G C]
 {section: Chorus}
+{comment: This is a comment for the band}
 [F]This [G]is a [C]line & Das ist eine Zeile
 ```
 
