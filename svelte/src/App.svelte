@@ -111,7 +111,11 @@
     onSongSelect({title: currentSong.title, key: currentKey}, true);
   }
   const onCapoChange = (capo) => {
-    currentSong.key = manipulateKey(currentSong.key, currentCapo);
+    if (currentSong.key.indexOf(':') > -1 ) {
+      currentSong.key = 'Self';
+    } else {
+      currentSong.key = manipulateKey(currentSong.key, currentCapo);
+    }
     if (capo === 1) {
       currentCapo = (currentCapo + 1) % 12;
     } else if (capo === -1) {
