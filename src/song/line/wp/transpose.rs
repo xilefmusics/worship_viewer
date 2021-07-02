@@ -90,21 +90,37 @@ where
     I: Iterator<Item = Line>,
 {
     fn new(iter: I, key: &str) -> Self {
+        // Self with offset
+        if let Some(idx) = key.find(':') {
+            if &key[..idx] == "Self" {
+                if let Ok(offset) = key[idx + 1..].to_string().parse::<i8>() {
+                    return Self {
+                        iter,
+                        key_new: None,
+                        scale: None,
+                        halftones: Some(offset),
+                    };
+                }
+            }
+        }
+
+        // Self
         if key == "Self" {
-            Self {
+            return Self {
                 iter,
                 key_new: None,
                 scale: None,
                 halftones: Some(0),
-            }
-        } else {
-            let level = chord_to_level(key);
-            Self {
-                iter,
-                key_new: Some(level),
-                scale: Some(level_to_scale(level)),
-                halftones: None,
-            }
+            };
+        }
+
+        // other
+        let level = chord_to_level(key);
+        Self {
+            iter,
+            key_new: Some(level),
+            scale: Some(level_to_scale(level)),
+            halftones: None,
         }
     }
 }
@@ -120,8 +136,12 @@ where
         match &line {
             Some(Directive((key, value))) => {
                 if key == "key" {
-                    if let None = self.scale {
-                        self.scale = Some(level_to_scale(chord_to_level(value)));
+                    if self.scale == None {
+                        let offset = self.halftones.unwrap_or(0);
+                        self.scale = Some(
+                            level_to_scale((chord_to_level(value)) as i8 + offset).rem_euclid(12)
+                                as usize,
+                        );
                     }
                     if let Some(key_new) = self.key_new {
                         self.halftones = Some((key_new - chord_to_level(value)).rem_euclid(12));
@@ -223,6 +243,54 @@ mod tests {
             .transpose("Db")
             .collect::<Vec<Line>>();
         let vec_new = vec![text_chord_trans];
+        assert_eq!(vec, vec_new);
+    }
+
+    #[test]
+    fn offset() {
+        let directive = Line::Directive(("key".to_string(), "C".to_string()));
+        let directive2 = Line::Directive(("key".to_string(), "Db".to_string()));
+        let text_chord_trans =
+            Line::TextChordTrans("This is a [C]line & Das ist eine Zeile".to_string());
+        let text_chord_trans_new =
+            Line::TextChordTrans("This is a [Db]line & Das ist eine Zeile".to_string());
+        let vec = vec![directive.clone(), text_chord_trans]
+            .into_iter()
+            .transpose("Self:1")
+            .collect::<Vec<Line>>();
+        let vec_new = vec![directive2, text_chord_trans_new];
+        assert_eq!(vec, vec_new);
+    }
+
+    #[test]
+    fn offset_negative() {
+        let directive = Line::Directive(("key".to_string(), "C".to_string()));
+        let directive2 = Line::Directive(("key".to_string(), "Bb".to_string()));
+        let text_chord_trans =
+            Line::TextChordTrans("This is a [C]line & Das ist eine Zeile".to_string());
+        let text_chord_trans_new =
+            Line::TextChordTrans("This is a [Bb]line & Das ist eine Zeile".to_string());
+        let vec = vec![directive.clone(), text_chord_trans]
+            .into_iter()
+            .transpose("Self:-2")
+            .collect::<Vec<Line>>();
+        let vec_new = vec![directive2, text_chord_trans_new];
+        assert_eq!(vec, vec_new);
+    }
+
+    #[test]
+    fn offset_bullshit() {
+        let directive = Line::Directive(("key".to_string(), "C".to_string()));
+        let directive2 = Line::Directive(("key".to_string(), "A".to_string()));
+        let text_chord_trans =
+            Line::TextChordTrans("This is a [C]line & Das ist eine Zeile".to_string());
+        let text_chord_trans_new =
+            Line::TextChordTrans("This is a [A]line & Das ist eine Zeile".to_string());
+        let vec = vec![directive.clone(), text_chord_trans]
+            .into_iter()
+            .transpose("Self:bullshit")
+            .collect::<Vec<Line>>();
+        let vec_new = vec![directive2, text_chord_trans_new];
         assert_eq!(vec, vec_new);
     }
 }
