@@ -11,8 +11,12 @@ button {
   border: none;
   color: #DDDDDD;
   font-family: Arial, sans-serif;
-  font-size: 1.2em;
+  font-size: 1em;
   padding: 0.8em;
+}
+
+.selected-button {
+  background-color: #333333;
 }
 
 button:hover {

@@ -1,6 +1,6 @@
 <script>
   import { fetchSong } from './api';
-  import { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey } from './websocket';
+  import { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig } from './websocket';
 
   import TitleList from './TitleList.svelte'
   import SetlistList from './SetlistList.svelte'
@@ -11,7 +11,7 @@
   const getIsMobile = () => window.innerWidth < window.innerHeight;
 
   let showLeftSidebar = true;
-  let showRightSidebar = false;
+  let showRightSidebar = true; // TODO only temp
   let changeSetlist = false;
   let isMobile = getIsMobile();
   let titleListComponent;
@@ -136,6 +136,9 @@
   };
 
   ws.addEventListener("message", (event) => {
+    if (!wsConfig.receiveControls) {
+      return;
+    }
     const msg = JSON.parse(event.data);
     if (msg.senderID === wsID) {
       return;
@@ -244,9 +247,9 @@
   .right-sidebar-item {
     display: flex;
     flex-wrap: wrap;
-    background-color: red;
   }
   .right-sidebar-inneritem {
+    padding: 0.8em;
     flex: 1;
   }
 </style>
@@ -292,10 +295,22 @@
     </div>
     <div id='right-sidebar' style={!showRightSidebar && "display: none"}>
       <div id='view-changer-panel' class='right-sidebar-item'>
-        <button class='right-sidebar-inneritem' on:click={() => onModeChange('musican')}>Musican</button>
-        <button class='right-sidebar-inneritem' on:click={() => onModeChange('singer')}>Singer</button>
-        <button class='right-sidebar-inneritem' on:click={() => onModeChange('beamer-control')}>Beamer Control</button>
-        <button class='right-sidebar-inneritem' on:click={() => onModeChange('beamer')}>Beamer</button>
+        <button
+          class={`right-sidebar-inneritem ${mode === 'musican' ? 'selected-button': ''}`}
+          on:click={() => onModeChange('musican')}
+        >Musican</button>
+        <button
+          class={`right-sidebar-inneritem ${mode === 'singer' ? 'selected-button': ''}`}
+          on:click={() => onModeChange('singer')}
+        >Singer</button>
+        <button
+          class={`right-sidebar-inneritem ${mode === 'beamer-control' ? 'selected-button': ''}`}
+          on:click={() => onModeChange('beamer-control')}
+        >Beamer Control</button>
+        <button
+          class={`right-sidebar-inneritem ${mode === 'beamer' ? 'selected-button': ''}`}
+          on:click={() => onModeChange('beamer')}
+        >Beamer</button>
       </div>
       <div class='right-sidebar-item'>
         <button class='right-sidebar-inneritem' on:click={() => onKeyChange('-1')}>-</button>
@@ -311,6 +326,17 @@
         <button class='right-sidebar-inneritem' on:click={() => onFontScaleChange('decrement')}>-</button>
         <button class='right-sidebar-inneritem' on:click={() => onFontScaleChange('reset')}>{fontScale}</button>
         <button class='right-sidebar-inneritem' on:click={() => onFontScaleChange('increment')}>+</button>
+      </div>
+      <div class='right-sidebar-item'>
+        <p class='right-sidebar-inneritem'>ID: {wsID}</p>
+        <button
+          class={`right-sidebar-inneritem ${wsConfig.sendControls ? 'selected-button': ''}`}
+          on:click={() => wsConfig.sendControls = !wsConfig.sendControls}
+        >Send Controls</button>
+        <button
+          class={`right-sidebar-inneritem ${wsConfig.receiveControls ? 'selected-button': ''}`}
+          on:click={() => wsConfig.receiveControls = !wsConfig.receiveControls}
+        >Receive Controls</button>
       </div>
     </div>
   </div>
