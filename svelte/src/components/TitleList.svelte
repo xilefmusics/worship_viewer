@@ -1,5 +1,5 @@
 <script>
-  import { fetchTitles, fetchSetlist } from './api';
+  import { fetchTitles, fetchSetlist } from '../api';
   import List from './List.svelte';
 
   export let onSelect;

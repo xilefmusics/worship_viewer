@@ -1,6 +1,4 @@
 <script>
-  import { fetchTitles } from './api';
-
   export let onSelect;
 
   let content = [];

@@ -1,6 +1,6 @@
 <script>
-  import { fetchSong } from './api';
-  import { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig } from './websocket';
+  import { fetchSong } from '../api';
+  import { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig } from '../websocket';
 
   import LeftSidebar from './LeftSidebar.svelte'
   import Center from './Center.svelte'
