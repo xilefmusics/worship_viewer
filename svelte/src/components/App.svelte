@@ -246,6 +246,7 @@
       onModeChange={onModeChange}
       onKeyChange={onKeyChange}
       onCapoChange={onCapoChange}
+      onFontScaleChange={onFontScaleChange}
       currentKey={currentKey}
       currentCapo={currentCapo}
       fontScale={fontScale}

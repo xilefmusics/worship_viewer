@@ -2,6 +2,7 @@
   export let onModeChange;
   export let onKeyChange;
   export let onCapoChange;
+  export let onFontScaleChange;
   export let currentKey;
   export let currentCapo;
   export let fontScale;
