@@ -7,16 +7,18 @@
   import MusicanView from './MusicanView.svelte'
   import BeamerControlView from './BeamerControlView.svelte'
   import BeamerView from './BeamerView.svelte'
+  import RightSidebar from './RightSidebar.svelte'
 
   const getIsMobile = () => window.innerWidth < window.innerHeight;
 
-  let showLeftSidebar = true;
-  let showRightSidebar = true; // TODO only temp
-  let changeSetlist = false;
-  let isMobile = getIsMobile();
   let titleListComponent;
   let setlistListComponent;
   let beamerViewComponent;
+  let rightSidebarComponent;
+
+  let showLeftSidebar = true;
+  let changeSetlist = false;
+  let isMobile = getIsMobile();
   let currentSong;
   let currentCapo = 0;
   let currentKey = 'Self';
@@ -24,7 +26,6 @@
   let mode = 'musican'; // musican, singer, beamer-control, beamer
 
   const toggleLeftSidebar = () => showLeftSidebar = !showLeftSidebar;
-  const toggleRightSidebar = () => showRightSidebar = !showRightSidebar;
 
   const onClickCenter = (event) => {
     if (event.y > window.innerHeight*3/4) {
@@ -34,7 +35,7 @@
     } else if (event.x < window.innerWidth/2) {
       toggleLeftSidebar();
     } else if (event.x > window.innerWidth/2) {
-      toggleRightSidebar();
+      rightSidebarComponent.toggle();
     }
   };
 
@@ -62,10 +63,10 @@
   const onModeChange = (m) => {
     mode = m;
     if (isMobile) {
-      showRightSidebar = false;
+      rightSidebarComponent.hide();
     }
     if (mode === 'beamer') {
-      showRightSidebar = false;
+      rightSidebarComponent.hide();
       showLeftSidebar = false;
     }
   };
@@ -193,7 +194,7 @@
     } else if (e.keyCode === 37) {
       toggleLeftSidebar();
     } else if (e.keyCode === 39) {
-      toggleRightSidebar();
+      rightSidebarComponent.toggle();
     } else if (e.key === '+') {
       onFontScaleChange('increment');
     } else if (e.key === '-') {
@@ -235,22 +236,8 @@
   #center {
     flex: 2;
   }
-  #right-sidebar {
-    border-left: 4px solid #333333;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
   #change-setlist, #change-setlist-back {
     width: 100%;
-  }
-  .right-sidebar-item {
-    display: flex;
-    flex-wrap: wrap;
-  }
-  .right-sidebar-inneritem {
-    padding: 0.8em;
-    flex: 1;
   }
 </style>
 
@@ -272,7 +259,7 @@
         />
       </div>
     </div>
-    <div id='center' style={isMobile && (showLeftSidebar || showRightSidebar) && "display: none"} on:click={onClickCenter}>
+    <div id='center' style={isMobile && (showLeftSidebar || rightSidebarComponent.visible) && "display: none"} on:click={onClickCenter}>
       <div style={mode != 'musican' && mode != 'singer' && "display: none"} class='div-fill'>
         <MusicanView
           song={currentSong}
@@ -293,52 +280,18 @@
         />
       </div>
     </div>
-    <div id='right-sidebar' style={!showRightSidebar && "display: none"}>
-      <div id='view-changer-panel' class='right-sidebar-item'>
-        <button
-          class={`right-sidebar-inneritem ${mode === 'musican' ? 'selected-button': ''}`}
-          on:click={() => onModeChange('musican')}
-        >Musican</button>
-        <button
-          class={`right-sidebar-inneritem ${mode === 'singer' ? 'selected-button': ''}`}
-          on:click={() => onModeChange('singer')}
-        >Singer</button>
-        <button
-          class={`right-sidebar-inneritem ${mode === 'beamer-control' ? 'selected-button': ''}`}
-          on:click={() => onModeChange('beamer-control')}
-        >Beamer Control</button>
-        <button
-          class={`right-sidebar-inneritem ${mode === 'beamer' ? 'selected-button': ''}`}
-          on:click={() => onModeChange('beamer')}
-        >Beamer</button>
-      </div>
-      <div class='right-sidebar-item'>
-        <button class='right-sidebar-inneritem' on:click={() => onKeyChange('-1')}>-</button>
-        <button class='right-sidebar-inneritem' on:click={() => onKeyChange('Self')}>{currentKey}</button>
-        <button class='right-sidebar-inneritem' on:click={() => onKeyChange('+1')}>+</button>
-      </div>
-      <div class='right-sidebar-item'>
-        <button class='right-sidebar-inneritem' on:click={() => onCapoChange(-1)}>-</button>
-        <button class='right-sidebar-inneritem' on:click={() => onCapoChange(0)}>{currentCapo}</button>
-        <button class='right-sidebar-inneritem' on:click={() => onCapoChange(+1)}>+</button>
-      </div>
-      <div class='right-sidebar-item'>
-        <button class='right-sidebar-inneritem' on:click={() => onFontScaleChange('decrement')}>-</button>
-        <button class='right-sidebar-inneritem' on:click={() => onFontScaleChange('reset')}>{fontScale}</button>
-        <button class='right-sidebar-inneritem' on:click={() => onFontScaleChange('increment')}>+</button>
-      </div>
-      <div class='right-sidebar-item'>
-        <p class='right-sidebar-inneritem'>ID: {wsID}</p>
-        <button
-          class={`right-sidebar-inneritem ${wsConfig.sendControls ? 'selected-button': ''}`}
-          on:click={() => wsConfig.sendControls = !wsConfig.sendControls}
-        >Send Controls</button>
-        <button
-          class={`right-sidebar-inneritem ${wsConfig.receiveControls ? 'selected-button': ''}`}
-          on:click={() => wsConfig.receiveControls = !wsConfig.receiveControls}
-        >Receive Controls</button>
-      </div>
-    </div>
+    <RightSidebar
+      onModeChange={onModeChange}
+      onKeyChange={onKeyChange}
+      onCapoChange={onCapoChange}
+      currentKey={currentKey}
+      currentCapo={currentCapo}
+      fontScale={fontScale}
+      mode={mode}
+      wsID={wsID}
+      wsConfig={wsConfig}
+      bind:this={rightSidebarComponent}
+    />
   </div>
 </main>
 
