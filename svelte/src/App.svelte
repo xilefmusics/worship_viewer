@@ -2,11 +2,10 @@
   import { fetchSong } from './api';
   import { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig } from './websocket';
 
-  import TitleList from './TitleList.svelte'
-  import SetlistList from './SetlistList.svelte'
   import MusicanView from './MusicanView.svelte'
   import BeamerControlView from './BeamerControlView.svelte'
   import BeamerView from './BeamerView.svelte'
+  import LeftSidebar from './LeftSidebar.svelte'
   import RightSidebar from './RightSidebar.svelte'
 
   const getIsMobile = () => window.innerWidth < window.innerHeight;
@@ -14,10 +13,9 @@
   let titleListComponent;
   let setlistListComponent;
   let beamerViewComponent;
+  let leftSidebarComponent;
   let rightSidebarComponent;
 
-  let showLeftSidebar = true;
-  let changeSetlist = false;
   let isMobile = getIsMobile();
   let currentSong;
   let currentCapo = 0;
@@ -25,15 +23,13 @@
   let fontScale = 0.8;
   let mode = 'musican'; // musican, singer, beamer-control, beamer
 
-  const toggleLeftSidebar = () => showLeftSidebar = !showLeftSidebar;
-
   const onClickCenter = (event) => {
     if (event.y > window.innerHeight*3/4) {
       titleListComponent.next();
     } else if (event.y < window.innerHeight/4) {
       titleListComponent.prev();
     } else if (event.x < window.innerWidth/2) {
-      toggleLeftSidebar();
+      leftSidebarComponent.toggle();
     } else if (event.x > window.innerWidth/2) {
       rightSidebarComponent.toggle();
     }
@@ -45,7 +41,7 @@
       sendClearBeamer();
     }
     if (isMobile) {
-      showLeftSidebar = false;
+      leftSidebarComponent.hide();
     }
     if (!item.key || item.key === 'Self') {
       item.key = currentKey;
@@ -67,7 +63,7 @@
     }
     if (mode === 'beamer') {
       rightSidebarComponent.hide();
-      showLeftSidebar = false;
+      leftSidebarComponent.hide();
     }
   };
   const onSectionSelect = (idx, isRemote) => {
@@ -192,7 +188,7 @@
     } else if (e.key === "4") {
       onModeChange('beamer');
     } else if (e.keyCode === 37) {
-      toggleLeftSidebar();
+      leftSidebarComponent.toggle();
     } else if (e.keyCode === 39) {
       rightSidebarComponent.toggle();
     } else if (e.key === '+') {
@@ -224,42 +220,19 @@
     justify-content: flex-start;
     align-items: stretch;
   }
-  #left-sidebar {
-    flex: 1;
-    border-right: 4px solid #333333;
-  }
-  .left-sidebar-inner {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
   #center {
     flex: 2;
-  }
-  #change-setlist, #change-setlist-back {
-    width: 100%;
   }
 </style>
 
 <main>
   <div id='app'>
-    <div id='left-sidebar' style={!showLeftSidebar && "display: none"}>
-      <div class='left-sidebar-inner' style={changeSetlist && "display: none"}>
-        <button id='change-setlist' on:click={() => changeSetlist = true}>Change Setlist</button>
-        <TitleList
-          onSelect={onSongSelect}
-          bind:this={titleListComponent}
-        />
-      </div>
-      <div style={!changeSetlist && "display: none"}>
-        <button id='change-setlist-back' on:click={() => changeSetlist = false}>Back</button>
-        <SetlistList
-          onSelect={onSetlistSelect}
-          bind:this={setlistListComponent}
-        />
-      </div>
-    </div>
-    <div id='center' style={isMobile && (showLeftSidebar || rightSidebarComponent.visible) && "display: none"} on:click={onClickCenter}>
+    <LeftSidebar
+      onSongSelect={onSongSelect}
+      onSetlistSelect={onSetlistSelect}
+      bind:this={leftSidebarComponent}
+      />
+    <div id='center' style={isMobile && (leftSidebarComponent.visible || rightSidebarComponent.visible) && "display: none"} on:click={onClickCenter}>
       <div style={mode != 'musican' && mode != 'singer' && "display: none"} class='div-fill'>
         <MusicanView
           song={currentSong}
