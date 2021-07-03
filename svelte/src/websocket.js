@@ -4,8 +4,8 @@ const url = "ws://localhost:8001";
 const ws = new WebSocket(url);
 const wsID = Math.random().toString(36).substr(2, 9);
 let wsConfig = {
-  sendControls: false,
-  receiveControls: false,
+  sendControls: true,
+  receiveControls: true,
 };
 
 const sendLoadSetlist = (title) => {

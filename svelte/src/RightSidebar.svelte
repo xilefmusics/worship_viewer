@@ -8,13 +8,7 @@
   export let mode;
   export let wsID;
   export let wsConfig;
-
-  let visible = false;
-  const toggle = () => visible = !visible;
-  const show = () => visible = true;
-  const hide = () => visible = false;
-  export {toggle, show, hide, visible};
-
+  export let visible;
 </script>
 
 <style>

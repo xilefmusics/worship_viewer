@@ -2,68 +2,71 @@
   import { fetchSong } from './api';
   import { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig } from './websocket';
 
-  import MusicanView from './MusicanView.svelte'
-  import BeamerControlView from './BeamerControlView.svelte'
-  import BeamerView from './BeamerView.svelte'
   import LeftSidebar from './LeftSidebar.svelte'
+  import Center from './Center.svelte'
   import RightSidebar from './RightSidebar.svelte'
 
   const getIsMobile = () => window.innerWidth < window.innerHeight;
 
-  let titleListComponent;
-  let setlistListComponent;
   let beamerViewComponent;
   let leftSidebarComponent;
+  let centerComponent;
   let rightSidebarComponent;
 
   let isMobile = getIsMobile();
+  let leftVisible = true;
+  const toggleLeft = () => leftVisible = !leftVisible;
+  const showLeft = () => leftVisible = true;
+  const hideLeft = () => leftVisible = false;
+  let rightVisible = false;
+  const toggleRight = () => rightVisible = !rightVisible;
+  const showRight = () => rightVisible = true;
+  const hideRight = () => rightVisible = false;
+  let mode = 'musican'; // musican, singer, beamer-control, beamer
+
   let currentSong;
   let currentCapo = 0;
   let currentKey = 'Self';
   let fontScale = 0.8;
-  let mode = 'musican'; // musican, singer, beamer-control, beamer
 
   const onClickCenter = (event) => {
     if (event.y > window.innerHeight*3/4) {
-      titleListComponent.next();
+      leftSidebarComponent.nextSong();
     } else if (event.y < window.innerHeight/4) {
-      titleListComponent.prev();
+      leftSidebarComponent.prevSong();
     } else if (event.x < window.innerWidth/2) {
-      leftSidebarComponent.toggle();
+      toggleLeft();
     } else if (event.x > window.innerWidth/2) {
-      rightSidebarComponent.toggle();
+      toggleRight();
     }
   };
-
   const onSongSelect = async (item, isRemote) => {
     if (!isRemote) {
       sendLoadSong(item.title, item.key);
       sendClearBeamer();
     }
     if (isMobile) {
-      leftSidebarComponent.hide();
+      hideLeft();
     }
     if (!item.key || item.key === 'Self') {
       item.key = currentKey;
     }
-    beamerViewComponent.clear();
+    centerComponent.clearBeamer();
     currentSong = await fetchSong(item.title, manipulateKey(item.key, -currentCapo));
   };
   const onSetlistSelect = async (title, isRemote) => {
     if (!isRemote) {
       sendLoadSetlist(title);
     }
-    await titleListComponent.load(title);
-    changeSetlist = false;
   };
   const onModeChange = (m) => {
     mode = m;
     if (isMobile) {
-      rightSidebarComponent.hide();
+      hideRight();
     }
     if (mode === 'beamer') {
-      rightSidebarComponent.hide();
-      leftSidebarComponent.hide();
+      hideLeft();
+      hideRight();
     }
   };
   const onSectionSelect = (idx, isRemote) => {
@@ -71,13 +74,13 @@
       if (!isRemote) {
         sendClearBeamer()
       }
-      beamerViewComponent.clear();
+      centerComponent.clearBeamer();
       return;
     }
     if (!isRemote) {
       sendDisplaySection(currentSong.title, idx)
     }
-    beamerViewComponent.display(idx);
+    centerComponent.displayBeamer(idx);
   };
   const keys = ['A', 'Bb', 'B', 'C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab'];
   const manipulateKey = (key, offset) => {
@@ -144,11 +147,11 @@
       onSetlistSelect(msg.title, true);
     } else if (msg.type === "load song") {
       onSongSelect({title: msg.title, key: msg.key}, true);
-      titleListComponent.select(msg.title);
+      leftSidebarComponent.selectTitle(msg.title);
     } else if (msg.type === "display section") {
       onSectionSelect(msg.idx, true);
     } else if (msg.type === "clear beamer") {
-      beamerViewComponent.clear();
+      centerComponent.clearBeamer();
     } else if (msg.type === "change key") {
       onKeyChange(msg.key, true);
     }
@@ -156,9 +159,9 @@
 
   document.onkeydown = (e) => {
     if (e.key === " " || e.key === "j" || e.keyCode === 40) {
-      titleListComponent.next();
+      leftSidebarComponent.nextSong();
     } else if (e.key === "k" || e.keyCode === 38) {
-      titleListComponent.prev();
+      leftSidebarComponent.prevSong();
     } else if (
       e.key === "A" ||
       e.key === "B" ||
@@ -188,9 +191,9 @@
     } else if (e.key === "4") {
       onModeChange('beamer');
     } else if (e.keyCode === 37) {
-      leftSidebarComponent.toggle();
+      toggleLeft();
     } else if (e.keyCode === 39) {
-      rightSidebarComponent.toggle();
+      toggleRight();
     } else if (e.key === '+') {
       onFontScaleChange('increment');
     } else if (e.key === '-') {
@@ -220,9 +223,6 @@
     justify-content: flex-start;
     align-items: stretch;
   }
-  #center {
-    flex: 2;
-  }
 </style>
 
 <main>
@@ -230,29 +230,18 @@
     <LeftSidebar
       onSongSelect={onSongSelect}
       onSetlistSelect={onSetlistSelect}
+      visible={leftVisible}
       bind:this={leftSidebarComponent}
       />
-    <div id='center' style={isMobile && (leftSidebarComponent.visible || rightSidebarComponent.visible) && "display: none"} on:click={onClickCenter}>
-      <div style={mode != 'musican' && mode != 'singer' && "display: none"} class='div-fill'>
-        <MusicanView
-          song={currentSong}
-          fontScale={fontScale}
-          mode={mode}
-        />
-      </div>
-      <div style={mode != 'beamer-control' && "display: none"} class='div-fill'>
-        <BeamerControlView
-          song={currentSong}
-          onSectionSelect={onSectionSelect}
-        />
-      </div>
-      <div style={mode != 'beamer' && "display: none"} class='div-fill'>
-        <BeamerView
-          song={currentSong}
-          bind:this={beamerViewComponent}
-        />
-      </div>
-    </div>
+    <Center
+      onClickCenter={onClickCenter}
+      onSectionSelect={onSectionSelect}
+      mode={mode}
+      currentSong={currentSong}
+      fontScale={fontScale}
+      visible={!isMobile || (!leftVisible && !rightVisible)}
+      bind:this={centerComponent}
+      />
     <RightSidebar
       onModeChange={onModeChange}
       onKeyChange={onKeyChange}
@@ -263,6 +252,7 @@
       mode={mode}
       wsID={wsID}
       wsConfig={wsConfig}
+      visible={rightVisible}
       bind:this={rightSidebarComponent}
     />
   </div>

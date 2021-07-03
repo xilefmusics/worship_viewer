@@ -4,18 +4,23 @@
 
   export let onSongSelect;
   export let onSetlistSelect;
+  export let visible;
 
   let titleListComponent;
   let setlistListComponent;
 
   let changeSetlist = false;
 
-  let visible = true;
-  const toggle = () => visible = !visible;
-  const show = () => visible = true;
-  const hide = () => visible = false;
+  const onSetlistSelectOwn = async (title, isRemote) => {
+      await titleListComponent.load(title);
+      await onSetlistSelect(title, isRemote);
+      changeSetlist = false;
+  };
 
-  export {toggle, show, hide, visible};
+  const nextSong = () => titleListComponent.next();
+  const prevSong = () => titleListComponent.prev();
+  const selectTitle = (title) => titleListComponent.select(title);
+  export {nextSong, prevSong, selectTitle};
 </script>
 
 <style>
@@ -44,7 +49,7 @@
   <div class='inner' style={!changeSetlist && "display: none"}>
     <button id='change-setlist-back' on:click={() => changeSetlist = false}>Back</button>
     <SetlistList
-      onSelect={onSetlistSelect}
+      onSelect={onSetlistSelectOwn}
       bind:this={setlistListComponent}
     />
   </div>
