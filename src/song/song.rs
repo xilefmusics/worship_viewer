@@ -30,4 +30,15 @@ impl Song {
     > {
         self.to_wp().to_string()
     }
+
+    pub fn has_translation(&self) -> bool {
+        for section in &self.sections {
+            for line in &section.lines {
+                if line.translation_text.is_some() {
+                    return true;
+                }
+            }
+        }
+        false
+    }
 }

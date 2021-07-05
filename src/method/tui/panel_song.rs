@@ -139,6 +139,7 @@ impl PanelSong {
             Some(Input::Character('t')) => self
                 .song_pool
                 .transpose(&self.song_view.get_setlist_item()?)?,
+            Some(Input::Character('T')) => self.song_view.toggle_mode(),
             _ => (),
         };
         Ok(())

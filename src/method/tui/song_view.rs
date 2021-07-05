@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::setlist::SetlistItem;
 use crate::song::SongPool;
-use crate::tui::SongDisplay;
+use crate::tui::{SongDisplay, SongDisplayMode};
 
 use super::super::Error;
 
@@ -12,6 +12,7 @@ pub struct SongView {
     setlist_item: Option<SetlistItem>,
     song_pool: Arc<SongPool>,
     key: String,
+    mode: SongDisplayMode,
     song_display: SongDisplay,
 }
 
@@ -30,11 +31,13 @@ impl SongView {
         )?;
         let setlist_item = None;
         let key = String::from("Self");
+        let mode = SongDisplayMode::DefaultOnly;
         Ok(Self {
             song_display,
             setlist_item,
             song_pool,
             key,
+            mode,
         })
     }
 
@@ -66,13 +69,31 @@ impl SongView {
         }
     }
 
+    pub fn set_mode(&mut self, mode: SongDisplayMode) {
+        self.mode = mode;
+        self.render()
+    }
+
+    pub fn toggle_mode(&mut self) {
+        self.mode = match self.mode {
+            SongDisplayMode::DefaultOnly => SongDisplayMode::TranslationOnly,
+            SongDisplayMode::TranslationOnly => SongDisplayMode::DefaultOnly,
+            SongDisplayMode::Both => SongDisplayMode::DefaultOnly,
+        };
+        self.render()
+    }
+
     pub fn render(&self) {
         if let Some(mut setlist_item) = self.setlist_item.clone() {
             if self.key != "Self" {
                 setlist_item.key = self.key.to_string();
             }
+            let mut mode = self.mode; // TODO mode from setlist_item
             if let Ok(Some(song)) = self.song_pool.get(&setlist_item) {
-                self.song_display.display(song);
+                if !song.has_translation() {
+                    mode = SongDisplayMode::DefaultOnly;
+                }
+                self.song_display.display(song, mode);
             } else {
                 self.song_display.text("Error: No song found");
             }

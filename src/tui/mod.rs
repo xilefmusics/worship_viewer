@@ -11,4 +11,5 @@ mod confirmation_box;
 pub use confirmation_box::ConfirmationBox;
 
 mod song_display;
+pub use song_display::Mode as SongDisplayMode;
 pub use song_display::SongDisplay;

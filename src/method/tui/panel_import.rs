@@ -8,7 +8,7 @@ use crate::method::Error;
 use crate::song::import::UltimateGuitarSearchResult as SearchResult;
 use crate::song::import::{ultimate_guitar_search, ultimate_guitar_to_song};
 use crate::song::SongPool;
-use crate::tui::{InputBox, List, SongDisplay};
+use crate::tui::{InputBox, List, SongDisplay, SongDisplayMode};
 
 impl fmt::Display for SearchResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -82,7 +82,9 @@ impl PanelImport {
     fn load_selected_song(&mut self) {
         if let Some(item) = self.list.selected_item() {
             match ultimate_guitar_to_song(&item.url) {
-                Ok(song) => self.song_display.display(song),
+                Ok(song) => self
+                    .song_display
+                    .display(song, SongDisplayMode::DefaultOnly),
                 Err(_) => self.song_display.text("Error while parsing song"),
             }
         }
