@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct Line {
     pub chord: Option<String>,
     pub text: Option<String>,
-    pub translation: Option<String>,
+    pub translation_chord: Option<String>,
+    pub translation_text: Option<String>,
     pub comment: Option<String>,
 }

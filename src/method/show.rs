@@ -26,6 +26,12 @@ fn get_color_code(name: &str) -> &str {
     }
 }
 
+enum Mode {
+    OnlyDefault,
+    OnlyTranslation,
+    Both,
+}
+
 struct Config {
     path: PathBuf,
     new_key: String,
@@ -34,6 +40,7 @@ struct Config {
     keyword_color: Option<String>,
     translation_color: Option<String>,
     spaces: String,
+    mode: Mode,
 }
 
 impl Config {
@@ -45,6 +52,7 @@ impl Config {
         let mut keyword_color: Option<String> = None;
         let mut translation_color: Option<String> = None;
         let mut spacecnt = 2;
+        let mut mode = Mode::OnlyDefault;
 
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -96,6 +104,8 @@ impl Config {
                         )))
                     }
                 },
+                "-T" => mode = Mode::OnlyTranslation,
+                "-Ta" => mode = Mode::Both,
                 f => filename = Some(String::from(f)),
             }
         }
@@ -116,6 +126,7 @@ impl Config {
             keyword_color,
             translation_color,
             spaces,
+            mode,
         })
     }
 }
@@ -123,6 +134,17 @@ impl Config {
 pub fn show(args: env::Args) -> Result<(), Error> {
     let config = Config::new(args)?;
     let song = SongPool::lazy_load_file(config.path, &config.new_key)?;
+
+    let (show_default, show_translation_text, show_translation_chord) = match &config.mode {
+        Mode::Both => (true, true, false),
+        Mode::OnlyDefault => (true, false, false),
+        Mode::OnlyTranslation => (false, true, true),
+    };
+    let translation_text_color = if show_default {
+        &config.translation_color
+    } else {
+        &config.text_color
+    };
 
     for section in song.sections {
         if let Some(keyword) = section.keyword {
@@ -132,22 +154,38 @@ pub fn show(args: env::Args) -> Result<(), Error> {
             }
         }
         for line in section.lines {
-            if let Some(chord) = line.chord {
-                match &config.chord_color {
-                    Some(color) => println! {"{}{}{}\x1b[0m", config.spaces, color, chord},
-                    None => println! {"{}{}", config.spaces, chord},
+            if show_default {
+                if let Some(chord) = line.chord {
+                    match &config.chord_color {
+                        Some(color) => println! {"{}{}{}\x1b[0m", config.spaces, color, chord},
+                        None => println! {"{}{}", config.spaces, chord},
+                    }
+                }
+                if let Some(text) = line.text {
+                    match &config.text_color {
+                        Some(color) => println! {"{}{}{}\x1b[0m", config.spaces, color, text},
+                        None => println! {"{}{}", config.spaces, text},
+                    }
                 }
             }
-            if let Some(text) = line.text {
-                match &config.text_color {
-                    Some(color) => println! {"{}{}{}\x1b[0m", config.spaces, color, text},
-                    None => println! {"{}{}", config.spaces, text},
+            if show_translation_chord {
+                if let Some(translation_chord) = line.translation_chord {
+                    match &config.chord_color {
+                        Some(color) => {
+                            println! {"{}{}{}\x1b[0m", config.spaces, color, translation_chord}
+                        }
+                        None => println! {"{}{}", config.spaces, translation_chord},
+                    }
                 }
             }
-            if let Some(translation) = line.translation {
-                match &config.translation_color {
-                    Some(color) => println! {"{}{}{}\x1b[0m", config.spaces, color, translation},
-                    None => println! {"{}{}", config.spaces, translation},
+            if show_translation_text {
+                if let Some(translation_text) = line.translation_text {
+                    match translation_text_color {
+                        Some(color) => {
+                            println! {"{}{}{}\x1b[0m", config.spaces, color, translation_text}
+                        }
+                        None => println! {"{}{}", config.spaces, translation_text},
+                    }
                 }
             }
         }

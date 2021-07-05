@@ -1,6 +1,6 @@
 use super::{
     Chord, ChordIterator, Directive, Line, LineIterator, NotTransposable, Text, TextChordTrans,
-    Translation, Transposable,
+    TranslationChord, TranslationText, Transposable,
 };
 
 const SCALE: [[&'static str; 12]; 2] = [
@@ -55,6 +55,7 @@ fn transpose_chord(chord: &str, halftones: i8, scale: usize) -> String {
 fn transpose_line(line: &Line, halftones: i8, scale: usize) -> Line {
     if let TextChordTrans(line) = line {
         let mut line_new = String::new();
+        let mut added_amp = false;
         for part in LineIterator::new(&line) {
             match part {
                 Chord(chord) => {
@@ -63,9 +64,17 @@ fn transpose_line(line: &Line, halftones: i8, scale: usize) -> Line {
                     line_new.push_str("]");
                 }
                 Text(text) => line_new.push_str(text),
-                Translation(translation) => {
-                    line_new.push_str(" & ");
-                    line_new.push_str(translation);
+                TranslationText(translation_text) => {
+                    if !added_amp {
+                        line_new.push_str(" & ");
+                        added_amp = true;
+                    }
+                    line_new.push_str(translation_text);
+                }
+                TranslationChord(chord) => {
+                    line_new.push_str("[");
+                    line_new.push_str(&transpose_chord(chord, halftones, scale));
+                    line_new.push_str("]");
                 }
             }
         }

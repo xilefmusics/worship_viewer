@@ -27,6 +27,7 @@ fn chord_lines_to_spaces_and_chords(mut line: &str) -> Vec<(usize, String)> {
 fn section_line_to_wp(line: section::Line) -> wp::Line {
     let mut s = String::new();
 
+    // default
     if let Some(text) = line.text {
         if let Some(chord) = line.chord {
             // text and chord
@@ -63,9 +64,42 @@ fn section_line_to_wp(line: section::Line) -> wp::Line {
     }
 
     // translation
-    if let Some(translation) = line.translation {
+    if line.translation_text.is_some() || line.translation_chord.is_some() {
         s.push_str(" & ");
-        s.push_str(&translation);
+    }
+    if let Some(text) = line.translation_text {
+        if let Some(chord) = line.translation_chord {
+            // text and chord
+            let mut idx = 0;
+            let mut last_chord_len = 0;
+            for (spaces, chord) in chord_lines_to_spaces_and_chords(&chord) {
+                let t = text
+                    .chars()
+                    .skip(idx)
+                    .take(spaces + last_chord_len)
+                    .collect::<String>();
+                s.push_str(&t);
+                s.push_str(
+                    &std::iter::repeat(' ')
+                        .take((spaces + last_chord_len) - t.chars().count())
+                        .collect::<String>(),
+                );
+                s.push('[');
+                s.push_str(&chord);
+                s.push(']');
+                idx += t.chars().count();
+                last_chord_len = chord.chars().count();
+            }
+            s.push_str(&text.chars().skip(idx).collect::<String>());
+        } else {
+            // only text
+            s.push_str(&text);
+        }
+    } else if let Some(chord) = line.translation_chord {
+        // only chord
+        s.push('[');
+        s.push_str(&chord);
+        s.push(']');
     }
 
     wp::Line::TextChordTrans(s)
@@ -157,12 +191,14 @@ mod tests {
     fn text_only() {
         let chord = None;
         let text = Some("Das ist eine Zeile".to_string());
-        let translation = None;
+        let translation_chord = None;
+        let translation_text = None;
         let comment = None;
         let line = section::Line {
             chord,
             text,
-            translation,
+            translation_chord,
+            translation_text,
             comment,
         };
         assert_eq!(
@@ -175,12 +211,14 @@ mod tests {
     fn chord_only() {
         let chord = Some("Chord".to_string());
         let text = None;
-        let translation = None;
+        let translation_chord = None;
+        let translation_text = None;
         let comment = None;
         let line = section::Line {
             chord,
             text,
-            translation,
+            translation_chord,
+            translation_text,
             comment,
         };
         assert_eq!(
@@ -193,12 +231,14 @@ mod tests {
     fn chord_and_text() {
         let chord = Some("F/A     G/B  C".to_string());
         let text = Some("Das ist eine Zeile".to_string());
-        let translation = None;
+        let translation_chord = None;
+        let translation_text = None;
         let comment = None;
         let line = section::Line {
             chord,
             text,
-            translation,
+            translation_chord,
+            translation_text,
             comment,
         };
         assert_eq!(
@@ -208,15 +248,39 @@ mod tests {
     }
 
     #[test]
-    fn outstanding_chord() {
-        let chord = Some("     Chord".to_string());
-        let text = Some("Text".to_string());
-        let translation = None;
+    fn chord_and_text_translation() {
+        let chord = Some("F/A     G/B  C".to_string());
+        let text = Some("Das ist eine Zeile".to_string());
+        let translation_chord = Some("F/A  G/B  C".to_string());
+        let translation_text = Some("This is a line".to_string());
         let comment = None;
         let line = section::Line {
             chord,
             text,
-            translation,
+            translation_chord,
+            translation_text,
+            comment,
+        };
+        assert_eq!(
+            section_line_to_wp(line),
+            wp::TextChordTrans(
+                "[F/A]Das ist [G/B]eine [C]Zeile & [F/A]This [G/B]is a [C]line".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn outstanding_chord() {
+        let chord = Some("     Chord".to_string());
+        let text = Some("Text".to_string());
+        let translation_chord = None;
+        let translation_text = None;
+        let comment = None;
+        let line = section::Line {
+            chord,
+            text,
+            translation_chord,
+            translation_text,
             comment,
         };
         assert_eq!(
@@ -229,12 +293,14 @@ mod tests {
     fn chord_text_and_translation() {
         let chord = Some("F/A     G/B  C".to_string());
         let text = Some("Das ist eine Zeile".to_string());
-        let translation = Some("This is a line".to_string());
+        let translation_text = Some("This is a line".to_string());
+        let translation_chord = None;
         let comment = None;
         let line = section::Line {
             chord,
             text,
-            translation,
+            translation_chord,
+            translation_text,
             comment,
         };
         assert_eq!(
@@ -247,12 +313,14 @@ mod tests {
     fn unicode() {
         let chord = Some("F/A     G/B  C".to_string());
         let text = Some("Daß äst eine Zeile".to_string());
-        let translation = Some("This is a line".to_string());
+        let translation_text = Some("This is a line".to_string());
+        let translation_chord = None;
         let comment = None;
         let line = section::Line {
             chord,
             text,
-            translation,
+            translation_chord,
+            translation_text,
             comment,
         };
         assert_eq!(
@@ -299,12 +367,14 @@ mod tests {
         let keyword = Some("Keyword".to_string());
         let chord = Some("F/A     G/B  C".to_string());
         let text = Some("Das ist eine Zeile".to_string());
-        let translation = Some("This is a line".to_string());
+        let translation_text = Some("This is a line".to_string());
+        let translation_chord = None;
         let comment = None;
         let line = section::Line {
             chord,
             text,
-            translation,
+            translation_chord,
+            translation_text,
             comment,
         };
         let lines: Vec<section::Line> = vec![line];

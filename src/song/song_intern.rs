@@ -89,6 +89,7 @@ impl SongIntern {
         let title = self.title.clone();
         let artist = self.artist.clone();
         let key = key.to_string();
+
         let sections = self
             .lines()
             .into_iter()

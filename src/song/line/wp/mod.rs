@@ -7,7 +7,7 @@ pub use transpose::{IntoTranspose, Transpose};
 mod line_iterator;
 pub use line_iterator::{
     LineIterator,
-    LineIteratorItem::{self, Chord, Text, Translation},
+    LineIteratorItem::{self, Chord, Text, TranslationChord, TranslationText},
 };
 
 mod chord_iterator;

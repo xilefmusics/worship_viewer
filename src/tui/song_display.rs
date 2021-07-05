@@ -63,7 +63,7 @@ impl SongDisplay {
                     self.window.color_set(0);
                     idx += 1;
                 }
-                if let Some(translation) = line.translation {
+                if let Some(translation) = line.translation_text {
                     self.window.color_set(3);
                     self.window.mvprintw(idx + 1, 4, translation);
                     self.window.color_set(0);

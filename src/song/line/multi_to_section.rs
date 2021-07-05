@@ -54,7 +54,8 @@ where
                 let mut keyword: Option<String> = None;
                 let mut chord: Option<String> = None;
                 let mut text: Option<String> = None;
-                let mut translation: Option<String> = None;
+                let mut translation_chord: Option<String> = None;
+                let mut translation_text: Option<String> = None;
                 let mut comment: Option<String> = None;
 
                 for multiline in vec {
@@ -62,7 +63,8 @@ where
                         multi::Keyword(k) => keyword = Some(k),
                         multi::Chord(c) => chord = Some(c),
                         multi::Text(t) => text = Some(t),
-                        multi::Translation(t) => translation = Some(t),
+                        multi::TranslationChord(c) => translation_chord = Some(c),
+                        multi::TranslationText(t) => translation_text = Some(t),
                         multi::Comment(c) => comment = Some(c),
                     }
                 }
@@ -79,11 +81,17 @@ where
                 }
 
                 // create line
-                if chord.is_some() || text.is_some() || translation.is_some() || comment.is_some() {
+                if chord.is_some()
+                    || text.is_some()
+                    || translation_chord.is_some()
+                    || translation_text.is_some()
+                    || comment.is_some()
+                {
                     self.lines.push(section::Line {
                         chord,
                         text,
-                        translation,
+                        translation_chord,
+                        translation_text,
                         comment,
                     })
                 }
@@ -149,7 +157,8 @@ mod tests {
                 lines: vec!(section::Line {
                     chord: None,
                     text: Some("Text".to_string()),
-                    translation: None,
+                    translation_text: None,
+                    translation_chord: None,
                     comment: None,
                 }),
             })
@@ -171,7 +180,8 @@ mod tests {
                 lines: vec!(section::Line {
                     chord: None,
                     text: Some("Text".to_string()),
-                    translation: None,
+                    translation_text: None,
+                    translation_chord: None,
                     comment: None,
                 }),
             })
@@ -196,7 +206,8 @@ mod tests {
                     lines: vec!(section::Line {
                         chord: None,
                         text: Some("Text1".to_string()),
-                        translation: None,
+                        translation_text: None,
+                        translation_chord: None,
                         comment: None,
                     }),
                 },
@@ -205,7 +216,8 @@ mod tests {
                     lines: vec!(section::Line {
                         chord: None,
                         text: Some("Text2".to_string()),
-                        translation: None,
+                        translation_text: None,
+                        translation_chord: None,
                         comment: None,
                     }),
                 }
@@ -220,7 +232,7 @@ mod tests {
             vec![
                 multi::Line::Chord("Chord".to_string()),
                 multi::Line::Text("Text".to_string()),
-                multi::Line::Translation("Translation".to_string()),
+                multi::Line::TranslationText("Translation".to_string()),
             ],
         ];
         let iter = content.into_iter();
@@ -232,7 +244,8 @@ mod tests {
                 lines: vec!(section::Line {
                     chord: Some("Chord".to_string()),
                     text: Some("Text".to_string()),
-                    translation: Some("Translation".to_string()),
+                    translation_text: Some("Translation".to_string()),
+                    translation_chord: None,
                     comment: None,
                 }),
             })

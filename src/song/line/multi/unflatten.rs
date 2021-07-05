@@ -1,4 +1,4 @@
-use super::{Chord, Comment, Keyword, Line, Text, Translation};
+use super::{Chord, Comment, Keyword, Line, Text, TranslationChord, TranslationText};
 
 #[derive(Debug, Clone)]
 pub struct Unflatten<I>
@@ -9,7 +9,8 @@ where
     buffer: Option<Vec<Line>>,
     has_text: bool,
     has_chord: bool,
-    has_translation: bool,
+    has_translation_chord: bool,
+    has_translation_text: bool,
     has_keyword: bool,
 }
 
@@ -21,14 +22,16 @@ where
         let buffer: Option<Vec<Line>> = None;
         let has_text = false;
         let has_chord = false;
-        let has_translation = false;
+        let has_translation_chord = false;
+        let has_translation_text = false;
         let has_keyword = false;
         Self {
             iter,
             buffer,
             has_text,
             has_chord,
-            has_translation,
+            has_translation_chord,
+            has_translation_text,
             has_keyword,
         }
     }
@@ -50,7 +53,8 @@ where
                         self.has_keyword = true;
                         self.has_chord = false;
                         self.has_text = false;
-                        self.has_translation = false;
+                        self.has_translation_chord = false;
+                        self.has_translation_text = false;
                         return result;
                     } else {
                         return Some(vec![line.expect("matched some")]);
@@ -62,7 +66,8 @@ where
                         self.buffer = Some(vec![line.expect("matched some")]);
                         self.has_chord = true;
                         self.has_text = false;
-                        self.has_translation = false;
+                        self.has_translation_chord = false;
+                        self.has_translation_text = false;
                         self.has_keyword = false;
                         return result;
                     } else {
@@ -80,7 +85,8 @@ where
                         self.buffer = Some(vec![line.expect("matched some")]);
                         self.has_chord = false;
                         self.has_text = true;
-                        self.has_translation = false;
+                        self.has_translation_chord = false;
+                        self.has_translation_text = false;
                         self.has_keyword = false;
                         return result;
                     } else {
@@ -92,13 +98,14 @@ where
                         self.has_text = true;
                     }
                 }
-                Some(Translation(_)) => {
-                    if self.has_keyword | self.has_translation {
+                Some(TranslationChord(_)) => {
+                    if self.has_keyword | self.has_translation_chord {
                         let result = self.buffer.take();
                         self.buffer = Some(vec![line.expect("matched some")]);
                         self.has_chord = false;
                         self.has_text = false;
-                        self.has_translation = true;
+                        self.has_translation_chord = true;
+                        self.has_translation_text = false;
                         self.has_keyword = false;
                         return result;
                     } else {
@@ -107,7 +114,26 @@ where
                         } else {
                             self.buffer = Some(vec![line.expect("matched some")]);
                         }
-                        self.has_translation = true;
+                        self.has_translation_chord = true;
+                    }
+                }
+                Some(TranslationText(_)) => {
+                    if self.has_keyword | self.has_translation_text {
+                        let result = self.buffer.take();
+                        self.buffer = Some(vec![line.expect("matched some")]);
+                        self.has_chord = false;
+                        self.has_text = false;
+                        self.has_translation_chord = false;
+                        self.has_translation_text = true;
+                        self.has_keyword = false;
+                        return result;
+                    } else {
+                        if let Some(buffer) = &mut self.buffer {
+                            buffer.push(line.expect("matched some"));
+                        } else {
+                            self.buffer = Some(vec![line.expect("matched some")]);
+                        }
+                        self.has_translation_text = true;
                     }
                 }
                 Some(Comment(_)) => {
@@ -193,15 +219,15 @@ mod tests {
     fn unflatten_two_translation() {
         assert_eq!(
             vec![
-                Translation("Translation 1".to_string()),
-                Translation("Translation 2".to_string()),
+                TranslationText("Translation 1".to_string()),
+                TranslationText("Translation 2".to_string()),
             ]
             .into_iter()
             .unflatten()
             .collect::<Vec<Vec<Line>>>(),
             vec![
-                vec![Translation("Translation 1".to_string())],
-                vec![Translation("Translation 2".to_string())],
+                vec![TranslationText("Translation 1".to_string())],
+                vec![TranslationText("Translation 2".to_string())],
             ]
         );
     }
@@ -212,7 +238,7 @@ mod tests {
             vec![
                 Chord("Chord".to_string()),
                 Text("Text".to_string()),
-                Translation("Translation".to_string()),
+                TranslationText("Translation".to_string()),
             ]
             .into_iter()
             .unflatten()
@@ -220,7 +246,7 @@ mod tests {
             vec![vec![
                 Chord("Chord".to_string()),
                 Text("Text".to_string()),
-                Translation("Translation".to_string()),
+                TranslationText("Translation".to_string()),
             ]]
         );
     }
