@@ -1,8 +1,4 @@
 /target
-/react/node_modules
-
-react/yarn.lock
-react/package-lock.json
-react/build
+svelte_deploy
 
 .gitignore
