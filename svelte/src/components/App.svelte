@@ -1,12 +1,14 @@
 <script>
-  import { fetchSong } from '../api';
-  import { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig } from '../websocket';
+  import { fetchSong, apiChangeUrl } from '../api';
+  import { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig, wsChangeUrl } from '../websocket';
 
   import LeftSidebar from './LeftSidebar.svelte'
   import Center from './Center.svelte'
   import RightSidebar from './RightSidebar.svelte'
 
   const getIsMobile = () => window.innerWidth < window.innerHeight;
+
+  const version = '0.1.0';
 
   let beamerViewComponent;
   let leftSidebarComponent;
@@ -23,6 +25,13 @@
   const showRight = () => rightVisible = true;
   const hideRight = () => rightVisible = false;
   let mode = 'musican'; // musican, singer, beamer-control, beamer
+
+  let apiUrl = 'localhost';
+  let apiPort = '8000';
+  let communicationUrl = 'localhost';
+  let communicationPort = '8001'
+  apiChangeUrl(apiUrl, apiPort);
+  wsChangeUrl(communicationUrl, communicationPort);
 
   let currentSong;
   let currentCapo = 0;
@@ -134,6 +143,27 @@
       fontScale = Math.round((fontScale - 0.05 + Number.EPSILON) * 100) / 100;
     }
   };
+
+  const onApiChange = (url, port) => {
+    if (url) {
+      apiUrl = url;
+    }
+    if (port) {
+      apiPort = port;
+    }
+    apiChangeUrl(apiUrl, apiPort);
+    leftSidebarComponent.reload();
+  }
+
+  const onCommunicationChange = (url, port) => {
+    if (url) {
+      communicationUrl = url;
+    }
+    if (port) {
+      communicationPort = port;
+    }
+    wsChangeUrl(communicationUrl, communicationPort);
+  }
 
   ws.addEventListener("message", (event) => {
     if (!wsConfig.receiveControls) {
@@ -247,6 +277,8 @@
       onKeyChange={onKeyChange}
       onCapoChange={onCapoChange}
       onFontScaleChange={onFontScaleChange}
+      onApiChange={onApiChange}
+      onCommunicationChange={onCommunicationChange}
       currentKey={currentKey}
       currentCapo={currentCapo}
       fontScale={fontScale}
@@ -254,6 +286,11 @@
       wsID={wsID}
       wsConfig={wsConfig}
       visible={rightVisible}
+      apiUrl={apiUrl}
+      apiPort={apiPort}
+      communicationUrl={communicationUrl}
+      communicationPort={communicationPort}
+      version={version}
       bind:this={rightSidebarComponent}
     />
   </div>

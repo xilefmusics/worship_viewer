@@ -1,28 +1,39 @@
-const url = "http://localhost:8000";
-//const url = window.location.origin;
+let url = '';
 
 const fetchTitles = async () => {
-  const response = await fetch(`${url}/song_titles`);
-  const json = await response.json();
-  return json;
+  try {
+    const response = await fetch(`${url}/song_titles`);
+    const json = await response.json();
+    return json;
+  } catch(e) {
+    return [];
+  }
 };
 
 const fetchSong = async (title, key) => {
-  const response = await fetch(`${url}/song/${title}/${key}`);
-  const json = await response.json();
-  return json;
+  try {
+    const response = await fetch(`${url}/song/${title}/${key}`);
+    const json = await response.json();
+    return json;
+  } catch (e) {
+    return null;
+  }
 };
 
 const fetchSetlists = async () => {
-  const response = await fetch(`${url}/setlist_titles`);
-  const json = await response.json();
-  return json;
+  try {
+    const response = await fetch(`${url}/setlist_titles`);
+    const json = await response.json();
+    return json;
+  } catch (e) {
+    return [];
+  }
 }
 
 const fetchFirstSetlist = async () => {
-  const response = await fetch(`${url}/setlist_get_first`);
-  const json = await response.json();
-  return json;
+    const response = await fetch(`${url}/setlist_get_first`);
+    const json = await response.json();
+    return json;
 }
 
 const fetchSetlist = async (title) => {
@@ -34,4 +45,7 @@ const fetchSetlist = async (title) => {
   return json;
 }
 
-export { fetchTitles, fetchSong, fetchSetlists, fetchSetlist };
+const apiChangeUrl = (new_url, new_port) => url = `http://${new_url}:${new_port}`;
+
+
+export { fetchTitles, fetchSong, fetchSetlists, fetchSetlist, apiChangeUrl };

@@ -5,11 +5,12 @@
   export let onSelect;
   let list;
 
-  fetchSetlists().then((t) => list.setContent(t));
-
   const next = () => list.next();
   const prev = () => list.prev();
-  export {next, prev};
+  const reload = () => fetchSetlists().then((t) => list.setContent(t));
+
+  reload();
+  export {next, prev, reload};
 </script>
 
 <List

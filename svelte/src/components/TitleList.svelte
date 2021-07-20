@@ -5,17 +5,19 @@
   export let onSelect;
   let list;
 
-  fetchTitles().then((t) => {
-    let items = t.map((title) => {return {title: title, key: null}});
-    list.setContent(items)
-    onSelect(items[0]);
-  });
 
-const load = async (title) => fetchSetlist(title).then((t) => {list.setContent(t.items);onSelect(t.items[0]);});
+  const load = async (title) => fetchSetlist(title).then((t) => {list.setContent(t.items);onSelect(t.items[0]);});
   const next = () => list.next();
   const prev = () => list.prev();
   const select = (title) => list.select(title);
-  export {next, prev, load, select};
+  const reload = () => fetchTitles().then((t) => {
+    let items = t.map((title) => {return {title: title, key: null}});
+    list.setContent(items);
+    onSelect(items[0]);
+  });
+
+  reload();
+  export {next, prev, load, select, reload};
 </script>
 
 <List

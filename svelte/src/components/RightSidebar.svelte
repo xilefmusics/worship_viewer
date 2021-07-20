@@ -1,4 +1,6 @@
 <script>
+  export let onApiChange;
+  export let onCommunicationChange;
   export let onModeChange;
   export let onKeyChange;
   export let onCapoChange;
@@ -10,6 +12,11 @@
   export let wsID;
   export let wsConfig;
   export let visible;
+  export let apiUrl;
+  export let apiPort;
+  export let communicationUrl;
+  export let communicationPort;
+  export let version;
 </script>
 
 <style>
@@ -64,6 +71,32 @@
     <button class='inneritem' on:click={() => onFontScaleChange('increment')}>+</button>
   </div>
   <div class='item'>
+    <button
+       class='inneritem'
+      on:click={ () => {
+        onApiChange(document.getElementById('input-api-url').value, document.getElementById('input-api-port').value)
+      }}>
+      Change Api
+    </button>
+  </div>
+  <div class='item'>
+    <input id='input-api-url' type='text' value={apiUrl} class='inneritem'/>
+    <input id='input-api-port' type='text' value={apiPort} class='inneritem'/>
+  </div>
+  <div class='item'>
+    <button
+       class='inneritem'
+      on:click={ () => {
+        onCommunicationChange(document.getElementById('input-communication-url').value, document.getElementById('input-communication-port').value)
+      }}>
+      Change Communication Server
+    </button>
+  </div>
+  <div class='item'>
+    <input id='input-communication-url' type='text' value={communicationUrl} class='inneritem'/>
+    <input id='input-communication-port' type='text' value={communicationPort} class='inneritem'/>
+  </div>
+  <div class='item'>
     <p class='inneritem'>ID: {wsID}</p>
     <button
       class={`inneritem ${wsConfig.sendControls ? 'selected-button': ''}`}
@@ -73,5 +106,8 @@
       class={`inneritem ${wsConfig.receiveControls ? 'selected-button': ''}`}
       on:click={() => wsConfig.receiveControls = !wsConfig.receiveControls}
     >Receive Controls</button>
+  </div>
+  <div class='item'>
+    <p class='inneritem' style='text-align: center'>Version: {version}</p>
   </div>
 </div>

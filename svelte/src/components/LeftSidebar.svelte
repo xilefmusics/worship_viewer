@@ -20,7 +20,8 @@
   const nextSong = () => titleListComponent.next();
   const prevSong = () => titleListComponent.prev();
   const selectTitle = (title) => titleListComponent.select(title);
-  export {nextSong, prevSong, selectTitle};
+  const reload = () => {titleListComponent.reload(); setlistListComponent.reload();};
+  export {nextSong, prevSong, selectTitle, reload};
 </script>
 
 <style>

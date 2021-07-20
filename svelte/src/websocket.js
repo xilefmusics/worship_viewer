@@ -1,7 +1,5 @@
-const url = "ws://localhost:8001";
-//const url = `ws://${window.location.hostname}:8001`;
+let ws = null;
 
-const ws = new WebSocket(url);
 const wsID = Math.random().toString(36).substr(2, 9);
 let wsConfig = {
   sendControls: true,
@@ -9,7 +7,7 @@ let wsConfig = {
 };
 
 const sendLoadSetlist = (title) => {
-  if (!wsConfig.sendControls) {
+  if (!wsConfig.sendControls || !ws || ws.readyState != WebSocket.OPEN) {
     return;
   }
   ws.send(
@@ -22,7 +20,7 @@ const sendLoadSetlist = (title) => {
 };
 
 const sendLoadSong = (title, key) => {
-  if (!wsConfig.sendControls) {
+  if (!wsConfig.sendControls || !ws || ws.readyState != WebSocket.OPEN) {
     return;
   }
   ws.send(
@@ -36,7 +34,7 @@ const sendLoadSong = (title, key) => {
 };
 
 const sendDisplaySection = (title, idx) => {
-  if (!wsConfig.sendControls) {
+  if (!wsConfig.sendControls || !ws || ws.readyState != WebSocket.OPEN) {
     return;
   }
   ws.send(
@@ -50,7 +48,7 @@ const sendDisplaySection = (title, idx) => {
 };
 
 const sendClearBeamer = () => {
-  if (!wsConfig.sendControls) {
+  if (!wsConfig.sendControls || !ws || ws.readyState != WebSocket.OPEN) {
     return;
   }
   ws.send(
@@ -62,7 +60,7 @@ const sendClearBeamer = () => {
 };
 
 const sendChangeKey = (key) => {
-  if (!wsConfig.sendControls) {
+  if (!wsConfig.sendControls || !ws || ws.readyState != WebSocket.OPEN) {
     return;
   }
   ws.send(
@@ -74,4 +72,6 @@ const sendChangeKey = (key) => {
   );
 };
 
-export { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig };
+const wsChangeUrl = (new_url, new_port) => ws = new WebSocket(`ws://${new_url}:${new_port}`);
+
+export { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig, wsChangeUrl };
