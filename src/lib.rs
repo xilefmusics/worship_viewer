@@ -5,6 +5,7 @@ extern crate html_escape;
 extern crate pancurses;
 extern crate reqwest;
 extern crate rocket_contrib;
+extern crate rocket_cors;
 extern crate serde;
 extern crate ws;
 

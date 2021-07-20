@@ -1,8 +1,10 @@
 use rocket::config::{Config, Environment};
+use rocket::http::Method;
 use rocket::response::NamedFile;
 use rocket::State;
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
+use rocket_cors::{AllowedOrigins, CorsOptions};
 
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
@@ -96,8 +98,20 @@ pub fn rest_api(
         .finalize()
         .unwrap();
 
+    // Cross Origin Resource Sharing
+    let cors = CorsOptions::default()
+        .allowed_origins(AllowedOrigins::all())
+        .allowed_methods(
+            vec![Method::Get, Method::Post, Method::Patch]
+                .into_iter()
+                .map(From::from)
+                .collect(),
+        )
+        .allow_credentials(true);
+
     // REST API
     rocket::custom(config)
+        .attach(cors.to_cors().unwrap())
         .mount(
             "/",
             routes![
