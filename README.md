@@ -22,6 +22,9 @@ Also, currently only Linux is supported as a platform. However, we hope to be ab
 - Dependencies
 
   - rust-version: 1.54.0-nightly (or newer)
+  - libssl-dev (openssl)
+  - libncurses5-dev libncursesw5-dev (ncurses)
+  - build-essential
   - npm (optional): 7.11.2 (or newer)
 
 - Build Binary
@@ -29,6 +32,7 @@ Also, currently only Linux is supported as a platform. However, we hope to be ab
 ```
   git clone https://github.com/xilefmusics/worship_viewer.git
   cd worship_viewer
+  rustup override set nightly
   cargo +nightly build --release
   sudo cp ./target/release/worship_viewer /bin/wv
 ```
