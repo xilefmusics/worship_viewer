@@ -72,6 +72,10 @@ fn transpose_line(line: &Line, halftones: i8, scale: usize) -> Line {
                     line_new.push_str(translation_text);
                 }
                 TranslationChord(chord) => {
+                    if !added_amp {
+                        line_new.push_str(" & ");
+                        added_amp = true;
+                    }
                     line_new.push_str("[");
                     line_new.push_str(&transpose_chord(chord, halftones, scale));
                     line_new.push_str("]");
@@ -193,6 +197,12 @@ impl<I> IntoTranspose for I where I: Sized + Iterator<Item = Line> {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fn_chord_after_and_translation() {
+        let line = Line::TextChordTrans("[G]Hello[C] & [G]Hallo[C]".to_string());
+        assert_eq!(transpose_line(&line, 0, 0), line);
+    }
 
     #[test]
     fn fn_directive() {
