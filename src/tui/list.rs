@@ -6,6 +6,7 @@ use std::fmt::Display;
 
 use super::Error;
 use super::InputBox;
+use super::replace_umlaut::replace_umlaut;
 
 pub struct List<T: Display + Clone + Ord> {
     items: Vec<T>,
@@ -68,7 +69,7 @@ impl<T: Display + Clone + Ord> List<T> {
                 if idx == idx_highlight {
                     self.window.attrset(A_REVERSE | A_BOLD);
                 }
-                self.window.mvprintw((idx + 1) as i32, 1, item);
+                self.window.mvprintw((idx + 1) as i32, 1, replace_umlaut(item));
                 if idx == idx_highlight {
                     self.window.attrset(A_NORMAL);
                 }

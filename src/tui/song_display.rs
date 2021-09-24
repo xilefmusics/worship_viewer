@@ -4,6 +4,7 @@ use pancurses::{A_BOLD, A_NORMAL};
 use crate::song::Song;
 
 use super::Error;
+use super::replace_umlaut::replace_umlaut;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Mode {
@@ -56,7 +57,7 @@ impl SongDisplay {
             if let Some(keyword) = section.keyword {
                 self.window.attrset(A_BOLD);
                 self.window.color_set(colors.0);
-                self.window.mvprintw(idx + 1, 2, keyword);
+                self.window.mvprintw(idx + 1, 2, replace_umlaut(keyword));
                 self.window.color_set(0);
                 self.window.attrset(A_NORMAL);
                 idx += 1;
@@ -66,14 +67,14 @@ impl SongDisplay {
                     if let Some(chord) = line.chord {
                         self.window.attrset(A_BOLD);
                         self.window.color_set(colors.1);
-                        self.window.mvprintw(idx + 1, 4, chord);
+                        self.window.mvprintw(idx + 1, 4, replace_umlaut(chord));
                         self.window.color_set(0);
                         self.window.attrset(A_NORMAL);
                         idx += 1;
                     }
                     if let Some(text) = line.text {
                         self.window.color_set(colors.1);
-                        self.window.mvprintw(idx + 1, 4, text);
+                        self.window.mvprintw(idx + 1, 4, replace_umlaut(text));
                         self.window.color_set(0);
                         idx += 1;
                     }
@@ -82,7 +83,7 @@ impl SongDisplay {
                     if let Some(translation_chord) = line.translation_chord {
                         self.window.attrset(A_BOLD);
                         self.window.color_set(colors.2);
-                        self.window.mvprintw(idx + 1, 4, translation_chord);
+                        self.window.mvprintw(idx + 1, 4, replace_umlaut(translation_chord));
                         self.window.color_set(0);
                         self.window.attrset(A_NORMAL);
                         idx += 1;
@@ -91,7 +92,7 @@ impl SongDisplay {
                 if show_translation_text {
                     if let Some(translation_text) = line.translation_text {
                         self.window.color_set(colors.2);
-                        self.window.mvprintw(idx + 1, 4, translation_text);
+                        self.window.mvprintw(idx + 1, 4, replace_umlaut(translation_text));
                         self.window.color_set(0);
                         idx += 1;
                     }
@@ -99,7 +100,7 @@ impl SongDisplay {
                 if let Some(comment) = line.comment {
                     self.window.attrset(A_BOLD);
                     self.window.color_set(colors.3);
-                    self.window.mvprintw(idx + 1, 4, comment);
+                    self.window.mvprintw(idx + 1, 4, replace_umlaut(comment));
                     self.window.color_set(0);
                     self.window.attrset(A_NORMAL);
                     idx += 1;
