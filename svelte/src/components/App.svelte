@@ -26,9 +26,9 @@
   const hideRight = () => rightVisible = false;
   let mode = 'musican'; // musican, singer, beamer-control, beamer
 
-  let apiUrl = 'localhost';
+  let apiUrl = window.location.hostname;
   let apiPort = '8000';
-  let communicationUrl = 'localhost';
+  let communicationUrl = window.location.hostname;
   let communicationPort = '8001'
   apiChangeUrl(apiUrl, apiPort);
   wsChangeUrl(communicationUrl, communicationPort);
