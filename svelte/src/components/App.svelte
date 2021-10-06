@@ -1,5 +1,5 @@
 <script>
-  import { fetchSong, apiChangeUrl } from '../api';
+  import { fetchSong, apiChangeUrl, makeOffline } from '../api';
   import { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig, wsChangeUrl } from '../websocket';
 
   import LeftSidebar from './LeftSidebar.svelte'
@@ -165,6 +165,14 @@
     wsChangeUrl(communicationUrl, communicationPort);
   }
 
+  const onMakeCurrentApiOffline = async () => {
+    if (apiUrl == 'offline') {
+      return;
+    }
+    await makeOffline();
+    onApiChange('offline', apiPort);
+  }
+
   ws.addEventListener("message", (event) => {
     if (!wsConfig.receiveControls) {
       return;
@@ -279,6 +287,7 @@
       onFontScaleChange={onFontScaleChange}
       onApiChange={onApiChange}
       onCommunicationChange={onCommunicationChange}
+      onMakeCurrentApiOffline={onMakeCurrentApiOffline}
       currentKey={currentKey}
       currentCapo={currentCapo}
       fontScale={fontScale}

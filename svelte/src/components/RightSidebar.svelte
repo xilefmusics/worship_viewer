@@ -1,6 +1,7 @@
 <script>
   export let onApiChange;
   export let onCommunicationChange;
+  export let onMakeCurrentApiOffline;
   export let onModeChange;
   export let onKeyChange;
   export let onCapoChange;
@@ -95,6 +96,15 @@
   <div class='item'>
     <input id='input-communication-url' type='text' value={communicationUrl} class='inneritem'/>
     <input id='input-communication-port' type='text' value={communicationPort} class='inneritem'/>
+  </div>
+  <div class='item'>
+    <button
+    class='inneritem'
+    on:click={ () => {
+      onMakeCurrentApiOffline();
+    }}>
+        Make Current Api Offline
+    </button>
   </div>
   <div class='item'>
     <p class='inneritem'>ID: {wsID}</p>
