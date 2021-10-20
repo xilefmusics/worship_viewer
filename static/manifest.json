@@ -1,0 +1,16 @@
+{
+    "short_name": "Worship Viewer",
+    "name": "Worship Viewer",
+    "icons": [
+        {
+            "src": "/favicon.png",
+            "type": "image/png",
+            "sizes": "256x256"
+        }
+    ],
+    "start_url": "index.html",
+    "background_color": "#262626",
+    "display": "standalone",
+    "scope": "/app/",
+    "theme_color": "#262626"
+}
