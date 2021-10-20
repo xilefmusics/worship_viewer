@@ -1,6 +1,7 @@
 let ws = null;
 
 const wsID = Math.random().toString(36).substr(2, 9);
+const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 let wsConfig = {
   sendControls: true,
   receiveControls: true,
@@ -72,6 +73,6 @@ const sendChangeKey = (key) => {
   );
 };
 
-const wsChangeUrl = (new_url, new_port) => ws = new WebSocket(`ws://${new_url}:${new_port}`);
+const wsChangeUrl = (new_url, new_port) => ws = new WebSocket(`${wsProtocol}//${new_url}:${new_port}`);
 
 export { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig, wsChangeUrl };

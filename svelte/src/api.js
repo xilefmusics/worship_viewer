@@ -56,7 +56,7 @@ const apiChangeUrl = (new_url, new_port) =>{
   if (new_url == 'offline') {
     url = 'offline';
   } else {
-    url = `http://${new_url}:${new_port}`;
+    url = `${location.protocol}//${new_url}:${new_port}`;
   }
 };
 

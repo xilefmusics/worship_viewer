@@ -8,7 +8,7 @@
 
   const getIsMobile = () => window.innerWidth < window.innerHeight;
 
-  const version = '0.2.0';
+  const version = '0.2.1';
 
   let beamerViewComponent;
   let leftSidebarComponent;
