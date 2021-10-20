@@ -40,15 +40,6 @@ const fetchSetlists = async () => {
   }
 }
 
-const fetchFirstSetlist = async () => {
-  if (url == 'offline') {
-    return offline.getFirstSetlist();
-  }
-  const response = await fetch(`${url}/setlist_get_first`);
-  const json = await response.json();
-  return json;
-}
-
 const fetchSetlist = async (title) => {
   if (!title) {
     return getFirstSetlist();

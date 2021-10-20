@@ -1,46 +1,18 @@
-let tmp_titles = [];
-const tmp_song_map = new Map();
-let tmp_setlists = [];
-const tmp_setlist_map = new Map();
+import Dexie from 'dexie';
+const db = new Dexie('offline');
+db.version(1).stores({
+    songs: 'title,data',
+    setlists: 'title, data',
+})
 
-const getTitles = () => {
-    return tmp_titles;
-};
+const addSong = async (song) => db.songs.put({title: song.title, data: JSON.stringify(song)});
+const getTitles = async () => await db.songs.orderBy('title').keys();
+const getSong = async (title, key) => await JSON.parse((await db.songs.get(title)).data);
+const clearSongs = async () => await db.songs.clear();
 
-const getSong = (title, key) => {
-    return tmp_song_map.get(title);
-};
+const addSetlist = async (setlist) => db.setlists.put({title: setlist.title, data: JSON.stringify(setlist)});
+const getSetlists = async () => await db.setlists.orderBy('title').keys();
+const getSetlist = async (title) => await JSON.parse((await db.setlists.get(title)).data);
+const clearSetlists = async () => await db.setlists.clear();
 
-const getSetlists = () => {
-    return tmp_setlists;
-};
-
-const getFirstSetlist = () => {
-    return tmp_setlist_map.get(tmp_setlists[0]);
-};
-
-const getSetlist = (title) => {
-    return tmp_setlist_map.get(title);
-};
-
-const addSong = (song) => {
-    tmp_titles.push(song.title);
-    tmp_song_map.set(song.title, song);
-};
-
-const addSetlist = (setlist) => {
-    tmp_setlists.push(setlist.title);
-    tmp_setlist_map.set(setlist.title, setlist);
-};
-
-const clearSongs = () => {
-    tmp_titles = [];
-    tmp_song_map.clear();
-}
-
-const clearSetlists = () => {
-    tmp_setlists = [];
-    tmp_setlist_map.clear();
-}
-
-export default {getTitles, getSong, getSetlists, getFirstSetlist, getSetlist, addSong, addSetlist, clearSongs, clearSetlists};
+export default {getTitles, getSong, getSetlists, getSetlist, addSong, addSetlist, clearSongs, clearSetlists};
