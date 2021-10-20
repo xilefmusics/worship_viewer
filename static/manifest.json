@@ -3,14 +3,14 @@
     "name": "Worship Viewer",
     "icons": [
         {
-            "src": "/favicon.png",
+            "src": "/static/favicon.png",
             "type": "image/png",
             "sizes": "256x256"
         }
     ],
     "start_url": "index.html",
     "background_color": "#262626",
+    "scope": "./",
     "display": "standalone",
-    "scope": "/app/",
     "theme_color": "#262626"
 }
