@@ -28,12 +28,13 @@ self.addEventListener('fetch', async event => {
     } catch {}
 
     console.log('try getting from cache');
-    try {
-        const local = await caches.match(event.request);
+    const local = await caches.match(event.request);
+    if (local) {
         console.log(local);
         return local;
-    } catch {}
+    }
 
+    console.log(event.request);
     console.log('not in remote and not in cache');
     return new Response('<h1>Service Unavailable</h1>', {
         status: 503,
