@@ -12,6 +12,11 @@
 	<link rel="manifest" href="/static/manifest.json">
 
 	<script defer src='/static/bundle.js'></script>
+	<script>
+		if('serviceWorker' in navigator) {
+			navigator.serviceWorker.register('/static/service-worker.js');
+		}
+	</script>
 </head>
 
 <body>
