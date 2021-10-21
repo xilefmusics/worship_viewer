@@ -7,7 +7,7 @@ self.addEventListener('install', event => event.waitUntil(
         '/static/global.css',
         '/static/bundle.css',
         '/static/bundle.js',
-        '/static/bundle.js.map',
+        '/static/bundle-js-map.json',
         '/static/manifest.json',
         '/static/favicon.png',
         '/static/service-worker.js',
