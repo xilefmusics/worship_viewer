@@ -36,6 +36,22 @@ fs.createReadStream('public/build/bundle.js.map').pipe(fs.createWriteStream('www
 let data = fs.readFileSync('public/index.html', 'utf8');
 data = data.replace('/favicon.png', '/static/favicon.png');
 data = data.replace('/global.css', '/static/global.css');
+data = data.replace('/manifest.json', '/static/manifest.json');
 data = data.replace('/build/bundle.js', '/static/bundle.js');
 data = data.replace('/build/bundle.css', '/static/bundle.css');
+data = data.replace('/service-worker.js', '/static/service-worker.js');
 fs.writeFileSync('www/index.html', data);
+
+
+let data2 = fs.readFileSync('public/manifest.json', 'utf8');
+data2 = data2.replace('/favicon.png', '/static/favicon.png');
+fs.writeFileSync('www/static/manifest.json', data2);
+
+let data3 = fs.readFileSync('public/service-worker.js', 'utf8');
+data3 = data3.replace('/favicon.png', '/static/favicon.png');
+data3 = data3.replace('/global.css', '/static/global.css');
+data3 = data3.replace('/manifest.json', '/static/manifest.json');
+data3 = data3.replace('/build/bundle.js', '/static/bundle.js');
+data3 = data3.replace('/build/bundle.css', '/static/bundle.css');
+data3 = data3.replace('/service-worker.js', '/static/service-worker.js');
+fs.writeFileSync('www/static/service-worker.js', data3);
