@@ -3,7 +3,7 @@
     "name": "Worship Viewer",
     "icons": [
         {
-            "src": "/static/favicon.png",
+            "src": "/favicon.png",
             "type": "image/png",
             "sizes": "256x256"
         }

@@ -4,13 +4,13 @@ const version = 'v1::';
 self.addEventListener('install', event => event.waitUntil(
     caches.open(version + 'fundamentals').then(cache => cache.addAll([
         '/',
-        '/static/global.css',
-        '/static/bundle.css',
-        '/static/bundle.js',
-        '/static/bundle-js-map.json',
-        '/static/manifest.json',
-        '/static/favicon.png',
-        '/static/service-worker.js',
+        '/global.css',
+        '/build/bundle.css',
+        '/build/bundle.js',
+        '/build/bundle.js.map',
+        '/manifest.json',
+        '/favicon.png',
+        '/service-worker.js',
     ]))
 ));
 
