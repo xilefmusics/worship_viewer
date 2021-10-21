@@ -47,10 +47,7 @@ self.addEventListener('fetch', async event => {
 // remove older versions of service worker
 self.addEventListener("activate", async event => {
     console.log("ONACTIVATE: start");
-    Promise.all(
-        (await caches.keys()).filter(key => !key.startsWith(version)
-            .map(key => caches.delete(key))
-        )
-    );
+    const keys = cache.keys();
+    Promise.all(keys.filter(key => !key.startsWith(version)).map(key => caches.delete(key)));
     console.log("ONACTIVATE: finished");
 });
