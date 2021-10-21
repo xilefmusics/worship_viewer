@@ -53,5 +53,6 @@ data3 = data3.replace('/global.css', '/static/global.css');
 data3 = data3.replace('/manifest.json', '/static/manifest.json');
 data3 = data3.replace('/build/bundle.js', '/static/bundle.js');
 data3 = data3.replace('/build/bundle.css', '/static/bundle.css');
+data3 = data3.replace('/build/bundle.js.map', '/static/bundle.js.map');
 data3 = data3.replace('/service-worker.js', '/static/service-worker.js');
 fs.writeFileSync('www/static/service-worker.js', data3);
