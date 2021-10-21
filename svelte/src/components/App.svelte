@@ -1,6 +1,7 @@
 <script>
   import { fetchSong, apiChangeUrl, makeOffline } from '../api';
-  import { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig, wsChangeUrl } from '../websocket';
+  import { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig, wsChangeUrl, changeWsConfig } from '../websocket';
+  import settings from "../settings";
 
   import LeftSidebar from './LeftSidebar.svelte'
   import Center from './Center.svelte'
@@ -8,7 +9,7 @@
 
   const getIsMobile = () => window.innerWidth < window.innerHeight;
 
-  const version = '0.2.1';
+  const version = '0.2.4';
 
   let beamerViewComponent;
   let leftSidebarComponent;
@@ -37,6 +38,16 @@
   let currentCapo = 0;
   let currentKey = 'Self';
   let fontScale = 0.8;
+
+  const restoreSettings = async () => {
+    onApiChange(await settings.loadApiUrl(), await settings.loadApiPort());
+    onCommunicationChange(await settings.loadCommunicationUrl(), await settings.loadCommunicationPort());
+    onWsConfigChange({
+      sendControls: await settings.loadSendControls(),
+      receiveControls: await settings.loadReceiveControls(),
+    })
+    onFontScaleChange(await settings.loadFontScale());
+  };
 
   const onClickCenter = (event) => {
     if (event.y > window.innerHeight*3/4) {
@@ -141,7 +152,10 @@
       fontScale = Math.round((fontScale + 0.05 + Number.EPSILON) * 100) / 100;
     } else if (update === 'decrement') {
       fontScale = Math.round((fontScale - 0.05 + Number.EPSILON) * 100) / 100;
+    } else {
+      fontScale = update;
     }
+    settings.storeFontScale(fontScale);
   };
 
   const onApiChange = (url, port) => {
@@ -152,6 +166,8 @@
       apiPort = port;
     }
     apiChangeUrl(apiUrl, apiPort);
+    settings.storeApiUrl(apiUrl);
+    settings.storeApiPort(apiPort);
     leftSidebarComponent.reload();
   }
 
@@ -162,6 +178,8 @@
     if (port) {
       communicationPort = port;
     }
+    settings.storeCommunicationUrl(communicationUrl);
+    settings.storeCommunicationPort(communicationPort);
     wsChangeUrl(communicationUrl, communicationPort);
   }
 
@@ -171,6 +189,12 @@
     }
     await makeOffline();
     onApiChange('offline', apiPort);
+  }
+
+  const onWsConfigChange = (newConfig) => {
+    changeWsConfig(newConfig);
+    settings.storeSendControls(newConfig.sendControls);
+    settings.storeReceiveControls(newConfig.receiveControls);
   }
 
   ws.addEventListener("message", (event) => {
@@ -248,6 +272,7 @@
   };
 
   window.onresize = () => isMobile = getIsMobile();
+  restoreSettings();
 </script>
 
 <style>
@@ -293,7 +318,9 @@
       fontScale={fontScale}
       mode={mode}
       wsID={wsID}
-      wsConfig={wsConfig}
+      sendControls={wsConfig.sendControls}
+      receiveControls={wsConfig.receiveControls}
+      onWsConfigChange={onWsConfigChange}
       visible={rightVisible}
       apiUrl={apiUrl}
       apiPort={apiPort}

@@ -1,4 +1,7 @@
 <script>
+import { ws } from "../websocket";
+
+
   export let onApiChange;
   export let onCommunicationChange;
   export let onMakeCurrentApiOffline;
@@ -11,7 +14,9 @@
   export let fontScale;
   export let mode;
   export let wsID;
-  export let wsConfig;
+  export let sendControls;
+  export let receiveControls;
+  export let onWsConfigChange;
   export let visible;
   export let apiUrl;
   export let apiPort;
@@ -109,12 +114,12 @@
   <div class='item'>
     <p class='inneritem'>ID: {wsID}</p>
     <button
-      class={`inneritem ${wsConfig.sendControls ? 'selected-button': ''}`}
-      on:click={() => wsConfig.sendControls = !wsConfig.sendControls}
+      class={`inneritem ${sendControls ? 'selected-button': ''}`}
+      on:click={() => onWsConfigChange({sendControls: !sendControls, receiveControls: receiveControls})}
     >Send Controls</button>
     <button
-      class={`inneritem ${wsConfig.receiveControls ? 'selected-button': ''}`}
-      on:click={() => wsConfig.receiveControls = !wsConfig.receiveControls}
+      class={`inneritem ${receiveControls ? 'selected-button': ''}`}
+      on:click={() => onWsConfigChange({sendControls: sendControls, receiveControls: !receiveControls})}
     >Receive Controls</button>
   </div>
   <div class='item'>

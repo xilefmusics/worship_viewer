@@ -73,6 +73,17 @@ const sendChangeKey = (key) => {
   );
 };
 
-const wsChangeUrl = (new_url, new_port) => ws = new WebSocket(`${wsProtocol}//${new_url}:${new_port}`);
+const changeWsConfig = newWsConfig => {
+  console.log(newWsConfig);
+  wsConfig = newWsConfig;
+};
 
-export { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig, wsChangeUrl };
+const wsChangeUrl = (new_url, new_port) => {
+  try {
+    ws = new WebSocket(`${wsProtocol}//${new_url}:${new_port}`);
+  } catch (e) {
+    ws = null;
+  }
+}
+
+export { ws, wsID, sendLoadSetlist, sendLoadSong, sendDisplaySection, sendClearBeamer, sendChangeKey, wsConfig, wsChangeUrl, changeWsConfig };
