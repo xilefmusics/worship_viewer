@@ -111,7 +111,9 @@ export default function(song, newKey) {
     let newSong = {...song};
     for (let section of newSong.sections) {
         for (let line of section.lines) {
-            line.chord = transposeLine(line.chord, song.key, newKey);
+            if (line.chord) {
+                line.chord = transposeLine(line.chord, song.key, newKey);
+            }
         }
     }
     return newSong;
