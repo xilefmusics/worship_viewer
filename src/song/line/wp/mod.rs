@@ -2,7 +2,7 @@ mod line;
 pub use line::Line::{self, Directive, TextChordTrans};
 
 mod transpose;
-pub use transpose::{IntoTranspose, Transpose};
+pub use transpose::{transpose_key, IntoTranspose, Transpose};
 
 mod line_iterator;
 pub use line_iterator::{

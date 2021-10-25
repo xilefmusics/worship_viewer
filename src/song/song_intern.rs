@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use super::line::{
-    IterExtGuessKey, IterExtToMulti, IterExtToSection, IterExtToString, IterExtToWp,
+    transpose_key, IterExtGuessKey, IterExtToMulti, IterExtToSection, IterExtToString, IterExtToWp,
     IterExtTranspose, Section, WpLine,
 };
 
@@ -97,10 +97,11 @@ impl SongIntern {
             .to_multi()
             .to_section()
             .collect::<Vec<Section>>();
+        let key = transpose_key(&self.key, &key);
         Song {
             title,
-            artist,
             key,
+            artist,
             sections,
         }
     }
@@ -123,6 +124,7 @@ impl SongIntern {
         let title = self.title.clone();
         let artist = self.artist.clone();
         let path = self.path.clone();
+        let key = transpose_key(&self.key, &key);
         Self {
             title,
             artist,

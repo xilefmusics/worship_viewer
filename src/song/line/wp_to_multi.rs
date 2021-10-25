@@ -131,7 +131,13 @@ mod tests {
     fn chord() {
         let wp = wp::Line::TextChordTrans("[Ab/Eb]".to_string());
         let vec = wp_to_multi(&wp);
-        assert_eq!(vec, vec!(multi::Line::Chord("Ab/Eb".to_string())));
+        assert_eq!(
+            vec,
+            vec!(
+                multi::Line::Chord("Ab/Eb".to_string()),
+                multi::Line::TranslationChord("Ab/Eb".to_string())
+            )
+        );
     }
 
     #[test]

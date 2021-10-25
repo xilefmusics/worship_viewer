@@ -1,4 +1,5 @@
 mod wp;
+pub use wp::transpose_key;
 pub use wp::GuessKey as IterExtGuessKey;
 pub use wp::IntoFromStr as IterExtToWp;
 pub use wp::IntoToString as IterExtToString;

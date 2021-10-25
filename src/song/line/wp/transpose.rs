@@ -12,6 +12,24 @@ const SCALE: [[&'static str; 12]; 2] = [
     ],
 ];
 
+pub fn transpose_key(old_key: &str, new_key: &str) -> String {
+    if new_key == old_key || new_key == "Self" {
+        return old_key.to_string();
+    }
+    if let Some(idx) = new_key.find(':') {
+        if &new_key[..idx] == "Self" {
+            if let Ok(offset) = new_key[idx + 1..].to_string().parse::<i8>() {
+                return transpose_chord(
+                    old_key,
+                    offset.rem_euclid(12),
+                    level_to_scale((chord_to_level(old_key) + offset).rem_euclid(12)),
+                );
+            }
+        }
+    }
+    return new_key.to_string();
+}
+
 fn chord_to_level(chord: &str) -> i8 {
     let mut chars = chord.chars();
     let mut level: i8 = match chars.next() {
@@ -311,5 +329,13 @@ mod tests {
             .collect::<Vec<Line>>();
         let vec_new = vec![directive2, text_chord_trans_new];
         assert_eq!(vec, vec_new);
+    }
+
+    #[test]
+    fn transpose_chord() {
+        assert_eq!(String::from("G#"), transpose_key("G#", "Self"));
+        assert_eq!(String::from("Eb"), transpose_key("G#", "Eb"));
+        assert_eq!(String::from("Eb"), transpose_key("C", "Self:3"));
+        assert_eq!(String::from("A"), transpose_key("C", "Self:-3"));
     }
 }
