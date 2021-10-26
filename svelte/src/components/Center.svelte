@@ -9,6 +9,7 @@
   export let currentSong;
   export let fontScale;
   export let visible;
+  export let translation;
 
   let beamerViewComponent;
 
@@ -31,17 +32,20 @@
       song={currentSong}
       fontScale={fontScale}
       mode={mode}
+      translation={translation}
     />
   </div>
   <div style={mode != 'beamer-control' && "display: none"} class='div-fill'>
     <BeamerControlView
       song={currentSong}
       onSectionSelect={onSectionSelect}
+      translation={translation}
     />
   </div>
   <div style={mode != 'beamer' && "display: none"} class='div-fill'>
     <BeamerView
       song={currentSong}
+      translation={translation}
       bind:this={beamerViewComponent}
     />
   </div>

@@ -9,7 +9,7 @@
 
   const getIsMobile = () => window.innerWidth < window.innerHeight;
 
-  const version = '0.2.5';
+  const version = '0.2.6';
 
   let beamerViewComponent;
   let leftSidebarComponent;
@@ -38,6 +38,7 @@
   let currentCapo = 0;
   let currentKey = 'Self';
   let fontScale = 0.8;
+  let translation = false;
 
   const restoreSettings = async () => {
     onApiChange(await settings.loadApiUrl(), await settings.loadApiPort());
@@ -68,9 +69,14 @@
     if (isMobile) {
       hideLeft();
     }
-    if (!item.key || item.key === 'Self') {
-      item.key = currentKey;
+
+    item.key = !item.key || (item.key == 'Self') ? currentKey : item.key;
+    item.translation = item.translation ? item.translation : translation;
+      
+    if (item.translation !== translation) {
+      onTranslationChange(item.translation);
     }
+
     centerComponent.clearBeamer();
     currentSong = await fetchSong(item.title, manipulateKey(item.key, -currentCapo));
   };
@@ -197,6 +203,10 @@
     settings.storeReceiveControls(newConfig.receiveControls);
   }
 
+  const onTranslationChange = newTranslation => {
+    translation = newTranslation;
+  }
+
   ws.addEventListener("message", (event) => {
     if (!wsConfig.receiveControls) {
       return;
@@ -302,6 +312,7 @@
       mode={mode}
       currentSong={currentSong}
       fontScale={fontScale}
+      translation={translation}
       visible={!isMobile || (!leftVisible && !rightVisible)}
       bind:this={centerComponent}
       />
@@ -313,9 +324,11 @@
       onApiChange={onApiChange}
       onCommunicationChange={onCommunicationChange}
       onMakeCurrentApiOffline={onMakeCurrentApiOffline}
+      onTranslationChange={onTranslationChange}
       currentKey={currentKey}
       currentCapo={currentCapo}
       fontScale={fontScale}
+      translation={translation}
       mode={mode}
       wsID={wsID}
       sendControls={wsConfig.sendControls}

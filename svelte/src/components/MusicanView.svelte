@@ -2,6 +2,7 @@
   export let song;
   export let fontScale;
   export let mode;
+  export let translation;
 </script>
 
 <style>
@@ -44,11 +45,17 @@
         {#if line.comment}
           <p class='comment'>{line.comment}</p>
         {/if}
-        {#if line.chord && mode != 'singer'}
+        {#if mode != 'singer' && (!translation && line.chord || translation && !line.translation_chord && line.chord)}
           <p class='chord'>{line.chord}</p>
         {/if}
-        {#if line.text}
+        {#if mode != 'singer' && translation && line.translation_chord}
+          <p class='chord'>{line.translation_chord}</p>
+        {/if}
+        {#if !translation && line.text || translation && !line.translation_text && line.text}
           <p class='text'>{line.text}</p>
+        {/if}
+        {#if translation && line.translation_text}
+          <p class='text'>{line.translation_text}</p>
         {/if}
       {/each}
     {/each}

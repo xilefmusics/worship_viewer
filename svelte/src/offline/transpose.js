@@ -101,8 +101,7 @@ const transposeLine = (line, oldKey, newKey) => {
 };
 
 export default function(song, newKey) {
-    console.log(newKey);
-    if (newKey === 'Self') {
+    if (newKey === 'Self' || !song) {
         return song;
     }
     let newSong = {...song};

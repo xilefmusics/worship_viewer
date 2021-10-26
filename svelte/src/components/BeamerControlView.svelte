@@ -1,6 +1,7 @@
 <script>
   export let song;
   export let onSectionSelect;
+  export let translation;
 
   const isEmpty = (section) => section.lines.filter((line) => line.text && line.text.length > 0).length === 0;
 </script>
@@ -64,8 +65,11 @@
           <div class='section' on:click={(e) => {onSectionSelect(sidx);e.stopPropagation();}}>
             <p class='keyword'>{section.keyword}</p>
             {#each section.lines as line, lidx}
-              {#if line.text}
+              {#if !translation && line.text || translation && line.text && !line.translation_text}
                 <p class='text'>{line.text}</p>
+              {/if}
+              {#if translation && line.translation_text}
+                <p class='text'>{line.translation_text}</p>
               {/if}
             {/each}
           </div>

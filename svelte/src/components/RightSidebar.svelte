@@ -9,6 +9,8 @@ import { ws } from "../websocket";
   export let onKeyChange;
   export let onCapoChange;
   export let onFontScaleChange;
+  export let onTranslationChange;
+  export let translation;
   export let currentKey;
   export let currentCapo;
   export let fontScale;
@@ -75,6 +77,12 @@ import { ws } from "../websocket";
     <button class='inneritem' on:click={() => onFontScaleChange('decrement')}>-</button>
     <button class='inneritem' on:click={() => onFontScaleChange('reset')}>{fontScale}</button>
     <button class='inneritem' on:click={() => onFontScaleChange('increment')}>+</button>
+  </div>
+  <div class='item'>
+    <button 
+      class={`inneritem ${translation ? 'selected-button': ''}`} 
+      on:click={() => onTranslationChange(!translation)}
+    >Show Translation</button>
   </div>
   <div class='item'>
     <button

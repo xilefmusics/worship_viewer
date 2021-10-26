@@ -1,5 +1,6 @@
 <script>
   export let song;
+  export let translation;
 
   let section = null;
 
@@ -43,8 +44,11 @@ const display = (idx) => {
   <div id='lines'>
     {#if song && section}
       {#each section.lines as line, idx}
-        {#if line.text}
+        {#if !translation && line.text || translation && line.text && !line.translation_text}
           <p class='line'>{line.text}</p>
+        {/if}
+        {#if translation && line.translation_text}
+          <p class='line'>{line.translation_text}</p>
         {/if}
       {/each}
     {/if}

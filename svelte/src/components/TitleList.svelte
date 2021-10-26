@@ -11,7 +11,7 @@
   const prev = () => list.prev();
   const select = (title) => list.select(title);
   const reload = () => fetchTitles().then((t) => {
-    let items = t.map((title) => {return {title: title, key: null}});
+    let items = t.map((title) => {return {title: title}});
     list.setContent(items);
     onSelect(items[0]);
   });
