@@ -74,7 +74,6 @@ const sendChangeKey = (key) => {
 };
 
 const changeWsConfig = newWsConfig => {
-  console.log(newWsConfig);
   wsConfig = newWsConfig;
 };
 

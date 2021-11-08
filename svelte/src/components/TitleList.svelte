@@ -16,7 +16,6 @@
     onSelect(items[0]);
   });
 
-  reload();
   export {next, prev, load, select, reload};
 </script>
 

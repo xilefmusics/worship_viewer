@@ -7,9 +7,11 @@
   import Center from './Center.svelte'
   import RightSidebar from './RightSidebar.svelte'
 
+  import { onMount } from 'svelte';
+
   const getIsMobile = () => window.innerWidth < window.innerHeight;
 
-  const version = '0.2.6';
+  const version = '0.2.7';
 
   let beamerViewComponent;
   let leftSidebarComponent;
@@ -27,28 +29,29 @@
   const hideRight = () => rightVisible = false;
   let mode = 'musican'; // musican, singer, beamer-control, beamer
 
-  let apiUrl = window.location.hostname;
-  let apiPort = '8000';
-  let communicationUrl = window.location.hostname;
-  let communicationPort = '8001'
-  apiChangeUrl(apiUrl, apiPort);
-  wsChangeUrl(communicationUrl, communicationPort);
-
   let currentSong;
-  let currentCapo = 0;
-  let currentKey = 'Self';
-  let fontScale = 0.8;
-  let translation = false;
+  let currentCapo;
+  let currentKey;
+  let fontScale;
+  let translation;
+  let apiUrl;
+  let apiPort;
+  let communicationUrl;
+  let communicationPort;
 
-  const restoreSettings = async () => {
-    onApiChange(await settings.loadApiUrl(), await settings.loadApiPort());
-    onCommunicationChange(await settings.loadCommunicationUrl(), await settings.loadCommunicationPort());
-    onWsConfigChange({
-      sendControls: await settings.loadSendControls(),
-      receiveControls: await settings.loadReceiveControls(),
-    })
-    onFontScaleChange(await settings.loadFontScale());
-  };
+  onMount(async () => {
+    currentCapo = 0;
+    currentKey = 'Self';
+    fontScale = await settings.loadFontScale();
+    translation = false;
+    apiUrl = await settings.loadApiUrl();
+    apiPort = await settings.loadApiPort();
+    communicationUrl = await settings.loadCommunicationUrl();
+    communicationPort = await settings.loadCommunicationPort();
+    onApiChange(apiUrl, apiPort);
+    onCommunicationChange(communicationUrl, communicationPort);
+
+  });
 
   const onClickCenter = (event) => {
     if (event.y > window.innerHeight*3/4) {
@@ -187,6 +190,31 @@
     settings.storeCommunicationUrl(communicationUrl);
     settings.storeCommunicationPort(communicationPort);
     wsChangeUrl(communicationUrl, communicationPort);
+
+    if (communicationUrl === 'offline') {
+      return;
+    }
+    ws.addEventListener("message", (event) => {
+      if (!wsConfig.receiveControls) {
+        return;
+      }
+      const msg = JSON.parse(event.data);
+      if (msg.senderID === wsID) {
+        return;
+      }
+      if (msg.type === "load setlist") {
+        onSetlistSelect(msg.title, true);
+      } else if (msg.type === "load song") {
+        onSongSelect({title: msg.title, key: msg.key}, true);
+        leftSidebarComponent.selectTitle(msg.title);
+      } else if (msg.type === "display section") {
+        onSectionSelect(msg.idx, true);
+      } else if (msg.type === "clear beamer") {
+        centerComponent.clearBeamer();
+      } else if (msg.type === "change key") {
+        onKeyChange(msg.key, true);
+      }
+    });
   }
 
   const onMakeCurrentApiOffline = async () => {
@@ -207,27 +235,6 @@
     translation = newTranslation;
   }
 
-  ws.addEventListener("message", (event) => {
-    if (!wsConfig.receiveControls) {
-      return;
-    }
-    const msg = JSON.parse(event.data);
-    if (msg.senderID === wsID) {
-      return;
-    }
-    if (msg.type === "load setlist") {
-      onSetlistSelect(msg.title, true);
-    } else if (msg.type === "load song") {
-      onSongSelect({title: msg.title, key: msg.key}, true);
-      leftSidebarComponent.selectTitle(msg.title);
-    } else if (msg.type === "display section") {
-      onSectionSelect(msg.idx, true);
-    } else if (msg.type === "clear beamer") {
-      centerComponent.clearBeamer();
-    } else if (msg.type === "change key") {
-      onKeyChange(msg.key, true);
-    }
-  });
 
   document.onkeydown = (e) => {
     if (e.key === " " || e.key === "j" || e.keyCode === 40) {
@@ -282,7 +289,6 @@
   };
 
   window.onresize = () => isMobile = getIsMobile();
-  restoreSettings();
 </script>
 
 <style>

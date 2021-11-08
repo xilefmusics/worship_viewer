@@ -9,7 +9,6 @@
   const prev = () => list.prev();
   const reload = () => fetchSetlists().then((t) => list.setContent(t));
 
-  reload();
   export {next, prev, reload};
 </script>
 
