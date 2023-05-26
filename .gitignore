@@ -1,6 +1,0 @@
-/target
-svelte_deploy
-svelte/www
-svelte/node_modules
-svelte/public/build
-
