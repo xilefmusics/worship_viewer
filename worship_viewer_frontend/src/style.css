@@ -1,0 +1,20 @@
+:root {
+	--primary: #cc241d;
+	--fg1: #ebdbb2;
+	--bg1: #3c3836;
+	--bg2: #282828;
+}
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	color: var(--fg1);
+}
+
+.app {
+  width: 100vw;
+  height: 100vh;
+	background: var(--bg1);
+}
+

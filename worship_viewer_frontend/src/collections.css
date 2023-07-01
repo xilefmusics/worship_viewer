@@ -1,0 +1,9 @@
+:root {
+  display: flex;
+}
+
+img {
+  width: 15em;
+  margin-top: 1em;
+  margin-left: 1em;
+}

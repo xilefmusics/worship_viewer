@@ -1,0 +1,10 @@
+[workspace]
+
+members = [
+    "worship_viewer_backend",
+    "worship_viewer_frontend",
+]
+
+default-members = [
+    "worship_viewer_backend",
+]

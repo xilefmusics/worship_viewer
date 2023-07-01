@@ -1,0 +1,9 @@
+target
+data/blobs
+api_calls
+database
+.DS_Store
+worship_viewer_backend/static
+worship_viewer_frontend/dist
+blobs
+static
