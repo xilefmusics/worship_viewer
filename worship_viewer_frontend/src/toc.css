@@ -1,0 +1,15 @@
+:root {
+  background-color: var(--bg2);
+  width: 100%;
+  height: 100%;
+  overflow-y: scroll;
+}
+
+li {
+  padding: 0.3rem;
+  margin: 0.3rem;
+}
+
+li:hover {
+  background-color: var(--primary)
+}

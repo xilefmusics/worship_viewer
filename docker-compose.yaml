@@ -1,0 +1,44 @@
+version: "3.8"
+services:
+  proxauth:
+    image: proxauth
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_SECRET: "this-is-not-a-secret"
+      JWT_EXPIRATION_DURATION: "8760h"
+      CONFIG: |
+        users:
+        - username: xilef
+          password: 3616556aa70ad009f7c922a16cf6e03d364af462e7a040e9723471b0a53e8bf0
+          salt: 11463a4a-9f9c-4e17-bd05-96ebc1a68277
+        rules:
+        - toHost: "worship_viewer"
+          toPort: 8000
+          allowedUsers: [xilef]
+          backgroundColor: "#3c3836"
+          textColor: "#ebdbb2"
+          primaryColor: "#cc241d"
+          title: "Worship Viewer"
+  worship_viewer:
+    image: worship_viewer
+    restart: unless-stopped
+    environment:
+      DB_HOST: "worship_viewer_database"
+      DB_USER: "worship_viewer"
+      DB_PASSWORD: "this-is-not-a-password"
+      DB_NAMESPACE: "worship_viewer"
+      DB_DATABASE: "worship_viewer"
+    ports:
+      - "8081:8000"
+    volumes:
+    - ./blobs:/app/blobs
+  worship_viewer_database:
+    image: surrealdb/surrealdb:latest
+    restart: unless-stopped
+    command: start --log debug --user worship_viewer --pass this-is-not-a-password file:///data
+    ports:
+      - "8000:8000"
+    volumes:
+    - ./database/data:/data
