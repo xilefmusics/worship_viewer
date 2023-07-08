@@ -11,7 +11,7 @@ use database::Database;
 use env_logger::Env;
 use error::AppError;
 use std::path::PathBuf;
-use types::{Blob, Collection, Group, GroupWrapper, PlayerData, Song, UserGroupsId};
+use types::{Blob, Collection, Group, Song, UserGroupsId};
 
 pub fn parse_user_header(req: HttpRequest) -> Result<String, AppError> {
     Ok(req
@@ -174,7 +174,7 @@ pub async fn get_blobs_metadata_id(
 pub async fn post_blobs_metadata(
     db: Data<Database>,
     req: HttpRequest,
-    blobs: Json<GroupWrapper<Vec<Blob>>>,
+    blobs: Json<Vec<Blob>>,
 ) -> Result<HttpResponse, AppError> {
     let username = parse_user_header(req)?;
     if !db.check_user_admin(&username).await? {
@@ -182,7 +182,7 @@ pub async fn post_blobs_metadata(
             "user doesn't have admin rights".into(),
         ));
     }
-    Ok(HttpResponse::Ok().json(db.add_blobs(&blobs.data, &blobs.group).await?))
+    Ok(HttpResponse::Ok().json(db.add_blobs(&blobs).await?))
 }
 
 #[get("/api/songs")]
@@ -206,7 +206,7 @@ pub async fn get_songs_id(
 pub async fn post_songs(
     db: Data<Database>,
     req: HttpRequest,
-    songs: Json<GroupWrapper<Vec<Song>>>,
+    songs: Json<Vec<Song>>,
 ) -> Result<HttpResponse, AppError> {
     let username = parse_user_header(req)?;
     if !db.check_user_admin(&username).await? {
@@ -214,14 +214,14 @@ pub async fn post_songs(
             "user doesn't have admin rights".into(),
         ));
     }
-    Ok(HttpResponse::Ok().json(db.add_songs(&songs.data, &songs.group).await?))
+    Ok(HttpResponse::Ok().json(db.add_songs(&songs).await?))
 }
 
 #[post("/api/collections")]
 pub async fn post_collections(
     db: Data<Database>,
     req: HttpRequest,
-    collections: Json<GroupWrapper<Vec<Collection>>>,
+    collections: Json<Vec<Collection>>,
 ) -> Result<HttpResponse, AppError> {
     let username = parse_user_header(req)?;
     if !db.check_user_admin(&username).await? {
@@ -229,10 +229,7 @@ pub async fn post_collections(
             "user doesn't have admin rights".into(),
         ));
     }
-    Ok(HttpResponse::Ok().json(
-        db.add_collections(&collections.data, &collections.group)
-            .await?,
-    ))
+    Ok(HttpResponse::Ok().json(db.add_collections(&collections).await?))
 }
 
 #[get("/api/collections")]
@@ -266,15 +263,11 @@ pub async fn get_player(
     if id.starts_with("song:") {
         Ok(HttpResponse::Ok().json(db.get_song(&username, &id).await?.to_player()?))
     } else if id.starts_with("collection:") {
-        Ok(HttpResponse::Ok().json({
-            let player: PlayerData = db
-                .get_title_and_song_and_blobs_for_collection(&username, &id)
+        Ok(HttpResponse::Ok().json(
+            db.get_collection_fetched_songs(&username, &id)
                 .await?
-                .into_iter()
-                .map(|obj| obj.to_player())
-                .try_fold(PlayerData::new(), |acc, result| Ok(acc + result?))?;
-            player
-        }))
+                .to_player()?,
+        ))
     } else {
         Err(AppError::NotFound(format!(
             "Can not create player for id {}",

@@ -1,7 +1,6 @@
 use super::error::AppError;
 use super::types::{
-    Blob, Collection, CollectionDatabase, Group, Song, SongDatabase, TitleAndSongAndBlobs, User,
-    UserGroupsFetched, UserGroupsId,
+    Blob, Collection, CollectionFetchedSongs, Group, Song, User, UserGroupsFetched, UserGroupsId,
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -191,175 +190,93 @@ impl Database {
     }
 
     pub async fn get_blobs(&self, username: &str) -> Result<Vec<Blob>, AppError> {
-        self.query_vec(format!("SELECT * FROM blob WHERE (->owned_by->group<-member_of<-user).name contains \"{}\";", username).into()).await
+        self.query_vec(
+            format!(
+                "SELECT * FROM blob WHERE (group<-member_of<-user).name contains \"{}\";",
+                username
+            )
+            .into(),
+        )
+        .await
     }
 
     pub async fn get_blob(&self, username: &str, id: &str) -> Result<Blob, AppError> {
-        self.query_one(format!("SELECT * FROM blob WHERE id = {} AND (->owned_by->group<-member_of<-user).name contains \"{}\";", id, username).into()).await
+        self.query_one(format!("SELECT * FROM blob WHERE id = {} AND (group<-member_of<-user).name contains \"{}\";", id, username).into()).await
     }
 
-    pub async fn add_blobs(&self, blobs: &Vec<Blob>, group: &str) -> Result<Vec<Blob>, AppError> {
-        let created_blobs: Vec<Blob> = self
+    pub async fn add_blobs(&self, blobs: &Vec<Blob>) -> Result<Vec<Blob>, AppError> {
+        Ok(self
             .query_vec(format!(
                 "INSERT INTO blob {};",
                 serde_json::to_string(blobs)
                     .map_err(|err| AppError::Database(format!("{}", err)))?
             ))
-            .await?;
-
-        let relate_query = created_blobs
-            .iter()
-            .map(|blob| {
-                format!(
-                    "RELATE {}->owned_by->{};",
-                    &blob.id.clone().unwrap_or(String::new()),
-                    group
-                )
-            })
-            .collect::<String>();
-
-        let _: Vec<RelateResponse> = self.query_vec(relate_query).await?;
-
-        Ok(blobs.clone())
+            .await?)
     }
 
     pub async fn get_songs(&self, username: &str) -> Result<Vec<Song>, AppError> {
-        self.query_vec(format!("SELECT *, (SELECT * FROM $parent->has_blob ORDER BY idx).out as blobs FROM song WHERE (->owned_by->group<-member_of<-user).name contains \"{}\";", username).into()).await
+        self.query_vec(
+            format!(
+                "SELECT * FROM song WHERE (group<-member_of<-user).name contains \"{}\";",
+                username
+            )
+            .into(),
+        )
+        .await
     }
 
     pub async fn get_song(&self, username: &str, id: &str) -> Result<Song, AppError> {
-        self.query_one(format!("SELECT *, (SELECT * FROM $parent->has_blob ORDER BY idx).out as blobs FROM song WHERE (->owned_by->group<-member_of<-user).name contains \"{}\" AND id = {};", username, id).into()).await
+        self.query_one(format!("SELECT * FROM song WHERE (group<-member_of<-user).name contains \"{}\" AND id = {};", username, id).into()).await
     }
 
-    pub async fn add_songs(
-        &self,
-        songs: &Vec<Song>,
-        group: &str,
-    ) -> Result<Vec<SongDatabase>, AppError> {
-        let database_songs = songs
-            .iter()
-            .map(|song| song.clone().drop_blobs())
-            .collect::<Vec<SongDatabase>>();
-
-        let created_songs: Vec<SongDatabase> = self
+    pub async fn add_songs(&self, songs: &Vec<Song>) -> Result<Vec<Song>, AppError> {
+        Ok(self
             .query_vec(format!(
                 "INSERT INTO song {};",
-                serde_json::to_string(&database_songs)
+                serde_json::to_string(&songs)
                     .map_err(|err| AppError::Database(format!("{}", err)))?
             ))
-            .await?;
-
-        let relate_group_query = created_songs
-            .iter()
-            .map(|song| {
-                format!(
-                    "RELATE {}->owned_by->{};",
-                    &song.id.clone().unwrap_or(String::new()),
-                    group
-                )
-            })
-            .collect::<String>();
-
-        let _: Vec<RelateResponse> = self.query_vec(relate_group_query).await?;
-
-        let relate_blobs_query = songs
-            .into_iter()
-            .map(|song| {
-                song.blobs
-                    .clone()
-                    .into_iter()
-                    .enumerate()
-                    .map(|(idx, blob)| {
-                        format!(
-                            "RELATE {}->has_blob->{} SET idx = {};",
-                            song.id.clone().unwrap_or(String::new()),
-                            blob,
-                            idx
-                        )
-                    })
-                    .collect::<String>()
-            })
-            .collect::<String>();
-
-        let _: Vec<RelateResponse> = self.query_vec(relate_blobs_query).await?;
-
-        Ok(created_songs.clone())
+            .await?)
     }
 
     pub async fn get_collections(&self, username: &str) -> Result<Vec<Collection>, AppError> {
-        self.query_vec(format!("SELECT *, (SELECT * FROM $parent->has_song ORDER BY idx).out as songs FROM collection WHERE (->owned_by->group<-member_of<-user).name contains \"{}\";", username).into()).await
+        self.query_vec(
+            format!(
+                "SELECT * FROM collection WHERE (group<-member_of<-user).name contains \"{}\";",
+                username
+            )
+            .into(),
+        )
+        .await
     }
 
     pub async fn get_collection(&self, username: &str, id: &str) -> Result<Collection, AppError> {
-        self.query_one(format!("SELECT *, (SELECT * FROM $parent->has_song ORDER BY idx).out as songs FROM collection WHERE (->owned_by->group<-member_of<-user).name contains \"{}\" AND id = {};", username, id).into()).await
+        self.query_one(format!("SELECT * FROM collection WHERE (group<-member_of<-user).name contains \"{}\" AND id = {};", username, id).into()).await
     }
 
-    pub async fn get_title_and_song_and_blobs_for_collection(
+    pub async fn get_collection_fetched_songs(
         &self,
         username: &str,
         id: &str,
-    ) -> Result<Vec<TitleAndSongAndBlobs>, AppError> {
-        self.query_vec(format!("SELECT title, song, blobs FROM (SELECT out.title as title, out as song, idx, (SELECT * FROM has_blob WHERE in = $parent.out ORDER BY idx).out as blobs FROM has_song WHERE in = {} ORDER BY idx);", id)).await
+    ) -> Result<CollectionFetchedSongs, AppError> {
+        self.query_one(format!("SELECT * FROM collection WHERE (group<-member_of<-user).name contains \"{}\" AND id = {} FETCH songs;", username, id).into()).await
     }
 
     pub async fn add_collections(
         &self,
-        songs: &Vec<Collection>,
-        group: &str,
-    ) -> Result<Vec<CollectionDatabase>, AppError> {
-        let database_collections = songs
-            .iter()
-            .map(|song| CollectionDatabase::from_collection(song.clone()))
-            .collect::<Vec<CollectionDatabase>>();
-
-        let created_collections: Vec<CollectionDatabase> = self
+        collections: &Vec<Collection>,
+    ) -> Result<Vec<Collection>, AppError> {
+        Ok(self
             .query_vec(format!(
                 "INSERT INTO collection {};",
-                serde_json::to_string(&database_collections)
+                serde_json::to_string(&collections)
                     .map_err(|err| AppError::Database(format!("{}", err)))?
             ))
-            .await?;
-
-        let relate_group_query = created_collections
-            .iter()
-            .map(|collection| {
-                format!(
-                    "RELATE {}->owned_by->{};",
-                    &collection.id.clone().unwrap_or(String::new()),
-                    group
-                )
-            })
-            .collect::<String>();
-
-        let _: Vec<RelateResponse> = self.query_vec(relate_group_query).await?;
-
-        let relate_songs_query = songs
-            .into_iter()
-            .map(|collection| {
-                collection
-                    .songs
-                    .clone()
-                    .into_iter()
-                    .enumerate()
-                    .map(|(idx, song)| {
-                        format!(
-                            "RELATE {}->has_song->{} SET idx = {};",
-                            collection.id.clone().unwrap_or(String::new()),
-                            song,
-                            idx
-                        )
-                    })
-                    .collect::<String>()
-            })
-            .collect::<String>();
-
-        let _: Vec<RelateResponse> = self.query_vec(relate_songs_query).await?;
-
-        Ok(created_collections.clone())
+            .await?)
     }
 
     pub async fn check_blob(&self, id: &str, username: &str) -> Result<bool, AppError> {
-        self.query_check::<SimpleValue<String>>(format!("SELECT id as value FROM blob WHERE id = {} AND (->owned_by->group<-member_of<-user).name contains \"{}\";",id, username)).await
+        self.query_check::<SimpleValue<String>>(format!("SELECT id as value FROM blob WHERE id = {} AND (group<-member_of<-user).name contains \"{}\";",id, username)).await
     }
 
     pub async fn check_user(&self, username: &str) -> Result<bool, AppError> {

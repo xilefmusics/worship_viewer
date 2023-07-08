@@ -55,6 +55,7 @@ pub struct Blob {
     pub created: Option<DateTime<Utc>>,
     pub width: u32,
     pub height: u32,
+    pub group: String,
     pub tags: Vec<String>,
 }
 
@@ -103,108 +104,43 @@ pub struct Song {
     pub language2: Option<String>,
     pub not_a_song: bool,
     pub blobs: Vec<String>,
+    pub group: String,
     pub tags: Vec<String>,
 }
 
 impl Song {
-    pub fn drop_blobs(self) -> SongDatabase {
-        SongDatabase {
-            id: self.id,
-            created: self.created,
-            title: self.title,
-            key: self.key,
-            language: self.language,
-            title2: self.title2,
-            language2: self.language2,
-            not_a_song: self.not_a_song,
-            tags: self.tags,
-        }
-    }
-
     pub fn to_player(self) -> Result<PlayerData, AppError> {
         Ok(PlayerData {
             data: self.blobs,
-            toc: vec![TocItem {
-                idx: 0,
-                title: self.title,
-                song: self.id.ok_or(AppError::Other("song has no id".into()))?,
-            }],
+            toc: if self.not_a_song {
+                vec![]
+            } else {
+                vec![TocItem {
+                    idx: 0,
+                    title: self.title,
+                    song: self.id.ok_or(AppError::Other("song has no id".into()))?,
+                }]
+            },
         })
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SongDatabase {
-    pub id: Option<String>,
-    pub created: Option<DateTime<Utc>>,
-    pub title: String,
-    pub key: Key,
-    pub language: String,
-    pub title2: Option<String>,
-    pub language2: Option<String>,
-    pub not_a_song: bool,
-    pub tags: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CollectionSongsBlobsFetched {
+pub struct CollectionFetchedSongs {
     pub id: Option<String>,
     pub created: Option<DateTime<Utc>>,
     pub title: String,
     pub songs: Vec<Song>,
+    pub cover: String,
+    pub group: String,
     pub tags: Vec<String>,
 }
 
-impl CollectionSongsBlobsFetched {
+impl CollectionFetchedSongs {
     pub fn to_player(self) -> Result<PlayerData, AppError> {
         self.songs
             .into_iter()
-            .map(|song| song.to_player())
+            .map(|obj| obj.to_player())
             .try_fold(PlayerData::new(), |acc, result| Ok(acc + result?))
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CollectionDatabase {
-    pub id: Option<String>,
-    pub created: Option<DateTime<Utc>>,
-    pub title: String,
-    pub cover: String,
-    pub tags: Vec<String>,
-}
-
-impl CollectionDatabase {
-    pub fn from_collection(collection: Collection) -> Self {
-        CollectionDatabase {
-            id: collection.id,
-            created: collection.created,
-            title: collection.title,
-            cover: collection.cover,
-            tags: collection.tags,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct TitleAndSongAndBlobs {
-    title: Option<String>,
-    song: String,
-    blobs: Vec<String>,
-}
-
-impl TitleAndSongAndBlobs {
-    pub fn to_player(self) -> Result<PlayerData, AppError> {
-        Ok(PlayerData {
-            data: self.blobs,
-            toc: if self.title.is_some() && self.title.clone().unwrap().len() > 0 {
-                vec![TocItem {
-                    idx: 0,
-                    title: self.title.unwrap(),
-                    song: self.song,
-                }]
-            } else {
-                vec![]
-            },
-        })
     }
 }

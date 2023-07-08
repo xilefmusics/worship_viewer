@@ -9,6 +9,7 @@ pub struct Collection {
     pub title: String,
     pub songs: Vec<String>,
     pub cover: String,
+    pub group: String,
     pub tags: Vec<String>,
 }
 
