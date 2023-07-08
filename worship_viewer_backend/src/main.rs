@@ -139,13 +139,9 @@ pub async fn get_blobs_id(
 ) -> Result<NamedFile, AppError> {
     let id = path.into_inner();
     let username = parse_user_header(req)?;
-    if !db.check_blob(&id, &username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have the rights to access the blob".into(),
-        ));
-    }
+    let blob = db.get_blob(&username, &id).await?;
     let root_path = PathBuf::from(std::env::var("BLOB_DIR").unwrap_or("blobs".into()));
-    let file_path = PathBuf::from(format!("{}.png", id));
+    let file_path = PathBuf::from(blob.file_name()?);
     let path = root_path.join(file_path);
     Ok(NamedFile::open(path).map_err(|err| AppError::Filesystem(format!("{}", err)))?)
 }

@@ -275,18 +275,6 @@ impl Database {
             .await?)
     }
 
-    pub async fn check_blob(&self, id: &str, username: &str) -> Result<bool, AppError> {
-        self.query_check::<SimpleValue<String>>(format!("SELECT id as value FROM blob WHERE id = {} AND (group<-member_of<-user).name contains \"{}\";",id, username)).await
-    }
-
-    pub async fn check_user(&self, username: &str) -> Result<bool, AppError> {
-        self.query_check::<SimpleValue<String>>(format!(
-            "SELECT name as value FROM user WHERE name = \"{}\";",
-            username
-        ))
-        .await
-    }
-
     pub async fn check_user_admin(&self, username: &str) -> Result<bool, AppError> {
         self.query_check::<SimpleValue<String>>(format!("SELECT name as value FROM user WHERE name = \"{}\" AND (->member_of->group).name CONTAINS \"admin\";",username)).await
     }

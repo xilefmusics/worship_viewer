@@ -50,13 +50,43 @@ pub struct User {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum FileType {
+    #[serde(rename(deserialize = "image/png", serialize = "image/png"))]
+    PNG,
+    #[serde(rename(deserialize = "image/jpeg", serialize = "image/jpeg"))]
+    JPEG,
+}
+
+impl FileType {
+    pub fn file_ending(&self) -> &'static str {
+        match self {
+            Self::PNG => ".png",
+            Self::JPEG => ".jpeg",
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Blob {
     pub id: Option<String>,
     pub created: Option<DateTime<Utc>>,
+    pub file_type: FileType,
     pub width: u32,
     pub height: u32,
     pub group: String,
     pub tags: Vec<String>,
+}
+
+impl Blob {
+    pub fn file_name(&self) -> Result<String, AppError> {
+        Ok(format!(
+            "{}{}",
+            self.id
+                .clone()
+                .ok_or(AppError::Other("blob has no id".into()))?,
+            self.file_type.file_ending(),
+        ))
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
