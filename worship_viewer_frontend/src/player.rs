@@ -16,6 +16,7 @@ pub enum ScrollType {
     HalfPage,
     TwoPage,
     Book,
+    TwoHalfPage,
 }
 
 impl ScrollType {
@@ -24,7 +25,8 @@ impl ScrollType {
             Self::OnePage => Self::HalfPage,
             Self::HalfPage => Self::TwoPage,
             Self::TwoPage => Self::Book,
-            Self::Book => Self::OnePage,
+            Self::Book => Self::TwoHalfPage,
+            Self::TwoHalfPage => Self::OnePage,
         }
     }
 
@@ -34,6 +36,7 @@ impl ScrollType {
             Self::HalfPage => "[1/2]",
             Self::TwoPage => "[2]",
             Self::Book => "[b]",
+            Self::TwoHalfPage => "[2/2]",
         }
     }
 }
@@ -69,6 +72,10 @@ impl Index {
 
     pub fn is_book_scroll(&self) -> bool {
         self.scroll_type == ScrollType::Book
+    }
+
+    pub fn is_two_half_page_scroll(&self) -> bool {
+        self.scroll_type == ScrollType::TwoHalfPage
     }
 
     pub fn next_scroll_type(&self) -> Self {
@@ -167,6 +174,12 @@ impl Index {
                 max_index: self.max_index,
                 scroll_type: self.scroll_type.clone(),
             },
+            ScrollType::TwoHalfPage => Self {
+                index: self.increment(),
+                between_pages: self.between_pages,
+                max_index: self.max_index,
+                scroll_type: self.scroll_type.clone(),
+            },
         }
     }
     pub fn prev(&self) -> Self {
@@ -199,6 +212,12 @@ impl Index {
                 } else {
                     self.decrement()
                 },
+                between_pages: self.between_pages,
+                max_index: self.max_index,
+                scroll_type: self.scroll_type.clone(),
+            },
+            ScrollType::TwoHalfPage => Self {
+                index: self.decrement(),
                 between_pages: self.between_pages,
                 max_index: self.max_index,
                 scroll_type: self.scroll_type.clone(),
@@ -335,7 +354,15 @@ pub fn PlayerComponent(props: &Props) -> Html {
     }
     let data = data.as_ref().unwrap().clone();
 
-    let id = data.data[index.get()].clone();
+    let id = if index.is_two_half_page_scroll() {
+        if index.get() % 2 == 0 && data.data.len() > index.get() + 1 && index.get() > 0 {
+            data.data[index.get() + 1].clone()
+        } else {
+            data.data[index.get()].clone()
+        }
+    } else {
+        data.data[index.get()].clone()
+    };
 
     let id2 = if (index.is_half_page_scroll() && index.is_between_pages()
         || index.is_two_page_scroll()
@@ -343,6 +370,14 @@ pub fn PlayerComponent(props: &Props) -> Html {
         && data.data.len() > index.get() + 1
     {
         Some(data.data[index.get() + 1].clone())
+    } else if index.is_two_half_page_scroll() {
+        if index.get() == 0 {
+            None
+        } else if index.get() % 2 == 1 && data.data.len() > index.get() + 1 {
+            Some(data.data[index.get() + 1].clone())
+        } else {
+            Some(data.data[index.get()].clone())
+        }
     } else {
         None
     };
