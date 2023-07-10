@@ -13,3 +13,15 @@ li {
 li:hover {
   background-color: var(--primary)
 }
+
+.filter-sort {
+  margin: 1em;
+}
+
+.filter-sort:hover {
+    color: var(--primary);
+}
+
+.selected {
+  color: var(--primary);
+}
