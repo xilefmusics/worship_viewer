@@ -418,7 +418,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
                     class="scroll-changer"
                 >{index.scroll_str()}</span>
             </div>
-            <div class={if *active {"toc active"}else{"toc"}}>
+            <div class={if *active && data.toc.len() > 1 {"toc active"}else{"toc"}}>
                 <TableOfContentsComponent
                     list={data.toc.clone()}
                     select={index_jump_callback}
