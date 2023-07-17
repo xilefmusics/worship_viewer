@@ -1,0 +1,22 @@
+:root {
+  background-color: var(--bg1);
+  height: 80px;
+  width: 100vw;
+  text-align: center;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+}
+
+.button {
+  font-size: 3rem;
+  margin: 1.5rem;
+}
+
+.button:hover {
+  color: var(--primary);
+}
+
+.selected {
+  color: var(--primary);
+}

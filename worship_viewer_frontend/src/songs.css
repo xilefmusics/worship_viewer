@@ -1,0 +1,22 @@
+:root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  flex-direction: column;
+}
+
+.songs {
+  overflow-y: scroll;
+  flex: 1;
+}
+
+tr {
+  margin-bottom: 1.5rem;
+	background: var(--bg1);
+}
+
+.title-column {
+  max-width: 20em;
+}

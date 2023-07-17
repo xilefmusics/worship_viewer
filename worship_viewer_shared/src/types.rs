@@ -76,3 +76,98 @@ impl Add for PlayerData {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum Key {
+    Ab,
+    A,
+    #[serde(rename(deserialize = "A#", serialize = "A#"))]
+    As,
+    Bb,
+    B,
+    #[serde(rename(deserialize = "B#", serialize = "B#"))]
+    Bs,
+    Cb,
+    C,
+    #[serde(rename(deserialize = "C#", serialize = "C#"))]
+    Cs,
+    Db,
+    D,
+    #[serde(rename(deserialize = "D#", serialize = "D#"))]
+    Ds,
+    Eb,
+    E,
+    #[serde(rename(deserialize = "E#", serialize = "E#"))]
+    Es,
+    Fb,
+    F,
+    #[serde(rename(deserialize = "F#", serialize = "F#"))]
+    Fs,
+    Gb,
+    G,
+    #[serde(rename(deserialize = "G#", serialize = "G#"))]
+    Gs,
+    #[serde(rename(deserialize = "", serialize = ""))]
+    NotAKey,
+}
+
+impl Key {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::Ab => "Ab",
+            Self::A => "A",
+            Self::As => "A#",
+            Self::Bb => "Bb",
+            Self::B => "B",
+            Self::Bs => "B#",
+            Self::Cb => "Cb",
+            Self::C => "C",
+            Self::Cs => "C#",
+            Self::Db => "Db",
+            Self::D => "D",
+            Self::Ds => "D#",
+            Self::Eb => "Eb",
+            Self::E => "E",
+            Self::Es => "E#",
+            Self::Fb => "Fb",
+            Self::F => "F",
+            Self::Fs => "F#",
+            Self::Gb => "Gb",
+            Self::G => "G",
+            Self::Gs => "G#",
+            Self::NotAKey => "",
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Song {
+    pub id: Option<String>,
+    pub created: Option<DateTime<Utc>>,
+    pub title: String,
+    pub key: Key,
+    pub language: String,
+    pub title2: Option<String>,
+    pub language2: Option<String>,
+    pub not_a_song: bool,
+    pub blobs: Vec<String>,
+    pub group: String,
+    pub tags: Vec<String>,
+}
+
+impl Song {
+    pub fn to_player(self) -> Result<PlayerData, String> {
+        Ok(PlayerData {
+            data: self.blobs,
+            toc: if self.not_a_song {
+                vec![]
+            } else {
+                vec![TocItem {
+                    idx: 0,
+                    title: self.title,
+                    song: self.id.ok_or("song has no id".to_string())?,
+                }]
+            },
+        })
+    }
+}

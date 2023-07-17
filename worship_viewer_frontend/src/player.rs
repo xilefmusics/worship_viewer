@@ -284,6 +284,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
     {
         let index = index.clone();
         let active = active.clone();
+        let navigator = navigator.clone();
         use_event_with_window("keydown", move |e: KeyboardEvent| {
             if e.key() == "ArrowDown"
                 || e.key() == "ArrowRight"
@@ -302,6 +303,8 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 index.set(index.next_scroll_type())
             } else if e.key() == "m" {
                 active.set(!*active);
+            } else if e.key() == "Escape" {
+                navigator.push(&Route::Songs);
             }
         });
     }
@@ -350,7 +353,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
     };
 
     if data.is_none() {
-        return html! {"Loading"};
+        return html! {};
     }
     let data = data.as_ref().unwrap().clone();
 

@@ -6,6 +6,10 @@ pub enum Route {
     Home,
     #[at("/collections")]
     Collections,
+    #[at("/songs")]
+    Songs,
+    #[at("/setlists")]
+    Setlists,
     #[at("/player/:id")]
     Player { id: String },
     #[not_found]

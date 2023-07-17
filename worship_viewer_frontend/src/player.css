@@ -7,7 +7,7 @@
 .top {
   visibility: hidden;
   height: 0;
-  background-color: var(--bg2);
+  background-color: var(--bg1);
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -39,7 +39,7 @@
 .bottom {
   visibility: hidden;
   height: 0;
-  background-color: var(--bg2);
+  background-color: var(--bg1);
   display: flex;
   flex-direction: row;
   align-items: center;

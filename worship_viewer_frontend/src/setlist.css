@@ -1,0 +1,10 @@
+:root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.setlists {
+  flex: 1;
+  text-align: center;
+}

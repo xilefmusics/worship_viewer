@@ -1,3 +1,4 @@
+use crate::navigation_bar::NavigationBarComponent;
 use crate::routes::Route;
 use gloo_net::http::Request;
 use stylist::Style;
@@ -58,6 +59,11 @@ pub fn CollectionsComponent() -> Html {
             <div class="collections">
                 {collections}
             </div>
+            <NavigationBarComponent
+                select_collection=true
+                select_song=false
+                select_setlist=false
+            />
         </div>
     }
 }

@@ -257,7 +257,12 @@ pub async fn get_player(
     let id = path.into_inner();
     let username = parse_user_header(req)?;
     if id.starts_with("song:") {
-        Ok(HttpResponse::Ok().json(db.get_song(&username, &id).await?.to_player()?))
+        Ok(HttpResponse::Ok().json(
+            db.get_song(&username, &id)
+                .await?
+                .to_player()
+                .map_err(|err| AppError::Other(err))?,
+        ))
     } else if id.starts_with("collection:") {
         Ok(HttpResponse::Ok().json(
             db.get_collection_fetched_songs(&username, &id)
