@@ -9,6 +9,18 @@ use yew::prelude::*;
 use yew_hooks::{use_event_with_window, use_window_size};
 use yew_router::prelude::*;
 
+fn get_back_route(id: &str) -> Route {
+    if id.starts_with("collection") {
+        Route::Collections
+    } else if id.starts_with("song") {
+        Route::Songs
+    } else if id.starts_with("setlist") {
+        Route::Setlists
+    } else {
+        Route::NotFound
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum ScrollType {
     #[default]
@@ -253,6 +265,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
     let navigator = use_navigator().unwrap();
 
     let id = props.id.clone();
+    let back_route = get_back_route(&id);
 
     let index = use_state(|| Index::default());
     let active = use_state(|| false);
@@ -285,6 +298,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
         let index = index.clone();
         let active = active.clone();
         let navigator = navigator.clone();
+        let back_route = back_route.clone();
         use_event_with_window("keydown", move |e: KeyboardEvent| {
             if e.key() == "ArrowDown"
                 || e.key() == "ArrowRight"
@@ -304,7 +318,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
             } else if e.key() == "m" {
                 active.set(!*active);
             } else if e.key() == "Escape" {
-                navigator.push(&Route::Songs);
+                navigator.push(&back_route);
             }
         });
     }
@@ -347,8 +361,9 @@ pub fn PlayerComponent(props: &Props) -> Html {
 
     let onclick_back_button = {
         let navigator = navigator.clone();
+        let back_route = back_route.clone();
         move |_: MouseEvent| {
-            navigator.push(&Route::Collections);
+            navigator.push(&back_route);
         }
     };
 

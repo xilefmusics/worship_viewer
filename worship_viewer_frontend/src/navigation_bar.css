@@ -1,6 +1,6 @@
 :root {
   background-color: var(--bg1);
-  height: 80px;
+  height: 60px;
   width: 100vw;
   text-align: center;
   justify-content: center;
@@ -9,7 +9,7 @@
 }
 
 .button {
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin: 1.5rem;
 }
 
