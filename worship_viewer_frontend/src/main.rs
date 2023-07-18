@@ -6,6 +6,7 @@ mod routes;
 mod setlist;
 mod songs;
 mod toc;
+mod top_bar;
 
 use collections::CollectionsComponent;
 use player::PlayerComponent;

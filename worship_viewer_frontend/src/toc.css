@@ -6,22 +6,34 @@
 }
 
 li {
-  padding: 0.3rem;
-  margin: 0.3rem;
+  margin: 0.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
+  border-radius: 1rem;
 }
 
 li:hover {
-  background-color: var(--primary)
+  color: var(--primary);
+  background-color: var(--bgh);
 }
 
 .filter-sort {
   margin: 1em;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
+  border-radius: 1rem;
 }
 
 .filter-sort:hover {
-    color: var(--primary);
+  color: var(--primary);
+  background-color: var(--bgh);
 }
 
 .selected {
   color: var(--primary);
+  background-color: var(--bgh);
 }

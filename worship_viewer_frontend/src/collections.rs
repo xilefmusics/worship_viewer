@@ -1,5 +1,6 @@
 use crate::navigation_bar::NavigationBarComponent;
 use crate::routes::Route;
+use crate::top_bar::TopBarComponent;
 use gloo_net::http::Request;
 use stylist::Style;
 use worship_viewer_shared::types::Collection;
@@ -56,6 +57,9 @@ pub fn CollectionsComponent() -> Html {
 
     html! {
         <div class={Style::new(include_str!("collections.css")).expect("Unwrapping CSS should work!")}>
+            <TopBarComponent
+                search_placeholder="Search collections..."
+            />
             <div class="collections">
                 {collections}
             </div>

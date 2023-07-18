@@ -1,5 +1,6 @@
 use crate::navigation_bar::NavigationBarComponent;
 use crate::routes::Route;
+use crate::top_bar::TopBarComponent;
 use gloo_net::http::Request;
 use stylist::Style;
 use worship_viewer_shared::types::Song;
@@ -65,6 +66,9 @@ pub fn SongsComponent() -> Html {
 
     html! {
         <div class={Style::new(include_str!("songs.css")).expect("Unwrapping CSS should work!")}>
+            <TopBarComponent
+                search_placeholder="Search songs..."
+            />
             <div class="songs">
                 <table>
                     {songs}
