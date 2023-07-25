@@ -63,6 +63,7 @@ pub fn CollectionsComponent() -> Html {
             <div class="collections">
                 {collections}
             </div>
+            <div class="flex-fill"></div>
             <NavigationBarComponent
                 select_collection=true
                 select_song=false

@@ -12,6 +12,11 @@
   overflow-y: scroll;
   width: 100vw;
   padding: 1rem;
+  align-items: start;
+  grid-gap: 1rem;
+}
+
+.flex-fill {
   flex: 1;
 }
 
