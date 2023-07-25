@@ -16,6 +16,10 @@
 
 .center {
   flex: 1;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  vertical-align: middle;
 }
 
 .right {
@@ -34,8 +38,15 @@ input {
   text-decoration: none;
   outline: none;
   font-size: 1.4rem;
+  vertical-align: 2px;
 }
 
 ::placeholder {
     color: var(--fg2);
+}
+
+.search-icon {
+  font-size: 2.4rem;
+  color: var(--fg2);
+  vertical-align: -10px;
 }
