@@ -217,7 +217,7 @@ impl Database {
     pub async fn get_songs(&self, username: &str) -> Result<Vec<Song>, AppError> {
         self.query_vec(
             format!(
-                "SELECT * FROM song WHERE (group<-member_of<-user).name contains \"{}\";",
+                "SELECT *, (SELECT title FROM $parent.collection)[0].title as collection FROM song WHERE (group<-member_of<-user).name contains \"{}\" ORDER BY title;",
                 username
             )
             .into(),

@@ -1,7 +1,6 @@
 :root {
-  display: flex;
   align-items: center;
-  justify-content: center;
+  display: flex;
   height: 100vh;
   width: 100vw;
   flex-direction: column;
@@ -12,9 +11,33 @@
   flex: 1;
 }
 
-tr {
-  margin-bottom: 1.5rem;
-	background: var(--bg1);
+.song {
+  display: flex;
+  padding: 1.2rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  margin: 0.8rem;
+  background-color: var(--bg1);
+  min-width: 20rem;
+  max-width: 60rem;
+}
+
+.left {
+  align-items: left;
+  min-width: 8rem;
+}
+
+.middle {
+  flex: 1;
+  align-items: left;
+  min-width: 8rem;
+  padding-left: 1rem;
+}
+
+.right {
+  align-items: right;
+  min-width: 4rem;
+  text-align: right;
 }
 
 .title-column {

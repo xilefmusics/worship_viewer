@@ -43,6 +43,7 @@ pub fn SongsComponent() -> Html {
         .map(|song| {
             let title = song.title.clone();
             let key = song.key.to_str();
+            let collection = song.collection.clone();
             let onclick = {
                 let navigator = navigator.clone();
                 let id = song.id.clone().unwrap();
@@ -52,14 +53,14 @@ pub fn SongsComponent() -> Html {
                 }
             };
             html! {
-                <tr
+                <div
                     class="song"
                     onclick={onclick}
                 >
-                    <td>{"<collection>"}</td>
-                    <td class="title-column">{title}</td>
-                    <td>{key}</td>
-                </tr>
+                    <div class="left">{collection}</div>
+                    <div class="middle">{title}</div>
+                    <div class="right">{key}</div>
+                </div>
             }
         })
         .collect::<Html>();
@@ -70,9 +71,7 @@ pub fn SongsComponent() -> Html {
                 search_placeholder="Search songs..."
             />
             <div class="songs">
-                <table>
-                    {songs}
-                </table>
+                {songs}
             </div>
             <NavigationBarComponent
                 select_collection=false

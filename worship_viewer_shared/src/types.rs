@@ -151,6 +151,7 @@ pub struct Song {
     pub language2: Option<String>,
     pub not_a_song: bool,
     pub blobs: Vec<String>,
+    pub collection: String,
     pub group: String,
     pub tags: Vec<String>,
 }
