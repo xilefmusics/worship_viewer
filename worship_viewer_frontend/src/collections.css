@@ -50,6 +50,18 @@
   }
 }
 
+@media (min-width: 1400px) {
+  .collections {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
+@media (min-width: 1600px) {
+  .collections {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
+
 img {
   max-width: 100%;
   height: 100%;

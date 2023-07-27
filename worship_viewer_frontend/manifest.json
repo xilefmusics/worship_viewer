@@ -1,5 +1,4 @@
 {
-  "version": "0.1.2",
   "short_name": "WV",
   "name": "Worship Viewer",
   "icons": [
@@ -9,7 +8,7 @@
       "sizes": "256x256"
     }
   ],
-  "background_color": "#262626",
+  "background_color": "#1e1e1e",
   "display": "standalone",
-  "theme_color": "#262626"
+  "theme_color": "#1e1e1e"
 }
