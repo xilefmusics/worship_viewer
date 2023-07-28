@@ -5,10 +5,11 @@
     {
       "src": "/favicon.png",
       "type": "image/png",
-      "sizes": "256x256"
+      "sizes": "512x512"
     }
   ],
   "background_color": "#1e1e1e",
-  "display": "standalone",
+  "display": "fullscreen",
+  "start_url": "/?fullscreen=true",
   "theme_color": "#1e1e1e"
 }
