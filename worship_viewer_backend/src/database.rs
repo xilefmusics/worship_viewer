@@ -1,3 +1,4 @@
+use super::database_migration;
 use super::error::AppError;
 use super::types::{
     Blob, Collection, CollectionFetchedSongs, Group, Song, User, UserGroupsFetched, UserGroupsId,
@@ -37,6 +38,7 @@ struct RelateResponse {
     pub out_link: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Database {
     url: String,
     auth: String,
@@ -45,14 +47,14 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn new(
+    pub async fn new(
         host: &str,
         port: u16,
         username: &str,
         password: &str,
         namespace: &str,
         database: &str,
-    ) -> Self {
+    ) -> Result<Self, AppError> {
         let url = format!("http://{}:{}/sql", host, port);
         let auth = format!(
             "Basic {}",
@@ -61,15 +63,19 @@ impl Database {
         let namespace = namespace.into();
         let database = database.into();
 
-        Self {
+        let database = Self {
             url,
             auth,
             namespace,
             database,
-        }
+        };
+
+        database_migration::migrate(&database).await?;
+
+        Ok(database)
     }
 
-    async fn query_string(&self, query: String) -> Result<String, AppError> {
+    pub async fn query_string(&self, query: String) -> Result<String, AppError> {
         Ok(reqwest::Client::new()
             .post(&self.url)
             .header("Accept", "application/json")

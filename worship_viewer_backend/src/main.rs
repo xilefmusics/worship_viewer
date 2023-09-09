@@ -1,4 +1,5 @@
 mod database;
+mod database_migration;
 mod error;
 mod types;
 
@@ -301,16 +302,23 @@ async fn main() -> std::io::Result<()> {
 
     let db_database = std::env::var("DB_DATABASE").unwrap_or("test".into());
 
+    let database = Data::new(
+        Database::new(
+            &db_host,
+            db_port,
+            &db_user,
+            &db_password,
+            &db_namespace,
+            &db_database,
+        )
+        .await
+        .unwrap(),
+    );
+
     HttpServer::new(move || {
+        let database = database.clone();
         App::new()
-            .app_data(Data::new(Database::new(
-                &db_host,
-                db_port,
-                &db_user,
-                &db_password,
-                &db_namespace,
-                &db_database,
-            )))
+            .app_data(database)
             .service(get_groups)
             .service(get_groups_id)
             .service(post_groups)

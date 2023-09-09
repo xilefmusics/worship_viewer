@@ -5,6 +5,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum AppError {
     Database(String),
+    DatabaseMigration(String),
     Unauthorized(String),
     Filesystem(String),
     NotFound(String),
@@ -15,6 +16,7 @@ impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Database(message) => write!(f, "DatabaseError ({})", message),
+            Self::DatabaseMigration(message) => write!(f, "DatabaseMigrationError ({})", message),
             Self::Unauthorized(message) => write!(f, "UnauthorizedError ({})", message),
             Self::Filesystem(message) => write!(f, "FilesystemError ({})", message),
             Self::NotFound(message) => write!(f, "NotFoundError ({})", message),
@@ -27,6 +29,7 @@ impl ResponseError for AppError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::DatabaseMigration(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             Self::Filesystem(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
@@ -38,6 +41,9 @@ impl ResponseError for AppError {
         log::error!("{}", self);
         match self {
             Self::Database(_) => {
+                HttpResponse::build(self.status_code()).body("500 Internal Server Error")
+            }
+            Self::DatabaseMigration(_) => {
                 HttpResponse::build(self.status_code()).body("500 Internal Server Error")
             }
             Self::Unauthorized(_) => {
