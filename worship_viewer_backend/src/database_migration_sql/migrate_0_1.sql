@@ -1,4 +1,5 @@
 DEFINE TABLE version SCHEMAFUL;
+DEFINE FIELD created ON TABLE version TYPE datetime VALUE $value OR time::now();
 DEFINE FIELD version ON TABLE version TYPE int ASSERT $value > 0;
 
 DEFINE TABLE group SCHEMAFUL;
@@ -46,8 +47,8 @@ DEFINE FIELD group ON TABLE collection TYPE record(group) ASSERT $value != NONE;
 DEFINE FIELD tags ON TABLE collection TYPE array;
 DEFINE FIELD tags.* ON TABLE collection TYPE string;
 
-CREATE version:version SET version = 1;
-CREATE group:admin SET name = "admin";
+CREATE version:version SET version = 1, created = time::now();
+CREATE group:admin SET name = "admin", created = time::now();
 CREATE user:admin SET name = "admin", created = time::now();
-RELATE user:admin->member_of->group:admin;
+RELATE user:admin->member_of->group:admin SET created = time::now();
 
