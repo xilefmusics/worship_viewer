@@ -1,5 +1,3 @@
-BEGIN TRANSACTION;
-
 DEFINE TABLE version SCHEMAFUL;
 DEFINE FIELD version ON TABLE version TYPE int ASSERT $value > 0;
 
@@ -53,4 +51,3 @@ CREATE group:admin SET name = "admin";
 CREATE user:admin SET name = "admin", created = time::now();
 RELATE user:admin->member_of->group:admin;
 
-COMMIT TRANSACTION;
