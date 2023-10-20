@@ -1,4 +1,5 @@
 use gloo::utils::document;
+use gloo_console::log;
 use std::f64::consts::SQRT_2;
 use stylist::Style;
 use yew::prelude::*;
@@ -19,24 +20,26 @@ pub fn ImagePlayerComponent(props: &Props) -> Html {
     let half_page_scroll = props.half_page_scroll;
 
     let image_width = use_state(|| 0);
-    let last_props = use_state(|| None);
+    let image_height = use_state(|| 0);
     {
         let image_width = image_width.clone();
-        let id2 = id2.clone();
-        let last_props = last_props.clone();
-        let props = Some(props.clone());
+        let image_height = image_height.clone();
         use_effect(move || {
-            if *last_props == props {
-                return;
-            }
-            last_props.set(props);
             if let Some(element) = document().get_element_by_id("pdf-viewer") {
-                let width = if id2.is_some() && !half_page_scroll {
-                    element.scroll_height() as f64 / SQRT_2 * 2.0
-                } else {
-                    element.scroll_height() as f64 / SQRT_2
-                };
-                image_width.set(width as i32);
+                let width = std::cmp::min(
+                    element.scroll_width(),
+                    (element.scroll_height() as f64 / SQRT_2) as i32,
+                );
+                let height = std::cmp::min(
+                    element.scroll_height(),
+                    (element.scroll_width() as f64 * SQRT_2) as i32,
+                );
+
+                if width == *image_width {
+                    return;
+                }
+                image_width.set(width);
+                image_height.set(height);
             }
         })
     }
@@ -48,7 +51,7 @@ pub fn ImagePlayerComponent(props: &Props) -> Html {
         >
             <div
                 class="image-wrapper"
-                style={format!("width: {:?}px; height: 100%;", *image_width)}
+                style={format!("width: {:?}px; height: {:?}px;", *image_width, *image_height)}
             >
                 <img
                     class={if half_page_scroll {"collection first half-page-scroll"}else{"collection first"}}
