@@ -32,7 +32,7 @@ fn switch(routes: Route) -> Html {
 fn App() -> Html {
     html! {
         <>
-            <Global css={css!("html,body{padding: 0;margin: 0;border: 0;}")} />
+            <Global css={css!("html,body{padding: 0;margin: 0;border: 0;background: #1e1e1e; overflow: hidden;}")} />
             <div class={Style::new(include_str!("style.css")).expect("Unwrapping CSS should work!")}>
                 <div class={"app"}>
                     <BrowserRouter>
