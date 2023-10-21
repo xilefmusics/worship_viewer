@@ -24,21 +24,21 @@ pub fn TableOfContentsComponent(props: &Props) -> Html {
     let filter_sort = use_state(|| FilterSort::Real);
 
     let oncklick_real = {
-        let filterSort = filter_sort.clone();
+        let filter_sort = filter_sort.clone();
         move |_: MouseEvent| {
-            filterSort.set(FilterSort::Real);
+            filter_sort.set(FilterSort::Real);
         }
     };
     let oncklick_alphabetical = {
-        let filterSort = filter_sort.clone();
+        let filter_sort = filter_sort.clone();
         move |_: MouseEvent| {
-            filterSort.set(FilterSort::Alphabetical);
+            filter_sort.set(FilterSort::Alphabetical);
         }
     };
     let oncklick_liked = {
-        let filterSort = filter_sort.clone();
+        let filter_sort = filter_sort.clone();
         move |_: MouseEvent| {
-            filterSort.set(FilterSort::Liked);
+            filter_sort.set(FilterSort::Liked);
         }
     };
 

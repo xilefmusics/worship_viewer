@@ -1,5 +1,4 @@
 use gloo::utils::document;
-use gloo_console::log;
 use std::f64::consts::SQRT_2;
 use stylist::Style;
 use yew::prelude::*;

@@ -4,6 +4,7 @@ use super::types::{
     Blob, BlobOcrUpdate, Collection, CollectionFetchedSongs, Group, Song, SongTitleUpdate, User,
     UserGroupsFetched, UserGroupsId,
 };
+use base64::{engine::general_purpose, Engine as _};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -59,7 +60,7 @@ impl Database {
         let url = format!("http://{}:{}/sql", host, port);
         let auth = format!(
             "Basic {}",
-            base64::encode(format!("{}:{}", username, password))
+            general_purpose::STANDARD.encode(format!("{}:{}", username, password))
         );
         let namespace = namespace.into();
         let database = database.into();
