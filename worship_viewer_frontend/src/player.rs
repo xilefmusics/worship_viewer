@@ -301,6 +301,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
         let back_route = back_route.clone();
         use_event_with_window("keydown", move |e: KeyboardEvent| {
             if e.key() == "ArrowDown"
+                || e.key() == "PageDown"
                 || e.key() == "ArrowRight"
                 || e.key() == " "
                 || e.key() == "Enter"
@@ -308,6 +309,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
             {
                 index.set(index.next())
             } else if e.key() == "ArrowUp"
+                || e.key() == "PageUp"
                 || e.key() == "ArrowLeft"
                 || e.key() == "Backspace"
                 || e.key() == "k"
