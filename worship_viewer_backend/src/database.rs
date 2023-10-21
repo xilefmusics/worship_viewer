@@ -96,7 +96,7 @@ impl Database {
         &self,
         query: String,
     ) -> Result<T, AppError> {
-        let response_string = dbg!(self.query_string(query.clone()).await?);
+        let response_string = self.query_string(query.clone()).await?;
 
         let response_objects = serde_json::from_str::<Vec<Response<T>>>(&response_string)
             .map_err(|err| AppError::Database(format!("{}", err)))?
@@ -186,12 +186,12 @@ impl Database {
         let created_users: Vec<User> = self
             .query_vec(format!(
                 "INSERT INTO user {};",
-                serde_json::to_string(&dbg!(users))
+                serde_json::to_string(&users)
                     .map_err(|err| AppError::Database(format!("{}", err)))?
             ))
             .await?;
 
-        let _: Vec<RelateResponse> = self.query_vec(dbg!(relate_query)).await?;
+        let _: Vec<RelateResponse> = self.query_vec(relate_query).await?;
 
         Ok(created_users)
     }
