@@ -17,6 +17,7 @@ pub struct Collection {
 pub struct TocItem {
     pub idx: usize,
     pub title: String,
+    pub nr: String,
     pub song: String,
 }
 
@@ -58,6 +59,7 @@ impl Add for PlayerData {
                             item.idx + self.data.len()
                         },
                         title: item.title.clone(),
+                        nr: item.nr.clone(),
                         song: item.song.clone(),
                     };
                     item
@@ -167,6 +169,7 @@ impl Song {
                 vec![TocItem {
                     idx: 0,
                     title: self.title,
+                    nr: self.nr,
                     song: self.id.ok_or("song has no id".to_string())?,
                 }]
             },

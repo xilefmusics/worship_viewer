@@ -60,8 +60,14 @@ pub fn TableOfContentsComponent(props: &Props) -> Html {
                 let idx = item.idx;
                 move |_: MouseEvent| select.emit(idx)
             };
-            html! {
-                <li onclick={onclick}>{&item.title}</li>
+            if *filter_sort == FilterSort::Real {
+                html! {
+                    <li onclick={onclick}>{format!("{}. {}", &item.nr, &item.title)}</li>
+                }
+            } else {
+                html! {
+                    <li onclick={onclick}>{&item.title}</li>
+                }
             }
         })
         .collect::<Html>();
