@@ -12,7 +12,7 @@ use database::Database;
 use env_logger::Env;
 use error::AppError;
 use std::path::PathBuf;
-use types::{Blob, BlobOcrUpdate, Collection, Group, Song, UserGroupsId};
+use types::{Blob, BlobOcrUpdate, Collection, Group, Song, SongTitleUpdate, UserGroupsId};
 
 pub fn parse_user_header(req: HttpRequest) -> Result<String, AppError> {
     Ok(req
@@ -183,7 +183,7 @@ pub async fn post_blobs_metadata(
 }
 
 #[post("/api/blobs/metadata/update/ocr")]
-pub async fn post_blobs_metadata_ocr_update(
+pub async fn post_blobs_metadata_update_ocr(
     db: Data<Database>,
     req: HttpRequest,
     blob_ocr_update: Json<Vec<BlobOcrUpdate>>,
@@ -194,7 +194,7 @@ pub async fn post_blobs_metadata_ocr_update(
             "user doesn't have admin rights".into(),
         ));
     }
-    Ok(HttpResponse::Ok().json(db.add_ocr_to_blobs(&blob_ocr_update).await?))
+    Ok(HttpResponse::Ok().json(db.update_blobs_ocr(&blob_ocr_update).await?))
 }
 
 #[get("/api/songs")]
@@ -227,6 +227,21 @@ pub async fn post_songs(
         ));
     }
     Ok(HttpResponse::Ok().json(db.add_songs(&songs).await?))
+}
+
+#[post("/api/songs/update/title")]
+pub async fn post_songs_update_title(
+    db: Data<Database>,
+    req: HttpRequest,
+    title_update: Json<Vec<SongTitleUpdate>>,
+) -> Result<HttpResponse, AppError> {
+    let username = parse_user_header(req)?;
+    if !db.check_user_admin(&username).await? {
+        return Err(AppError::Unauthorized(
+            "user doesn't have admin rights".into(),
+        ));
+    }
+    Ok(HttpResponse::Ok().json(db.update_songs_title(&title_update).await?))
 }
 
 #[post("/api/collections")]
@@ -343,11 +358,12 @@ async fn main() -> std::io::Result<()> {
             .service(get_blobs_metadata)
             .service(get_blobs_metadata_id)
             .service(post_blobs_metadata)
-            .service(post_blobs_metadata_ocr_update)
+            .service(post_blobs_metadata_update_ocr)
             .service(get_blobs_id)
             .service(get_songs)
             .service(get_songs_id)
             .service(post_songs)
+            .service(post_songs_update_title)
             .service(get_collections)
             .service(get_collections_id)
             .service(post_collections)

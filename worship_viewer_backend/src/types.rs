@@ -97,6 +97,12 @@ pub struct BlobOcrUpdate {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SongTitleUpdate {
+    pub id: String,
+    pub title: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CollectionFetchedSongs {
     pub id: Option<String>,
     pub created: Option<DateTime<Utc>>,
