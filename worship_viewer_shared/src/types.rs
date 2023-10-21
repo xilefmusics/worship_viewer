@@ -145,6 +145,7 @@ pub struct Song {
     pub id: Option<String>,
     pub created: Option<DateTime<Utc>>,
     pub title: String,
+    pub nr: String,
     pub key: Key,
     pub language: String,
     pub title2: Option<String>,

@@ -73,6 +73,7 @@ pub struct Blob {
     pub file_type: FileType,
     pub width: u32,
     pub height: u32,
+    pub ocr: Option<String>,
     pub group: String,
     pub tags: Vec<String>,
 }
