@@ -24,22 +24,31 @@ pub fn ImagePlayerComponent(props: &Props) -> Html {
     {
         let image_width = image_width.clone();
         let image_height = image_height.clone();
+        let id2 = id2.clone();
         use_effect(move || {
             if let Some(element) = document().get_element_by_id("pdf-viewer") {
                 let width = std::cmp::min(
                     element.scroll_width(),
-                    (element.scroll_height() as f64 / SQRT_2) as i32,
+                    if id2.is_none() {
+                        (element.scroll_height() as f64 / SQRT_2) as i32
+                    } else {
+                        (element.scroll_height() as f64 * SQRT_2) as i32
+                    },
                 );
                 let height = std::cmp::min(
                     element.scroll_height(),
-                    (element.scroll_width() as f64 * SQRT_2) as i32,
+                    if id2.is_none() {
+                        (element.scroll_width() as f64 * SQRT_2) as i32
+                    } else {
+                        (element.scroll_width() as f64 / SQRT_2) as i32
+                    },
                 );
 
                 if width == *image_width {
                     return;
                 }
                 image_width.set(width);
-                image_height.set(height);
+                image_height.set(height - 1);
             }
         })
     }
