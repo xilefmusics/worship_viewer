@@ -1,7 +1,8 @@
 use super::database_migration;
 use super::error::AppError;
 use super::types::{
-    Blob, Collection, CollectionFetchedSongs, Group, Song, User, UserGroupsFetched, UserGroupsId,
+    Blob, BlobOcrUpdate, Collection, CollectionFetchedSongs, Group, Song, User, UserGroupsFetched,
+    UserGroupsId,
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -218,6 +219,17 @@ impl Database {
                     .map_err(|err| AppError::Database(format!("{}", err)))?
             ))
             .await?)
+    }
+
+    pub async fn add_ocr_to_blobs(
+        &self,
+        ocr_update: &Vec<BlobOcrUpdate>,
+    ) -> Result<Vec<Blob>, AppError> {
+        let sql = ocr_update
+            .into_iter()
+            .map(|ocr_update| format!("UPDATE {} SET ocr = \"{}\";", ocr_update.id, ocr_update.ocr))
+            .collect::<String>();
+        Ok(self.query_vec(sql).await?)
     }
 
     pub async fn get_songs(&self, username: &str) -> Result<Vec<Song>, AppError> {

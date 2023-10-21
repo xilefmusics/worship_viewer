@@ -12,7 +12,7 @@ use database::Database;
 use env_logger::Env;
 use error::AppError;
 use std::path::PathBuf;
-use types::{Blob, Collection, Group, Song, UserGroupsId};
+use types::{Blob, BlobOcrUpdate, Collection, Group, Song, UserGroupsId};
 
 pub fn parse_user_header(req: HttpRequest) -> Result<String, AppError> {
     Ok(req
@@ -182,6 +182,21 @@ pub async fn post_blobs_metadata(
     Ok(HttpResponse::Ok().json(db.add_blobs(&blobs).await?))
 }
 
+#[post("/api/blobs/metadata/update/ocr")]
+pub async fn post_blobs_metadata_ocr_update(
+    db: Data<Database>,
+    req: HttpRequest,
+    blob_ocr_update: Json<Vec<BlobOcrUpdate>>,
+) -> Result<HttpResponse, AppError> {
+    let username = parse_user_header(req)?;
+    if !db.check_user_admin(&username).await? {
+        return Err(AppError::Unauthorized(
+            "user doesn't have admin rights".into(),
+        ));
+    }
+    Ok(HttpResponse::Ok().json(db.add_ocr_to_blobs(&blob_ocr_update).await?))
+}
+
 #[get("/api/songs")]
 pub async fn get_songs(db: Data<Database>, req: HttpRequest) -> Result<HttpResponse, AppError> {
     let username = parse_user_header(req)?;
@@ -328,6 +343,7 @@ async fn main() -> std::io::Result<()> {
             .service(get_blobs_metadata)
             .service(get_blobs_metadata_id)
             .service(post_blobs_metadata)
+            .service(post_blobs_metadata_ocr_update)
             .service(get_blobs_id)
             .service(get_songs)
             .service(get_songs_id)

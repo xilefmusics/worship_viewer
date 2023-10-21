@@ -91,6 +91,12 @@ impl Blob {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BlobOcrUpdate {
+    pub id: String,
+    pub ocr: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CollectionFetchedSongs {
     pub id: Option<String>,
     pub created: Option<DateTime<Utc>>,
