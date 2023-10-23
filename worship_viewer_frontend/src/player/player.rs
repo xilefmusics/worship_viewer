@@ -54,7 +54,11 @@ pub fn PlayerComponent(props: &Props) -> Html {
                         .json()
                         .await
                         .unwrap();
-                    index.set(index.set_max_index(fetched_data.data.len()));
+                    index.set(
+                        index
+                            .set_max_page_index(fetched_data.data.len())
+                            .create_number_index_mappings(&fetched_data.toc),
+                    );
                     data.set(Some(fetched_data));
                 });
                 || ()
@@ -76,14 +80,14 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 || e.key() == "Enter"
                 || e.key() == "j"
             {
-                index.set(index.next())
+                index.set(index.next_page())
             } else if e.key() == "ArrowUp"
                 || e.key() == "PageUp"
                 || e.key() == "ArrowLeft"
                 || e.key() == "Backspace"
                 || e.key() == "k"
             {
-                index.set(index.prev())
+                index.set(index.prev_page())
             } else if e.key() == "s" {
                 index.set(index.next_scroll_type())
             } else if e.key() == "m" {
@@ -99,9 +103,9 @@ pub fn PlayerComponent(props: &Props) -> Html {
         let active = active.clone();
         move |e: MouseEvent| {
             if (e.x() as f64) < window_dimensions.0 * 0.4 {
-                index.set(index.prev())
+                index.set(index.prev_page())
             } else if (e.x() as f64) > window_dimensions.0 * 0.6 {
-                index.set(index.next())
+                index.set(index.next_page())
             } else {
                 active.set(!*active);
             }
@@ -112,6 +116,13 @@ pub fn PlayerComponent(props: &Props) -> Html {
         let index = index.clone();
         move |_: MouseEvent| {
             index.set(index.next_scroll_type());
+        }
+    };
+
+    let onclick_select_changer = {
+        let index = index.clone();
+        move |_: MouseEvent| {
+            index.set(index.next_select_type());
         }
     };
 
@@ -126,7 +137,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
     let index_jump_callback = {
         let index = index.clone();
         Callback::from(move |value| {
-            index.set(index.jump(value));
+            index.set(index.jump_page(value));
         })
     };
 
@@ -144,28 +155,31 @@ pub fn PlayerComponent(props: &Props) -> Html {
     let data = data.as_ref().unwrap().clone();
 
     let id = if index.is_two_half_page_scroll() {
-        if index.get() % 2 == 0 && data.data.len() > index.get() + 1 && index.get() > 0 {
-            data.data[index.get() + 1].clone()
+        if index.get_page_index() % 2 == 0
+            && data.data.len() > index.get_page_index() + 1
+            && index.get_page_index() > 0
+        {
+            data.data[index.get_page_index() + 1].clone()
         } else {
-            data.data[index.get()].clone()
+            data.data[index.get_page_index()].clone()
         }
     } else {
-        data.data[index.get()].clone()
+        data.data[index.get_page_index()].clone()
     };
 
     let id2 = if (index.is_half_page_scroll() && index.is_between_pages()
         || index.is_two_page_scroll()
-        || index.is_book_scroll() && index.get() != 0)
-        && data.data.len() > index.get() + 1
+        || index.is_book_scroll() && index.get_page_index() != 0)
+        && data.data.len() > index.get_page_index() + 1
     {
-        Some(data.data[index.get() + 1].clone())
+        Some(data.data[index.get_page_index() + 1].clone())
     } else if index.is_two_half_page_scroll() {
-        if index.get() == 0 {
+        if index.get_page_index() == 0 {
             None
-        } else if index.get() % 2 == 1 && data.data.len() > index.get() + 1 {
-            Some(data.data[index.get() + 1].clone())
+        } else if index.get_page_index() % 2 == 1 && data.data.len() > index.get_page_index() + 1 {
+            Some(data.data[index.get_page_index() + 1].clone())
         } else {
-            Some(data.data[index.get()].clone())
+            Some(data.data[index.get_page_index()].clone())
         }
     } else {
         None
@@ -190,19 +204,23 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 />
             </div>
             <div class={if *active {"bottom active"} else {"bottom"}}>
+                <span
+                    onclick={onclick_select_changer}
+                    class="select-changer"
+                >{index.get_select_str()}</span>
                 <input
                     type="range"
                     min="0"
-                    max={(data.data.len()-1).to_string()}
-                    value={(index.get()).to_string()}
+                    max={index.get_max_index().to_string()}
+                    value={index.get_index().to_string()}
                     class="index-chooser"
                     oninput={oninput}
                 />
-                <span>{format!("{:?} / {:?}",index.get()+1, data.data.len())}</span>
+                <span>{format!("{} / {}",index.get_string(), index.get_max_string())}</span>
                 <span
                     onclick={onclick_scroll_changer}
                     class="scroll-changer"
-                >{index.scroll_str()}</span>
+                >{index.get_scroll_str()}</span>
             </div>
             <div class={if *active && data.toc.len() > 1 {"toc active"}else{"toc"}}>
                 <TableOfContentsComponent
