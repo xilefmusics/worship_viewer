@@ -13,7 +13,7 @@ pub struct Props {
 }
 
 #[function_component]
-pub fn ImagePlayerComponent(props: &Props) -> Html {
+pub fn ImageComponent(props: &Props) -> Html {
     let id = props.id.clone();
     let id2 = props.id2.clone();
     let half_page_scroll = props.half_page_scroll;
@@ -55,7 +55,7 @@ pub fn ImagePlayerComponent(props: &Props) -> Html {
     html! {
         <div
             id="pdf-viewer"
-            class={Style::new(include_str!("player_image.css")).expect("Unwrapping CSS should work!")}
+            class={Style::new(include_str!("image.css")).expect("Unwrapping CSS should work!")}
         >
             <div
                 class="image-wrapper"

@@ -1,11 +1,9 @@
 mod collections;
 mod navigation_bar;
 mod player;
-mod player_image;
 mod routes;
 mod setlist;
 mod songs;
-mod toc;
 mod top_bar;
 
 use collections::CollectionsComponent;

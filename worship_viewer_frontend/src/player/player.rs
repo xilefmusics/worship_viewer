@@ -1,5 +1,5 @@
-use super::player_image::ImagePlayerComponent;
-use super::toc::TableOfContentsComponent;
+use super::ImageComponent;
+use super::TableOfContentsComponent;
 use crate::routes::Route;
 use gloo_net::http::Request;
 use stylist::Style;
@@ -246,7 +246,7 @@ impl Index {
                     new
                 },
             ),
-            between_pages: self.between_pages,
+            between_pages: self.between_pages, // TODO reset between_pages
             max_index: self.max_index,
             scroll_type: self.scroll_type.clone(),
         }
@@ -413,7 +413,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 >{"arrow_back"}</span>
             </div>
             <div onclick={onclick} class={if *active {"middle active"} else {"middle"}}>
-                <ImagePlayerComponent
+                <ImageComponent
                     id={id}
                     id2={id2}
                     active={*active}
