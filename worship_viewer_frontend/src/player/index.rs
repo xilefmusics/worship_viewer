@@ -128,6 +128,41 @@ impl Index {
     pub fn is_two_half_page_scroll(&self) -> bool {
         self.scroll_type == ScrollType::TwoHalfPage
     }
+    pub fn get_data_index_one(&self) -> usize {
+        if self.is_two_half_page_scroll() {
+            if self.get_page_index() % 2 == 0
+                && self.get_max_page_index() > self.get_page_index()
+                && self.get_page_index() > 0
+            {
+                self.get_page_index() + 1
+            } else {
+                self.get_page_index()
+            }
+        } else {
+            self.get_page_index()
+        }
+    }
+    pub fn get_data_index_two(&self) -> Option<usize> {
+        if (self.is_half_page_scroll() && self.is_between_pages()
+            || self.is_two_page_scroll()
+            || self.is_book_scroll() && self.get_page_index() != 0)
+            && self.get_max_page_index() > self.get_page_index()
+        {
+            Some(self.get_page_index() + 1)
+        } else if self.is_two_half_page_scroll() {
+            if self.get_page_index() == 0 {
+                None
+            } else if self.get_page_index() % 2 == 1
+                && self.get_max_page_index() > self.get_page_index()
+            {
+                Some(self.get_page_index() + 1)
+            } else {
+                Some(self.get_page_index())
+            }
+        } else {
+            None
+        }
+    }
 
     pub fn next_select_type(&self) -> Self {
         let mut new = self.clone();
@@ -287,8 +322,8 @@ impl SelectType {
 
     pub fn to_str(&self) -> &'static str {
         match self {
-            Self::Page => "[page]",
-            Self::Number => "[number]",
+            Self::Page => "[pg]",
+            Self::Number => "[nr]",
         }
     }
 }

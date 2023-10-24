@@ -38,7 +38,6 @@ pub fn PlayerComponent(props: &Props) -> Html {
 
     let index = use_state(|| Index::default());
     let active = use_state(|| false);
-
     let data = use_state(|| None);
     {
         let data = data.clone();
@@ -137,7 +136,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
     let index_jump_callback = {
         let index = index.clone();
         Callback::from(move |value| {
-            index.set(index.jump_page(value));
+            index.set(index.jump(value));
         })
     };
 
@@ -153,37 +152,8 @@ pub fn PlayerComponent(props: &Props) -> Html {
         return html! {};
     }
     let data = data.as_ref().unwrap().clone();
-
-    let id = if index.is_two_half_page_scroll() {
-        if index.get_page_index() % 2 == 0
-            && data.data.len() > index.get_page_index() + 1
-            && index.get_page_index() > 0
-        {
-            data.data[index.get_page_index() + 1].clone()
-        } else {
-            data.data[index.get_page_index()].clone()
-        }
-    } else {
-        data.data[index.get_page_index()].clone()
-    };
-
-    let id2 = if (index.is_half_page_scroll() && index.is_between_pages()
-        || index.is_two_page_scroll()
-        || index.is_book_scroll() && index.get_page_index() != 0)
-        && data.data.len() > index.get_page_index() + 1
-    {
-        Some(data.data[index.get_page_index() + 1].clone())
-    } else if index.is_two_half_page_scroll() {
-        if index.get_page_index() == 0 {
-            None
-        } else if index.get_page_index() % 2 == 1 && data.data.len() > index.get_page_index() + 1 {
-            Some(data.data[index.get_page_index() + 1].clone())
-        } else {
-            Some(data.data[index.get_page_index()].clone())
-        }
-    } else {
-        None
-    };
+    let id = data.data[index.get_data_index_one()].clone();
+    let id2 = index.get_data_index_two().map(|idx| data.data[idx].clone());
 
     html! {
         <div
