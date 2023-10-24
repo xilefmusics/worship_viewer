@@ -1,9 +1,9 @@
 mod image;
-mod index;
 mod player;
+mod state_manager;
 mod toc;
 
 use image::ImageComponent;
-use index::StateManager;
 pub use player::PlayerComponent;
+use state_manager::{CustomState, State, StateManager};
 use toc::TableOfContentsComponent;

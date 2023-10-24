@@ -1,6 +1,6 @@
 use super::ImageComponent;
-use super::StateManager;
 use super::TableOfContentsComponent;
+use super::{CustomState, State, StateManager};
 use crate::routes::Route;
 use gloo_net::http::Request;
 use stylist::Style;
@@ -36,15 +36,13 @@ pub fn PlayerComponent(props: &Props) -> Html {
     let id = props.id.clone();
     let back_route = get_back_route(&id);
 
-    let state_manager = use_state(|| StateManager::default());
+    let state_manager = use_state(|| None);
     let active = use_state(|| false);
-    let data = use_state(|| None);
     {
-        let data = data.clone();
         let state_manager = state_manager.clone();
         use_effect_with_deps(
             move |_| {
-                let data = data.clone();
+                let state_manager = state_manager.clone();
                 wasm_bindgen_futures::spawn_local(async move {
                     let fetched_data: PlayerData = Request::get(&format!("/api/player/{}", id))
                         .send()
@@ -53,12 +51,10 @@ pub fn PlayerComponent(props: &Props) -> Html {
                         .json()
                         .await
                         .unwrap();
-                    state_manager.set(
-                        state_manager
-                            .set_max_page_index(fetched_data.data.len())
-                            .create_number_index_mappings(&fetched_data.toc),
-                    );
-                    data.set(Some(fetched_data));
+                    state_manager.set(Some(StateManager::new(
+                        State::new(fetched_data),
+                        CustomState::default(),
+                    )));
                 });
                 || ()
             },
@@ -79,16 +75,28 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 || e.key() == "Enter"
                 || e.key() == "j"
             {
-                state_manager.set(state_manager.next_page())
+                state_manager.set(
+                    state_manager
+                        .as_ref()
+                        .map(|state_manager| state_manager.next_page()),
+                )
             } else if e.key() == "ArrowUp"
                 || e.key() == "PageUp"
                 || e.key() == "ArrowLeft"
                 || e.key() == "Backspace"
                 || e.key() == "k"
             {
-                state_manager.set(state_manager.prev_page())
+                state_manager.set(
+                    state_manager
+                        .as_ref()
+                        .map(|state_manager| state_manager.prev_page()),
+                )
             } else if e.key() == "s" {
-                state_manager.set(state_manager.next_scroll_type())
+                state_manager.set(
+                    state_manager
+                        .as_ref()
+                        .map(|state_manager| state_manager.next_scroll_type()),
+                )
             } else if e.key() == "m" {
                 active.set(!*active);
             } else if e.key() == "Escape" {
@@ -102,9 +110,17 @@ pub fn PlayerComponent(props: &Props) -> Html {
         let active = active.clone();
         move |e: MouseEvent| {
             if (e.x() as f64) < window_dimensions.0 * 0.4 {
-                state_manager.set(state_manager.prev_page())
+                state_manager.set(
+                    state_manager
+                        .as_ref()
+                        .map(|state_manager| state_manager.prev_page()),
+                )
             } else if (e.x() as f64) > window_dimensions.0 * 0.6 {
-                state_manager.set(state_manager.next_page())
+                state_manager.set(
+                    state_manager
+                        .as_ref()
+                        .map(|state_manager| state_manager.next_page()),
+                )
             } else {
                 active.set(!*active);
             }
@@ -114,14 +130,22 @@ pub fn PlayerComponent(props: &Props) -> Html {
     let onclick_scroll_changer = {
         let state_manager = state_manager.clone();
         move |_: MouseEvent| {
-            state_manager.set(state_manager.next_scroll_type());
+            state_manager.set(
+                state_manager
+                    .as_ref()
+                    .map(|state_manager| state_manager.next_scroll_type()),
+            );
         }
     };
 
     let onclick_select_changer = {
         let state_manager = state_manager.clone();
         move |_: MouseEvent| {
-            state_manager.set(state_manager.next_select_type());
+            state_manager.set(
+                state_manager
+                    .as_ref()
+                    .map(|state_manager| state_manager.next_select_type()),
+            );
         }
     };
 
@@ -129,14 +153,22 @@ pub fn PlayerComponent(props: &Props) -> Html {
         let state_manager = state_manager.clone();
         move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
-            state_manager.set(state_manager.jump(input.value_as_number() as usize));
+            state_manager.set(
+                state_manager
+                    .as_ref()
+                    .map(|state_manager| state_manager.jump(input.value_as_number() as usize)),
+            );
         }
     };
 
     let index_jump_callback = {
         let state_manager = state_manager.clone();
         Callback::from(move |value| {
-            state_manager.set(state_manager.jump(value));
+            state_manager.set(
+                state_manager
+                    .as_ref()
+                    .map(|state_manager| state_manager.jump(value)),
+            );
         })
     };
 
@@ -148,14 +180,10 @@ pub fn PlayerComponent(props: &Props) -> Html {
         }
     };
 
-    if data.is_none() {
+    if state_manager.is_none() {
         return html! {};
     }
-    let data = data.as_ref().unwrap().clone();
-    let id = data.data[state_manager.get_data_index_one()].clone();
-    let id2 = state_manager
-        .get_data_index_two()
-        .map(|idx| data.data[idx].clone());
+    let state_manager = state_manager.as_ref().unwrap();
 
     html! {
         <div
@@ -169,8 +197,8 @@ pub fn PlayerComponent(props: &Props) -> Html {
             </div>
             <div onclick={onclick} class={if *active {"middle active"} else {"middle"}}>
                 <ImageComponent
-                    id={id}
-                    id2={id2}
+                    id={state_manager.get_blob()}
+                    id2={state_manager.get_next_blob()}
                     active={*active}
                     half_page_scroll={state_manager.is_half_page_scroll()}
                 />
@@ -194,9 +222,9 @@ pub fn PlayerComponent(props: &Props) -> Html {
                     class="scroll-changer"
                 >{state_manager.get_scroll_str()}</span>
             </div>
-            <div class={if *active && data.toc.len() > 1 {"toc active"}else{"toc"}}>
+            <div class={if *active && state_manager.get_toc_len() > 1 {"toc active"}else{"toc"}}>
                 <TableOfContentsComponent
-                    list={data.toc.clone()}
+                    list={state_manager.get_toc()}
                     select={index_jump_callback}
                 />
             </div>

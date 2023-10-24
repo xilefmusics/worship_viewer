@@ -1,4 +1,4 @@
-use worship_viewer_shared::types::TocItem;
+use worship_viewer_shared::types::{PlayerData, TocItem};
 
 #[derive(Debug, Clone, Default)]
 pub struct State {
@@ -7,6 +7,41 @@ pub struct State {
     page2number: Vec<usize>,
     number2page: Vec<usize>,
     number2string: Vec<String>,
+    toc: Vec<TocItem>,
+    page2blob: Vec<String>,
+}
+
+impl State {
+    pub fn new(player_data: PlayerData) -> Self {
+        // TODO: move this logic to the backend
+        let page2blob = player_data.data;
+        let toc = player_data.toc;
+        let max_page_index = page2blob.len();
+        let number2string = toc.iter().map(|item| item.nr.clone()).collect();
+        let number2page = toc.iter().map(|item| item.idx).collect::<Vec<usize>>();
+        let mut page2number = vec![usize::MAX; max_page_index];
+        for (nr, item) in toc.iter().enumerate() {
+            page2number[item.idx] = nr;
+        }
+        let mut last = 0;
+        for i in 0..page2number.len() {
+            if page2number[i] == usize::MAX {
+                page2number[i] = last;
+            } else {
+                last = page2number[i];
+            }
+        }
+        let max_number_index = number2page.len() - 1;
+        Self {
+            max_page_index,
+            max_number_index,
+            page2number,
+            number2page,
+            number2string,
+            toc,
+            page2blob,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -24,6 +59,13 @@ pub struct StateManager {
 }
 
 impl StateManager {
+    pub fn new(state: State, custom_state: CustomState) -> Self {
+        Self {
+            state: Box::new(state),
+            custom_state: Box::new(custom_state),
+        }
+    }
+
     fn increment(&self) -> usize {
         if self.custom_state.page_index + 1 < self.state.max_page_index {
             self.custom_state.page_index + 1
@@ -173,6 +215,19 @@ impl StateManager {
             None
         }
     }
+    pub fn get_blob(&self) -> String {
+        self.state.page2blob[self.get_data_index_one()].clone()
+    }
+    pub fn get_next_blob(&self) -> Option<String> {
+        self.get_data_index_two()
+            .map(|idx| self.state.page2blob[idx].clone())
+    }
+    pub fn get_toc(&self) -> Vec<TocItem> {
+        self.state.toc.clone()
+    }
+    pub fn get_toc_len(&self) -> usize {
+        self.state.toc.len()
+    }
 
     pub fn next_select_type(&self) -> Self {
         let mut new = self.clone();
@@ -187,31 +242,6 @@ impl StateManager {
         {
             new = new.prev_page();
         }
-        new
-    }
-
-    pub fn set_max_page_index(&self, max_page_index: usize) -> Self {
-        let mut new = self.clone();
-        new.state.max_page_index = max_page_index;
-        new
-    }
-    pub fn create_number_index_mappings(self, toc: &Vec<TocItem>) -> Self {
-        let mut new = self.clone();
-        new.state.number2string = toc.iter().map(|item| item.nr.clone()).collect();
-        new.state.number2page = toc.iter().map(|item| item.idx).collect();
-        new.state.page2number = vec![usize::MAX; new.state.max_page_index];
-        for (nr, item) in toc.iter().enumerate() {
-            new.state.page2number[item.idx] = nr;
-        }
-        let mut last = 0;
-        for i in 0..new.state.page2number.len() {
-            if new.state.page2number[i] == usize::MAX {
-                new.state.page2number[i] = last;
-            } else {
-                last = new.state.page2number[i];
-            }
-        }
-        new.state.max_number_index = new.state.number2page.len() - 1;
         new
     }
 
