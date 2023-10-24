@@ -1,5 +1,5 @@
 use super::ImageComponent;
-use super::Index;
+use super::StateManager;
 use super::TableOfContentsComponent;
 use crate::routes::Route;
 use gloo_net::http::Request;
@@ -36,12 +36,12 @@ pub fn PlayerComponent(props: &Props) -> Html {
     let id = props.id.clone();
     let back_route = get_back_route(&id);
 
-    let index = use_state(|| Index::default());
+    let state_manager = use_state(|| StateManager::default());
     let active = use_state(|| false);
     let data = use_state(|| None);
     {
         let data = data.clone();
-        let index = index.clone();
+        let state_manager = state_manager.clone();
         use_effect_with_deps(
             move |_| {
                 let data = data.clone();
@@ -53,8 +53,8 @@ pub fn PlayerComponent(props: &Props) -> Html {
                         .json()
                         .await
                         .unwrap();
-                    index.set(
-                        index
+                    state_manager.set(
+                        state_manager
                             .set_max_page_index(fetched_data.data.len())
                             .create_number_index_mappings(&fetched_data.toc),
                     );
@@ -67,7 +67,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
     };
 
     {
-        let index = index.clone();
+        let state_manager = state_manager.clone();
         let active = active.clone();
         let navigator = navigator.clone();
         let back_route = back_route.clone();
@@ -79,16 +79,16 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 || e.key() == "Enter"
                 || e.key() == "j"
             {
-                index.set(index.next_page())
+                state_manager.set(state_manager.next_page())
             } else if e.key() == "ArrowUp"
                 || e.key() == "PageUp"
                 || e.key() == "ArrowLeft"
                 || e.key() == "Backspace"
                 || e.key() == "k"
             {
-                index.set(index.prev_page())
+                state_manager.set(state_manager.prev_page())
             } else if e.key() == "s" {
-                index.set(index.next_scroll_type())
+                state_manager.set(state_manager.next_scroll_type())
             } else if e.key() == "m" {
                 active.set(!*active);
             } else if e.key() == "Escape" {
@@ -98,13 +98,13 @@ pub fn PlayerComponent(props: &Props) -> Html {
     }
 
     let onclick = {
-        let index = index.clone();
+        let state_manager = state_manager.clone();
         let active = active.clone();
         move |e: MouseEvent| {
             if (e.x() as f64) < window_dimensions.0 * 0.4 {
-                index.set(index.prev_page())
+                state_manager.set(state_manager.prev_page())
             } else if (e.x() as f64) > window_dimensions.0 * 0.6 {
-                index.set(index.next_page())
+                state_manager.set(state_manager.next_page())
             } else {
                 active.set(!*active);
             }
@@ -112,31 +112,31 @@ pub fn PlayerComponent(props: &Props) -> Html {
     };
 
     let onclick_scroll_changer = {
-        let index = index.clone();
+        let state_manager = state_manager.clone();
         move |_: MouseEvent| {
-            index.set(index.next_scroll_type());
+            state_manager.set(state_manager.next_scroll_type());
         }
     };
 
     let onclick_select_changer = {
-        let index = index.clone();
+        let state_manager = state_manager.clone();
         move |_: MouseEvent| {
-            index.set(index.next_select_type());
+            state_manager.set(state_manager.next_select_type());
         }
     };
 
     let oninput = {
-        let index = index.clone();
+        let state_manager = state_manager.clone();
         move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
-            index.set(index.jump(input.value_as_number() as usize));
+            state_manager.set(state_manager.jump(input.value_as_number() as usize));
         }
     };
 
     let index_jump_callback = {
-        let index = index.clone();
+        let state_manager = state_manager.clone();
         Callback::from(move |value| {
-            index.set(index.jump(value));
+            state_manager.set(state_manager.jump(value));
         })
     };
 
@@ -152,8 +152,10 @@ pub fn PlayerComponent(props: &Props) -> Html {
         return html! {};
     }
     let data = data.as_ref().unwrap().clone();
-    let id = data.data[index.get_data_index_one()].clone();
-    let id2 = index.get_data_index_two().map(|idx| data.data[idx].clone());
+    let id = data.data[state_manager.get_data_index_one()].clone();
+    let id2 = state_manager
+        .get_data_index_two()
+        .map(|idx| data.data[idx].clone());
 
     html! {
         <div
@@ -170,27 +172,27 @@ pub fn PlayerComponent(props: &Props) -> Html {
                     id={id}
                     id2={id2}
                     active={*active}
-                    half_page_scroll={index.is_half_page_scroll()}
+                    half_page_scroll={state_manager.is_half_page_scroll()}
                 />
             </div>
             <div class={if *active {"bottom active"} else {"bottom"}}>
                 <span
                     onclick={onclick_select_changer}
                     class="select-changer"
-                >{index.get_select_str()}</span>
+                >{state_manager.get_select_str()}</span>
                 <input
                     type="range"
                     min="0"
-                    max={index.get_max_index().to_string()}
-                    value={index.get_index().to_string()}
+                    max={state_manager.get_max_index().to_string()}
+                    value={state_manager.get_index().to_string()}
                     class="index-chooser"
                     oninput={oninput}
                 />
-                <span>{format!("{} / {}",index.get_string(), index.get_max_string())}</span>
+                <span>{format!("{} / {}",state_manager.get_string(), state_manager.get_max_string())}</span>
                 <span
                     onclick={onclick_scroll_changer}
                     class="scroll-changer"
-                >{index.get_scroll_str()}</span>
+                >{state_manager.get_scroll_str()}</span>
             </div>
             <div class={if *active && data.toc.len() > 1 {"toc active"}else{"toc"}}>
                 <TableOfContentsComponent
