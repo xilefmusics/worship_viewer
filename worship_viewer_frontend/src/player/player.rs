@@ -167,7 +167,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
             state_manager.set(
                 state_manager
                     .as_ref()
-                    .map(|state_manager| state_manager.jump(value)),
+                    .map(|state_manager| state_manager.jump_page(value)),
             );
         })
     };
