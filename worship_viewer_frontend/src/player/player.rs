@@ -68,6 +68,11 @@ pub fn PlayerComponent(props: &Props) -> Html {
         let navigator = navigator.clone();
         let back_route = back_route.clone();
         use_event_with_window("keydown", move |e: KeyboardEvent| {
+            if let Some(target) = e.target() {
+                if target.to_string() == "[object HTMLInputElement]" {
+                    return;
+                }
+            }
             if e.key() == "ArrowDown"
                 || e.key() == "PageDown"
                 || e.key() == "ArrowRight"
@@ -161,6 +166,22 @@ pub fn PlayerComponent(props: &Props) -> Html {
         }
     };
 
+    let oninput2 = {
+        let state_manager = state_manager.clone();
+        move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            let number = input.value_as_number() as usize;
+            if number < 1 {
+                return;
+            }
+            state_manager.set(
+                state_manager
+                    .as_ref()
+                    .map(|state_manager| state_manager.jump(number - 1)),
+            );
+        }
+    };
+
     let index_jump_callback = {
         let state_manager = state_manager.clone();
         Callback::from(move |value| {
@@ -214,9 +235,18 @@ pub fn PlayerComponent(props: &Props) -> Html {
                     max={state_manager.get_max_index().to_string()}
                     value={state_manager.get_index().to_string()}
                     class="index-chooser"
-                    oninput={oninput}
+                    oninput={oninput.clone()}
                 />
-                <span>{format!("{} / {}",state_manager.get_string(), state_manager.get_max_string())}</span>
+                <span>
+                    <input
+                        type="number"
+                        min="1"
+                        max={state_manager.get_max_string()}
+                        value={state_manager.get_string()}
+                        class="index-chooser-2"
+                        oninput={oninput2}
+                    />
+                    {format!(" / {}",state_manager.get_max_string())}</span>
                 <span
                     onclick={onclick_scroll_changer}
                     class="scroll-changer"
