@@ -1,18 +1,17 @@
-mod database;
-mod database_migration;
 mod error;
+mod settings;
 mod types;
 
-use actix_files::NamedFile;
-use actix_web::{
-    get, middleware::Logger, post, web::Data, web::Json, web::Path, App, HttpRequest, HttpResponse,
-    HttpServer,
-};
-use database::Database;
-use env_logger::Env;
 use error::AppError;
-use std::path::PathBuf;
-use types::{Blob, BlobOcrUpdate, Collection, Group, Song, SongTitleUpdate, UserGroupsId};
+use settings::Settings;
+use types::{Group, IdWrapper};
+
+use actix_web::{post, web::Data, web::Json, App, HttpRequest, HttpResponse, HttpServer};
+use env_logger::Env;
+use futures::future::join_all;
+use surrealdb::engine::remote::ws::{Client, Ws};
+use surrealdb::opt::auth::Root;
+use surrealdb::Surreal;
 
 pub fn parse_user_header(req: HttpRequest) -> Result<String, AppError> {
     Ok(req
@@ -24,355 +23,76 @@ pub fn parse_user_header(req: HttpRequest) -> Result<String, AppError> {
         .into())
 }
 
-#[get("/")]
-pub async fn index() -> Result<NamedFile, AppError> {
-    let root_path = PathBuf::from(std::env::var("STATIC_DIR").unwrap_or("static".into()));
-    let file_path = PathBuf::from("index.html");
-    NamedFile::open(root_path.join(file_path)).map_err(|err| AppError::NotFound(err.to_string()))
-}
-
-#[get("/{path}")]
-pub async fn static_files(path: Path<String>) -> Result<NamedFile, AppError> {
-    let root_path = PathBuf::from(std::env::var("STATIC_DIR").unwrap_or("static".into()));
-    let file_path = PathBuf::from(path.into_inner());
-    let path = root_path.join(file_path);
-    if path.extension().is_some() {
-        NamedFile::open(path).map_err(|err| AppError::NotFound(err.to_string()))
+pub fn exspect_admin(user: &str) -> Result<(), AppError> {
+    // TODO: Check if the user has admin rights
+    if user == "admin" {
+        Ok(())
     } else {
-        NamedFile::open(root_path.join("index.html"))
-            .map_err(|err| AppError::NotFound(err.to_string()))
+        Err(AppError::Unauthorized(
+            "user doesn't have admin rights".into(),
+        ))
     }
 }
 
-#[get("/api/groups")]
-pub async fn get_groups(db: Data<Database>, req: HttpRequest) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    if !db.check_user_admin(&username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have admin rights".into(),
-        ));
-    }
-
-    Ok(HttpResponse::Ok().json(db.get_groups().await?))
+pub async fn create_group(
+    db: &Data<Surreal<Client>>,
+    wrapper: &IdWrapper<Group>,
+) -> Result<Group, AppError> {
+    db.create(("group", wrapper.id.clone()))
+        .content(wrapper.data.clone())
+        .await
+        .map_err(|err| AppError::Database(format!("{}", err)))?
+        .ok_or(AppError::Database("record is none".into()))
 }
 
-#[get("/api/groups/{id}")]
-pub async fn get_groups_id(
-    db: Data<Database>,
-    req: HttpRequest,
-    path: Path<String>,
-) -> Result<HttpResponse, AppError> {
-    let id = path.into_inner();
-    let username = parse_user_header(req)?;
-    if !db.check_user_admin(&username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have admin rights".into(),
-        ));
-    }
-
-    Ok(HttpResponse::Ok().json(db.get_group(&id).await?))
+pub async fn create_groups(
+    db: &Data<Surreal<Client>>,
+    groups: &Vec<IdWrapper<Group>>,
+) -> Result<Vec<Group>, AppError> {
+    let tmp1 = groups.into_iter().map(|group| create_group(db, &group));
+    join_all(tmp1).await.into_iter().collect()
 }
 
 #[post("/api/groups")]
 pub async fn post_groups(
-    db: Data<Database>,
     req: HttpRequest,
-    groups: Json<Vec<Group>>,
+    groups: Json<Vec<IdWrapper<Group>>>,
+    db: Data<Surreal<Client>>,
 ) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    if !db.check_user_admin(&username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have admin rights".into(),
-        ));
-    }
-    Ok(HttpResponse::Ok().json(db.add_groups(&groups).await?))
-}
-
-#[get("/api/users")]
-pub async fn get_users(db: Data<Database>, req: HttpRequest) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    if !db.check_user_admin(&username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have admin rights".into(),
-        ));
-    }
-
-    Ok(HttpResponse::Ok().json(db.get_users().await?))
-}
-
-#[get("/api/users/{id}")]
-pub async fn get_users_id(
-    db: Data<Database>,
-    req: HttpRequest,
-    path: Path<String>,
-) -> Result<HttpResponse, AppError> {
-    let id = path.into_inner();
-    let username = parse_user_header(req)?;
-    if !db.check_user_admin(&username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have admin rights".into(),
-        ));
-    }
-
-    Ok(HttpResponse::Ok().json(db.get_user(&id).await?))
-}
-
-#[post("/api/users")]
-pub async fn post_users(
-    db: Data<Database>,
-    req: HttpRequest,
-    users: Json<Vec<UserGroupsId>>,
-) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    if !db.check_user_admin(&username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have admin rights".into(),
-        ));
-    }
-    Ok(HttpResponse::Ok().json(db.add_users(&users).await?))
-}
-
-#[get("/api/blobs/{id}")]
-pub async fn get_blobs_id(
-    db: Data<Database>,
-    req: HttpRequest,
-    path: Path<String>,
-) -> Result<NamedFile, AppError> {
-    let id = path.into_inner();
-    let username = parse_user_header(req)?;
-    let blob = db.get_blob(&username, &id).await?;
-    let root_path = PathBuf::from(std::env::var("BLOB_DIR").unwrap_or("blobs".into()));
-    let file_path = PathBuf::from(blob.file_name()?);
-    let path = root_path.join(file_path);
-    Ok(NamedFile::open(path).map_err(|err| AppError::Filesystem(format!("{}", err)))?)
-}
-
-#[get("/api/blobs/metadata")]
-pub async fn get_blobs_metadata(
-    db: Data<Database>,
-    req: HttpRequest,
-) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    Ok(HttpResponse::Ok().json(db.get_blobs(&username).await?))
-}
-
-#[get("/api/blobs/metadata/{id}")]
-pub async fn get_blobs_metadata_id(
-    db: Data<Database>,
-    req: HttpRequest,
-    path: Path<String>,
-) -> Result<HttpResponse, AppError> {
-    let id = path.into_inner();
-    let username = parse_user_header(req)?;
-    Ok(HttpResponse::Ok().json(db.get_blob(&username, &id).await?))
-}
-
-#[post("/api/blobs/metadata")]
-pub async fn post_blobs_metadata(
-    db: Data<Database>,
-    req: HttpRequest,
-    blobs: Json<Vec<Blob>>,
-) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    if !db.check_user_admin(&username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have admin rights".into(),
-        ));
-    }
-    Ok(HttpResponse::Ok().json(db.add_blobs(&blobs).await?))
-}
-
-#[post("/api/blobs/metadata/update/ocr")]
-pub async fn post_blobs_metadata_update_ocr(
-    db: Data<Database>,
-    req: HttpRequest,
-    blob_ocr_update: Json<Vec<BlobOcrUpdate>>,
-) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    if !db.check_user_admin(&username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have admin rights".into(),
-        ));
-    }
-    Ok(HttpResponse::Ok().json(db.update_blobs_ocr(&blob_ocr_update).await?))
-}
-
-#[get("/api/songs")]
-pub async fn get_songs(db: Data<Database>, req: HttpRequest) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    Ok(HttpResponse::Ok().json(db.get_songs(&username).await?))
-}
-
-#[get("/api/songs/{id}")]
-pub async fn get_songs_id(
-    db: Data<Database>,
-    req: HttpRequest,
-    path: Path<String>,
-) -> Result<HttpResponse, AppError> {
-    let id = path.into_inner();
-    let username = parse_user_header(req)?;
-    Ok(HttpResponse::Ok().json(db.get_song(&username, &id).await?))
-}
-
-#[post("/api/songs")]
-pub async fn post_songs(
-    db: Data<Database>,
-    req: HttpRequest,
-    songs: Json<Vec<Song>>,
-) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    if !db.check_user_admin(&username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have admin rights".into(),
-        ));
-    }
-    Ok(HttpResponse::Ok().json(db.add_songs(&songs).await?))
-}
-
-#[post("/api/songs/update/title")]
-pub async fn post_songs_update_title(
-    db: Data<Database>,
-    req: HttpRequest,
-    title_update: Json<Vec<SongTitleUpdate>>,
-) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    if !db.check_user_admin(&username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have admin rights".into(),
-        ));
-    }
-    Ok(HttpResponse::Ok().json(db.update_songs_title(&title_update).await?))
-}
-
-#[post("/api/collections")]
-pub async fn post_collections(
-    db: Data<Database>,
-    req: HttpRequest,
-    collections: Json<Vec<Collection>>,
-) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    if !db.check_user_admin(&username).await? {
-        return Err(AppError::Unauthorized(
-            "user doesn't have admin rights".into(),
-        ));
-    }
-    Ok(HttpResponse::Ok().json(db.add_collections(&collections).await?))
-}
-
-#[get("/api/collections")]
-pub async fn get_collections(
-    db: Data<Database>,
-    req: HttpRequest,
-) -> Result<HttpResponse, AppError> {
-    let username = parse_user_header(req)?;
-    Ok(HttpResponse::Ok().json(db.get_collections(&username).await?))
-}
-
-#[get("/api/collections/{id}")]
-pub async fn get_collections_id(
-    db: Data<Database>,
-    req: HttpRequest,
-    path: Path<String>,
-) -> Result<HttpResponse, AppError> {
-    let id = path.into_inner();
-    let username = parse_user_header(req)?;
-    Ok(HttpResponse::Ok().json(db.get_collection(&username, &id).await?))
-}
-
-#[get("/api/player/{id}")]
-pub async fn get_player(
-    db: Data<Database>,
-    req: HttpRequest,
-    path: Path<String>,
-) -> Result<HttpResponse, AppError> {
-    let id = path.into_inner();
-    let username = parse_user_header(req)?;
-    if id.starts_with("song:") {
-        Ok(HttpResponse::Ok().json(
-            db.get_song(&username, &id)
-                .await?
-                .to_player()
-                .map_err(|err| AppError::Other(err))?,
-        ))
-    } else if id.starts_with("collection:") {
-        Ok(HttpResponse::Ok().json(
-            db.get_collection_fetched_songs(&username, &id)
-                .await?
-                .to_player()?,
-        ))
-    } else {
-        Err(AppError::NotFound(format!(
-            "Can not create player for id {}",
-            id
-        )))
-    }
+    exspect_admin(&parse_user_header(req)?)?;
+    Ok(HttpResponse::Ok().json(create_groups(&db, &groups).await?))
 }
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    env_logger::init_from_env(Env::default().default_filter_or("info"));
+async fn main() {
+    env_logger::init_from_env(Env::default().default_filter_or("debug"));
 
-    let port = std::env::var("PORT")
-        .unwrap_or("8082".into())
-        .parse::<u16>()
-        .unwrap_or(8082);
+    let settings = Settings::new();
 
-    let db_host = std::env::var("DB_HOST").unwrap_or("localhost".into());
-
-    let db_port = std::env::var("DB_PORT")
-        .unwrap_or("8000".into())
-        .parse::<u16>()
-        .unwrap_or(8000);
-
-    let db_user = std::env::var("DB_USER").unwrap_or("root".into());
-
-    let db_password = std::env::var("DB_PASSWORD").unwrap_or("root".into());
-
-    let db_namespace = std::env::var("DB_NAMESPACE").unwrap_or("test".into());
-
-    let db_database = std::env::var("DB_DATABASE").unwrap_or("test".into());
-
-    let database = Data::new(
-        Database::new(
-            &db_host,
-            db_port,
-            &db_user,
-            &db_password,
-            &db_namespace,
-            &db_database,
-        )
+    let database = Surreal::new::<Ws>(format!("{}:{}", settings.db_host, settings.db_port))
         .await
-        .unwrap(),
-    );
+        .unwrap();
+    database
+        .signin(Root {
+            username: &settings.db_user,
+            password: &settings.db_password,
+        })
+        .await
+        .unwrap();
+    database
+        .use_ns(settings.db_namespace)
+        .use_db(settings.db_database)
+        .await
+        .unwrap();
+    let database = Data::new(database);
 
     HttpServer::new(move || {
         let database = database.clone();
-        App::new()
-            .app_data(database)
-            .service(get_groups)
-            .service(get_groups_id)
-            .service(post_groups)
-            .service(get_users)
-            .service(get_users_id)
-            .service(post_users)
-            .service(get_blobs_metadata)
-            .service(get_blobs_metadata_id)
-            .service(post_blobs_metadata)
-            .service(post_blobs_metadata_update_ocr)
-            .service(get_blobs_id)
-            .service(get_songs)
-            .service(get_songs_id)
-            .service(post_songs)
-            .service(post_songs_update_title)
-            .service(get_collections)
-            .service(get_collections_id)
-            .service(post_collections)
-            .service(get_player)
-            .service(index)
-            .service(static_files)
-            .wrap(Logger::default())
+        App::new().app_data(database).service(post_groups)
     })
-    .bind(("0.0.0.0", port))?
+    .bind((settings.host, settings.port))
+    .unwrap()
     .run()
     .await
+    .unwrap()
 }
