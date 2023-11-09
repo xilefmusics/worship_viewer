@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct Settings {
     pub db_host: String,
     pub db_port: u16,

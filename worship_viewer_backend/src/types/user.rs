@@ -7,18 +7,20 @@ use surrealdb::opt::RecordId;
 use surrealdb::sql::Id;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Group {
+pub struct User {
     pub id: String,
     pub name: String,
+    pub groups: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GroupDatabase {
+pub struct UserDatabase {
     pub id: RecordId,
     pub name: String,
+    pub groups: Vec<String>,
 }
 
-impl IdGetter for GroupDatabase {
+impl IdGetter for UserDatabase {
     fn get_id_first(&self) -> String {
         self.id.tb.clone()
     }
@@ -30,21 +32,22 @@ impl IdGetter for GroupDatabase {
     }
 }
 
-impl Into<Group> for GroupDatabase {
-    fn into(self) -> Group {
-        Group {
+impl Into<User> for UserDatabase {
+    fn into(self) -> User {
+        User {
             id: self.get_id_full(),
             name: self.name,
+            groups: self.groups,
         }
     }
 }
 
-impl TryFrom<Group> for GroupDatabase {
+impl TryFrom<User> for UserDatabase {
     type Error = AppError;
 
-    fn try_from(other: Group) -> Result<Self, Self::Error> {
+    fn try_from(other: User) -> Result<Self, Self::Error> {
         let mut iter = other.id.split(":");
-        Ok(GroupDatabase {
+        Ok(UserDatabase {
             id: RecordId {
                 tb: iter
                     .next()
@@ -57,6 +60,7 @@ impl TryFrom<Group> for GroupDatabase {
                 ),
             },
             name: other.name,
+            groups: other.groups,
         })
     }
 }
