@@ -1,6 +1,8 @@
+mod blob;
 mod group;
 mod user;
 
+pub use blob::{Blob, BlobDatabase};
 pub use group::{Group, GroupDatabase};
 pub use user::{User, UserDatabase};
 
