@@ -60,21 +60,35 @@ impl Database {
             .collect()
     }
 
-    pub async fn select_all_with_pagination<
-        T: Serialize + DeserializeOwned + Clone + std::fmt::Debug,
-    >(
+    pub async fn select<T: Serialize + DeserializeOwned + Clone + std::fmt::Debug>(
         &self,
         table: &str,
-        page: usize,
-        page_size: usize,
+        page: Option<usize>,
+        page_size: Option<usize>,
+        user: Option<&str>,
     ) -> Result<Vec<T>, AppError> {
+        let mut query = "Select * FROM type::table($table)".to_string();
+
+        let limit = page_size.unwrap_or(0);
+        if limit > 0 {
+            query += " LIMIT type::int($limit)"
+        }
+
+        let start = limit * page.unwrap_or(0);
+        if start > 0 {
+            query += " START type::int($start)"
+        }
+
+        let user = user.unwrap_or("");
+        if user != "" {
+            query += &format!(" WHERE group in type::thing(user:{}).groups", user);
+        }
+
         self.client
-            .query(
-                "SELECT * FROM type::table($table) LIMIT type::int($limit) START type::int($start)",
-            )
+            .query(dbg!(query))
             .bind(("table", table))
-            .bind(("limit", page_size))
-            .bind(("start", page_size * page))
+            .bind(("limit", limit))
+            .bind(("start", start))
             .await
             .map_err(|err| AppError::Database(format!("{}", err)))?
             .take(0)

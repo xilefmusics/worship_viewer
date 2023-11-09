@@ -27,6 +27,8 @@ async fn main() {
             .service(post::groups)
             .service(get::users)
             .service(post::users)
+            .service(get::blobs_metadata)
+            .service(post::blobs_metadata)
     })
     .bind((settings.host, settings.port))
     .unwrap()

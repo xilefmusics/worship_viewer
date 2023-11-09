@@ -6,6 +6,7 @@ use std::convert::TryFrom;
 use surrealdb::opt::RecordId;
 use surrealdb::sql::Id;
 
+// TODO: Create Admin user on start
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct User {
     pub id: String,

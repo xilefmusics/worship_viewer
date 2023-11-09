@@ -1,6 +1,6 @@
 use crate::database::Database;
 use crate::rest::helper::{expect_admin, parse_user_header};
-use crate::types::{Group, GroupDatabase, User, UserDatabase};
+use crate::types::{Blob, BlobDatabase, Group, GroupDatabase, User, UserDatabase};
 use crate::AppError;
 
 use actix_web::{post, web::Data, web::Json, HttpRequest, HttpResponse};
@@ -48,5 +48,28 @@ pub async fn users(
         .into_iter()
         .map(|user| user.into())
         .collect::<Vec<User>>(),
+    ))
+}
+
+#[post("/api/blobs/metadata")]
+pub async fn blobs_metadata(
+    req: HttpRequest,
+    blobs: Json<Vec<Blob>>,
+    db: Data<Database>,
+) -> Result<HttpResponse, AppError> {
+    expect_admin(&parse_user_header(req)?)?;
+    Ok(HttpResponse::Ok().json(
+        db.create_vec(
+            "blob",
+            blobs
+                .clone()
+                .into_iter()
+                .map(|blob| BlobDatabase::try_from(blob))
+                .collect::<Result<Vec<BlobDatabase>, AppError>>()?,
+        )
+        .await?
+        .into_iter()
+        .map(|blob| blob.into())
+        .collect::<Vec<Blob>>(),
     ))
 }
