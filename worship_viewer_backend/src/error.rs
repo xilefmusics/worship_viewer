@@ -5,8 +5,8 @@ use std::fmt;
 #[derive(Debug)]
 pub enum AppError {
     Database(String),
-    DatabaseMigration(String),
     Unauthorized(String),
+    TypeConvertError(String),
     Filesystem(String),
     NotFound(String),
     Other(String),
@@ -16,8 +16,8 @@ impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Database(message) => write!(f, "DatabaseError ({})", message),
-            Self::DatabaseMigration(message) => write!(f, "DatabaseMigrationError ({})", message),
             Self::Unauthorized(message) => write!(f, "UnauthorizedError ({})", message),
+            Self::TypeConvertError(message) => write!(f, "TypeConvertError ({})", message),
             Self::Filesystem(message) => write!(f, "FilesystemError ({})", message),
             Self::NotFound(message) => write!(f, "NotFoundError ({})", message),
             Self::Other(message) => write!(f, "OtherError ({})", message),
@@ -29,8 +29,8 @@ impl ResponseError for AppError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::DatabaseMigration(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            Self::TypeConvertError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Filesystem(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
@@ -43,11 +43,11 @@ impl ResponseError for AppError {
             Self::Database(_) => {
                 HttpResponse::build(self.status_code()).body("500 Internal Server Error")
             }
-            Self::DatabaseMigration(_) => {
-                HttpResponse::build(self.status_code()).body("500 Internal Server Error")
-            }
             Self::Unauthorized(_) => {
                 HttpResponse::build(self.status_code()).body("401 Unauthorized")
+            }
+            Self::TypeConvertError(_) => {
+                HttpResponse::build(self.status_code()).body("500 Internal Server Error")
             }
             Self::Filesystem(_) => {
                 HttpResponse::build(self.status_code()).body("500 Internal Server Error")
