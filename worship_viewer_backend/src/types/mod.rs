@@ -6,12 +6,14 @@ use crate::AppError;
 mod blob;
 mod collection;
 mod group;
+mod player_data;
 mod song;
 mod user;
 
 pub use blob::{Blob, BlobDatabase};
 pub use collection::{Collection, CollectionDatabase};
 pub use group::{Group, GroupDatabase};
+pub use player_data::{PlayerData, TocItem};
 pub use song::{Song, SongDatabase};
 pub use user::{User, UserDatabase};
 
