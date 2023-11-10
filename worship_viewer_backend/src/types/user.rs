@@ -1,3 +1,4 @@
+use crate::database::Database;
 use crate::error::AppError;
 use crate::types::{record2string, string2record, IdGetter};
 
@@ -17,6 +18,23 @@ pub struct UserDatabase {
     pub id: RecordId,
     pub name: String,
     pub groups: Vec<RecordId>,
+}
+
+impl UserDatabase {
+    pub async fn select(
+        db: &Database,
+        page: Option<usize>,
+        page_size: Option<usize>,
+        user: Option<&str>,
+        id: Option<&str>,
+    ) -> Result<Vec<User>, AppError> {
+        Ok(db
+            .select::<Self>("user", page, page_size, user, id)
+            .await?
+            .into_iter()
+            .map(|user| user.into())
+            .collect::<Vec<User>>())
+    }
 }
 
 impl IdGetter for UserDatabase {

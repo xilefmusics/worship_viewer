@@ -1,3 +1,4 @@
+use crate::database::Database;
 use crate::error::AppError;
 use crate::types::{record2string, string2record, IdGetter};
 
@@ -23,6 +24,23 @@ pub struct CollectionDatabase {
     pub cover: RecordId,
     pub group: RecordId,
     pub tags: Vec<String>,
+}
+
+impl CollectionDatabase {
+    pub async fn select(
+        db: &Database,
+        page: Option<usize>,
+        page_size: Option<usize>,
+        user: Option<&str>,
+        id: Option<&str>,
+    ) -> Result<Vec<Collection>, AppError> {
+        Ok(db
+            .select::<Self>("collection", page, page_size, user, id)
+            .await?
+            .into_iter()
+            .map(|song| song.into())
+            .collect::<Vec<Collection>>())
+    }
 }
 
 impl IdGetter for CollectionDatabase {
