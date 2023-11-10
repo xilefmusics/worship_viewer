@@ -66,6 +66,22 @@ impl BlobDatabase {
             .map(|blob| blob.into())
             .collect::<Vec<Blob>>())
     }
+
+    pub async fn create(db: &Database, blobs: Vec<Blob>) -> Result<Vec<Blob>, AppError> {
+        Ok(db
+            .create_vec(
+                "blob",
+                blobs
+                    .clone()
+                    .into_iter()
+                    .map(|blob| BlobDatabase::try_from(blob))
+                    .collect::<Result<Vec<BlobDatabase>, AppError>>()?,
+            )
+            .await?
+            .into_iter()
+            .map(|blob| blob.into())
+            .collect::<Vec<Blob>>())
+    }
 }
 
 impl IdGetter for BlobDatabase {
