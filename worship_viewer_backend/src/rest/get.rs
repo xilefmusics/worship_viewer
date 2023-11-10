@@ -1,9 +1,6 @@
 use crate::database::Database;
 use crate::rest::helper::{expect_admin, parse_user_header};
-use crate::types::{
-    Blob, BlobDatabase, Collection, CollectionDatabase, Group, GroupDatabase, Song, SongDatabase,
-    User, UserDatabase,
-};
+use crate::types::{BlobDatabase, CollectionDatabase, GroupDatabase, SongDatabase, UserDatabase};
 use crate::AppError;
 
 use actix_files::NamedFile;
@@ -37,25 +34,14 @@ pub async fn groups_id(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(
-        db.select::<GroupDatabase>("group", None, None, None, Some(&id.into_inner()))
-            .await?
-            .into_iter()
-            .map(|group| group.into())
-            .collect::<Vec<Group>>(),
-    ))
+    Ok(HttpResponse::Ok()
+        .json(GroupDatabase::select(&db, None, None, None, Some(&id.into_inner())).await?))
 }
 
 #[get("/api/groups")]
 pub async fn groups(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(
-        db.select::<GroupDatabase>("group", None, None, None, None)
-            .await?
-            .into_iter()
-            .map(|group| group.into())
-            .collect::<Vec<Group>>(),
-    ))
+    Ok(HttpResponse::Ok().json(GroupDatabase::select(&db, None, None, None, None).await?))
 }
 
 #[get("/api/users/{id:user.*}")]
@@ -65,25 +51,14 @@ pub async fn users_id(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(
-        db.select::<UserDatabase>("user", None, None, None, Some(&id.into_inner()))
-            .await?
-            .into_iter()
-            .map(|user| user.into())
-            .collect::<Vec<User>>(),
-    ))
+    Ok(HttpResponse::Ok()
+        .json(UserDatabase::select(&db, None, None, None, Some(&id.into_inner())).await?))
 }
 
 #[get("/api/users")]
 pub async fn users(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(
-        db.select::<UserDatabase>("user", None, None, None, None)
-            .await?
-            .into_iter()
-            .map(|user| user.into())
-            .collect::<Vec<User>>(),
-    ))
+    Ok(HttpResponse::Ok().json(UserDatabase::select(&db, None, None, None, None).await?))
 }
 
 #[get("/api/blobs/{id:blob.*}")]
@@ -92,18 +67,19 @@ pub async fn blobs_id(
     req: HttpRequest,
     id: Path<String>,
 ) -> Result<NamedFile, AppError> {
-    let user = parse_user_header(req)?;
     Ok(NamedFile::open(
         PathBuf::from(std::env::var("BLOB_DIR").unwrap_or("blobs".into())).join(PathBuf::from(
-            dbg!(db
-                .select::<BlobDatabase>("blob", None, None, Some(&user), Some(&id.into_inner()))
-                .await?
-                .into_iter()
-                .map(|blob| blob.into())
-                .collect::<Vec<Blob>>()
-                .get(0)
-                .ok_or(AppError::NotFound("blob not found".into()))?
-                .file_name()?),
+            BlobDatabase::select(
+                &db,
+                None,
+                None,
+                Some(&parse_user_header(req)?),
+                Some(&id.into_inner()),
+            )
+            .await?
+            .get(0)
+            .ok_or(AppError::NotFound("blob not found".into()))?
+            .file_name()?,
         )),
     )
     .map_err(|err| AppError::Filesystem(format!("{}", err)))?)
@@ -115,13 +91,15 @@ pub async fn blobs_metadata_id(
     db: Data<Database>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let user = &parse_user_header(req)?;
     Ok(HttpResponse::Ok().json(
-        db.select::<BlobDatabase>("blob", None, None, Some(user), Some(&id.into_inner()))
-            .await?
-            .into_iter()
-            .map(|blob| blob.into())
-            .collect::<Vec<Blob>>(),
+        BlobDatabase::select(
+            &db,
+            None,
+            None,
+            Some(&parse_user_header(req)?),
+            Some(&id.into_inner()),
+        )
+        .await?,
     ))
 }
 
@@ -130,14 +108,8 @@ pub async fn blobs_metadata(
     req: HttpRequest,
     db: Data<Database>,
 ) -> Result<HttpResponse, AppError> {
-    let user = &parse_user_header(req)?;
-    Ok(HttpResponse::Ok().json(
-        db.select::<BlobDatabase>("blob", None, None, Some(user), None)
-            .await?
-            .into_iter()
-            .map(|blob| blob.into())
-            .collect::<Vec<Blob>>(),
-    ))
+    Ok(HttpResponse::Ok()
+        .json(BlobDatabase::select(&db, None, None, Some(&parse_user_header(req)?), None).await?))
 }
 
 #[get("/api/songs/{id:song.*}")]
@@ -146,26 +118,22 @@ pub async fn songs_id(
     db: Data<Database>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let user = &parse_user_header(req)?;
     Ok(HttpResponse::Ok().json(
-        db.select::<SongDatabase>("song", None, None, Some(user), Some(&id.into_inner()))
-            .await?
-            .into_iter()
-            .map(|song| song.into())
-            .collect::<Vec<Song>>(),
+        SongDatabase::select(
+            &db,
+            None,
+            None,
+            Some(&parse_user_header(req)?),
+            Some(&id.into_inner()),
+        )
+        .await?,
     ))
 }
 
 #[get("/api/songs")]
 pub async fn songs(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
-    let user = &parse_user_header(req)?;
-    Ok(HttpResponse::Ok().json(
-        db.select::<SongDatabase>("song", None, None, Some(user), None)
-            .await?
-            .into_iter()
-            .map(|song| song.into())
-            .collect::<Vec<Song>>(),
-    ))
+    Ok(HttpResponse::Ok()
+        .json(SongDatabase::select(&db, None, None, Some(&parse_user_header(req)?), None).await?))
 }
 
 #[get("/api/collections/{id:collection.*}")]
@@ -174,31 +142,22 @@ pub async fn collections_id(
     db: Data<Database>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let user = &parse_user_header(req)?;
     Ok(HttpResponse::Ok().json(
-        db.select::<CollectionDatabase>(
-            "collection",
+        CollectionDatabase::select(
+            &db,
             None,
             None,
-            Some(user),
+            Some(&parse_user_header(req)?),
             Some(&id.into_inner()),
         )
-        .await?
-        .into_iter()
-        .map(|collection| collection.into())
-        .collect::<Vec<Collection>>(),
+        .await?,
     ))
 }
 
 #[get("/api/collections")]
 pub async fn collections(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
-    let user = &parse_user_header(req)?;
     Ok(HttpResponse::Ok().json(
-        db.select::<CollectionDatabase>("collection", None, None, Some(user), None)
-            .await?
-            .into_iter()
-            .map(|collection| collection.into())
-            .collect::<Vec<Collection>>(),
+        CollectionDatabase::select(&db, None, None, Some(&parse_user_header(req)?), None).await?,
     ))
 }
 
@@ -208,17 +167,19 @@ pub async fn player_id_song(
     db: Data<Database>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let user = &parse_user_header(req)?;
     Ok(HttpResponse::Ok().json(
-        db.select::<SongDatabase>("song", None, None, Some(user), Some(&id.into_inner()))
-            .await?
-            .into_iter()
-            .map(|song| song.into())
-            .collect::<Vec<Song>>()
-            .get(0)
-            .ok_or(AppError::NotFound("song not found".into()))?
-            .clone()
-            .to_player_data()
-            .map_err(|error| AppError::Other(error))?,
+        SongDatabase::select(
+            &db,
+            None,
+            None,
+            Some(&parse_user_header(req)?),
+            Some(&id.into_inner()),
+        )
+        .await?
+        .get(0)
+        .ok_or(AppError::NotFound("song not found".into()))?
+        .clone()
+        .to_player_data()
+        .map_err(|error| AppError::Other(error))?,
     ))
 }

@@ -1,7 +1,7 @@
 use surrealdb::opt::RecordId;
 use surrealdb::sql::Id;
 
-use crate::AppError;
+use crate::error::AppError;
 
 mod blob;
 mod collection;

@@ -1,3 +1,4 @@
+use crate::database::Database;
 use crate::error::AppError;
 use crate::types::{record2string, string2record, IdGetter};
 
@@ -48,6 +49,23 @@ pub struct BlobDatabase {
     pub ocr: String,
     pub group: RecordId,
     pub tags: Vec<String>,
+}
+
+impl BlobDatabase {
+    pub async fn select(
+        db: &Database,
+        page: Option<usize>,
+        page_size: Option<usize>,
+        user: Option<&str>,
+        id: Option<&str>,
+    ) -> Result<Vec<Blob>, AppError> {
+        Ok(db
+            .select::<Self>("blob", page, page_size, user, id)
+            .await?
+            .into_iter()
+            .map(|blob| blob.into())
+            .collect::<Vec<Blob>>())
+    }
 }
 
 impl IdGetter for BlobDatabase {
