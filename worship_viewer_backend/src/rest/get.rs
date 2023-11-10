@@ -201,3 +201,24 @@ pub async fn collections(req: HttpRequest, db: Data<Database>) -> Result<HttpRes
             .collect::<Vec<Collection>>(),
     ))
 }
+
+#[get("/api/player/{id:song.*}")]
+pub async fn player_id_song(
+    req: HttpRequest,
+    db: Data<Database>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    let user = &parse_user_header(req)?;
+    Ok(HttpResponse::Ok().json(
+        db.select::<SongDatabase>("song", None, None, Some(user), Some(&id.into_inner()))
+            .await?
+            .into_iter()
+            .map(|song| song.into())
+            .collect::<Vec<Song>>()
+            .get(0)
+            .ok_or(AppError::NotFound("song not found".into()))?
+            .clone()
+            .to_player_data()
+            .map_err(|error| AppError::Other(error))?,
+    ))
+}

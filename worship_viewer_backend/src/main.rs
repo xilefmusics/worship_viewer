@@ -39,6 +39,7 @@ async fn main() {
             .service(get::collections_id)
             .service(get::collections)
             .service(post::collections)
+            .service(get::player_id_song)
             .service(get::index)
             .service(get::static_files)
     })

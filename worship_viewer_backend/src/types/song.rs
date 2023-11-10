@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::types::{record2string, string2record, IdGetter};
+use crate::types::{record2string, string2record, IdGetter, PlayerData, TocItem};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -82,6 +82,24 @@ pub struct Song {
     pub collection: String,
     pub group: String,
     pub tags: Vec<String>,
+}
+
+impl Song {
+    pub fn to_player_data(self) -> Result<PlayerData, String> {
+        Ok(PlayerData {
+            data: self.blobs,
+            toc: if self.not_a_song {
+                vec![]
+            } else {
+                vec![TocItem {
+                    idx: 0,
+                    title: self.title,
+                    nr: self.nr,
+                    song: self.id,
+                }]
+            },
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
