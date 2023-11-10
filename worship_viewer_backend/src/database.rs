@@ -66,6 +66,7 @@ impl Database {
         page: Option<usize>,
         page_size: Option<usize>,
         user: Option<&str>,
+        id: Option<&str>,
     ) -> Result<Vec<T>, AppError> {
         let mut query = "Select * FROM type::table($table)".to_string();
 
@@ -82,6 +83,13 @@ impl Database {
         let user = user.unwrap_or("");
         if user != "" {
             query += &format!(" WHERE group in type::thing(user:{}).groups", user);
+        }
+
+        let id = id.unwrap_or("");
+        if user != "" && id != "" {
+            query += &format!(" AND id == type::thing({})", id);
+        } else if id != "" {
+            query += &format!(" WHERE id == type::thing({})", id);
         }
 
         self.client
