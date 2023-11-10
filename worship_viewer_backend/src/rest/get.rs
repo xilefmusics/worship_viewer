@@ -1,7 +1,7 @@
 use crate::database::Database;
 use crate::rest::helper::{expect_admin, parse_user_header};
 use crate::types::{
-    BlobDatabase, CollectionDatabase, GroupDatabase, PlayerData, SongDatabase, UserDatabase,
+    BlobDatabase, CollectionDatabase, GroupDatabase, PlayerData, Song, SongDatabase, UserDatabase,
 };
 use crate::AppError;
 
@@ -198,4 +198,25 @@ pub async fn player_id_song(
         .ok_or(AppError::NotFound("song not found".into()))?
         .clone(),
     )?))
+}
+
+#[get("/api/player/{id:collection.*}")]
+pub async fn player_id_collection(
+    req: HttpRequest,
+    db: Data<Database>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(
+        SongDatabase::select_collection(
+            &db,
+            Some(&parse_user_header(req)?),
+            Some(&id.into_inner()),
+        )
+        .await?
+        .into_iter()
+        .map(|song| PlayerData::try_from(song))
+        .try_fold(PlayerData::default(), |acc, result| {
+            Ok::<PlayerData, AppError>(acc + result?)
+        })?,
+    ))
 }

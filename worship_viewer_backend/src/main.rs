@@ -24,6 +24,7 @@ async fn main() {
         App::new()
             .app_data(database)
             .service(get::groups_id)
+            // TODO: get::groups_id_users
             .service(get::groups)
             .service(post::groups)
             .service(get::users_id)
@@ -31,6 +32,7 @@ async fn main() {
             .service(post::users)
             .service(get::blobs_id)
             .service(get::blobs_metadata_id)
+            // TODO: get::blobs_metadata_id_song
             .service(get::blobs_metadata)
             .service(post::blobs_metadata)
             .service(get::songs_id)
@@ -41,6 +43,7 @@ async fn main() {
             .service(get::collections)
             .service(post::collections)
             .service(get::player_id_song)
+            .service(get::player_id_collection)
             .service(get::index)
             .service(get::static_files)
     })
