@@ -1,7 +1,8 @@
 use crate::database::Database;
 use crate::rest::helper::{expect_admin, parse_user_header};
 use crate::types::{
-    Blob, BlobDatabase, Group, GroupDatabase, Song, SongDatabase, User, UserDatabase,
+    Blob, BlobDatabase, Collection, CollectionDatabase, Group, GroupDatabase, Song, SongDatabase,
+    User, UserDatabase,
 };
 use crate::AppError;
 
@@ -96,5 +97,28 @@ pub async fn songs(
         .into_iter()
         .map(|song| song.into())
         .collect::<Vec<Song>>(),
+    ))
+}
+
+#[post("/api/collections")]
+pub async fn collections(
+    req: HttpRequest,
+    collections: Json<Vec<Collection>>,
+    db: Data<Database>,
+) -> Result<HttpResponse, AppError> {
+    expect_admin(&parse_user_header(req)?)?;
+    Ok(HttpResponse::Ok().json(
+        db.create_vec(
+            "collection",
+            collections
+                .clone()
+                .into_iter()
+                .map(|collection| CollectionDatabase::try_from(collection))
+                .collect::<Result<Vec<CollectionDatabase>, AppError>>()?,
+        )
+        .await?
+        .into_iter()
+        .map(|collection| collection.into())
+        .collect::<Vec<Collection>>(),
     ))
 }
