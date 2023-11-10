@@ -1,12 +1,10 @@
 use crate::error::AppError;
-use crate::types::IdGetter;
+use crate::types::{string2record, IdGetter};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use surrealdb::opt::RecordId;
-use surrealdb::sql::Id;
 
-// TODO: Create Admin user on start
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct User {
     pub id: String,
@@ -18,7 +16,7 @@ pub struct User {
 pub struct UserDatabase {
     pub id: RecordId,
     pub name: String,
-    pub groups: Vec<String>,
+    pub groups: Vec<RecordId>,
 }
 
 impl IdGetter for UserDatabase {
@@ -38,7 +36,11 @@ impl Into<User> for UserDatabase {
         User {
             id: self.get_id_full(),
             name: self.name,
-            groups: self.groups,
+            groups: self
+                .groups
+                .iter()
+                .map(|group| format!("{}:{}", group.tb, group.id.to_string()))
+                .collect(),
         }
     }
 }
@@ -47,21 +49,14 @@ impl TryFrom<User> for UserDatabase {
     type Error = AppError;
 
     fn try_from(other: User) -> Result<Self, Self::Error> {
-        let mut iter = other.id.split(":");
         Ok(UserDatabase {
-            id: RecordId {
-                tb: iter
-                    .next()
-                    .ok_or(AppError::TypeConvertError("id has no table".into()))?
-                    .to_string(),
-                id: Id::String(
-                    iter.next()
-                        .ok_or(AppError::TypeConvertError("id has no record id".into()))?
-                        .to_string(),
-                ),
-            },
+            id: string2record(&other.id)?,
             name: other.name,
-            groups: other.groups,
+            groups: other
+                .groups
+                .iter()
+                .map(|group| string2record(group))
+                .collect::<Result<Vec<RecordId>, AppError>>()?,
         })
     }
 }
