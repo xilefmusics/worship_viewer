@@ -1,6 +1,8 @@
 use crate::database::Database;
 use crate::rest::helper::{expect_admin, parse_user_header};
-use crate::types::{BlobDatabase, CollectionDatabase, GroupDatabase, SongDatabase, UserDatabase};
+use crate::types::{
+    BlobDatabase, CollectionDatabase, GroupDatabase, PlayerData, SongDatabase, UserDatabase,
+};
 use crate::AppError;
 
 use actix_files::NamedFile;
@@ -130,6 +132,22 @@ pub async fn songs_id(
     ))
 }
 
+#[get("/api/songs/{id:collection.*}")]
+pub async fn songs_id_collection(
+    req: HttpRequest,
+    db: Data<Database>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(
+        SongDatabase::select_collection(
+            &db,
+            Some(&parse_user_header(req)?),
+            Some(&id.into_inner()),
+        )
+        .await?,
+    ))
+}
+
 #[get("/api/songs")]
 pub async fn songs(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok()
@@ -167,7 +185,7 @@ pub async fn player_id_song(
     db: Data<Database>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(
+    Ok(HttpResponse::Ok().json(PlayerData::try_from(
         SongDatabase::select(
             &db,
             None,
@@ -178,8 +196,6 @@ pub async fn player_id_song(
         .await?
         .get(0)
         .ok_or(AppError::NotFound("song not found".into()))?
-        .clone()
-        .to_player_data()
-        .map_err(|error| AppError::Other(error))?,
-    ))
+        .clone(),
+    )?))
 }

@@ -34,6 +34,7 @@ async fn main() {
             .service(get::blobs_metadata)
             .service(post::blobs_metadata)
             .service(get::songs_id)
+            .service(get::songs_id_collection)
             .service(get::songs)
             .service(post::songs)
             .service(get::collections_id)

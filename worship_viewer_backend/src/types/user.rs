@@ -29,7 +29,7 @@ impl UserDatabase {
         id: Option<&str>,
     ) -> Result<Vec<User>, AppError> {
         Ok(db
-            .select::<Self>("user", page, page_size, user, id)
+            .select::<Self>("user", page, page_size, user, id, None)
             .await?
             .into_iter()
             .map(|user| user.into())

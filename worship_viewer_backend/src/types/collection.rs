@@ -35,7 +35,7 @@ impl CollectionDatabase {
         id: Option<&str>,
     ) -> Result<Vec<Collection>, AppError> {
         Ok(db
-            .select::<Self>("collection", page, page_size, user, id)
+            .select::<Self>("collection", page, page_size, user, id, None)
             .await?
             .into_iter()
             .map(|song| song.into())

@@ -27,7 +27,7 @@ impl GroupDatabase {
         id: Option<&str>,
     ) -> Result<Vec<Group>, AppError> {
         Ok(db
-            .select::<Self>("group", page, page_size, user, id)
+            .select::<Self>("group", page, page_size, user, id, None)
             .await?
             .into_iter()
             .map(|user| user.into())

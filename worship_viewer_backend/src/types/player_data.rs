@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 use std::ops::Add;
+
+use crate::error::AppError;
+use crate::types::Song;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 pub struct TocItem {
@@ -56,5 +60,25 @@ impl Add for PlayerData {
                 )
                 .collect::<Vec<String>>(),
         }
+    }
+}
+
+impl TryFrom<Song> for PlayerData {
+    type Error = AppError;
+
+    fn try_from(song: Song) -> Result<Self, Self::Error> {
+        Ok(Self {
+            data: song.blobs,
+            toc: if song.not_a_song {
+                vec![]
+            } else {
+                vec![TocItem {
+                    idx: 0,
+                    title: song.title,
+                    nr: song.nr,
+                    song: song.id,
+                }]
+            },
+        })
     }
 }

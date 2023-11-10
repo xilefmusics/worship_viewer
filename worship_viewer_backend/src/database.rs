@@ -67,6 +67,7 @@ impl Database {
         page_size: Option<usize>,
         user: Option<&str>,
         id: Option<&str>,
+        fetch: Option<&str>,
     ) -> Result<Vec<T>, AppError> {
         let mut query = "Select * FROM type::table($table)".to_string();
 
@@ -92,8 +93,13 @@ impl Database {
             query += &format!(" WHERE id == type::thing({})", id);
         }
 
+        let fetch = fetch.unwrap_or("");
+        if fetch != "" {
+            query += &format!(" FETCH {}", fetch);
+        }
+
         self.client
-            .query(dbg!(query))
+            .query(query)
             .bind(("table", table))
             .bind(("limit", limit))
             .bind(("start", start))
