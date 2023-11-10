@@ -29,6 +29,8 @@ async fn main() {
             .service(post::users)
             .service(get::blobs_metadata)
             .service(post::blobs_metadata)
+            .service(get::songs)
+            .service(post::songs)
     })
     .bind((settings.host, settings.port))
     .unwrap()

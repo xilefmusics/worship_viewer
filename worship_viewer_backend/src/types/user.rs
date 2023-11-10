@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::types::{string2record, IdGetter};
+use crate::types::{record2string, string2record, IdGetter};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -27,7 +27,7 @@ impl IdGetter for UserDatabase {
         self.id.id.to_string()
     }
     fn get_id_full(&self) -> String {
-        format!("{}:{}", self.get_id_first(), self.get_id_second())
+        record2string(&self.id)
     }
 }
 
@@ -39,7 +39,7 @@ impl Into<User> for UserDatabase {
             groups: self
                 .groups
                 .iter()
-                .map(|group| format!("{}:{}", group.tb, group.id.to_string()))
+                .map(|group| record2string(group))
                 .collect(),
         }
     }
