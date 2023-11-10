@@ -6,7 +6,29 @@ use crate::types::{
 };
 use crate::AppError;
 
+use actix_files::NamedFile;
 use actix_web::{get, web::Data, web::Path, HttpRequest, HttpResponse};
+use std::path::PathBuf;
+
+#[get("/")]
+pub async fn index() -> Result<NamedFile, AppError> {
+    let root_path = PathBuf::from(std::env::var("STATIC_DIR").unwrap_or("static".into()));
+    let file_path = PathBuf::from("index.html");
+    NamedFile::open(root_path.join(file_path)).map_err(|err| AppError::NotFound(err.to_string()))
+}
+
+#[get("/{path}")]
+pub async fn static_files(path: Path<String>) -> Result<NamedFile, AppError> {
+    let root_path = PathBuf::from(std::env::var("STATIC_DIR").unwrap_or("static".into()));
+    let file_path = PathBuf::from(path.into_inner());
+    let path = root_path.join(file_path);
+    if path.extension().is_some() {
+        NamedFile::open(path).map_err(|err| AppError::NotFound(err.to_string()))
+    } else {
+        NamedFile::open(root_path.join("index.html"))
+            .map_err(|err| AppError::NotFound(err.to_string()))
+    }
+}
 
 #[get("/api/groups/{id:group.*}")]
 pub async fn groups_id(
@@ -62,6 +84,29 @@ pub async fn users(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse,
             .map(|user| user.into())
             .collect::<Vec<User>>(),
     ))
+}
+
+#[get("/api/blobs/{id:blob.*}")]
+pub async fn blobs_id(
+    db: Data<Database>,
+    req: HttpRequest,
+    id: Path<String>,
+) -> Result<NamedFile, AppError> {
+    let user = parse_user_header(req)?;
+    Ok(NamedFile::open(
+        PathBuf::from(std::env::var("BLOB_DIR").unwrap_or("blobs".into())).join(PathBuf::from(
+            dbg!(db
+                .select::<BlobDatabase>("blob", None, None, Some(&user), Some(&id.into_inner()))
+                .await?
+                .into_iter()
+                .map(|blob| blob.into())
+                .collect::<Vec<Blob>>()
+                .get(0)
+                .ok_or(AppError::NotFound("blob not found".into()))?
+                .file_name()?),
+        )),
+    )
+    .map_err(|err| AppError::Filesystem(format!("{}", err)))?)
 }
 
 #[get("/api/blobs/metadata/{id:blob.*}")]

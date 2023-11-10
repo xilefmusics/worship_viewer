@@ -33,6 +33,12 @@ pub struct Blob {
     pub tags: Vec<String>,
 }
 
+impl Blob {
+    pub fn file_name(&self) -> Result<String, AppError> {
+        Ok(format!("{}{}", self.id, self.file_type.file_ending(),))
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BlobDatabase {
     pub id: RecordId,
