@@ -1,10 +1,9 @@
 use crate::error::AppError;
-use crate::types::IdGetter;
+use crate::types::{string2record, IdGetter};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use surrealdb::opt::RecordId;
-use surrealdb::sql::Id;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Group {
@@ -43,19 +42,8 @@ impl TryFrom<Group> for GroupDatabase {
     type Error = AppError;
 
     fn try_from(other: Group) -> Result<Self, Self::Error> {
-        let mut iter = other.id.split(":");
         Ok(GroupDatabase {
-            id: RecordId {
-                tb: iter
-                    .next()
-                    .ok_or(AppError::TypeConvertError("id has no table".into()))?
-                    .to_string(),
-                id: Id::String(
-                    iter.next()
-                        .ok_or(AppError::TypeConvertError("id has no record id".into()))?
-                        .to_string(),
-                ),
-            },
+            id: string2record(&other.id)?,
             name: other.name,
         })
     }

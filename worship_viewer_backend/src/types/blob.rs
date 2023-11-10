@@ -1,10 +1,9 @@
 use crate::error::AppError;
-use crate::types::IdGetter;
+use crate::types::{string2record, IdGetter};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use surrealdb::opt::RecordId;
-use surrealdb::sql::Id;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum FileType {
@@ -41,7 +40,7 @@ pub struct BlobDatabase {
     pub width: u32,
     pub height: u32,
     pub ocr: String,
-    pub group: String,
+    pub group: RecordId,
     pub tags: Vec<String>,
 }
 
@@ -65,7 +64,7 @@ impl Into<Blob> for BlobDatabase {
             width: self.width,
             height: self.height,
             ocr: self.ocr,
-            group: self.group,
+            group: format!("{}:{}", self.group.tb, self.group.id.to_string()),
             tags: self.tags,
         }
     }
@@ -75,25 +74,13 @@ impl TryFrom<Blob> for BlobDatabase {
     type Error = AppError;
 
     fn try_from(other: Blob) -> Result<Self, Self::Error> {
-        // TODO: make a custom function to parse this
-        let mut iter = other.id.split(":");
         Ok(BlobDatabase {
-            id: RecordId {
-                tb: iter
-                    .next()
-                    .ok_or(AppError::TypeConvertError("id has no table".into()))?
-                    .to_string(),
-                id: Id::String(
-                    iter.next()
-                        .ok_or(AppError::TypeConvertError("id has no record id".into()))?
-                        .to_string(),
-                ),
-            },
+            id: string2record(&other.id)?,
             file_type: other.file_type,
             width: other.width,
             height: other.height,
             ocr: other.ocr,
-            group: other.group,
+            group: string2record(&other.group)?,
             tags: other.tags,
         })
     }
