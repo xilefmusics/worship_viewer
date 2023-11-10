@@ -1,6 +1,8 @@
 use crate::database::Database;
 use crate::rest::helper::{expect_admin, parse_user_header};
-use crate::types::{Blob, BlobDatabase, Group, GroupDatabase, User, UserDatabase};
+use crate::types::{
+    Blob, BlobDatabase, Group, GroupDatabase, Song, SongDatabase, User, UserDatabase,
+};
 use crate::AppError;
 
 use actix_web::{post, web::Data, web::Json, HttpRequest, HttpResponse};
@@ -71,5 +73,28 @@ pub async fn blobs_metadata(
         .into_iter()
         .map(|blob| blob.into())
         .collect::<Vec<Blob>>(),
+    ))
+}
+
+#[post("/api/songs")]
+pub async fn songs(
+    req: HttpRequest,
+    songs: Json<Vec<Song>>,
+    db: Data<Database>,
+) -> Result<HttpResponse, AppError> {
+    expect_admin(&parse_user_header(req)?)?;
+    Ok(HttpResponse::Ok().json(
+        db.create_vec(
+            "song",
+            songs
+                .clone()
+                .into_iter()
+                .map(|song| SongDatabase::try_from(song))
+                .collect::<Result<Vec<SongDatabase>, AppError>>()?,
+        )
+        .await?
+        .into_iter()
+        .map(|song| song.into())
+        .collect::<Vec<Song>>(),
     ))
 }

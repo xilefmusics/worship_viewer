@@ -5,10 +5,12 @@ use crate::AppError;
 
 mod blob;
 mod group;
+mod song;
 mod user;
 
 pub use blob::{Blob, BlobDatabase};
 pub use group::{Group, GroupDatabase};
+pub use song::{Song, SongDatabase};
 pub use user::{User, UserDatabase};
 
 pub trait IdGetter {
@@ -30,4 +32,8 @@ pub fn string2record(str_id: &str) -> Result<RecordId, AppError> {
                 .to_string(),
         ),
     })
+}
+
+pub fn record2string(record: &RecordId) -> String {
+    format!("{}:{}", record.tb, record.id.to_string())
 }
