@@ -1,6 +1,6 @@
 use crate::database::Database;
 use crate::error::AppError;
-use crate::types::{record2string, string2record, IdGetter, PlayerData, TocItem};
+use crate::types::{record2string, string2record, IdGetter};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -85,24 +85,6 @@ pub struct Song {
     pub tags: Vec<String>,
 }
 
-impl Song {
-    pub fn to_player_data(self) -> Result<PlayerData, String> {
-        Ok(PlayerData {
-            data: self.blobs,
-            toc: if self.not_a_song {
-                vec![]
-            } else {
-                vec![TocItem {
-                    idx: 0,
-                    title: self.title,
-                    nr: self.nr,
-                    song: self.id,
-                }]
-            },
-        })
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SongDatabase {
     pub id: RecordId,
@@ -128,11 +110,19 @@ impl SongDatabase {
         id: Option<&str>,
     ) -> Result<Vec<Song>, AppError> {
         Ok(db
-            .select::<Self>("song", page, page_size, user, id)
+            .select::<Self>("song", page, page_size, user, id, None)
             .await?
             .into_iter()
             .map(|song| song.into())
             .collect::<Vec<Song>>())
+    }
+
+    pub async fn select_collection(
+        db: &Database,
+        user: Option<&str>,
+        id: Option<&str>,
+    ) -> Result<Vec<Song>, AppError> {
+        SongCollectionWrapper::select(db, user, id).await
     }
 
     pub async fn create(db: &Database, songs: Vec<Song>) -> Result<Vec<Song>, AppError> {
@@ -205,5 +195,29 @@ impl TryFrom<Song> for SongDatabase {
             group: string2record(&other.group)?,
             tags: other.tags,
         })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct SongCollectionWrapper {
+    pub songs: Vec<SongDatabase>,
+}
+
+impl SongCollectionWrapper {
+    pub async fn select(
+        db: &Database,
+        user: Option<&str>,
+        id: Option<&str>,
+    ) -> Result<Vec<Song>, AppError> {
+        Ok(db
+            .select::<Self>("collection", None, None, user, id, Some("songs"))
+            .await?
+            .get(0)
+            .ok_or(AppError::NotFound("collection not found".into()))?
+            .songs
+            .clone()
+            .into_iter()
+            .map(|song| song.into())
+            .collect::<Vec<Song>>())
     }
 }

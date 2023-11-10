@@ -60,7 +60,7 @@ impl BlobDatabase {
         id: Option<&str>,
     ) -> Result<Vec<Blob>, AppError> {
         Ok(db
-            .select::<Self>("blob", page, page_size, user, id)
+            .select::<Self>("blob", page, page_size, user, id, None)
             .await?
             .into_iter()
             .map(|blob| blob.into())
