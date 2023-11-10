@@ -35,6 +35,22 @@ impl UserDatabase {
             .map(|user| user.into())
             .collect::<Vec<User>>())
     }
+
+    pub async fn create(db: &Database, users: Vec<User>) -> Result<Vec<User>, AppError> {
+        Ok(db
+            .create_vec(
+                "user",
+                users
+                    .clone()
+                    .into_iter()
+                    .map(|user| UserDatabase::try_from(user))
+                    .collect::<Result<Vec<UserDatabase>, AppError>>()?,
+            )
+            .await?
+            .into_iter()
+            .map(|user| user.into())
+            .collect::<Vec<User>>())
+    }
 }
 
 impl IdGetter for UserDatabase {

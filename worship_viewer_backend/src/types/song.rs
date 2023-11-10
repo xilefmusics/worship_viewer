@@ -134,6 +134,22 @@ impl SongDatabase {
             .map(|song| song.into())
             .collect::<Vec<Song>>())
     }
+
+    pub async fn create(db: &Database, songs: Vec<Song>) -> Result<Vec<Song>, AppError> {
+        Ok(db
+            .create_vec(
+                "song",
+                songs
+                    .clone()
+                    .into_iter()
+                    .map(|song| SongDatabase::try_from(song))
+                    .collect::<Result<Vec<SongDatabase>, AppError>>()?,
+            )
+            .await?
+            .into_iter()
+            .map(|song| song.into())
+            .collect::<Vec<Song>>())
+    }
 }
 
 impl IdGetter for SongDatabase {

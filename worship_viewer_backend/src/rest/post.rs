@@ -15,20 +15,7 @@ pub async fn groups(
     db: Data<Database>,
 ) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(
-        db.create_vec(
-            "group",
-            groups
-                .clone()
-                .into_iter()
-                .map(|group| GroupDatabase::try_from(group))
-                .collect::<Result<Vec<GroupDatabase>, AppError>>()?,
-        )
-        .await?
-        .into_iter()
-        .map(|group| group.into())
-        .collect::<Vec<Group>>(),
-    ))
+    Ok(HttpResponse::Ok().json(GroupDatabase::create(&db, groups.into_inner()).await?))
 }
 
 #[post("/api/users")]
@@ -38,20 +25,7 @@ pub async fn users(
     db: Data<Database>,
 ) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(
-        db.create_vec(
-            "user",
-            users
-                .clone()
-                .into_iter()
-                .map(|user| UserDatabase::try_from(user))
-                .collect::<Result<Vec<UserDatabase>, AppError>>()?,
-        )
-        .await?
-        .into_iter()
-        .map(|user| user.into())
-        .collect::<Vec<User>>(),
-    ))
+    Ok(HttpResponse::Ok().json(UserDatabase::create(&db, users.into_inner()).await?))
 }
 
 #[post("/api/blobs/metadata")]
@@ -61,20 +35,7 @@ pub async fn blobs_metadata(
     db: Data<Database>,
 ) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(
-        db.create_vec(
-            "blob",
-            blobs
-                .clone()
-                .into_iter()
-                .map(|blob| BlobDatabase::try_from(blob))
-                .collect::<Result<Vec<BlobDatabase>, AppError>>()?,
-        )
-        .await?
-        .into_iter()
-        .map(|blob| blob.into())
-        .collect::<Vec<Blob>>(),
-    ))
+    Ok(HttpResponse::Ok().json(BlobDatabase::create(&db, blobs.into_inner()).await?))
 }
 
 #[post("/api/songs")]
@@ -84,20 +45,7 @@ pub async fn songs(
     db: Data<Database>,
 ) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(
-        db.create_vec(
-            "song",
-            songs
-                .clone()
-                .into_iter()
-                .map(|song| SongDatabase::try_from(song))
-                .collect::<Result<Vec<SongDatabase>, AppError>>()?,
-        )
-        .await?
-        .into_iter()
-        .map(|song| song.into())
-        .collect::<Vec<Song>>(),
-    ))
+    Ok(HttpResponse::Ok().json(SongDatabase::create(&db, songs.into_inner()).await?))
 }
 
 #[post("/api/collections")]
@@ -107,18 +55,5 @@ pub async fn collections(
     db: Data<Database>,
 ) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(
-        db.create_vec(
-            "collection",
-            collections
-                .clone()
-                .into_iter()
-                .map(|collection| CollectionDatabase::try_from(collection))
-                .collect::<Result<Vec<CollectionDatabase>, AppError>>()?,
-        )
-        .await?
-        .into_iter()
-        .map(|collection| collection.into())
-        .collect::<Vec<Collection>>(),
-    ))
+    Ok(HttpResponse::Ok().json(CollectionDatabase::create(&db, collections.into_inner()).await?))
 }

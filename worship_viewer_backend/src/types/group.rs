@@ -33,6 +33,22 @@ impl GroupDatabase {
             .map(|user| user.into())
             .collect::<Vec<Group>>())
     }
+
+    pub async fn create(db: &Database, groups: Vec<Group>) -> Result<Vec<Group>, AppError> {
+        Ok(db
+            .create_vec(
+                "group",
+                groups
+                    .clone()
+                    .into_iter()
+                    .map(|group| GroupDatabase::try_from(group))
+                    .collect::<Result<Vec<GroupDatabase>, AppError>>()?,
+            )
+            .await?
+            .into_iter()
+            .map(|group| group.into())
+            .collect::<Vec<Group>>())
+    }
 }
 
 impl IdGetter for GroupDatabase {
