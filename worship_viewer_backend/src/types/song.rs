@@ -1,4 +1,4 @@
-use crate::database::Database;
+use crate::database::{Database, Select};
 use crate::error::AppError;
 use crate::types::{record2string, string2record, IdGetter};
 
@@ -102,15 +102,10 @@ pub struct SongDatabase {
 }
 
 impl SongDatabase {
-    pub async fn select(
-        db: &Database,
-        page: Option<usize>,
-        page_size: Option<usize>,
-        user: Option<&str>,
-        id: Option<&str>,
-    ) -> Result<Vec<Song>, AppError> {
-        Ok(db
-            .select::<Self>("song", page, page_size, user, id, None)
+    pub async fn select<'a>(mut select: Select<'a>) -> Result<Vec<Song>, AppError> {
+        Ok(select
+            .table("song")
+            .query::<Self>()
             .await?
             .into_iter()
             .map(|song| song.into())
@@ -210,7 +205,7 @@ impl SongCollectionWrapper {
         id: Option<&str>,
     ) -> Result<Vec<Song>, AppError> {
         Ok(db
-            .select::<Self>("collection", None, None, user, id, Some("songs"))
+            .select_old::<Self>("collection", None, None, user, id, Some("songs"))
             .await?
             .get(0)
             .ok_or(AppError::NotFound("collection not found".into()))?

@@ -1,3 +1,5 @@
+use super::Select;
+
 use crate::error::AppError;
 use crate::settings::Settings;
 use crate::types::IdGetter;
@@ -15,6 +17,10 @@ pub struct Database {
 }
 
 impl Database {
+    pub fn select(&self) -> Select {
+        Select::new(&self.client)
+    }
+
     pub async fn new(settings: Settings) -> Self {
         let client = Surreal::new::<Ws>(format!("{}:{}", settings.db_host, settings.db_port))
             .await
@@ -60,7 +66,7 @@ impl Database {
             .collect()
     }
 
-    pub async fn select<T: Serialize + DeserializeOwned + Clone + std::fmt::Debug>(
+    pub async fn select_old<T: Serialize + DeserializeOwned + Clone + std::fmt::Debug>(
         &self,
         table: &str,
         page: Option<usize>,

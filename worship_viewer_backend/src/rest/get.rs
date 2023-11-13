@@ -36,14 +36,13 @@ pub async fn groups_id(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok()
-        .json(GroupDatabase::select(&db, None, None, None, Some(&id.into_inner())).await?))
+    Ok(HttpResponse::Ok().json(GroupDatabase::select(db.select().id(&id.into_inner())).await?))
 }
 
 #[get("/api/groups")]
 pub async fn groups(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(GroupDatabase::select(&db, None, None, None, None).await?))
+    Ok(HttpResponse::Ok().json(GroupDatabase::select(db.select()).await?))
 }
 
 #[get("/api/users/{id:user.*}")]
@@ -53,14 +52,13 @@ pub async fn users_id(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok()
-        .json(UserDatabase::select(&db, None, None, None, Some(&id.into_inner())).await?))
+    Ok(HttpResponse::Ok().json(UserDatabase::select(db.select().id(&id.into_inner())).await?))
 }
 
 #[get("/api/users")]
 pub async fn users(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(UserDatabase::select(&db, None, None, None, None).await?))
+    Ok(HttpResponse::Ok().json(UserDatabase::select(db.select()).await?))
 }
 
 #[get("/api/blobs/{id:blob.*}")]
@@ -72,11 +70,9 @@ pub async fn blobs_id(
     Ok(NamedFile::open(
         PathBuf::from(std::env::var("BLOB_DIR").unwrap_or("blobs".into())).join(PathBuf::from(
             BlobDatabase::select(
-                &db,
-                None,
-                None,
-                Some(&parse_user_header(req)?),
-                Some(&id.into_inner()),
+                db.select()
+                    .user(&parse_user_header(req)?)
+                    .id(&id.into_inner()),
             )
             .await?
             .get(0)
@@ -95,11 +91,9 @@ pub async fn blobs_metadata_id(
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
         BlobDatabase::select(
-            &db,
-            None,
-            None,
-            Some(&parse_user_header(req)?),
-            Some(&id.into_inner()),
+            db.select()
+                .user(&parse_user_header(req)?)
+                .id(&id.into_inner()),
         )
         .await?,
     ))
@@ -111,7 +105,7 @@ pub async fn blobs_metadata(
     db: Data<Database>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok()
-        .json(BlobDatabase::select(&db, None, None, Some(&parse_user_header(req)?), None).await?))
+        .json(BlobDatabase::select(db.select().user(&parse_user_header(req)?)).await?))
 }
 
 #[get("/api/songs/{id:song.*}")]
@@ -122,11 +116,9 @@ pub async fn songs_id(
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
         SongDatabase::select(
-            &db,
-            None,
-            None,
-            Some(&parse_user_header(req)?),
-            Some(&id.into_inner()),
+            db.select()
+                .user(&parse_user_header(req)?)
+                .id(&id.into_inner()),
         )
         .await?,
     ))
@@ -151,7 +143,7 @@ pub async fn songs_id_collection(
 #[get("/api/songs")]
 pub async fn songs(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok()
-        .json(SongDatabase::select(&db, None, None, Some(&parse_user_header(req)?), None).await?))
+        .json(SongDatabase::select(db.select().user(&parse_user_header(req)?)).await?))
 }
 
 #[get("/api/collections/{id:collection.*}")]
@@ -162,11 +154,9 @@ pub async fn collections_id(
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
         CollectionDatabase::select(
-            &db,
-            None,
-            None,
-            Some(&parse_user_header(req)?),
-            Some(&id.into_inner()),
+            db.select()
+                .user(&parse_user_header(req)?)
+                .id(&id.into_inner()),
         )
         .await?,
     ))
@@ -174,9 +164,8 @@ pub async fn collections_id(
 
 #[get("/api/collections")]
 pub async fn collections(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(
-        CollectionDatabase::select(&db, None, None, Some(&parse_user_header(req)?), None).await?,
-    ))
+    Ok(HttpResponse::Ok()
+        .json(CollectionDatabase::select(db.select().user(&parse_user_header(req)?)).await?))
 }
 
 #[get("/api/player/{id:song.*}")]
@@ -187,11 +176,9 @@ pub async fn player_id_song(
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(PlayerData::try_from(
         SongDatabase::select(
-            &db,
-            None,
-            None,
-            Some(&parse_user_header(req)?),
-            Some(&id.into_inner()),
+            db.select()
+                .user(&parse_user_header(req)?)
+                .id(&id.into_inner()),
         )
         .await?
         .get(0)
