@@ -112,12 +112,8 @@ impl SongDatabase {
             .collect::<Vec<Song>>())
     }
 
-    pub async fn select_collection(
-        db: &Database,
-        user: Option<&str>,
-        id: Option<&str>,
-    ) -> Result<Vec<Song>, AppError> {
-        SongCollectionWrapper::select(db, user, id).await
+    pub async fn select_collection<'a>(mut select: Select<'a>) -> Result<Vec<Song>, AppError> {
+        SongCollectionWrapper::select(select).await
     }
 
     pub async fn create(db: &Database, songs: Vec<Song>) -> Result<Vec<Song>, AppError> {
@@ -199,13 +195,11 @@ struct SongCollectionWrapper {
 }
 
 impl SongCollectionWrapper {
-    pub async fn select(
-        db: &Database,
-        user: Option<&str>,
-        id: Option<&str>,
-    ) -> Result<Vec<Song>, AppError> {
-        Ok(db
-            .select_old::<Self>("collection", None, None, user, id, Some("songs"))
+    pub async fn select<'a>(mut select: Select<'a>) -> Result<Vec<Song>, AppError> {
+        Ok(select
+            .table("collection")
+            .fetch("songs")
+            .query::<SongCollectionWrapper>()
             .await?
             .get(0)
             .ok_or(AppError::NotFound("collection not found".into()))?
