@@ -52,7 +52,7 @@ pub struct BlobDatabase {
 }
 
 impl BlobDatabase {
-    pub async fn select<'a>(mut select: Select<'a>) -> Result<Vec<Blob>, AppError> {
+    pub async fn select<'a>(select: Select<'a>) -> Result<Vec<Blob>, AppError> {
         Ok(select
             .table("blob")
             .query::<Self>()

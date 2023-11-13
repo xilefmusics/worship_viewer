@@ -21,7 +21,7 @@ pub struct UserDatabase {
 }
 
 impl UserDatabase {
-    pub async fn select<'a>(mut select: Select<'a>) -> Result<Vec<User>, AppError> {
+    pub async fn select<'a>(select: Select<'a>) -> Result<Vec<User>, AppError> {
         Ok(select
             .table("user")
             .query::<Self>()

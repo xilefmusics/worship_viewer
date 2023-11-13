@@ -181,9 +181,7 @@ pub async fn player_id_song(
                 .id(&id.into_inner()),
         )
         .await?
-        .get(0)
-        .ok_or(AppError::NotFound("song not found".into()))?
-        .clone(),
+        .remove(0),
     )?))
 }
 

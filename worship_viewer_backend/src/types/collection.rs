@@ -27,7 +27,7 @@ pub struct CollectionDatabase {
 }
 
 impl CollectionDatabase {
-    pub async fn select<'a>(mut select: Select<'a>) -> Result<Vec<Collection>, AppError> {
+    pub async fn select<'a>(select: Select<'a>) -> Result<Vec<Collection>, AppError> {
         Ok(select
             .table("collection")
             .query::<Self>()

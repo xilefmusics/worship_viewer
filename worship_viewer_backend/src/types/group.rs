@@ -19,7 +19,7 @@ pub struct GroupDatabase {
 }
 
 impl GroupDatabase {
-    pub async fn select<'a>(mut select: Select<'a>) -> Result<Vec<Group>, AppError> {
+    pub async fn select<'a>(select: Select<'a>) -> Result<Vec<Group>, AppError> {
         Ok(select
             .table("group")
             .query::<Self>()
