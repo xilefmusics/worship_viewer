@@ -1,4 +1,4 @@
-use crate::database::Database;
+use crate::database::{Database, Select};
 use crate::error::AppError;
 use crate::types::{record2string, string2record, IdGetter};
 
@@ -21,15 +21,10 @@ pub struct UserDatabase {
 }
 
 impl UserDatabase {
-    pub async fn select(
-        db: &Database,
-        page: Option<usize>,
-        page_size: Option<usize>,
-        user: Option<&str>,
-        id: Option<&str>,
-    ) -> Result<Vec<User>, AppError> {
-        Ok(db
-            .select::<Self>("user", page, page_size, user, id, None)
+    pub async fn select<'a>(mut select: Select<'a>) -> Result<Vec<User>, AppError> {
+        Ok(select
+            .table("user")
+            .query::<Self>()
             .await?
             .into_iter()
             .map(|user| user.into())
