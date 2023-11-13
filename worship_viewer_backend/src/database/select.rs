@@ -1,4 +1,5 @@
 use crate::error::AppError;
+use crate::types::{Group, GroupDatabase};
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -91,10 +92,16 @@ impl<'a> Select<'a> {
         &self,
     ) -> Result<Vec<T>, AppError> {
         self.client
-            .query(dbg!(self.serialize()?))
+            .query(self.serialize()?)
             .await
             .map_err(|err| AppError::Database(format!("{}", err)))?
             .take(0)
             .map_err(|err| AppError::Database(format!("{}", err)))
+    }
+
+    pub async fn query_one<T: Serialize + DeserializeOwned + Clone + std::fmt::Debug>(
+        &self,
+    ) -> Result<T, AppError> {
+        Ok(self.query::<T>().await?.remove(0))
     }
 }
