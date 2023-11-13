@@ -1,5 +1,4 @@
 use crate::error::AppError;
-use crate::types::{Group, GroupDatabase};
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -9,8 +8,8 @@ use surrealdb::Surreal;
 pub struct Select<'a> {
     client: &'a Surreal<Client>,
     table: Option<&'a str>,
-    limit: Option<usize>,
-    start: Option<usize>,
+    page: Option<usize>,
+    page_size: Option<usize>,
     fetch: Option<&'a str>,
     where_conditions: Vec<String>,
 }
@@ -20,27 +19,25 @@ impl<'a> Select<'a> {
         Self {
             client,
             table: None,
-            limit: None,
-            start: None,
+            page: None,
+            page_size: None,
             where_conditions: vec![],
             fetch: None,
         }
     }
 
-    // TODO: tablecheck at compiletime
     pub fn table(mut self, table: &'a str) -> Self {
         self.table = Some(table);
         self
     }
 
-    // TODO: also possible to set page and page_size
-    pub fn limit(mut self, limit: usize) -> Self {
-        self.limit = Some(limit);
+    pub fn page_opt(mut self, page: Option<usize>) -> Self {
+        self.page = page;
         self
     }
 
-    pub fn start(mut self, start: usize) -> Self {
-        self.start = Some(start);
+    pub fn page_size_opt(mut self, page_size: Option<usize>) -> Self {
+        self.page_size = page_size;
         self
     }
 
@@ -69,20 +66,34 @@ impl<'a> Select<'a> {
         )
         .into();
 
-        if let Some(limit) = self.limit {
-            query = format!("{} LIMIT {}", query, limit);
-        }
-
-        if let Some(start) = self.start {
-            query = format!("{} START {}", query, start);
-        }
-
         if self.where_conditions.len() > 0 {
             query = format!("{} WHERE {}", query, self.where_conditions.join(" AND "));
         }
 
         if let Some(fetch) = self.fetch.clone() {
             query = format!("{} FETCH {}", query, fetch);
+        }
+
+        let (limit, start) = if let Some(page) = self.page {
+            if let Some(page_size) = self.page_size {
+                (Some(page_size), Some(page * page_size))
+            } else {
+                (Some(100), Some(page * 100))
+            }
+        } else {
+            if let Some(page_size) = self.page_size {
+                (Some(page_size), Some(0))
+            } else {
+                (None, None)
+            }
+        };
+
+        if let Some(limit) = limit {
+            query = format!("{} LIMIT {}", query, limit);
+        }
+
+        if let Some(start) = start {
+            query = format!("{} START {}", query, start);
         }
 
         Ok(query)

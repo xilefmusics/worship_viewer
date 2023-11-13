@@ -1,12 +1,13 @@
 use crate::database::Database;
 use crate::rest::helper::{expect_admin, parse_user_header};
+use crate::rest::QueryParams;
 use crate::types::{
-    BlobDatabase, CollectionDatabase, GroupDatabase, PlayerData, Song, SongDatabase, UserDatabase,
+    BlobDatabase, CollectionDatabase, GroupDatabase, PlayerData, SongDatabase, UserDatabase,
 };
 use crate::AppError;
 
 use actix_files::NamedFile;
-use actix_web::{get, web::Data, web::Path, HttpRequest, HttpResponse};
+use actix_web::{get, web::Data, web::Path, web::Query, HttpRequest, HttpResponse};
 use std::path::PathBuf;
 
 #[get("/")]
@@ -40,9 +41,15 @@ pub async fn groups_id(
 }
 
 #[get("/api/groups")]
-pub async fn groups(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
+pub async fn groups(
+    req: HttpRequest,
+    db: Data<Database>,
+    q: Query<QueryParams>,
+) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(GroupDatabase::select(db.select()).await?))
+    Ok(HttpResponse::Ok().json(
+        GroupDatabase::select(db.select().page_opt(q.page).page_size_opt(q.page_size)).await?,
+    ))
 }
 
 #[get("/api/users/{id:user.*}")]
@@ -56,9 +63,14 @@ pub async fn users_id(
 }
 
 #[get("/api/users")]
-pub async fn users(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
+pub async fn users(
+    req: HttpRequest,
+    db: Data<Database>,
+    q: Query<QueryParams>,
+) -> Result<HttpResponse, AppError> {
     expect_admin(&parse_user_header(req)?)?;
-    Ok(HttpResponse::Ok().json(UserDatabase::select(db.select()).await?))
+    Ok(HttpResponse::Ok()
+        .json(UserDatabase::select(db.select().page_opt(q.page).page_size_opt(q.page_size)).await?))
 }
 
 #[get("/api/blobs/{id:blob.*}")]
@@ -103,9 +115,17 @@ pub async fn blobs_metadata_id(
 pub async fn blobs_metadata(
     req: HttpRequest,
     db: Data<Database>,
+    q: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok()
-        .json(BlobDatabase::select(db.select().user(&parse_user_header(req)?)).await?))
+    Ok(HttpResponse::Ok().json(
+        BlobDatabase::select(
+            db.select()
+                .user(&parse_user_header(req)?)
+                .page_opt(q.page)
+                .page_size_opt(q.page_size),
+        )
+        .await?,
+    ))
 }
 
 #[get("/api/songs/{id:song.*}")]
@@ -141,9 +161,20 @@ pub async fn songs_id_collection(
 }
 
 #[get("/api/songs")]
-pub async fn songs(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok()
-        .json(SongDatabase::select(db.select().user(&parse_user_header(req)?)).await?))
+pub async fn songs(
+    req: HttpRequest,
+    db: Data<Database>,
+    q: Query<QueryParams>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(
+        SongDatabase::select(
+            db.select()
+                .user(&parse_user_header(req)?)
+                .page_opt(q.page)
+                .page_size_opt(q.page_size),
+        )
+        .await?,
+    ))
 }
 
 #[get("/api/collections/{id:collection.*}")]
@@ -163,9 +194,20 @@ pub async fn collections_id(
 }
 
 #[get("/api/collections")]
-pub async fn collections(req: HttpRequest, db: Data<Database>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok()
-        .json(CollectionDatabase::select(db.select().user(&parse_user_header(req)?)).await?))
+pub async fn collections(
+    req: HttpRequest,
+    db: Data<Database>,
+    q: Query<QueryParams>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(
+        CollectionDatabase::select(
+            db.select()
+                .user(&parse_user_header(req)?)
+                .page_opt(q.page)
+                .page_size_opt(q.page_size),
+        )
+        .await?,
+    ))
 }
 
 #[get("/api/player/{id:song.*}")]
