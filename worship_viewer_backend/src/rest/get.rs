@@ -132,9 +132,9 @@ pub async fn songs_id_collection(
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
         SongDatabase::select_collection(
-            &db,
-            Some(&parse_user_header(req)?),
-            Some(&id.into_inner()),
+            db.select()
+                .user(&parse_user_header(req)?)
+                .id(&id.into_inner()),
         )
         .await?,
     ))
@@ -195,9 +195,9 @@ pub async fn player_id_collection(
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
         SongDatabase::select_collection(
-            &db,
-            Some(&parse_user_header(req)?),
-            Some(&id.into_inner()),
+            db.select()
+                .user(&parse_user_header(req)?)
+                .id(&id.into_inner()),
         )
         .await?
         .into_iter()
