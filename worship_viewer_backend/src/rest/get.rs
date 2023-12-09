@@ -216,7 +216,7 @@ pub async fn player_id_song(
     db: Data<Database>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(PlayerData::try_from(
+    Ok(HttpResponse::Ok().json(PlayerData::from(
         SongDatabase::select(
             db.select()
                 .user(&parse_user_header(req)?)
@@ -224,7 +224,7 @@ pub async fn player_id_song(
         )
         .await?
         .remove(0),
-    )?))
+    )))
 }
 
 #[get("/api/player/{id:collection.*}")]
@@ -241,9 +241,9 @@ pub async fn player_id_collection(
         )
         .await?
         .into_iter()
-        .map(|song| PlayerData::try_from(song))
+        .map(|song| PlayerData::from(song))
         .try_fold(PlayerData::default(), |acc, result| {
-            Ok::<PlayerData, AppError>(acc + result?)
+            Ok::<PlayerData, AppError>(acc + result)
         })?,
     ))
 }

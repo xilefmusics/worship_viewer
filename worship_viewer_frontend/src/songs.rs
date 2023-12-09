@@ -46,7 +46,7 @@ pub fn SongsComponent() -> Html {
             let collection = song.collection.clone();
             let onclick = {
                 let navigator = navigator.clone();
-                let id = song.id.clone().unwrap();
+                let id = song.id.clone();
                 move |_: MouseEvent| {
                     let id = (&id).to_string();
                     navigator.push(&Route::Player { id });

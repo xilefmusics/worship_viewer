@@ -109,10 +109,4 @@ impl<'a> Select<'a> {
             .take(0)
             .map_err(|err| AppError::Database(format!("{}", err)))
     }
-
-    pub async fn query_one<T: Serialize + DeserializeOwned + Clone + std::fmt::Debug>(
-        &self,
-    ) -> Result<T, AppError> {
-        Ok(self.query::<T>().await?.remove(0))
-    }
 }

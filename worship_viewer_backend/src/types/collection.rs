@@ -2,19 +2,11 @@ use crate::database::{Database, Select};
 use crate::error::AppError;
 use crate::types::{record2string, string2record, IdGetter};
 
+pub use worship_viewer_shared::types::Collection;
+
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use surrealdb::opt::RecordId;
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Collection {
-    pub id: String,
-    pub title: String,
-    pub songs: Vec<String>,
-    pub cover: String,
-    pub group: String,
-    pub tags: Vec<String>,
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CollectionDatabase {
