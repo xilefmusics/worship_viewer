@@ -16,7 +16,7 @@
 
 .app {
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
 	background: var(--bg2);
 	font-size: 1.4rem;
 }

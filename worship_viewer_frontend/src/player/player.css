@@ -1,5 +1,5 @@
 :root {
-  height: 100vh;
+  height: 100dvh;
   width: 100vw;
   --top-bottom-height: 60px;
 }
@@ -28,12 +28,12 @@
 }
 
 .middle {
-  height: 100vh;
+  height: 100dvh;
 }
 
 .middle.active { 
   top: 60px;
-  height: calc(100vh - 2 * var(--top-bottom-height));
+  height: calc(100dvh - 2 * var(--top-bottom-height));
 }
 
 .bottom {
@@ -111,7 +111,7 @@
   position: absolute;
   top: var(--top-bottom-height);
   left: 0;
-  height: calc(100vh - 2 * var(--top-bottom-height));
+  height: calc(100dvh - 2 * var(--top-bottom-height));
   width: 40vw;
 }
 

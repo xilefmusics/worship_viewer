@@ -40,7 +40,7 @@ pub fn CollectionsComponent() -> Html {
             let title = collection.title.clone();
             let onclick = {
                 let navigator = navigator.clone();
-                let id = collection.id.clone().unwrap();
+                let id = collection.id.clone();
                 move |_: MouseEvent| {
                     let id = (&id).to_string();
                     navigator.push(&Route::Player { id });
