@@ -14,7 +14,7 @@ Instead, it relies on an authentication proxy such as [Proxauth](https://github.
 
 For productive operation, it is recommended to use the Docker Image, which is already built on [DockerHub](https://hub.docker.com/repository/docker/xilefmusics/worship-viewer) for the respective releases.
 In addition, the [SurrealDB](https://hub.docker.com/r/surrealdb/surrealdb) and [Proxauth](https://hub.docker.com/r/xilefmusics/proxauth) image can be used to create a fully functional overall system.
-An example configuration can be seen in [docker-compose.yaml](https://github.com/xilefmusics/worship-viewer/blob/main/docker-compose.yaml) and started via:
+An example configuration can be seen in [docker-compose.yaml](https://github.com/xilefmusics/worship_viewer/blob/main/docker-compose.yaml) and started via:
 
 ```bash
 docker compose up
