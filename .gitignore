@@ -4,3 +4,4 @@ worship_viewer_frontend/dist
 blobs
 tests
 .DS_Store
+Cargo.lock
