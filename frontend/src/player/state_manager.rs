@@ -118,7 +118,7 @@ impl StateManager {
         format!("{}", self.get_page_index() + 1)
     }
     pub fn get_max_page_index(&self) -> usize {
-        self.state.max_page_index
+        self.state.max_page_index - 1
     }
     pub fn get_max_page_string(&self) -> String {
         format!("{}", self.get_max_page_index() + 1)
