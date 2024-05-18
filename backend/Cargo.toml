@@ -1,0 +1,21 @@
+[package]
+name = "worship_viewer_backend"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+worship_viewer_shared = { path = "../shared" }
+actix-files = "0.6.2"
+actix-web = "4.3.1"
+base64 = "0.21.2"
+chrono = { version = "0.4.24", features = ["serde"] }
+env_logger = "0.10.0"
+log = "0.4.17"
+reqwest = { version = "0.11.18", features = ["json"] }
+serde = { version = "1.0.163", features = ["derive"] }
+serde_json = "1.0.96"
+tokio = { version = "1.28.1", features = ["macros", "rt-multi-thread"] }
+surrealdb = "1.0.0"
+futures = "0.3.29"

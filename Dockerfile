@@ -4,22 +4,22 @@ RUN cargo install --locked trunk && \
     rustup target add wasm32-unknown-unknown
 
 WORKDIR /wrk
-COPY ./worship_viewer_shared ./worship_viewer_shared
+COPY ./shared ./shared
 
 WORKDIR /wrk
-COPY ./worship_viewer_backend ./worship_viewer_backend
-WORKDIR /wrk/worship_viewer_backend
+COPY ./backend ./backend
+WORKDIR /wrk/backend
 RUN cargo build --release
 
 WORKDIR /wrk
-COPY ./worship_viewer_frontend ./worship_viewer_frontend
-WORKDIR /wrk/worship_viewer_frontend
+COPY ./frontend ./frontend
+WORKDIR /wrk/frontend
 RUN trunk build --release
 
 FROM ubuntu:22.04
 
-COPY --from=builder /wrk/worship_viewer_backend/target/release/worship_viewer_backend /app/worship_viewer
-COPY --from=builder /wrk/worship_viewer_frontend/dist/ /app/static
+COPY --from=builder /wrk/backend/target/release/worship_viewer_backend /app/worship_viewer
+COPY --from=builder /wrk/frontend/dist/ /app/static
 
 ENV PORT="8000" \
     DB_HOST="db" \

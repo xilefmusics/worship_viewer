@@ -1,0 +1,14 @@
+{
+  "short_name": "WV",
+  "name": "Worship Viewer",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "background_color": "#1e1e1e",
+  "display": "standalone",
+  "theme_color": "#1e1e1e"
+}

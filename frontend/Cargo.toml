@@ -1,0 +1,17 @@
+[package]
+name = "worship_viewer_frontend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+worship_viewer_shared = { path = "../shared" }
+yew = { version = "0.20.0", features = ["csr"] }
+yew-router = "0.17"
+stylist = { version = "0.12.0", features = ["yew_integration", "parser"] }
+wasm-bindgen-futures = "0.4.34"
+wasm-bindgen = "0.2.84"
+gloo-net = "0.2"
+gloo-console = "0.2.3"
+yew-hooks = "0.2.0"
+web-sys = "0.3.61"
+gloo = "0.8.0"
