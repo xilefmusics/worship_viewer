@@ -236,7 +236,6 @@ impl StateManager {
     }
     pub fn next_scroll_type(&self) -> Self {
         let mut new = self.clone();
-        new.custom_state.select_type = new.custom_state.select_type.next();
         new.custom_state.scroll_type = new.custom_state.scroll_type.next();
         if new.custom_state.scroll_type == ScrollType::Book && new.custom_state.page_index % 2 == 0
         {
