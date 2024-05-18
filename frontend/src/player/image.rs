@@ -28,7 +28,7 @@ pub fn ImageComponent(props: &Props) -> Html {
             if let Some(element) = document().get_element_by_id("pdf-viewer") {
                 let width = std::cmp::min(
                     element.scroll_width(),
-                    if id2.is_none() {
+                    if id2.is_none() || half_page_scroll {
                         (element.scroll_height() as f64 / SQRT_2) as i32
                     } else {
                         (element.scroll_height() as f64 * SQRT_2) as i32
@@ -36,7 +36,7 @@ pub fn ImageComponent(props: &Props) -> Html {
                 );
                 let height = std::cmp::min(
                     element.scroll_height(),
-                    if id2.is_none() {
+                    if id2.is_none() || half_page_scroll {
                         (element.scroll_width() as f64 * SQRT_2) as i32
                     } else {
                         (element.scroll_width() as f64 / SQRT_2) as i32
