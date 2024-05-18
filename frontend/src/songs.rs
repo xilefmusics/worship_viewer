@@ -12,28 +12,25 @@ pub fn SongsComponent() -> Html {
     let songs = use_state(|| vec![]);
     {
         let songs = songs.clone();
-        use_effect_with_deps(
-            move |_| {
-                let songs = songs.clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    let mut fetched_songs: Vec<Song> = Request::get("/api/songs")
-                        .send()
-                        .await
-                        .unwrap()
-                        .json()
-                        .await
-                        .unwrap();
-                    fetched_songs.sort_by_key(|song| song.title.clone());
-                    let fetched_songs: Vec<Song> = fetched_songs
-                        .into_iter()
-                        .filter(|song| !song.not_a_song)
-                        .collect();
-                    songs.set(fetched_songs);
-                });
-                || ()
-            },
-            (),
-        );
+        use_effect_with((), move |_| {
+            let songs = songs.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let mut fetched_songs: Vec<Song> = Request::get("/api/songs")
+                    .send()
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                fetched_songs.sort_by_key(|song| song.title.clone());
+                let fetched_songs: Vec<Song> = fetched_songs
+                    .into_iter()
+                    .filter(|song| !song.not_a_song)
+                    .collect();
+                songs.set(fetched_songs);
+            });
+            || ()
+        });
     };
 
     let navigator = use_navigator().unwrap();

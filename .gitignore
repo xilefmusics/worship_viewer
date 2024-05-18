@@ -5,3 +5,6 @@ blobs
 tests
 .DS_Store
 Cargo.lock
+frontend/dist
+backend/testdata
+test

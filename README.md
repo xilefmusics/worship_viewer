@@ -31,7 +31,7 @@ As a development setup, the frontend and the backend must be started separately 
 Proxauth can now be configured to forward frontend requests to the frontend and backend requests to the backend.
 An example configuration for this can be found in [proxauth-config.yaml](https://github.com/xilefmusics/worship_viewer/blob/main/proxauth-config.yaml).
 
-Surrealdb (1.0.0) and proxauth (0.1.0) must be installed as dependencies.
+Surrealdb (1.5.0) and proxauth (0.1.0) must be installed as dependencies.
 More detailed information can be found in the [Dockerfile](https://github.com/xilefmusics/worship_viewer/blob/main/Dockerfile).
 
 Once all dependencies have been installed, the four components can be started using the following four commands:

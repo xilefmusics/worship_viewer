@@ -1,4 +1,4 @@
-FROM rust:1.70.0-bookworm as builder
+FROM rust:1.78.0-bookworm as builder
 
 RUN cargo install --locked trunk && \
     rustup target add wasm32-unknown-unknown
@@ -16,7 +16,7 @@ COPY ./frontend ./frontend
 WORKDIR /wrk/frontend
 RUN trunk build --release
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 COPY --from=builder /wrk/backend/target/release/worship_viewer_backend /app/worship_viewer
 COPY --from=builder /wrk/frontend/dist/ /app/static

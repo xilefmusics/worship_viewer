@@ -40,26 +40,23 @@ pub fn PlayerComponent(props: &Props) -> Html {
     let active = use_state(|| false);
     {
         let state_manager = state_manager.clone();
-        use_effect_with_deps(
-            move |_| {
-                let state_manager = state_manager.clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    let fetched_data: PlayerData = Request::get(&format!("/api/player/{}", id))
-                        .send()
-                        .await
-                        .unwrap()
-                        .json()
-                        .await
-                        .unwrap();
-                    state_manager.set(Some(StateManager::new(
-                        State::new(fetched_data),
-                        CustomState::default(),
-                    )));
-                });
-                || ()
-            },
-            (),
-        );
+        use_effect_with((), move |_| {
+            let state_manager = state_manager.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let fetched_data: PlayerData = Request::get(&format!("/api/player/{}", id))
+                    .send()
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                state_manager.set(Some(StateManager::new(
+                    State::new(fetched_data),
+                    CustomState::default(),
+                )));
+            });
+            || ()
+        });
     };
 
     {

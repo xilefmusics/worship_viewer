@@ -1,7 +1,7 @@
 version: '3'
 services:
   db:
-    image: surrealdb/surrealdb:1.0.0
+    image: surrealdb/surrealdb:1.5.0
     command: start --log debug --user root --pass root memory --allow-scripting
   backend:
     image: xilefmusics/worship-viewer:latest

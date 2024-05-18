@@ -12,23 +12,20 @@ pub fn CollectionsComponent() -> Html {
     let collections = use_state(|| vec![]);
     {
         let collections = collections.clone();
-        use_effect_with_deps(
-            move |_| {
-                let collections = collections.clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    let fetched_collections: Vec<Collection> = Request::get("/api/collections")
-                        .send()
-                        .await
-                        .unwrap()
-                        .json()
-                        .await
-                        .unwrap();
-                    collections.set(fetched_collections);
-                });
-                || ()
-            },
-            (),
-        );
+        use_effect_with((), move |_| {
+            let collections = collections.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let fetched_collections: Vec<Collection> = Request::get("/api/collections")
+                    .send()
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                collections.set(fetched_collections);
+            });
+            || ()
+        });
     };
 
     let navigator = use_navigator().unwrap();
@@ -37,7 +34,6 @@ pub fn CollectionsComponent() -> Html {
         .iter()
         .map(|collection| {
             let cover = "/api/blobs/".to_string() + &collection.clone().cover;
-            let title = collection.title.clone();
             let onclick = {
                 let navigator = navigator.clone();
                 let id = collection.id.clone();
@@ -47,10 +43,11 @@ pub fn CollectionsComponent() -> Html {
                 }
             };
             html! {
-                <img
-                    class="collection" src={cover} alt={title}
+                <div
+                    class="tile"
+                    style={format!("background-image: url('{}');", cover)}
                     onclick={onclick}
-                />
+                ></div>
             }
         })
         .collect::<Html>();
