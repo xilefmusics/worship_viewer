@@ -1,7 +1,7 @@
 :root {
   align-items: center;
   display: flex;
-  height: 100dvh;
+  height: var(--vh);
   width: 100vw;
   flex-direction: column;
 }

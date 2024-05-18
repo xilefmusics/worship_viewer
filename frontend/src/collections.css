@@ -1,5 +1,5 @@
 :root {
-  height: 100dvh;
+  height: var(--vh);
   width: 100vw;
   display: flex;
   flex-direction: column;
