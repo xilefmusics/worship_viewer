@@ -254,6 +254,11 @@ impl StateManager {
                     new.increment()
                 } else {
                     new.custom_state.page_index
+                };
+                if new.custom_state.page_index < new.state.max_page_index - 1
+                    || new.custom_state.between_pages
+                {
+                    new.custom_state.between_pages = !new.custom_state.between_pages;
                 }
             }
             ScrollType::TwoPage => new.custom_state.page_index = new.increment(),
@@ -270,6 +275,7 @@ impl StateManager {
     }
     pub fn prev_page(&self) -> Self {
         let mut new = self.clone();
+        let last_page_index = new.custom_state.page_index;
         match new.custom_state.scroll_type {
             ScrollType::OnePage => new.custom_state.page_index = new.decrement(),
             ScrollType::HalfPage => {
@@ -277,6 +283,9 @@ impl StateManager {
                     new.decrement()
                 } else {
                     new.custom_state.page_index
+                };
+                if last_page_index > 0 || new.custom_state.between_pages {
+                    new.custom_state.between_pages = !new.custom_state.between_pages;
                 }
             }
             ScrollType::TwoPage => new.custom_state.page_index = new.decrement(),
