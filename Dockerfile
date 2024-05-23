@@ -1,6 +1,8 @@
 FROM rust:1.78.0-bookworm as builder
 
-RUN cargo install --locked trunk && \
+RUN export CARGO_BUILD_JOBS=$(nproc) && \
+    cargo install cargo-binstall && \
+    cargo binstall trunk --version 0.20.1 --no-confirm && \
     rustup target add wasm32-unknown-unknown
 
 WORKDIR /wrk

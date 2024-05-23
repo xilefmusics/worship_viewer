@@ -1,6 +1,36 @@
-/backend/blobs
-/bachend/target
-/bachend/testdata
-/frontend/target
-/frontend/dist
+# Ignore version control directories and files
+.git
+.gitignore
+
+# Ignore Rust build artifacts
+target
+**/target
+**/dist
+**/testdata
+
+# Ignore Cargo.lock if it's not needed for the build
+Cargo.lock
+
+# Ignore documentation files
+docs
+**/docs
+*.md
+
+# Ignore temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# Ignore log files
+*.log
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore other unnecessary files
+.idea
+.vscode
+*.iml
 
