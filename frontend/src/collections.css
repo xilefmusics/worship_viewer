@@ -11,13 +11,13 @@
 
 .collections {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Changed from auto-fit to auto-fill */
-  gap: 1em;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.7em;
   width: 100%;
-  padding: 0 1em;
+  padding: 0 0.7em;
   box-sizing: border-box;
-  margin-top: 1em;
-  margin-bottom: 1em;
+  margin-top: 0.7em;
+  margin-bottom: 0.7em;
   overflow-y: scroll;
 }
 
@@ -26,12 +26,9 @@
   background-position: center;
   padding: 20px;
   padding-bottom: calc(1.414 * 100%);
-  text-align: center;
-  font-size: 1.5em;
-  color: white;
   border-radius: 5px;
   transition: transform 0.3s ease;
-  min-width: 200px;
+  min-width: 100px;
   max-width: 600px;
   width: 100%;
   box-sizing: border-box;

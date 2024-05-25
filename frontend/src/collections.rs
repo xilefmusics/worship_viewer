@@ -45,7 +45,7 @@ pub fn CollectionsComponent() -> Html {
             html! {
                 <div
                     class="tile"
-                    style={format!("background-image: url('{}');", cover)}
+                     style={format!("background-image: url('{}');", cover)}
                     onclick={onclick}
                 ></div>
             }
