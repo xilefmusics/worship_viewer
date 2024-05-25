@@ -143,17 +143,6 @@ pub fn PlayerComponent(props: &Props) -> Html {
         }
     };
 
-    let onclick_select_changer = {
-        let state_manager = state_manager.clone();
-        move |_: MouseEvent| {
-            state_manager.set(
-                state_manager
-                    .as_ref()
-                    .map(|state_manager| state_manager.next_select_type()),
-            );
-        }
-    };
-
     let oninput = {
         let state_manager = state_manager.clone();
         move |e: InputEvent| {
@@ -239,10 +228,6 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 />
             </div>
             <div class={if *active {"bottom active"} else {"bottom"}}>
-                <span
-                    onclick={onclick_select_changer}
-                    class="select-changer"
-                >{state_manager.select_type_str()}</span>
                 <input
                     type="range"
                     min="0"

@@ -1,5 +1,5 @@
 use super::super::types::TocItem;
-use super::{Item, ScrollType, SelectType};
+use super::{Item, ScrollType};
 
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,6 @@ pub struct Player {
     items: Vec<Item>,
     toc: Vec<TocItem>,
     scroll_type: ScrollType,
-    select_type: SelectType,
     between_items: bool,
     index: usize,
 }
@@ -19,7 +18,6 @@ impl Player {
             items,
             toc,
             scroll_type: ScrollType::default(),
-            select_type: SelectType::default(),
             between_items: bool::default(),
             index: usize::default(),
         }
@@ -40,15 +38,6 @@ impl Player {
     }
     pub fn is_half_page_scroll(&self) -> bool {
         self.scroll_type == ScrollType::HalfPage
-    }
-
-    pub fn next_select_type(&self) -> Self {
-        let mut new = self.clone();
-        new.select_type = new.select_type.next();
-        new
-    }
-    pub fn select_type_str(&self) -> &str {
-        self.select_type.to_str()
     }
 
     pub fn item(&self) -> (&Item, Option<&Item>) {

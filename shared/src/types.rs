@@ -95,7 +95,6 @@ pub struct TocItem {
     pub idx: usize,
     pub title: String,
     pub nr: String,
-    pub song: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
@@ -129,7 +128,6 @@ impl Add for PlayerData {
                         },
                         title: item.title.clone(),
                         nr: item.nr.clone(),
-                        song: item.song.clone(),
                     };
                     item
                 }))
@@ -159,7 +157,6 @@ impl From<Song> for PlayerData {
                     idx: 0,
                     title: song.title,
                     nr: song.nr,
-                    song: song.id,
                 }]
             },
         }
