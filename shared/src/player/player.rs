@@ -1,8 +1,10 @@
+use crate::types::Song;
 use super::{PlayerItem, ScrollType, TocItem};
 
 use serde::{Deserialize, Serialize};
+use std::ops::Add;
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 pub struct Player {
     items: Vec<PlayerItem>,
     toc: Vec<TocItem>,
@@ -166,3 +168,69 @@ impl Player {
         new
     }
 }
+
+impl Add for Player {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        if self.items.len() == 0 {
+            return other;
+        }
+        let last_self_item = self.items[self.items.len() - 1].clone();
+        Self {
+            toc: self
+                .toc
+                .into_iter()
+                .chain(other.toc.iter().map(|item| {
+                    let item = TocItem {
+                        idx: if self.items.len() > 0
+                            && other.items.len() > 0
+                            && self.items[self.items.len() - 1] == other.items[0]
+                        {
+                            item.idx + self.items.len() - 1
+                        } else {
+                            item.idx + self.items.len()
+                        },
+                        title: item.title.clone(),
+                        nr: item.nr.clone(),
+                    };
+                    item
+                }))
+                .collect::<Vec<TocItem>>(),
+            items: self
+                .items
+                .into_iter()
+                .chain(
+                    other
+                        .items
+                        .into_iter()
+                        .skip_while(|item| *item == last_self_item),
+                )
+                .collect(),
+            scroll_type: self.scroll_type,
+            between_items: self.between_items,
+            index: self.index,
+        }
+    }
+}
+
+impl From<Song> for Player {
+    fn from(song: Song) -> Self {
+        Self {
+            items: song.blobs.iter().map(|blob| PlayerItem::Image(blob.to_string())).collect(),
+            toc: if song.not_a_song {
+                vec![]
+            } else {
+                vec![TocItem {
+                    idx: 0,
+                    title: song.title,
+                    nr: song.nr,
+                }]
+            },
+            scroll_type: ScrollType::default(),
+            between_items: bool::default(),
+            index: usize::default(),
+        }
+    }
+}
+
