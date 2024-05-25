@@ -1,5 +1,5 @@
 use stylist::Style;
-use worship_viewer_shared::types::TocItem;
+use worship_viewer_shared::player::TocItem;
 use yew::prelude::*;
 
 #[derive(PartialEq, Clone)]

@@ -2,8 +2,9 @@ use crate::database::Database;
 use crate::rest::helper::{expect_admin, parse_user_header};
 use crate::rest::QueryParams;
 use crate::types::{
-    BlobDatabase, CollectionDatabase, GroupDatabase, PlayerData, SongDatabase, UserDatabase,
+    BlobDatabase, CollectionDatabase, GroupDatabase, SongDatabase, UserDatabase,
 };
+use worship_viewer_shared::types::PlayerData;
 use crate::AppError;
 
 use actix_files::NamedFile;

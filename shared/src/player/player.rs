@@ -1,11 +1,10 @@
-use super::super::types::TocItem;
-use super::{Item, ScrollType};
+use super::{PlayerItem, ScrollType, TocItem};
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Player {
-    items: Vec<Item>,
+    items: Vec<PlayerItem>,
     toc: Vec<TocItem>,
     scroll_type: ScrollType,
     between_items: bool,
@@ -13,7 +12,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(items: Vec<Item>, toc: Vec<TocItem>) -> Self {
+    pub fn new(items: Vec<PlayerItem>, toc: Vec<TocItem>) -> Self {
         Self {
             items,
             toc,
@@ -40,7 +39,7 @@ impl Player {
         self.scroll_type == ScrollType::HalfPage
     }
 
-    pub fn item(&self) -> (&Item, Option<&Item>) {
+    pub fn item(&self) -> (&PlayerItem, Option<&PlayerItem>) {
         let current = match self.scroll_type {
             ScrollType::OnePage | ScrollType::HalfPage | ScrollType::TwoPage | ScrollType::Book => {
                 &self.items[self.index]

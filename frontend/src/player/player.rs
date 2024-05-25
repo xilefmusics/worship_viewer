@@ -4,8 +4,8 @@ use crate::routes::Route;
 use gloo_net::http::Request;
 use stylist::Style;
 use web_sys::HtmlInputElement;
-use worship_viewer_shared::player::{Item, Player};
-use worship_viewer_shared::types::{PlayerData, TocItem};
+use worship_viewer_shared::player::{Player, PlayerItem, TocItem};
+use worship_viewer_shared::types::PlayerData;
 use yew::prelude::*;
 use yew_hooks::{use_event_with_window, use_window_size};
 use yew_router::prelude::*;
@@ -54,8 +54,8 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 let items = fetched_data
                     .data
                     .iter()
-                    .map(|item| Item::Image(item.clone()))
-                    .collect::<Vec<Item>>();
+                    .map(|item| PlayerItem::Image(item.clone()))
+                    .collect::<Vec<PlayerItem>>();
                 state_manager.set(Some(Player::new(items, toc)));
             });
             || ()
@@ -195,16 +195,16 @@ pub fn PlayerComponent(props: &Props) -> Html {
     }
     let state_manager = state_manager.as_ref().unwrap();
     let blob = match state_manager.item().0 {
-        Item::Image(s) => s,
-        Item::Pdf(s) => s,
-        Item::Chords(s) => s,
+        PlayerItem::Image(s) => s,
+        PlayerItem::Pdf(s) => s,
+        PlayerItem::Chords(s) => s,
     }
     .to_string();
     let blob_next = state_manager.item().1.map(|item| {
         match item {
-            Item::Image(s) => s,
-            Item::Pdf(s) => s,
-            Item::Chords(s) => s,
+            PlayerItem::Image(s) => s,
+            PlayerItem::Pdf(s) => s,
+            PlayerItem::Chords(s) => s,
         }
         .to_string()
     });

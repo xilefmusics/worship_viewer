@@ -49,9 +49,6 @@ impl UserDatabase {
 }
 
 impl IdGetter for UserDatabase {
-    fn get_id_first(&self) -> String {
-        self.id.tb.clone()
-    }
     fn get_id_second(&self) -> String {
         self.id.id.to_string()
     }

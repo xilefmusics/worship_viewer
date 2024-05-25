@@ -50,9 +50,6 @@ impl CollectionDatabase {
 }
 
 impl IdGetter for CollectionDatabase {
-    fn get_id_first(&self) -> String {
-        self.id.tb.clone()
-    }
     fn get_id_second(&self) -> String {
         self.id.id.to_string()
     }

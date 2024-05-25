@@ -1,3 +1,4 @@
+use super::player::TocItem;
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
 
@@ -88,13 +89,6 @@ pub struct Collection {
     pub cover: String,
     pub group: String,
     pub tags: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
-pub struct TocItem {
-    pub idx: usize,
-    pub title: String,
-    pub nr: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
