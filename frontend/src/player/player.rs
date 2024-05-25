@@ -1,11 +1,11 @@
 use super::ImageComponent;
 use super::TableOfContentsComponent;
-use super::{CustomState, State, StateManager};
 use crate::routes::Route;
 use gloo_net::http::Request;
 use stylist::Style;
 use web_sys::HtmlInputElement;
-use worship_viewer_shared::types::PlayerData;
+use worship_viewer_shared::player::{Item, Player};
+use worship_viewer_shared::types::{PlayerData, TocItem};
 use yew::prelude::*;
 use yew_hooks::{use_event_with_window, use_window_size};
 use yew_router::prelude::*;
@@ -50,10 +50,13 @@ pub fn PlayerComponent(props: &Props) -> Html {
                     .json()
                     .await
                     .unwrap();
-                state_manager.set(Some(StateManager::new(
-                    State::new(fetched_data),
-                    CustomState::default(),
-                )));
+                let toc = fetched_data.toc.clone();
+                let items = fetched_data
+                    .data
+                    .iter()
+                    .map(|item| Item::Image(item.clone()))
+                    .collect::<Vec<Item>>();
+                state_manager.set(Some(Player::new(items, toc)));
             });
             || ()
         });
@@ -80,7 +83,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 state_manager.set(
                     state_manager
                         .as_ref()
-                        .map(|state_manager| state_manager.next_page()),
+                        .map(|state_manager| state_manager.next()),
                 )
             } else if e.key() == "ArrowUp"
                 || e.key() == "PageUp"
@@ -91,7 +94,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 state_manager.set(
                     state_manager
                         .as_ref()
-                        .map(|state_manager| state_manager.prev_page()),
+                        .map(|state_manager| state_manager.prev()),
                 )
             } else if e.key() == "s" {
                 state_manager.set(
@@ -115,13 +118,13 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 state_manager.set(
                     state_manager
                         .as_ref()
-                        .map(|state_manager| state_manager.prev_page()),
+                        .map(|state_manager| state_manager.prev()),
                 )
             } else if (e.x() as f64) > window_dimensions.0 * 0.6 {
                 state_manager.set(
                     state_manager
                         .as_ref()
-                        .map(|state_manager| state_manager.next_page()),
+                        .map(|state_manager| state_manager.next()),
                 )
             } else {
                 active.set(!*active);
@@ -185,7 +188,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
             state_manager.set(
                 state_manager
                     .as_ref()
-                    .map(|state_manager| state_manager.jump_page(value)),
+                    .map(|state_manager| state_manager.jump(value)),
             );
         })
     };
@@ -202,6 +205,20 @@ pub fn PlayerComponent(props: &Props) -> Html {
         return html! {};
     }
     let state_manager = state_manager.as_ref().unwrap();
+    let blob = match state_manager.item().0 {
+        Item::Image(s) => s,
+        Item::Pdf(s) => s,
+        Item::Chords(s) => s,
+    }
+    .to_string();
+    let blob_next = state_manager.item().1.map(|item| {
+        match item {
+            Item::Image(s) => s,
+            Item::Pdf(s) => s,
+            Item::Chords(s) => s,
+        }
+        .to_string()
+    });
 
     html! {
         <div
@@ -215,8 +232,8 @@ pub fn PlayerComponent(props: &Props) -> Html {
             </div>
             <div onclick={onclick} class={if *active {"middle active"} else {"middle"}}>
                 <ImageComponent
-                    id={state_manager.get_blob()}
-                    id2={state_manager.get_next_blob()}
+                    id={blob}
+                    id2={blob_next}
                     active={*active}
                     half_page_scroll={state_manager.is_half_page_scroll()}
                 />
@@ -225,12 +242,12 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 <span
                     onclick={onclick_select_changer}
                     class="select-changer"
-                >{state_manager.get_select_str()}</span>
+                >{state_manager.select_type_str()}</span>
                 <input
                     type="range"
                     min="0"
-                    max={state_manager.get_max_index().to_string()}
-                    value={state_manager.get_index().to_string()}
+                    max={state_manager.max_index().to_string()}
+                    value={state_manager.index().to_string()}
                     class="index-chooser"
                     oninput={oninput.clone()}
                 />
@@ -238,20 +255,20 @@ pub fn PlayerComponent(props: &Props) -> Html {
                     <input
                         type="number"
                         min="1"
-                        max={state_manager.get_max_string()}
-                        value={state_manager.get_string()}
+                        max={(state_manager.max_index()+1).to_string()}
+                        value={(state_manager.index()+1).to_string()}
                         class="index-chooser-2"
                         oninput={oninput2}
                     />
-                    {format!(" / {}",state_manager.get_max_string())}</span>
+                    {format!(" / {}",(state_manager.max_index()+1).to_string())}</span>
                 <span
                     onclick={onclick_scroll_changer}
                     class="scroll-changer"
-                >{state_manager.get_scroll_str()}</span>
+                >{state_manager.scroll_type_str()}</span>
             </div>
-            <div class={if *active && state_manager.get_toc_len() > 1 {"toc active"}else{"toc"}}>
+            <div class={if *active && state_manager.toc().len() > 1 {"toc active"}else{"toc"}}>
                 <TableOfContentsComponent
-                    list={state_manager.get_toc()}
+                    list={state_manager.toc().iter().map(|item| item.clone()).collect::<Vec<TocItem>>()}
                     select={index_jump_callback}
                 />
             </div>
