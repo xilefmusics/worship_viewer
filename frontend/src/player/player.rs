@@ -5,7 +5,6 @@ use gloo_net::http::Request;
 use stylist::Style;
 use web_sys::HtmlInputElement;
 use worship_viewer_shared::player::{Player, PlayerItem, TocItem};
-use worship_viewer_shared::types::PlayerData;
 use yew::prelude::*;
 use yew_hooks::{use_event_with_window, use_window_size};
 use yew_router::prelude::*;
@@ -36,34 +35,28 @@ pub fn PlayerComponent(props: &Props) -> Html {
     let id = props.id.clone();
     let back_route = get_back_route(&id);
 
-    let state_manager = use_state(|| None);
+    let player = use_state(|| None);
     let active = use_state(|| false);
     {
-        let state_manager = state_manager.clone();
+        let player = player.clone();
         use_effect_with((), move |_| {
-            let state_manager = state_manager.clone();
+            let player = player.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let fetched_data: PlayerData = Request::get(&format!("/api/player/{}", id))
+                let fetched_player: Player = Request::get(&format!("/api/player/{}", id))
                     .send()
                     .await
                     .unwrap()
                     .json()
                     .await
                     .unwrap();
-                let toc = fetched_data.toc.clone();
-                let items = fetched_data
-                    .data
-                    .iter()
-                    .map(|item| PlayerItem::Image(item.clone()))
-                    .collect::<Vec<PlayerItem>>();
-                state_manager.set(Some(Player::new(items, toc)));
+                player.set(Some(fetched_player));
             });
             || ()
         });
     };
 
     {
-        let state_manager = state_manager.clone();
+        let player = player.clone();
         let active = active.clone();
         let navigator = navigator.clone();
         let back_route = back_route.clone();
@@ -80,10 +73,10 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 || e.key() == "Enter"
                 || e.key() == "j"
             {
-                state_manager.set(
-                    state_manager
+                player.set(
+                    player
                         .as_ref()
-                        .map(|state_manager| state_manager.next()),
+                        .map(|player| player.next()),
                 )
             } else if e.key() == "ArrowUp"
                 || e.key() == "PageUp"
@@ -91,16 +84,16 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 || e.key() == "Backspace"
                 || e.key() == "k"
             {
-                state_manager.set(
-                    state_manager
+                player.set(
+                    player
                         .as_ref()
-                        .map(|state_manager| state_manager.prev()),
+                        .map(|player| player.prev()),
                 )
             } else if e.key() == "s" {
-                state_manager.set(
-                    state_manager
+                player.set(
+                    player
                         .as_ref()
-                        .map(|state_manager| state_manager.next_scroll_type()),
+                        .map(|player| player.next_scroll_type()),
                 )
             } else if e.key() == "m" {
                 active.set(!*active);
@@ -111,20 +104,20 @@ pub fn PlayerComponent(props: &Props) -> Html {
     }
 
     let onclick = {
-        let state_manager = state_manager.clone();
+        let player = player.clone();
         let active = active.clone();
         move |e: MouseEvent| {
             if (e.x() as f64) < window_dimensions.0 * 0.4 {
-                state_manager.set(
-                    state_manager
+                player.set(
+                    player
                         .as_ref()
-                        .map(|state_manager| state_manager.prev()),
+                        .map(|player| player.prev()),
                 )
             } else if (e.x() as f64) > window_dimensions.0 * 0.6 {
-                state_manager.set(
-                    state_manager
+                player.set(
+                    player
                         .as_ref()
-                        .map(|state_manager| state_manager.next()),
+                        .map(|player| player.next()),
                 )
             } else {
                 active.set(!*active);
@@ -133,51 +126,51 @@ pub fn PlayerComponent(props: &Props) -> Html {
     };
 
     let onclick_scroll_changer = {
-        let state_manager = state_manager.clone();
+        let player = player.clone();
         move |_: MouseEvent| {
-            state_manager.set(
-                state_manager
+            player.set(
+                player
                     .as_ref()
-                    .map(|state_manager| state_manager.next_scroll_type()),
+                    .map(|player| player.next_scroll_type()),
             );
         }
     };
 
     let oninput = {
-        let state_manager = state_manager.clone();
+        let player = player.clone();
         move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
-            state_manager.set(
-                state_manager
+            player.set(
+                player
                     .as_ref()
-                    .map(|state_manager| state_manager.jump(input.value_as_number() as usize)),
+                    .map(|player| player.jump(input.value_as_number() as usize)),
             );
         }
     };
 
     let oninput2 = {
-        let state_manager = state_manager.clone();
+        let player = player.clone();
         move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
             let number = input.value_as_number() as usize;
             if number < 1 {
                 return;
             }
-            state_manager.set(
-                state_manager
+            player.set(
+                player
                     .as_ref()
-                    .map(|state_manager| state_manager.jump(number - 1)),
+                    .map(|player| player.jump(number - 1)),
             );
         }
     };
 
     let index_jump_callback = {
-        let state_manager = state_manager.clone();
+        let player = player.clone();
         Callback::from(move |value| {
-            state_manager.set(
-                state_manager
+            player.set(
+                player
                     .as_ref()
-                    .map(|state_manager| state_manager.jump(value)),
+                    .map(|player| player.jump(value)),
             );
         })
     };
@@ -190,17 +183,17 @@ pub fn PlayerComponent(props: &Props) -> Html {
         }
     };
 
-    if state_manager.is_none() {
+    if player.is_none() {
         return html! {};
     }
-    let state_manager = state_manager.as_ref().unwrap();
-    let blob = match state_manager.item().0 {
+    let player = player.as_ref().unwrap();
+    let blob = match player.item().0 {
         PlayerItem::Image(s) => s,
         PlayerItem::Pdf(s) => s,
         PlayerItem::Chords(s) => s,
     }
     .to_string();
-    let blob_next = state_manager.item().1.map(|item| {
+    let blob_next = player.item().1.map(|item| {
         match item {
             PlayerItem::Image(s) => s,
             PlayerItem::Pdf(s) => s,
@@ -224,15 +217,15 @@ pub fn PlayerComponent(props: &Props) -> Html {
                     id={blob}
                     id2={blob_next}
                     active={*active}
-                    half_page_scroll={state_manager.is_half_page_scroll()}
+                    half_page_scroll={player.is_half_page_scroll()}
                 />
             </div>
             <div class={if *active {"bottom active"} else {"bottom"}}>
                 <input
                     type="range"
                     min="0"
-                    max={state_manager.max_index().to_string()}
-                    value={state_manager.index().to_string()}
+                    max={player.max_index().to_string()}
+                    value={player.index().to_string()}
                     class="index-chooser"
                     oninput={oninput.clone()}
                 />
@@ -240,20 +233,20 @@ pub fn PlayerComponent(props: &Props) -> Html {
                     <input
                         type="number"
                         min="1"
-                        max={(state_manager.max_index()+1).to_string()}
-                        value={(state_manager.index()+1).to_string()}
+                        max={(player.max_index()+1).to_string()}
+                        value={(player.index()+1).to_string()}
                         class="index-chooser-2"
                         oninput={oninput2}
                     />
-                    {format!(" / {}",(state_manager.max_index()+1).to_string())}</span>
+                    {format!(" / {}",(player.max_index()+1).to_string())}</span>
                 <span
                     onclick={onclick_scroll_changer}
                     class="scroll-changer"
-                >{state_manager.scroll_type_str()}</span>
+                >{player.scroll_type_str()}</span>
             </div>
-            <div class={if *active && state_manager.toc().len() > 1 {"toc active"}else{"toc"}}>
+            <div class={if *active && player.toc().len() > 1 {"toc active"}else{"toc"}}>
                 <TableOfContentsComponent
-                    list={state_manager.toc().iter().map(|item| item.clone()).collect::<Vec<TocItem>>()}
+                    list={player.toc().iter().map(|item| item.clone()).collect::<Vec<TocItem>>()}
                     select={index_jump_callback}
                 />
             </div>

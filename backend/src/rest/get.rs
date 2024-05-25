@@ -4,7 +4,7 @@ use crate::rest::QueryParams;
 use crate::types::{
     BlobDatabase, CollectionDatabase, GroupDatabase, SongDatabase, UserDatabase,
 };
-use worship_viewer_shared::types::PlayerData;
+use worship_viewer_shared::player::Player;
 use crate::AppError;
 
 use actix_files::NamedFile;
@@ -217,7 +217,7 @@ pub async fn player_id_song(
     db: Data<Database>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(PlayerData::from(
+    Ok(HttpResponse::Ok().json(Player::from(
         SongDatabase::select(
             db.select()
                 .user(&parse_user_header(req)?)
@@ -242,9 +242,9 @@ pub async fn player_id_collection(
         )
         .await?
         .into_iter()
-        .map(|song| PlayerData::from(song))
-        .try_fold(PlayerData::default(), |acc, result| {
-            Ok::<PlayerData, AppError>(acc + result)
+        .map(|song| Player::from(song))
+        .try_fold(Player::default(), |acc, result| {
+            Ok::<Player, AppError>(acc + result)
         })?,
     ))
 }
