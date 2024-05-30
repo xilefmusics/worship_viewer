@@ -1,0 +1,9 @@
+img {
+  top: 0;
+  width: 100%;
+  position: absolute;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  object-fit: cover;
+}

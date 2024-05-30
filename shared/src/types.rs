@@ -88,4 +88,3 @@ pub struct Collection {
     pub group: String,
     pub tags: Vec<String>,
 }
-

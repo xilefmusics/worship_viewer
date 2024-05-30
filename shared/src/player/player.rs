@@ -1,5 +1,5 @@
-use crate::types::Song;
 use super::{PlayerItem, ScrollType, TocItem};
+use crate::types::Song;
 
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
@@ -33,6 +33,9 @@ impl Player {
         new.scroll_type = self.scroll_type.next();
         new.between_items = false;
         new
+    }
+    pub fn scroll_type(&self) -> &ScrollType {
+        &self.scroll_type
     }
     pub fn scroll_type_str(&self) -> &str {
         self.scroll_type.to_str()
@@ -217,7 +220,11 @@ impl Add for Player {
 impl From<Song> for Player {
     fn from(song: Song) -> Self {
         Self {
-            items: song.blobs.iter().map(|blob| PlayerItem::Image(blob.to_string())).collect(),
+            items: song
+                .blobs
+                .iter()
+                .map(|blob| PlayerItem::Blob(blob.to_string()))
+                .collect(),
             toc: if song.not_a_song {
                 vec![]
             } else {
@@ -233,4 +240,3 @@ impl From<Song> for Player {
         }
     }
 }
-

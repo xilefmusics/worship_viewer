@@ -1,7 +1,9 @@
-mod image;
+mod page;
+mod pages;
 mod player;
 mod toc;
 
-use image::ImageComponent;
+use page::PageComponent;
+use pages::PagesComponent;
 pub use player::PlayerComponent;
 use toc::TableOfContentsComponent;

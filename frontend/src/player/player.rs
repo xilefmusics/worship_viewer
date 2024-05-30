@@ -1,10 +1,9 @@
-use super::ImageComponent;
-use super::TableOfContentsComponent;
+use super::{PagesComponent, TableOfContentsComponent};
 use crate::routes::Route;
 use gloo_net::http::Request;
 use stylist::Style;
 use web_sys::HtmlInputElement;
-use worship_viewer_shared::player::{Player, PlayerItem, TocItem};
+use worship_viewer_shared::player::{Player, TocItem};
 use yew::prelude::*;
 use yew_hooks::{use_event_with_window, use_window_size};
 use yew_router::prelude::*;
@@ -73,28 +72,16 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 || e.key() == "Enter"
                 || e.key() == "j"
             {
-                player.set(
-                    player
-                        .as_ref()
-                        .map(|player| player.next()),
-                )
+                player.set(player.as_ref().map(|player| player.next()))
             } else if e.key() == "ArrowUp"
                 || e.key() == "PageUp"
                 || e.key() == "ArrowLeft"
                 || e.key() == "Backspace"
                 || e.key() == "k"
             {
-                player.set(
-                    player
-                        .as_ref()
-                        .map(|player| player.prev()),
-                )
+                player.set(player.as_ref().map(|player| player.prev()))
             } else if e.key() == "s" {
-                player.set(
-                    player
-                        .as_ref()
-                        .map(|player| player.next_scroll_type()),
-                )
+                player.set(player.as_ref().map(|player| player.next_scroll_type()))
             } else if e.key() == "m" {
                 active.set(!*active);
             } else if e.key() == "Escape" {
@@ -108,17 +95,9 @@ pub fn PlayerComponent(props: &Props) -> Html {
         let active = active.clone();
         move |e: MouseEvent| {
             if (e.x() as f64) < window_dimensions.0 * 0.4 {
-                player.set(
-                    player
-                        .as_ref()
-                        .map(|player| player.prev()),
-                )
+                player.set(player.as_ref().map(|player| player.prev()))
             } else if (e.x() as f64) > window_dimensions.0 * 0.6 {
-                player.set(
-                    player
-                        .as_ref()
-                        .map(|player| player.next()),
-                )
+                player.set(player.as_ref().map(|player| player.next()))
             } else {
                 active.set(!*active);
             }
@@ -128,11 +107,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
     let onclick_scroll_changer = {
         let player = player.clone();
         move |_: MouseEvent| {
-            player.set(
-                player
-                    .as_ref()
-                    .map(|player| player.next_scroll_type()),
-            );
+            player.set(player.as_ref().map(|player| player.next_scroll_type()));
         }
     };
 
@@ -156,22 +131,14 @@ pub fn PlayerComponent(props: &Props) -> Html {
             if number < 1 {
                 return;
             }
-            player.set(
-                player
-                    .as_ref()
-                    .map(|player| player.jump(number - 1)),
-            );
+            player.set(player.as_ref().map(|player| player.jump(number - 1)));
         }
     };
 
     let index_jump_callback = {
         let player = player.clone();
         Callback::from(move |value| {
-            player.set(
-                player
-                    .as_ref()
-                    .map(|player| player.jump(value)),
-            );
+            player.set(player.as_ref().map(|player| player.jump(value)));
         })
     };
 
@@ -187,20 +154,6 @@ pub fn PlayerComponent(props: &Props) -> Html {
         return html! {};
     }
     let player = player.as_ref().unwrap();
-    let blob = match player.item().0 {
-        PlayerItem::Image(s) => s,
-        PlayerItem::Pdf(s) => s,
-        PlayerItem::Chords(s) => s,
-    }
-    .to_string();
-    let blob_next = player.item().1.map(|item| {
-        match item {
-            PlayerItem::Image(s) => s,
-            PlayerItem::Pdf(s) => s,
-            PlayerItem::Chords(s) => s,
-        }
-        .to_string()
-    });
 
     html! {
         <div
@@ -213,11 +166,11 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 >{"arrow_back"}</span>
             </div>
             <div onclick={onclick} class={if *active {"middle active"} else {"middle"}}>
-                <ImageComponent
-                    id={blob}
-                    id2={blob_next}
-                    active={*active}
+                <PagesComponent
+                    item={player.item().0.clone()}
+                    item2={player.item().1.map(|item| item.clone())}
                     half_page_scroll={player.is_half_page_scroll()}
+                    active={*active}
                 />
             </div>
             <div class={if *active {"bottom active"} else {"bottom"}}>
