@@ -64,7 +64,7 @@ pub fn PagesComponent(props: &Props) -> Html {
     } else {
         content_dimensions.0 / 2
     };
-    let font_size = page_width / 45;
+    let font_size = page_width / 46;
 
     html! {
         <div

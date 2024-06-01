@@ -112,7 +112,7 @@
   top: var(--top-bottom-height);
   left: 0;
   height: calc(var(--vh) - 2 * var(--top-bottom-height));
-  width: 40vw;
+  max-width: 40vw;
 }
 
 .toc.active {
