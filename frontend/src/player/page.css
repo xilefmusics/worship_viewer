@@ -1,4 +1,15 @@
+:root {
+  height: 100%;
+  background-color: white;
+  color: black;
+  font-family: 'Roboto Mono', monospace;
+  padding: 0 2rem;
+  box-sizing: border-box;
+}
+
 img {
+  margin: 0;
+  left: 0;
   top: 0;
   width: 100%;
   position: absolute;
@@ -6,4 +17,50 @@ img {
   -webkit-user-select: none;
   user-select: none;
   object-fit: cover;
+}
+
+.wrapper {
+  height: 100%;
+  width: max-content;
+  display: inline-block; /* or width: max-content; */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+span::before {
+  content: "\A";
+  white-space: pre;
+}
+
+span {
+  white-space: pre;
+}
+
+.title {
+    margin-top: 1em;
+    margin-bottom: -1em;
+    color: black;
+    font-size: 0.8em;
+    width: 100%;
+    text-align: center;
+}
+
+.keyword::before {
+  content: "\A\A";
+  white-space: pre;
+}
+
+.keyword {
+  color: black;
+  font-weight: bold;
+}
+
+.chord {
+  color: black;
+  font-weight: bold;
+}
+
+.text {
+  color: black;
 }

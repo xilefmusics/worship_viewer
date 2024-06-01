@@ -63,6 +63,7 @@ pub fn PagesComponent(props: &Props) -> Html {
     } else {
         content_dimensions.0 / 2
     };
+    let font_size = page_width / 45;
 
     html! {
         <div
@@ -79,6 +80,7 @@ pub fn PagesComponent(props: &Props) -> Html {
                 >
                     <PageComponent
                         item={props.item.clone()}
+                        font_size={font_size}
                     />
                 </div>
                 if let Some(item) = props.item2.clone() {
@@ -88,6 +90,7 @@ pub fn PagesComponent(props: &Props) -> Html {
                     >
                         <PageComponent
                             item={item}
+                            font_size={font_size}
                         />
                     </div>
                 }

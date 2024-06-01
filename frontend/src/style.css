@@ -1,4 +1,15 @@
 :root {
+	--bg: #282828;
+  --fg: #ebdbb2;
+  --red: #cc241d;
+  --green: #98971a;
+  --yellow: #d79921;
+  --blue: #458588;
+  --purple: #b16286;
+  --aqua: #689d6a;
+  --orange: #d65d0e;
+  --gray: #a89984;
+
 	--primary: #bb0000;
 	--fg1: rgba(255, 255, 255, 0.7);
 	--fg2: rgba(255, 255, 255, 0.5);
