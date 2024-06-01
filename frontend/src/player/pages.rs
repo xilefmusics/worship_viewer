@@ -34,6 +34,7 @@ pub struct Props {
     #[prop_or_default]
     pub item: PlayerItem,
     pub item2: Option<PlayerItem>,
+    pub override_key: Option<u8>,
     pub half_page_scroll: bool,
     pub active: bool, // this is there for the component to redraw if it changes
 }
@@ -81,6 +82,7 @@ pub fn PagesComponent(props: &Props) -> Html {
                     <PageComponent
                         item={props.item.clone()}
                         font_size={font_size}
+                        override_key={props.override_key}
                     />
                 </div>
                 if let Some(item) = props.item2.clone() {
@@ -91,6 +93,7 @@ pub fn PagesComponent(props: &Props) -> Html {
                         <PageComponent
                             item={item}
                             font_size={font_size}
+                            override_key={props.override_key}
                         />
                     </div>
                 }

@@ -36,6 +36,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
 
     let player = use_state(|| None);
     let active = use_state(|| false);
+    let override_key = use_state(|| None);
     {
         let player = player.clone();
         use_effect_with((), move |_| {
@@ -59,6 +60,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
         let active = active.clone();
         let navigator = navigator.clone();
         let back_route = back_route.clone();
+        let override_key = override_key.clone();
         use_event_with_window("keydown", move |e: KeyboardEvent| {
             if let Some(target) = e.target() {
                 if target.to_string() == "[object HTMLInputElement]" {
@@ -86,6 +88,26 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 active.set(!*active);
             } else if e.key() == "Escape" {
                 navigator.push(&back_route);
+            } else if e.key() == "A" {
+                override_key.set(Some(0))
+            } else if e.key() == "B" {
+                override_key.set(Some(2))
+            } else if e.key() == "C" {
+                override_key.set(Some(3))
+            } else if e.key() == "D" {
+                override_key.set(Some(5))
+            } else if e.key() == "E" {
+                override_key.set(Some(7))
+            } else if e.key() == "F" {
+                override_key.set(Some(8))
+            } else if e.key() == "G" {
+                override_key.set(Some(10))
+            } else if e.key() == "b" || e.key() == "-" {
+                override_key.set(override_key.map(|key| (key + 11) % 12))
+            } else if e.key() == "#" || e.key() == "+" {
+                override_key.set(override_key.map(|key| (key + 1) % 12))
+            } else if e.key() == "r" {
+                override_key.set(None)
             }
         });
     }
@@ -169,6 +191,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
                 <PagesComponent
                     item={player.item().0.clone()}
                     item2={player.item().1.map(|item| item.clone())}
+                    override_key={*override_key}
                     half_page_scroll={player.is_half_page_scroll()}
                     active={*active}
                 />
