@@ -15,11 +15,11 @@ fn get_content_dimensions(
     let (new_width, new_height) = if !have_two || half_page_scroll {
         (
             (height as f64 / SQRT_2) as i32,
-            (width as f64 * SQRT_2) as i32,
+            (width as f64 * SQRT_2) as i32 + 5,
         )
     } else {
         (
-            (height as f64 * SQRT_2) as i32,
+            (height as f64 * SQRT_2) as i32 + 5,
             (width as f64 / SQRT_2) as i32,
         )
     };
