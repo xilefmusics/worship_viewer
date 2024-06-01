@@ -14,7 +14,7 @@ impl Song {
     pub fn title(&self) -> &str {
         match &self.data {
             SongData::Blob(data) => &data.title,
-            SongData::Chord(_) => "",
+            SongData::Chord(data) => &data.title,
         }
     }
 
@@ -25,10 +25,12 @@ impl Song {
         }
     }
 
-    pub fn key(&self) -> &Key {
+    pub fn key(&self) -> Key {
         match &self.data {
-            SongData::Blob(data) => &data.key,
-            SongData::Chord(_) => &Key::NotAKey,
+            SongData::Blob(data) => data.key.clone(),
+            SongData::Chord(data) => {
+                Key::from_str(data.key.format(&chordlib::types::SimpleChord::default()))
+            }
         }
     }
 }
@@ -36,5 +38,5 @@ impl Song {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SongData {
     Blob(BlobSong),
-    Chord(()),
+    Chord(chordlib::types::Song),
 }

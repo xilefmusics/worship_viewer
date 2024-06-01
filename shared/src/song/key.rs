@@ -61,4 +61,31 @@ impl Key {
             Self::NotAKey => "",
         }
     }
+
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "Ab" => Self::Ab,
+            "A" => Self::A,
+            "A#" => Self::As,
+            "Bb" => Self::Bb,
+            "B" => Self::B,
+            "B#" => Self::Bs,
+            "Cb" => Self::Cb,
+            "C" => Self::C,
+            "C#" => Self::Cs,
+            "Db" => Self::Db,
+            "D" => Self::D,
+            "D#" => Self::Ds,
+            "Eb" => Self::Eb,
+            "E" => Self::E,
+            "E#" => Self::Es,
+            "Fb" => Self::Fb,
+            "F" => Self::F,
+            "F#" => Self::Fs,
+            "Gb" => Self::Gb,
+            "G" => Self::G,
+            "G#" => Self::Gs,
+            _ => Self::NotAKey,
+        }
+    }
 }

@@ -2,7 +2,7 @@ use crate::database::{Database, Select};
 use crate::error::AppError;
 use crate::types::{record2string, string2record, IdGetter};
 
-pub use worship_viewer_shared::song::{BlobSong, Key, Song, SongData};
+pub use worship_viewer_shared::song::{BlobSong, Key, Song, SongData, ChordSong};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -23,7 +23,7 @@ pub struct BlobSongDatabase {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SongDataDatabase {
     Blob(BlobSongDatabase),
-    Chord(()),
+    Chord(ChordSong),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -92,7 +92,7 @@ impl Into<SongData> for SongDataDatabase {
     fn into(self) -> SongData {
         match self {
             Self::Blob(data) => SongData::Blob(data.into()),
-            Self::Chord(_) => SongData::Chord(()),
+            Self::Chord(data) => SongData::Chord(data),
         }
     }
 }
@@ -132,7 +132,7 @@ impl TryFrom<SongData> for SongDataDatabase {
     fn try_from(other: SongData) -> Result<Self, Self::Error> {
         Ok(match other {
             SongData::Blob(data) => Self::Blob(data.try_into()?),
-            SongData::Chord(_) => Self::Chord(()),
+            SongData::Chord(data) => Self::Chord(data),
         })
     }
 }

@@ -219,25 +219,25 @@ impl Add for Player {
 
 impl From<Song> for Player {
     fn from(song: Song) -> Self {
-        let song = match song.data.clone() {
-            SongData::Blob(data) => Some(data),
-            SongData::Chord(_) => None,
-        }
-        .unwrap();
-
         Self {
-            items: song
-                .blobs
-                .iter()
-                .map(|blob| PlayerItem::Blob(blob.to_string()))
-                .collect(),
-            toc: if song.not_a_song {
+            items: match &song.data {
+                SongData::Blob(data) => data
+                    .blobs
+                    .iter()
+                    .map(|blob| PlayerItem::Blob(blob.to_string()))
+                    .collect(),
+                SongData::Chord(data) => vec![PlayerItem::Chords(data.clone())],
+            },
+            toc: if song.not_a_song() {
                 vec![]
             } else {
                 vec![TocItem {
                     idx: 0,
-                    title: song.title,
-                    nr: song.nr,
+                    title: song.title().to_string(),
+                    nr: match &song.data {
+                        SongData::Blob(data) => data.nr.to_string(),
+                        SongData::Chord(_) => "".to_string(),
+                    },
                 }]
             },
             scroll_type: ScrollType::default(),
