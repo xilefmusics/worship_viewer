@@ -3,7 +3,6 @@ use crate::rest::helper::{expect_admin, parse_user_header};
 use crate::rest::QueryParams;
 use crate::types::{BlobDatabase, CollectionDatabase, GroupDatabase, SongDatabase, UserDatabase};
 use crate::AppError;
-use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionType};
 use worship_viewer_shared::player::Player;
 
 use actix_files::NamedFile;

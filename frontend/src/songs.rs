@@ -3,7 +3,7 @@ use crate::routes::Route;
 use crate::top_bar::TopBarComponent;
 use gloo_net::http::Request;
 use stylist::Style;
-use worship_viewer_shared::types::Song;
+use worship_viewer_shared::song::Song;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -22,10 +22,10 @@ pub fn SongsComponent() -> Html {
                     .json()
                     .await
                     .unwrap();
-                fetched_songs.sort_by_key(|song| song.title.clone());
+                fetched_songs.sort_by_key(|song| song.title().to_string());
                 let fetched_songs: Vec<Song> = fetched_songs
                     .into_iter()
-                    .filter(|song| !song.not_a_song)
+                    .filter(|song| !song.not_a_song())
                     .collect();
                 songs.set(fetched_songs);
             });
@@ -38,8 +38,8 @@ pub fn SongsComponent() -> Html {
     let songs = songs
         .iter()
         .map(|song| {
-            let title = song.title.clone();
-            let key = song.key.to_str();
+            let title = song.title();
+            let key = song.key().to_str();
             let collection = song.collection.clone();
             let onclick = {
                 let navigator = navigator.clone();

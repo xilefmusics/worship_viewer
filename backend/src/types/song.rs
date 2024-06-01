@@ -2,15 +2,14 @@ use crate::database::{Database, Select};
 use crate::error::AppError;
 use crate::types::{record2string, string2record, IdGetter};
 
-pub use worship_viewer_shared::types::{Key, Song};
+pub use worship_viewer_shared::song::{BlobSong, Key, Song, SongData};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use surrealdb::opt::RecordId;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SongDatabase {
-    pub id: RecordId,
+pub struct BlobSongDatabase {
     pub title: String,
     pub nr: String,
     pub key: Key,
@@ -19,6 +18,18 @@ pub struct SongDatabase {
     pub language2: Option<String>,
     pub not_a_song: bool,
     pub blobs: Vec<RecordId>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum SongDataDatabase {
+    Blob(BlobSongDatabase),
+    Chord(()),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SongDatabase {
+    pub id: RecordId,
+    pub data: SongDataDatabase,
     pub collection: RecordId,
     pub group: RecordId,
     pub tags: Vec<String>,
@@ -69,6 +80,26 @@ impl Into<Song> for SongDatabase {
     fn into(self) -> Song {
         Song {
             id: self.get_id_full(),
+            data: self.data.into(),
+            collection: record2string(&self.collection),
+            group: record2string(&self.group),
+            tags: self.tags,
+        }
+    }
+}
+
+impl Into<SongData> for SongDataDatabase {
+    fn into(self) -> SongData {
+        match self {
+            Self::Blob(data) => SongData::Blob(data.into()),
+            Self::Chord(_) => SongData::Chord(()),
+        }
+    }
+}
+
+impl Into<BlobSong> for BlobSongDatabase {
+    fn into(self) -> BlobSong {
+        BlobSong {
             title: self.title,
             nr: self.nr,
             key: self.key,
@@ -77,9 +108,6 @@ impl Into<Song> for SongDatabase {
             language2: self.language2,
             not_a_song: self.not_a_song,
             blobs: self.blobs.iter().map(|blob| record2string(blob)).collect(),
-            collection: record2string(&self.collection),
-            group: record2string(&self.group),
-            tags: self.tags,
         }
     }
 }
@@ -88,8 +116,32 @@ impl TryFrom<Song> for SongDatabase {
     type Error = AppError;
 
     fn try_from(other: Song) -> Result<Self, Self::Error> {
-        Ok(SongDatabase {
+        Ok(Self {
             id: string2record(&other.id)?,
+            data: SongDataDatabase::try_from(other.data)?,
+            collection: string2record(&other.collection)?,
+            group: string2record(&other.group)?,
+            tags: other.tags,
+        })
+    }
+}
+
+impl TryFrom<SongData> for SongDataDatabase {
+    type Error = AppError;
+
+    fn try_from(other: SongData) -> Result<Self, Self::Error> {
+        Ok(match other {
+            SongData::Blob(data) => Self::Blob(data.try_into()?),
+            SongData::Chord(_) => Self::Chord(()),
+        })
+    }
+}
+
+impl TryFrom<BlobSong> for BlobSongDatabase {
+    type Error = AppError;
+
+    fn try_from(other: BlobSong) -> Result<Self, Self::Error> {
+        Ok(Self {
             title: other.title,
             nr: other.nr,
             key: other.key,
@@ -102,9 +154,6 @@ impl TryFrom<Song> for SongDatabase {
                 .iter()
                 .map(|blob| string2record(blob))
                 .collect::<Result<Vec<RecordId>, AppError>>()?,
-            collection: string2record(&other.collection)?,
-            group: string2record(&other.group)?,
-            tags: other.tags,
         })
     }
 }

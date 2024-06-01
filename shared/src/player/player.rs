@@ -1,5 +1,5 @@
 use super::{PlayerItem, ScrollType, TocItem};
-use crate::types::Song;
+use crate::song::{Song, SongData};
 
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
@@ -219,6 +219,12 @@ impl Add for Player {
 
 impl From<Song> for Player {
     fn from(song: Song) -> Self {
+        let song = match song.data.clone() {
+            SongData::Blob(data) => Some(data),
+            SongData::Chord(_) => None,
+        }
+        .unwrap();
+
         Self {
             items: song
                 .blobs

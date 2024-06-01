@@ -38,7 +38,7 @@ Once all dependencies have been installed, the four components can be started us
 
 ``` bash
 surreal start --log debug --user root --pass root memory --allow-scripting
-cd backedn && cargo watch -cqx run
+cd backend && cargo watch -cqx run
 cd frontend && trunk serve
 CONFIG_FILE="./proxauth-config.yaml" proxauth
 ```
