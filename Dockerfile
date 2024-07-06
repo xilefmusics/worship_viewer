@@ -6,7 +6,7 @@ RUN git clone --depth 1 --branch 0.1.3 https://github.com/xilefmusics/fancy_surr
 WORKDIR /chordlib
 RUN git clone --depth 1 --branch 0.1.0 https://github.com/xilefmusics/chordlib.git .
 
-FROM rust:1.78.0-bookworm as builder
+FROM rust:1.79.0-bookworm as builder
 
 COPY --from=DependencyDownloader /fancy_surreal /fancy_surreal
 COPY --from=DependencyDownloader /chordlib /chordlib
@@ -31,7 +31,7 @@ RUN trunk build --release
 
 FROM ubuntu:24.04
 
-COPY --from=builder /wrk/backend/target/release/worship_viewer_backend /app/worship_viewer
+COPY --from=builder /wrk/backend/target/release/backend /app/worship_viewer
 COPY --from=builder /wrk/frontend/dist/ /app/static
 
 ENV PORT="8000" \
