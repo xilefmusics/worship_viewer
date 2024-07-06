@@ -1,9 +1,7 @@
-mod blob_song;
-mod key;
+mod link;
 mod song;
 
-pub use blob_song::BlobSong;
 pub use chordlib::outputs::{FormatOutputLines, OutputLine};
-pub use chordlib::types::{SimpleChord, Song as ChordSong};
-pub use key::Key;
-pub use song::{Song, SongData};
+pub use chordlib::types::SimpleChord;
+pub use link::Link;
+pub use song::Song;

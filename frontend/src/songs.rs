@@ -2,10 +2,11 @@ use crate::navigation_bar::NavigationBarComponent;
 use crate::routes::Route;
 use crate::top_bar::TopBarComponent;
 use gloo_net::http::Request;
+use shared::song::{SimpleChord, Song};
 use stylist::Style;
-use worship_viewer_shared::song::Song;
 use yew::prelude::*;
 use yew_router::prelude::*;
+use std::collections::HashMap;
 
 #[function_component]
 pub fn SongsComponent() -> Html {
@@ -22,10 +23,10 @@ pub fn SongsComponent() -> Html {
                     .json()
                     .await
                     .unwrap();
-                fetched_songs.sort_by_key(|song| song.title().to_string());
+                fetched_songs.sort_by_key(|song| song.data.title.clone());
                 let fetched_songs: Vec<Song> = fetched_songs
                     .into_iter()
-                    .filter(|song| !song.not_a_song())
+                    .filter(|song| !song.not_a_song)
                     .collect();
                 songs.set(fetched_songs);
             });
@@ -38,15 +39,23 @@ pub fn SongsComponent() -> Html {
     let songs = songs
         .iter()
         .map(|song| {
-            let title = song.title();
-            let key = song.key().to_str();
-            let collection = song.collection.clone();
+            let title = song.data.title.clone();
+            let key = song
+                .data
+                .key
+                .as_ref()
+                .map(|key| key.format(&SimpleChord::default()))
+                .unwrap_or("");
             let onclick = {
                 let navigator = navigator.clone();
-                let id = song.id.clone();
+                let id = song.id.clone().unwrap();
                 move |_: MouseEvent| {
-                    let id = (&id).to_string();
-                    navigator.push(&Route::Player { id });
+                    navigator
+                        .push_with_query(
+                            &Route::Player,
+                            &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>()),
+                        )
+                        .unwrap()
                 }
             };
             html! {
@@ -54,8 +63,8 @@ pub fn SongsComponent() -> Html {
                     class="song"
                     onclick={onclick}
                 >
-                    <div class="left">{collection}</div>
-                    <div class="middle">{title}</div>
+                    <div class="left">{title}</div>
+                    <div class="middle"></div>
                     <div class="right">{key}</div>
                 </div>
             }

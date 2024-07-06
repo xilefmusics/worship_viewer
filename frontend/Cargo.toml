@@ -1,10 +1,10 @@
 [package]
-name = "worship_viewer_frontend"
+name = "frontend"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-worship_viewer_shared = { path = "../shared" }
+shared = { path = "../shared" }
 yew = { version = "0.21.0", features = ["csr"] }
 yew-router = "0.18"
 stylist = { version = "0.13.0", features = ["yew_integration", "parser"] }
@@ -15,3 +15,5 @@ gloo-console = "0.3.0"
 yew-hooks = "0.3.1"
 web-sys = "0.3.69"
 gloo = "0.11.0"
+serde = { version = "1.0.163", features = ["derive"] }
+url = "2.5.0"

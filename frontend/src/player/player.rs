@@ -1,48 +1,67 @@
 use super::{PagesComponent, TableOfContentsComponent};
-use crate::routes::Route;
 use gloo_net::http::Request;
+use shared::player::{Player, TocItem};
 use stylist::Style;
 use web_sys::HtmlInputElement;
-use worship_viewer_shared::player::{Player, TocItem};
 use yew::prelude::*;
 use yew_hooks::{use_event_with_window, use_window_size};
 use yew_router::prelude::*;
+use serde::Deserialize;
+use url::Url;
+use crate::Route;
 
-fn get_back_route(id: &str) -> Route {
-    if id.starts_with("collection") {
-        Route::Collections
-    } else if id.starts_with("song") {
-        Route::Songs
-    } else if id.starts_with("setlist") {
-        Route::Setlists
-    } else {
-        Route::NotFound
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct Query {
+    pub id: Option<String>,
+    pub collection: Option<String>,
+}
+
+impl Query {
+    pub fn api_url(&self) -> String {
+        let base = Url::parse("https://example.net").unwrap();
+        let mut url = Url::parse("https://example.net/api/player").unwrap();
+        {
+            let mut query_pairs = url.query_pairs_mut();
+
+            if let Some(id) = &self.id {
+                query_pairs.append_pair("id", id);
+            }
+            if let Some(collection) = &self.collection {
+                query_pairs.append_pair("collection", collection);
+            }
+        }
+        base.make_relative(&url).unwrap().to_string()
+    }
+
+    pub fn back_route(&self) -> Route {
+        if self.collection.is_some() {
+            Route::Collections
+        } else if self.id.is_some() {
+            Route::Songs
+        } else {
+            Route::NotFound
+        }
     }
 }
 
-#[derive(Properties, PartialEq)]
-pub struct Props {
-    #[prop_or_default]
-    pub id: String,
-}
-
 #[function_component]
-pub fn PlayerComponent(props: &Props) -> Html {
+pub fn PlayerComponent() -> Html {
     let window_dimensions = use_window_size();
     let navigator = use_navigator().unwrap();
-
-    let id = props.id.clone();
-    let back_route = get_back_route(&id);
+    let query = use_location()
+        .unwrap()
+        .query::<Query>()
+        .unwrap_or(Query::default());
 
     let player = use_state(|| None);
     let active = use_state(|| false);
     let override_key = use_state(|| None);
     {
         let player = player.clone();
+        let api_url = query.api_url();
         use_effect_with((), move |_| {
-            let player = player.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let fetched_player: Player = Request::get(&format!("/api/player/{}", id))
+                let fetched_player: Player = Request::get(&api_url)
                     .send()
                     .await
                     .unwrap()
@@ -59,8 +78,8 @@ pub fn PlayerComponent(props: &Props) -> Html {
         let player = player.clone();
         let active = active.clone();
         let navigator = navigator.clone();
-        let back_route = back_route.clone();
         let override_key = override_key.clone();
+        let back_route = query.back_route();
         use_event_with_window("keydown", move |e: KeyboardEvent| {
             if let Some(target) = e.target() {
                 if target.to_string() == "[object HTMLInputElement]" {
@@ -166,7 +185,7 @@ pub fn PlayerComponent(props: &Props) -> Html {
 
     let onclick_back_button = {
         let navigator = navigator.clone();
-        let back_route = back_route.clone();
+        let back_route = query.back_route();
         move |_: MouseEvent| {
             navigator.push(&back_route);
         }

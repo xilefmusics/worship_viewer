@@ -10,8 +10,8 @@ pub enum Route {
     Songs,
     #[at("/setlists")]
     Setlists,
-    #[at("/player/:id")]
-    Player { id: String },
+    #[at("/player")]
+    Player,
     #[not_found]
     #[at("/404")]
     NotFound,

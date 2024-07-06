@@ -2,10 +2,11 @@ use crate::navigation_bar::NavigationBarComponent;
 use crate::routes::Route;
 use crate::top_bar::TopBarComponent;
 use gloo_net::http::Request;
+use shared::collection::Collection;
 use stylist::Style;
-use worship_viewer_shared::types::Collection;
 use yew::prelude::*;
 use yew_router::prelude::*;
+use std::collections::HashMap;
 
 #[function_component]
 pub fn CollectionsComponent() -> Html {
@@ -33,13 +34,17 @@ pub fn CollectionsComponent() -> Html {
     let collections = collections
         .iter()
         .map(|collection| {
-            let cover = "/api/blobs/".to_string() + &collection.clone().cover;
+            let cover = "/api/blobs/".to_string() + &collection.cover;
             let onclick = {
                 let navigator = navigator.clone();
-                let id = collection.id.clone();
+                let id = collection.id.clone().unwrap();
                 move |_: MouseEvent| {
-                    let id = (&id).to_string();
-                    navigator.push(&Route::Player { id });
+                    navigator
+                        .push_with_query(
+                            &Route::Player,
+                            &([("collection", &id)].iter().cloned().collect::<HashMap<_, _>>()),
+                        )
+                        .unwrap()
                 }
             };
             html! {

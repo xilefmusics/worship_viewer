@@ -1,16 +1,14 @@
-use chordlib::types::Song as SongData;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Song {
+pub struct User {
     pub id: Option<String>,
-    pub not_a_song: bool,
-    pub blobs: Vec<String>,
-    pub data: SongData,
+    pub read: Vec<String>,
+    pub write: Vec<String>,
 }
 
 #[cfg(feature = "backend")]
-impl fancy_surreal::Databasable for Song {
+impl fancy_surreal::Databasable for User {
     fn get_id(&self) -> Option<String> {
         self.id.clone()
     }

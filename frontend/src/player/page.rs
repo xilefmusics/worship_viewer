@@ -1,6 +1,6 @@
+use shared::player::PlayerItem;
+use shared::song::{FormatOutputLines, OutputLine, SimpleChord};
 use stylist::Style;
-use worship_viewer_shared::player::PlayerItem;
-use worship_viewer_shared::song::{FormatOutputLines, OutputLine, SimpleChord};
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq, Clone)]
@@ -20,13 +20,19 @@ pub fn PageComponent(props: &Props) -> Html {
             </div>
         },
         PlayerItem::Chords(song) => {
+            let title = if let Some(artist) = song.artist.as_ref() {
+                format!("{} ({})", &song.title, artist)
+            } else {
+                song.title.to_string()
+            };
+
             html! {
                 <div
                     style={format!("font-size: {}px", &props.font_size)}
                     class={Style::new(include_str!("page.css")).expect("Unwrapping CSS should work!")}
                 >
                     <div class="wrapper">
-                        <div class="title">{format!("{} ({})", &song.title, &song.artist)}</div>
+                        <div class="title">{&title}</div>
                         {song.format_output_lines(props.override_key.map(|key| SimpleChord::new(key)), None).iter().map(|line| match line {
                             OutputLine::Keyword(text) => html!{<span class="keyword">{text}</span>},
                             OutputLine::Chord(text) => html!{<span class="chord">{text}</span>},

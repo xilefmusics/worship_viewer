@@ -21,7 +21,7 @@ fn switch(routes: Route) -> Html {
         Route::Collections => html! { <CollectionsComponent /> },
         Route::Songs => html! { <SongsComponent /> },
         Route::Setlists => html! { <SetlistComponent /> },
-        Route::Player { id } => html! {<PlayerComponent id={id}/>},
+        Route::Player => html! {<PlayerComponent />},
         Route::NotFound => html! { <h1>{ "404 Not Found" }</h1> },
     }
 }

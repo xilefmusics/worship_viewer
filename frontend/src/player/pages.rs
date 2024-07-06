@@ -1,8 +1,8 @@
 use super::PageComponent;
+use shared::player::PlayerItem;
 use std::f64::consts::SQRT_2;
 use stylist::Style;
 use web_sys::Element;
-use worship_viewer_shared::player::PlayerItem;
 use yew::prelude::*;
 use yew_hooks::use_window_size;
 

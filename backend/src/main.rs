@@ -1,55 +1,74 @@
-mod database;
+mod blob;
+mod collection;
 mod error;
+mod player;
 mod rest;
 mod settings;
-mod types;
+mod song;
+mod user;
 
-use database::Database;
+use actix_files::Files;
+use actix_web::{web::Data, web::PayloadConfig, App, HttpServer};
+use env_logger::Env;
 use error::AppError;
-use rest::{get, post};
+use fancy_surreal::Client;
 use settings::Settings;
 
-use actix_web::{web::Data, App, HttpServer};
-use env_logger::Env;
-
-#[actix_web::main]
-async fn main() {
+#[tokio::main]
+async fn main() -> Result<(), AppError> {
     env_logger::init_from_env(Env::default().default_filter_or("debug"));
 
     let settings = Settings::new();
-    let database = Data::new(Database::new(settings.clone()).await);
+    let database = Data::new(
+        Client::new(
+            &settings.db_host,
+            settings.db_port,
+            &settings.db_user,
+            &settings.db_password,
+            &settings.db_database,
+            &settings.db_namespace,
+        )
+        .await
+        .map_err(|err| AppError::Other(format!("Couldn't connect to database ({})", err)))?,
+    );
 
     HttpServer::new(move || {
         let database = database.clone();
         App::new()
             .app_data(database)
-            .service(get::groups_id)
-            // TODO: get::groups_id_users
-            .service(get::groups)
-            .service(post::groups)
-            .service(get::users_id)
-            .service(get::users)
-            .service(post::users)
-            .service(get::blobs_id)
-            .service(get::blobs_metadata_id)
-            // TODO: get::blobs_metadata_id_song
-            .service(get::blobs_metadata)
-            .service(post::blobs_metadata)
-            .service(get::songs_id)
-            .service(get::songs_id_collection)
-            .service(get::songs)
-            .service(post::songs)
-            .service(get::collections_id)
-            .service(get::collections)
-            .service(post::collections)
-            .service(get::player_id_song)
-            .service(get::player_id_collection)
-            .service(get::index)
-            .service(get::static_files)
+            .app_data(PayloadConfig::new(1 << 25))
+            .service(user::rest::get)
+            .service(user::rest::get_id)
+            .service(user::rest::put)
+            .service(user::rest::post)
+            .service(user::rest::delete)
+            .service(blob::rest::get_metadata)
+            .service(blob::rest::get_metadata_id)
+            .service(blob::rest::put_metadata)
+            .service(blob::rest::post_metadata)
+            .service(blob::rest::delete_metadata)
+            .service(blob::rest::get_id)
+            .service(song::rest::get)
+            .service(song::rest::get_id)
+            .service(song::rest::put)
+            .service(song::rest::post)
+            .service(song::rest::delete)
+            .service(collection::rest::get)
+            .service(collection::rest::get_id)
+            .service(collection::rest::put)
+            .service(collection::rest::post)
+            .service(collection::rest::delete)
+            .service(player::rest::get)
+            .service(rest::get_index)
+            .service(rest::get_static_files)
+            .service(
+                Files::new("/", std::env::var("STATIC_DIR").unwrap_or("static".into()))
+                    .show_files_listing(),
+            )
     })
     .bind((settings.host, settings.port))
-    .unwrap()
+    .map_err(|err| AppError::Other(format!("Couldn't bind port ({})", err)))?
     .run()
     .await
-    .unwrap()
+    .map_err(|err| AppError::Other(format!("Server crashed ({})", err)))
 }

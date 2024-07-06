@@ -1,5 +1,5 @@
 use super::{PlayerItem, ScrollType, TocItem};
-use crate::song::{Song, SongData};
+use crate::song::Song;
 
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
@@ -21,6 +21,19 @@ impl Player {
             scroll_type: ScrollType::default(),
             between_items: bool::default(),
             index: usize::default(),
+        }
+    }
+
+    pub fn add_numbers_range(&mut self) {
+        self.add_numbers(std::iter::successors(Some(1), |&n| Some(n + 1)).map(|nr| nr.to_string()))
+    }
+
+    pub fn add_numbers<I>(&mut self, numbers: I)
+    where
+        I: IntoIterator<Item = String>,
+    {
+        for (toc_item, nr) in self.toc.iter_mut().zip(numbers.into_iter()) {
+            toc_item.nr = nr
         }
     }
 
@@ -220,24 +233,24 @@ impl Add for Player {
 impl From<Song> for Player {
     fn from(song: Song) -> Self {
         Self {
-            items: match &song.data {
-                SongData::Blob(data) => data
+            items: {
+                let mut items = song
                     .blobs
                     .iter()
                     .map(|blob| PlayerItem::Blob(blob.to_string()))
-                    .collect(),
-                SongData::Chord(data) => vec![PlayerItem::Chords(data.clone())],
+                    .collect::<Vec<PlayerItem>>();
+                if song.data.sections.len() > 0 {
+                    items.push(PlayerItem::Chords(song.data.clone()))
+                }
+                items
             },
-            toc: if song.not_a_song() {
+            toc: if song.not_a_song {
                 vec![]
             } else {
                 vec![TocItem {
                     idx: 0,
-                    title: song.title().to_string(),
-                    nr: match &song.data {
-                        SongData::Blob(data) => data.nr.to_string(),
-                        SongData::Chord(_) => "".to_string(),
-                    },
+                    title: song.data.title,
+                    nr: String::new(),
                 }]
             },
             scroll_type: ScrollType::default(),
