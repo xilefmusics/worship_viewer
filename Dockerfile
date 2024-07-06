@@ -1,8 +1,19 @@
+FROM bitnami/git:2.43.0-debian-11-r4 as DependencyDownloader
+
+WORKDIR /fancy_surreal
+RUN git clone --depth 1 --branch 0.1.3 https://github.com/xilefmusics/fancy_surreal.git .
+
+WORKDIR /chordlib
+RUN git clone --depth 1 --branch 0.1.0 https://github.com/xilefmusics/chordlib.git .
+
 FROM rust:1.78.0-bookworm as builder
+
+COPY --from=DependencyDownloader /fancy_surreal /fancy_surreal
+COPY --from=DependencyDownloader /chordlib /chordlib
 
 RUN export CARGO_BUILD_JOBS=$(nproc) && \
     cargo install cargo-binstall && \
-    cargo binstall trunk --version 0.20.1 --no-confirm && \
+    cargo binstall trunk --version 0.20.2 --no-confirm && \
     rustup target add wasm32-unknown-unknown
 
 WORKDIR /wrk
