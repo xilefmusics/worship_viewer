@@ -1,3 +1,6 @@
 .DS_Store
+target
+dist
+Cargo.lock
 backend/testdata
 backend/blobs
