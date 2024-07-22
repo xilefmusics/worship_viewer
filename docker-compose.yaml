@@ -1,10 +1,14 @@
 version: '3'
 services:
   db:
-    image: surrealdb/surrealdb:v1.5.0
+    image: surrealdb/surrealdb:v1.5.3
     command: start --log debug --user root --pass root memory --allow-scripting
   backend:
     image: xilefmusics/worship-viewer:latest
+    volumes:
+    - ./backend/blobs:/app/blobs
+    ports:
+    - 8082:8000
   proxauth:
     image: xilefmusics/proxauth:0.1.0
     environment:
