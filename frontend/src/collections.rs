@@ -3,10 +3,10 @@ use crate::routes::Route;
 use crate::top_bar::TopBarComponent;
 use gloo_net::http::Request;
 use shared::collection::Collection;
+use std::collections::HashMap;
 use stylist::Style;
 use yew::prelude::*;
 use yew_router::prelude::*;
-use std::collections::HashMap;
 
 #[function_component]
 pub fn CollectionsComponent() -> Html {
@@ -35,6 +35,7 @@ pub fn CollectionsComponent() -> Html {
         .iter()
         .map(|collection| {
             let cover = "/api/blobs/".to_string() + &collection.cover;
+            let title = &collection.title;
             let onclick = {
                 let navigator = navigator.clone();
                 let id = collection.id.clone().unwrap();
@@ -50,7 +51,7 @@ pub fn CollectionsComponent() -> Html {
             html! {
                 <div
                     class="tile"
-                     style={format!("background-image: url('{}');", cover)}
+                     style={format!("background-image: url('{}'), url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22300%22%20height%3D%22200%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%23ccc%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20font-size%3D%2220%22%20fill%3D%22%23000%22%3E{}%3C%2Ftext%3E%3C%2Fsvg%3E');", cover, title)}
                     onclick={onclick}
                 ></div>
             }
