@@ -29,6 +29,9 @@
   width: 100vw;
   height: var(--vh);
 	background: var(--bg2);
-	font-size: 1.4rem;
+	font-size: 1rem;
+	font-family: "Rubik", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
 }
 
