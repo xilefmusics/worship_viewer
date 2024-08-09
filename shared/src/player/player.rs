@@ -57,6 +57,10 @@ impl Player {
         self.scroll_type == ScrollType::HalfPage
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.items.len() == 0
+    }
+
     pub fn item(&self) -> (&PlayerItem, Option<&PlayerItem>) {
         let current = match self.scroll_type {
             ScrollType::OnePage | ScrollType::HalfPage | ScrollType::TwoPage | ScrollType::Book => {

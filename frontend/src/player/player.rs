@@ -1,14 +1,14 @@
 use super::{PagesComponent, TableOfContentsComponent};
+use crate::Route;
 use gloo_net::http::Request;
+use serde::Deserialize;
 use shared::player::{Player, TocItem};
 use stylist::Style;
+use url::Url;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::{use_event_with_window, use_window_size};
 use yew_router::prelude::*;
-use serde::Deserialize;
-use url::Url;
-use crate::Route;
 
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct Query {
@@ -195,6 +195,9 @@ pub fn PlayerComponent() -> Html {
         return html! {};
     }
     let player = player.as_ref().unwrap();
+    if player.is_empty() {
+        return html! {};
+    }
 
     html! {
         <div

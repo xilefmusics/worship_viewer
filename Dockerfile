@@ -1,7 +1,7 @@
 FROM bitnami/git:2.43.0-debian-11-r4 as DependencyDownloader
 
 WORKDIR /fancy_surreal
-RUN git clone --depth 1 --branch 0.1.3 https://github.com/xilefmusics/fancy_surreal.git .
+RUN git clone --depth 1 --branch 0.1.4 https://github.com/xilefmusics/fancy_surreal.git .
 
 WORKDIR /chordlib
 RUN git clone --depth 1 --branch 0.1.0 https://github.com/xilefmusics/chordlib.git .
