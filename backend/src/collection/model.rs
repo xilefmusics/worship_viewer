@@ -100,7 +100,7 @@ impl Model {
         db: Arc<Client<'_>>,
         owners: Vec<String>,
         id: &str,
-    ) -> Result<Vec<String>, AppError> {
+    ) -> Result<Vec<Option<String>>, AppError> {
         Ok(db
             .table("collections")
             .owners(owners)
@@ -108,7 +108,7 @@ impl Model {
             .id(id)
             .field("content.songs.nr")
             .wrapper_js_map_unpack("element.content.songs.nr")
-            .query_direct::<String>()
+            .query_direct::<Option<String>>()
             .await?)
     }
 }

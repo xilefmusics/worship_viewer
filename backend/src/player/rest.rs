@@ -36,7 +36,9 @@ pub async fn get(
             CollectionModel::get_song_link_numbers(db, owners, collection)
                 .await?
                 .into_iter()
-                .filter(|nr| nr.len() > 0),
+                .map(|nr| nr.unwrap_or("".into()))
+                .filter(|nr| nr.len() > 0)
+                .chain(std::iter::successors(Some(1), |&n| Some(n + 1)).map(|nr| nr.to_string())),
         )
     } else {
         player.add_numbers_range();
