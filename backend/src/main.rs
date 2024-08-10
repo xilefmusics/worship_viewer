@@ -1,6 +1,7 @@
 mod blob;
 mod collection;
 mod error;
+mod like;
 mod player;
 mod rest;
 mod settings;
@@ -58,6 +59,11 @@ async fn main() -> Result<(), AppError> {
             .service(collection::rest::put)
             .service(collection::rest::post)
             .service(collection::rest::delete)
+            .service(like::rest::get)
+            .service(like::rest::get_id)
+            .service(like::rest::put)
+            .service(like::rest::post)
+            .service(like::rest::delete)
             .service(player::rest::get)
             .service(rest::get_index)
             .service(rest::get_static_files)
