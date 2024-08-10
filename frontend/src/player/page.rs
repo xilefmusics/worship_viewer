@@ -28,7 +28,7 @@ pub fn PageComponent(props: &Props) -> Html {
 
             html! {
                 <div
-                    style={format!("font-size: {}px", &props.font_size)}
+                    style={format!("font-size: {}px;background-color: white;", &props.font_size)}
                     class={Style::new(include_str!("page.css")).expect("Unwrapping CSS should work!")}
                 >
                     <div class="wrapper">
