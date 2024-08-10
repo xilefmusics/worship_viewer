@@ -1,4 +1,4 @@
-use super::{PlayerItem, ScrollType, TocItem};
+use super::{Orientation, PlayerItem, ScrollType, TocItem};
 use crate::song::Song;
 
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,8 @@ pub struct Player {
     items: Vec<PlayerItem>,
     toc: Vec<TocItem>,
     scroll_type: ScrollType,
+    scroll_type_cache_other_orientation: ScrollType,
+    orientation: Orientation,
     between_items: bool,
     index: usize,
 }
@@ -19,6 +21,8 @@ impl Player {
             items,
             toc,
             scroll_type: ScrollType::default(),
+            scroll_type_cache_other_orientation: ScrollType::Book,
+            orientation: Orientation::Portrait,
             between_items: bool::default(),
             index: usize::default(),
         }
@@ -41,11 +45,22 @@ impl Player {
         &self.toc
     }
 
-    pub fn next_scroll_type(&self) -> Self {
+    pub fn set_scroll_type(&self, scroll_type: ScrollType) -> Self {
         let mut new = self.clone();
-        new.scroll_type = self.scroll_type.next();
+
+        new.scroll_type = scroll_type;
         new.between_items = false;
+
+        if let ScrollType::Book = new.scroll_type {
+            if new.index() % 2 == 0 {
+                new.decrement();
+            }
+        }
         new
+    }
+
+    pub fn next_scroll_type(&self) -> Self {
+        self.set_scroll_type(self.scroll_type.next())
     }
     pub fn scroll_type(&self) -> &ScrollType {
         &self.scroll_type
@@ -59,6 +74,10 @@ impl Player {
 
     pub fn is_empty(&self) -> bool {
         self.items.len() == 0
+    }
+
+    pub fn orientation(&self) -> Orientation {
+        self.orientation.clone()
     }
 
     pub fn item(&self) -> (&PlayerItem, Option<&PlayerItem>) {
@@ -187,6 +206,21 @@ impl Player {
         }
         new
     }
+
+    pub fn update_orientation(&self, orientation: Orientation) -> Self {
+        if self.orientation == orientation {
+            return self.clone();
+        }
+
+        let mut new = self.clone();
+
+        let new_scroll_type = new.scroll_type_cache_other_orientation;
+        new.scroll_type_cache_other_orientation = new.scroll_type.clone();
+        new = new.set_scroll_type(new_scroll_type);
+        new.orientation = orientation;
+
+        new
+    }
 }
 
 impl Add for Player {
@@ -228,6 +262,8 @@ impl Add for Player {
                 )
                 .collect(),
             scroll_type: self.scroll_type,
+            scroll_type_cache_other_orientation: self.scroll_type_cache_other_orientation,
+            orientation: self.orientation,
             between_items: self.between_items,
             index: self.index,
         }
@@ -258,6 +294,8 @@ impl From<Song> for Player {
                 }]
             },
             scroll_type: ScrollType::default(),
+            scroll_type_cache_other_orientation: ScrollType::Book,
+            orientation: Orientation::Portrait,
             between_items: bool::default(),
             index: usize::default(),
         }

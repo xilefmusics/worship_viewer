@@ -2,7 +2,7 @@ use super::{PagesComponent, TableOfContentsComponent};
 use crate::Route;
 use gloo_net::http::Request;
 use serde::Deserialize;
-use shared::player::{Player, PlayerItem, TocItem};
+use shared::player::{Orientation, Player, PlayerItem, TocItem};
 use shared::song::SimpleChord;
 use stylist::Style;
 use url::Url;
@@ -226,12 +226,18 @@ pub fn PlayerComponent() -> Html {
         }
     };
 
+    let player_handle = player.clone();
     if player.is_none() {
         return html! {};
     }
     let player = player.as_ref().unwrap();
     if player.is_empty() {
         return html! {};
+    }
+
+    let orientation = Orientation::from_dimensions(window_dimensions);
+    if orientation != player.orientation() {
+        player_handle.set(Some(player.update_orientation(orientation)));
     }
 
     html! {
