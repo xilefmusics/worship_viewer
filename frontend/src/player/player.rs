@@ -2,7 +2,8 @@ use super::{PagesComponent, TableOfContentsComponent};
 use crate::Route;
 use gloo_net::http::Request;
 use serde::Deserialize;
-use shared::player::{Player, TocItem};
+use shared::player::{Player, PlayerItem, TocItem};
+use shared::song::SimpleChord;
 use stylist::Style;
 use url::Url;
 use web_sys::HtmlInputElement;
@@ -152,6 +153,40 @@ pub fn PlayerComponent() -> Html {
         }
     };
 
+    let onchange = {
+        let override_key = override_key.clone();
+        move |e: Event| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            if input.value() == "default" {
+                override_key.set(None)
+            } else if input.value() == "A" {
+                override_key.set(Some(0))
+            } else if input.value() == "Bb" {
+                override_key.set(Some(1))
+            } else if input.value() == "B" {
+                override_key.set(Some(2))
+            } else if input.value() == "C" {
+                override_key.set(Some(3))
+            } else if input.value() == "Db" {
+                override_key.set(Some(4))
+            } else if input.value() == "D" {
+                override_key.set(Some(5))
+            } else if input.value() == "Eb" {
+                override_key.set(Some(6))
+            } else if input.value() == "E" {
+                override_key.set(Some(7))
+            } else if input.value() == "F" {
+                override_key.set(Some(8))
+            } else if input.value() == "F#" {
+                override_key.set(Some(9))
+            } else if input.value() == "G" {
+                override_key.set(Some(10))
+            } else if input.value() == "Ab" {
+                override_key.set(Some(11))
+            }
+        }
+    };
+
     let oninput = {
         let player = player.clone();
         move |e: InputEvent| {
@@ -219,6 +254,24 @@ pub fn PlayerComponent() -> Html {
                 />
             </div>
             <div class={if *active {"bottom active"} else {"bottom"}}>
+                <select
+                    onchange={onchange}
+                    class={if let PlayerItem::Chords(_) = player.item().0 {"visible"} else {"invisible"}}
+                >
+                    {
+                        vec!["default", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab"]
+                            .iter()
+                            .map(|option| html! {
+                                <option
+                                    value={&**option}
+                                    selected={ option == &(*override_key).map(|key| SimpleChord::new(0).format(&SimpleChord::new(key)).as_ref()).unwrap_or("default") }
+
+                                >
+                                    {option}
+                                </option>})
+                            .collect::<Html>()
+                    }
+                </select>
                 <input
                     type="range"
                     min="0"
