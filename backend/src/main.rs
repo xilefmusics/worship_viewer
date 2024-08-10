@@ -64,6 +64,7 @@ async fn main() -> Result<(), AppError> {
             .service(like::rest::put)
             .service(like::rest::post)
             .service(like::rest::delete)
+            .service(like::rest::toggle)
             .service(player::rest::get)
             .service(rest::get_index)
             .service(rest::get_static_files)

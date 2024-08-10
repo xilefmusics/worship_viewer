@@ -96,3 +96,19 @@ pub async fn delete(
         .await?,
     ))
 }
+
+#[get("/api/likes/toggle/{song}")]
+pub async fn toggle(
+    req: HttpRequest,
+    song: Path<String>,
+    db: Data<Client<'_>>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(
+        Model::toggle(
+            db.into_inner(),
+            &parse_user_header(&req)?,
+            &song.into_inner(),
+        )
+        .await?,
+    ))
+}

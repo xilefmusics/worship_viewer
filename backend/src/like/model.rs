@@ -77,4 +77,30 @@ impl Model {
             .map(|like| like.into())
             .collect())
     }
+
+    pub async fn toggle(db: Arc<Client<'_>>, owner: &str, song: &str) -> Result<bool, AppError> {
+        let db = db.table("likes").owner(owner);
+
+        let likes = db
+            .clone()
+            .select()?
+            .condition(&format!("content.song = songs:{}", song))
+            .query::<LikeDatabase>()
+            .await?;
+
+        if likes.len() > 0 {
+            db.delete(likes).await?;
+            Ok(false)
+        } else {
+            db.create_one::<LikeDatabase>(
+                Like {
+                    id: None,
+                    song: song.into(),
+                }
+                .into(),
+            )
+            .await?;
+            Ok(true)
+        }
+    }
 }

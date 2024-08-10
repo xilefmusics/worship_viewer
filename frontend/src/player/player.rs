@@ -1,11 +1,13 @@
 use super::{PagesComponent, TableOfContentsComponent};
 use crate::Route;
+use gloo_console::log;
 use gloo_net::http::Request;
 use serde::Deserialize;
 use shared::player::{Orientation, Player, PlayerItem, TocItem};
 use shared::song::SimpleChord;
 use stylist::Style;
 use url::Url;
+use web_sys::window;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::{use_event_with_window, use_window_size};
@@ -132,16 +134,54 @@ pub fn PlayerComponent() -> Html {
         });
     }
 
+    let toggle_like = {
+        let player = player.clone();
+        move || {
+            if let Some(player) = player.as_ref() {
+                if let Some(id) = player.song_id() {
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let like: bool = Request::get(&format!("/api/likes/toggle/{}", id))
+                            .send()
+                            .await
+                            .unwrap()
+                            .json()
+                            .await
+                            .unwrap();
+                        if like {
+                            log!(format!("liked the song {}", id))
+                        } else {
+                            log!(format!("unliked the song {}", id))
+                        }
+                    });
+                }
+            }
+        }
+    };
+
+    let last_click_time = use_state(|| None);
     let onclick = {
         let player = player.clone();
         let active = active.clone();
+        let last_click_time = last_click_time.clone();
+
         move |e: MouseEvent| {
+            let now = window().unwrap().performance().unwrap().now();
+            let double_tap_detected = if let Some(last_time) = *last_click_time {
+                now - last_time < 300.0
+            } else {
+                false
+            };
+            last_click_time.set(Some(now));
+
             if (e.x() as f64) < window_dimensions.0 * 0.4 {
-                player.set(player.as_ref().map(|player| player.prev()))
+                player.set(player.as_ref().map(|player| player.prev()));
             } else if (e.x() as f64) > window_dimensions.0 * 0.6 {
-                player.set(player.as_ref().map(|player| player.next()))
+                player.set(player.as_ref().map(|player| player.next()));
             } else {
                 active.set(!*active);
+                if double_tap_detected {
+                    toggle_like()
+                }
             }
         }
     };

@@ -4,5 +4,6 @@ use serde::{Deserialize, Serialize};
 pub struct TocItem {
     pub idx: usize,
     pub title: String,
+    pub id: Option<String>,
     pub nr: String,
 }

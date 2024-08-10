@@ -45,6 +45,15 @@ impl Player {
         &self.toc
     }
 
+    pub fn song_id(&self) -> Option<String> {
+        self.toc
+            .iter()
+            .filter(|item| item.idx < self.index())
+            .last()
+            .map(|item| item.id.clone())
+            .flatten()
+    }
+
     pub fn set_scroll_type(&self, scroll_type: ScrollType) -> Self {
         let mut new = self.clone();
 
@@ -246,6 +255,7 @@ impl Add for Player {
                             item.idx + self.items.len()
                         },
                         title: item.title.clone(),
+                        id: item.id.clone(),
                         nr: item.nr.clone(),
                     };
                     item
@@ -290,6 +300,7 @@ impl From<Song> for Player {
                 vec![TocItem {
                     idx: 0,
                     title: song.data.title,
+                    id: song.id,
                     nr: String::new(),
                 }]
             },
