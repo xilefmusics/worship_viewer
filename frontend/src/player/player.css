@@ -169,3 +169,95 @@ select:hover {
   background-color: var(--bgh);
 }
 
+#heart {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background-color: red;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    animation: fadeInPulsate 1s ease-in-out forwards;
+}
+
+#heart::before,
+#heart::after {
+    content: "";
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background-color: red;
+    border-radius: 50%;
+}
+
+#heart::before {
+    top: -25px;
+    left: 0;
+}
+
+#heart::after {
+    left: 25px;
+    top: 0;
+}
+
+@keyframes fadeInPulsate {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) rotate(-45deg) scale(0.01);
+    }
+    70% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(-45deg) scale(1.2);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(-45deg) scale(1);
+    }
+}
+
+#unheart {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background-color: transparent;
+    background-color: red;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    animation: fadeOutPulsate 1s ease-in-out forwards; /* Reverse the animation */
+}
+
+#unheart::before,
+#unheart::after {
+    content: "";
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background-color: red;
+    border-radius: 50%;
+}
+
+#unheart::before {
+    top: -25px;
+    left: 0;
+}
+
+#unheart::after {
+    left: 25px;
+    top: 0;
+}
+
+@keyframes fadeOutPulsate {
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(-45deg) scale(1); /* Start fully visible */
+    }
+    30% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(-45deg) scale(1.2);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) rotate(-45deg) scale(0.01); /* End with disappearing effect */
+    }
+}

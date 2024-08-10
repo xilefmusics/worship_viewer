@@ -1,6 +1,6 @@
 use super::{PagesComponent, TableOfContentsComponent};
 use crate::Route;
-use gloo_console::log;
+use gloo::timers::callback::Timeout;
 use gloo_net::http::Request;
 use serde::Deserialize;
 use shared::player::{Orientation, Player, PlayerItem, TocItem};
@@ -134,11 +134,17 @@ pub fn PlayerComponent() -> Html {
         });
     }
 
+    let show_heart = use_state(|| false);
+    let show_unheart = use_state(|| false);
     let toggle_like = {
         let player = player.clone();
+        let show_heart = show_heart.clone();
+        let show_unheart = show_unheart.clone();
         move || {
             if let Some(player) = player.as_ref() {
                 if let Some(id) = player.song_id() {
+                    let show_heart = show_heart.clone();
+                    let show_unheart = show_unheart.clone();
                     wasm_bindgen_futures::spawn_local(async move {
                         let like: bool = Request::get(&format!("/api/likes/toggle/{}", id))
                             .send()
@@ -148,9 +154,11 @@ pub fn PlayerComponent() -> Html {
                             .await
                             .unwrap();
                         if like {
-                            log!(format!("liked the song {}", id))
+                            show_heart.set(true);
+                            Timeout::new(1000, move || show_heart.set(false)).forget();
                         } else {
-                            log!(format!("unliked the song {}", id))
+                            show_unheart.set(true);
+                            Timeout::new(1000, move || show_unheart.set(false)).forget();
                         }
                     });
                 }
@@ -347,6 +355,12 @@ pub fn PlayerComponent() -> Html {
                     select={index_jump_callback}
                 />
             </div>
+            {if *show_heart {html!{
+                <span id="heart"></span>
+            }} else {html!{}}}
+            {if *show_unheart {html!{
+                <span id="unheart"></span>
+            }} else {html!{}}}
         </div>
     }
 }
