@@ -9,7 +9,6 @@
 img {
   margin: 0;
   left: 0;
-  max-height: 100%;
   width: 100%;
   position: absolute;
   -moz-user-select: none;
