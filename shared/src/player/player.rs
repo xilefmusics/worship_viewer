@@ -48,7 +48,7 @@ impl Player {
     pub fn song_id(&self) -> Option<String> {
         self.toc
             .iter()
-            .filter(|item| item.idx < self.index())
+            .filter(|item| item.idx <= self.index())
             .last()
             .map(|item| item.id.clone())
             .flatten()
