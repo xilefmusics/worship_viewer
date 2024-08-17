@@ -84,10 +84,13 @@ pub fn PlayerComponent() -> Html {
         let show_heart = show_heart.clone();
         let show_unheart = show_unheart.clone();
         move || {
+            let player_handle = player.clone();
             if let Some(player) = player.as_ref() {
                 if let Some(id) = player.song_id() {
                     let show_heart = show_heart.clone();
                     let show_unheart = show_unheart.clone();
+                    let player_handle = player_handle.clone();
+                    let player = player.clone();
                     wasm_bindgen_futures::spawn_local(async move {
                         let like: bool = Request::get(&format!("/api/likes/toggle/{}", id))
                             .send()
@@ -96,6 +99,7 @@ pub fn PlayerComponent() -> Html {
                             .json()
                             .await
                             .unwrap();
+                        player_handle.set(Some(player.set_like(&id, like)));
                         if like {
                             show_heart.set(true);
                             Timeout::new(1000, move || show_heart.set(false)).forget();

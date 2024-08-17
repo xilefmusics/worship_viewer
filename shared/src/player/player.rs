@@ -64,6 +64,12 @@ impl Player {
         }
     }
 
+    pub fn set_like(&self, id: &str, liked: bool) -> Self {
+        let mut new = self.clone();
+        new.set_like_mut(id, liked);
+        new
+    }
+
     pub fn like_multi(&self, ids: &[String]) -> Self {
         let mut new = self.clone();
         for id in ids {
