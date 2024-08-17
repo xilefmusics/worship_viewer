@@ -77,12 +77,45 @@ pub fn PlayerComponent() -> Html {
         });
     };
 
+    let show_heart = use_state(|| false);
+    let show_unheart = use_state(|| false);
+    let toggle_like = {
+        let player = player.clone();
+        let show_heart = show_heart.clone();
+        let show_unheart = show_unheart.clone();
+        move || {
+            if let Some(player) = player.as_ref() {
+                if let Some(id) = player.song_id() {
+                    let show_heart = show_heart.clone();
+                    let show_unheart = show_unheart.clone();
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let like: bool = Request::get(&format!("/api/likes/toggle/{}", id))
+                            .send()
+                            .await
+                            .unwrap()
+                            .json()
+                            .await
+                            .unwrap();
+                        if like {
+                            show_heart.set(true);
+                            Timeout::new(1000, move || show_heart.set(false)).forget();
+                        } else {
+                            show_unheart.set(true);
+                            Timeout::new(1000, move || show_unheart.set(false)).forget();
+                        }
+                    });
+                }
+            }
+        }
+    };
+
     {
         let player = player.clone();
         let active = active.clone();
         let navigator = navigator.clone();
         let override_key = override_key.clone();
         let back_route = query.back_route();
+        let toggle_like = toggle_like.clone();
         use_event_with_window("keydown", move |e: KeyboardEvent| {
             if let Some(target) = e.target() {
                 if target.to_string() == "[object HTMLInputElement]" {
@@ -130,41 +163,11 @@ pub fn PlayerComponent() -> Html {
                 override_key.set(override_key.map(|key| (key + 1) % 12))
             } else if e.key() == "r" {
                 override_key.set(None)
+            } else if e.key() == "l" {
+                toggle_like()
             }
         });
     }
-
-    let show_heart = use_state(|| false);
-    let show_unheart = use_state(|| false);
-    let toggle_like = {
-        let player = player.clone();
-        let show_heart = show_heart.clone();
-        let show_unheart = show_unheart.clone();
-        move || {
-            if let Some(player) = player.as_ref() {
-                if let Some(id) = player.song_id() {
-                    let show_heart = show_heart.clone();
-                    let show_unheart = show_unheart.clone();
-                    wasm_bindgen_futures::spawn_local(async move {
-                        let like: bool = Request::get(&format!("/api/likes/toggle/{}", id))
-                            .send()
-                            .await
-                            .unwrap()
-                            .json()
-                            .await
-                            .unwrap();
-                        if like {
-                            show_heart.set(true);
-                            Timeout::new(1000, move || show_heart.set(false)).forget();
-                        } else {
-                            show_unheart.set(true);
-                            Timeout::new(1000, move || show_unheart.set(false)).forget();
-                        }
-                    });
-                }
-            }
-        }
-    };
 
     let last_click_time = use_state(|| None);
     let onclick = {
