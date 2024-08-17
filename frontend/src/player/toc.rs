@@ -49,7 +49,7 @@ pub fn TableOfContentsComponent(props: &Props) -> Html {
             result.sort_by_key(|item| item.title.clone());
             result
         }
-        FilterSort::Liked => vec![],
+        FilterSort::Liked => list.into_iter().filter(|item| item.liked).collect(),
     };
 
     let list = list

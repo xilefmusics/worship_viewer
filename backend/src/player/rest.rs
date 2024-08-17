@@ -5,6 +5,7 @@ use crate::rest::parse_user_header;
 use crate::song::Model as SongModel;
 use crate::song::QueryParams;
 use crate::user::Model as UserModel;
+use crate::like::Model as LikeModel;
 
 use fancy_surreal::Client;
 
@@ -33,7 +34,7 @@ pub async fn get(
 
     if let Some(collection) = filter.get_collection() {
         player.add_numbers(
-            CollectionModel::get_song_link_numbers(db, owners, collection)
+            CollectionModel::get_song_link_numbers(db.clone(), owners.clone(), collection)
                 .await?
                 .into_iter()
                 .map(|nr| nr.unwrap_or("".into()))
@@ -43,6 +44,13 @@ pub async fn get(
     } else {
         player.add_numbers_range();
     }
+
+    let ids = player.toc().iter()
+        .filter(|toc| toc.id.is_some())
+        .map(|toc| toc.id.clone().unwrap())
+        .collect::<Vec<String>>();
+
+    player = player.like_multi(&LikeModel::filter_liked(db, &ids, owners).await?);
 
     Ok(HttpResponse::Ok().json(player))
 }

@@ -54,6 +54,24 @@ impl Player {
             .flatten()
     }
 
+    pub fn set_like_mut(&mut self, id: &str, liked: bool) {
+        if let Some(idx) = self
+            .toc
+            .iter()
+            .position(|item| item.id.as_ref() == Some(&id.to_string()))
+        {
+            self.toc[idx].liked = liked;
+        }
+    }
+
+    pub fn like_multi(&self, ids: &[String]) -> Self {
+        let mut new = self.clone();
+        for id in ids {
+            new.set_like_mut(id, true);
+        }
+        new
+    }
+
     pub fn set_scroll_type(&self, scroll_type: ScrollType) -> Self {
         let mut new = self.clone();
 
@@ -257,6 +275,7 @@ impl Add for Player {
                         title: item.title.clone(),
                         id: item.id.clone(),
                         nr: item.nr.clone(),
+                        liked: item.liked,
                     };
                     item
                 }))
@@ -302,6 +321,7 @@ impl From<Song> for Player {
                     title: song.data.title,
                     id: song.id,
                     nr: String::new(),
+                    liked: false,
                 }]
             },
             scroll_type: ScrollType::default(),

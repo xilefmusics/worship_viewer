@@ -1,6 +1,7 @@
 use super::{Like, LikeDatabase};
 use crate::AppError;
 use fancy_surreal::Client;
+use fancy_surreal::RecordId;
 use std::sync::Arc;
 
 pub struct Model {}
@@ -102,5 +103,31 @@ impl Model {
             .await?;
             Ok(true)
         }
+    }
+
+    pub async fn filter_liked(
+        db: Arc<Client<'_>>,
+        song_ids: &[String],
+        owners: Vec<String>,
+    ) -> Result<Vec<String>, AppError> {
+        Ok(db
+            .table("likes")
+            .owners(owners)
+            .select()?
+            .condition(&format!(
+                "content.song in [{}]",
+                song_ids
+                    .iter()
+                    .map(|id| format!("songs:{}", id))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ))
+            .field("content.song")
+            .wrapper_js_map("element.content.song")
+            .query_direct::<RecordId>()
+            .await?
+            .into_iter()
+            .map(|id| id.id.to_string())
+            .collect::<Vec<String>>())
     }
 }

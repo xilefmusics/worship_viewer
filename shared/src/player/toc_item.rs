@@ -6,4 +6,5 @@ pub struct TocItem {
     pub title: String,
     pub id: Option<String>,
     pub nr: String,
+    pub liked: bool,
 }
