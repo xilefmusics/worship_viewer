@@ -5,11 +5,11 @@ use crate::user::Model as UserModel;
 
 use fancy_surreal::Client;
 
-use std::path::PathBuf;
 use actix_files::NamedFile;
 use actix_web::{
     delete, get, post, put, web::Data, web::Json, web::Path, HttpRequest, HttpResponse,
 };
+use std::path::PathBuf;
 
 #[get("/api/blobs/metadata")]
 pub async fn get_metadata(
@@ -103,24 +103,21 @@ pub async fn get_id(
     id: Path<String>,
 ) -> Result<NamedFile, AppError> {
     let db = db.into_inner();
-        let metadata = Model::get_one(
-            db.clone(),
-            UserModel::get_or_create(db, &parse_user_header(&req)?)
-                .await?
-                .read,
-            &id.into_inner(),
-        )
-        .await?;
-        let file_name = metadata.file_name()
-            .ok_or(AppError::NotFound("blob has no id".into()))?;
-        
-        let path =         PathBuf::from(std::env::var("BLOB_DIR").unwrap_or("blobs".into())).join(PathBuf::from(
-                file_name
-        ));
-        dbg!(&path);
-
-            Ok(NamedFile::open(path
+    let metadata = Model::get_one(
+        db.clone(),
+        UserModel::get_or_create(db, &parse_user_header(&req)?)
+            .await?
+            .read,
+        &id.into_inner(),
     )
-    .map_err(|err| AppError::Filesystem(format!("{}", err)))?)
+    .await?;
+    let file_name = metadata
+        .file_name()
+        .ok_or(AppError::NotFound("blob has no id".into()))?;
 
+    let path = PathBuf::from(std::env::var("BLOB_DIR").unwrap_or("blobs".into()))
+        .join(PathBuf::from(file_name));
+    dbg!(&path);
+
+    Ok(NamedFile::open(path).map_err(|err| AppError::Filesystem(format!("{}", err)))?)
 }

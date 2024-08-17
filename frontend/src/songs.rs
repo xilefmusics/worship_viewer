@@ -3,10 +3,10 @@ use crate::routes::Route;
 use crate::top_bar::TopBarComponent;
 use gloo_net::http::Request;
 use shared::song::{SimpleChord, Song};
+use std::collections::HashMap;
 use stylist::Style;
 use yew::prelude::*;
 use yew_router::prelude::*;
-use std::collections::HashMap;
 
 #[function_component]
 pub fn SongsComponent() -> Html {

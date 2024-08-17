@@ -1,11 +1,11 @@
 use super::Player;
 use crate::collection::Model as CollectionModel;
 use crate::error::AppError;
+use crate::like::Model as LikeModel;
 use crate::rest::parse_user_header;
 use crate::song::Model as SongModel;
 use crate::song::QueryParams;
 use crate::user::Model as UserModel;
-use crate::like::Model as LikeModel;
 
 use fancy_surreal::Client;
 
@@ -45,7 +45,9 @@ pub async fn get(
         player.add_numbers_range();
     }
 
-    let ids = player.toc().iter()
+    let ids = player
+        .toc()
+        .iter()
         .filter(|toc| toc.id.is_some())
         .map(|toc| toc.id.clone().unwrap())
         .collect::<Vec<String>>();
