@@ -74,7 +74,7 @@ pub fn TableOfContentsComponent(props: &Props) -> Html {
 
     html! {
         <div class={Style::new(include_str!("toc.css")).expect("Unwrapping CSS should work!")}>
-            <div>
+            <div class="filter-sort-container">
                 <span
                     class={if *filter_sort == FilterSort::Real {"material-symbols-outlined filter-sort selected"} else {"material-symbols-outlined filter-sort"}}
                     onclick={oncklick_real}
