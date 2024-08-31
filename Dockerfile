@@ -12,11 +12,12 @@ RUN git clone --depth 1 --branch 0.1.0 https://github.com/xilefmusics/chordlib.g
 FROM rust:1.79.0-bookworm as builder
 
 COPY --from=DependencyDownloader /fancy_surreal /fancy_surreal
+COPY --from=DependencyDownloader /fancy_yew /fancy_yew
 COPY --from=DependencyDownloader /chordlib /chordlib
 
 RUN export CARGO_BUILD_JOBS=$(nproc) && \
     cargo install cargo-binstall && \
-    cargo binstall trunk --version 0.20.2 --no-confirm && \
+    cargo binstall trunk --version 0.20.3 --no-confirm && \
     rustup target add wasm32-unknown-unknown
 
 WORKDIR /wrk
