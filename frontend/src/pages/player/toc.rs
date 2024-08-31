@@ -16,8 +16,8 @@ pub struct Props {
     pub select: Callback<usize>,
 }
 
-#[function_component]
-pub fn TableOfContentsComponent(props: &Props) -> Html {
+#[function_component(TableOfContentsComponent)]
+pub fn table_of_contents_component(props: &Props) -> Html {
     let select = props.select.clone();
     let list = props.list.clone();
 

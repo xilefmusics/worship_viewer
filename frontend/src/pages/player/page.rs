@@ -11,8 +11,8 @@ pub struct Props {
     pub override_key: Option<u8>,
 }
 
-#[function_component]
-pub fn PageComponent(props: &Props) -> Html {
+#[function_component(PageComponent)]
+pub fn page_components(props: &Props) -> Html {
     match &props.item {
         PlayerItem::Blob(id) => html! {
             <div class={Style::new(include_str!("page.css")).expect("Unwrapping CSS should work!")}>

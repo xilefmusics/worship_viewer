@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 shared = { path = "../shared" }
+fancy_yew = { path = "../../fancy_yew" }
 yew = { version = "0.21.0", features = ["csr"] }
 yew-router = "0.18"
 stylist = { version = "0.13.0", features = ["yew_integration", "parser"] }

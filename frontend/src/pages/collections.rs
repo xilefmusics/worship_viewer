@@ -1,6 +1,4 @@
-use crate::navigation_bar::NavigationBarComponent;
-use crate::routes::Route;
-use crate::top_bar::TopBarComponent;
+use crate::route::Route;
 use gloo_net::http::Request;
 use shared::collection::Collection;
 use std::collections::HashMap;
@@ -8,8 +6,8 @@ use stylist::Style;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-#[function_component]
-pub fn CollectionsComponent() -> Html {
+#[function_component(CollectionsPage)]
+pub fn collection_page() -> Html {
     let collections = use_state(|| vec![]);
     {
         let collections = collections.clone();
@@ -60,18 +58,9 @@ pub fn CollectionsComponent() -> Html {
 
     html! {
         <div class={Style::new(include_str!("collections.css")).expect("Unwrapping CSS should work!")}>
-            <TopBarComponent
-                search_placeholder="Search collections..."
-            />
             <div class="collections">
                 {collections}
             </div>
-            <div class="flex-fill"></div>
-            <NavigationBarComponent
-                select_collection=true
-                select_song=false
-                select_setlist=false
-            />
         </div>
     }
 }

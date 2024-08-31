@@ -39,8 +39,8 @@ pub struct Props {
     pub active: bool, // this is there for the component to redraw if it changes
 }
 
-#[function_component]
-pub fn PagesComponent(props: &Props) -> Html {
+#[function_component(PagesComponent)]
+pub fn pages_component(props: &Props) -> Html {
     let _ = use_window_size(); // this is there for the component to redraw if the window is
                                // resized
     let node_ref = use_node_ref();

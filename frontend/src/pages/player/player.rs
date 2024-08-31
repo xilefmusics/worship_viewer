@@ -1,11 +1,11 @@
 use super::{PagesComponent, TableOfContentsComponent};
-use crate::Route;
+use crate::route::Route;
 use gloo::timers::callback::Timeout;
 use gloo_net::http::Request;
 use serde::Deserialize;
 use shared::player::{Orientation, Player, PlayerItem, TocItem};
 use shared::song::SimpleChord;
-use stylist::Style;
+use stylist::{css, yew::Global, Style};
 use url::Url;
 use web_sys::window;
 use web_sys::HtmlInputElement;
@@ -47,8 +47,8 @@ impl Query {
     }
 }
 
-#[function_component]
-pub fn PlayerComponent() -> Html {
+#[function_component(PlayerPage)]
+pub fn player_page() -> Html {
     let window_dimensions = use_window_size();
     let navigator = use_navigator().unwrap();
     let query = use_location()
@@ -296,6 +296,8 @@ pub fn PlayerComponent() -> Html {
     }
 
     html! {
+        <>
+        <Global css={css!("html,body{padding: 0;margin: 0;border: 0;background: #1e1e1e; overflow: hidden; overscroll-behavior: none; }")} />
         <div
             class={Style::new(include_str!("player.css")).expect("Unwrapping CSS should work!")}
             >
@@ -369,5 +371,6 @@ pub fn PlayerComponent() -> Html {
                 <span id="unheart"></span>
             }} else {html!{}}}
         </div>
+        </>
     }
 }
