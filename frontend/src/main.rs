@@ -1,4 +1,5 @@
 mod app;
+mod collection;
 mod pages;
 mod route;
 

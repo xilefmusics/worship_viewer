@@ -1,7 +1,7 @@
 use chordlib::types::Song as SongData;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Song {
     pub id: Option<String>,
     pub not_a_song: bool,
