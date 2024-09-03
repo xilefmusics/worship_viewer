@@ -31,7 +31,8 @@ This login is valid for 24 hours.
 If you encounter an error message after this period, it means you haven't been automatically logged out.
 You can log out manually at `localhost:8080/logout`, which will redirect you to the login page for re-authentication.
 
-## Development
+### Development
+
 For development purposes, the frontend and backend should be started separately to enable automatic rebuilding of both components.
 Proxauth should be configured to forward requests appropriately: frontend requests to the frontend and backend requests to the backend.
 
