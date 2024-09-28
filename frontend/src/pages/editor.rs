@@ -1,7 +1,9 @@
 use crate::components::SongEditor;
+use crate::route::Route;
 use gloo_net::http::Request;
 use serde::Deserialize;
 use shared::song::Song;
+use std::collections::HashMap;
 use stylist::Style;
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -47,10 +49,12 @@ pub fn editor_page() -> Html {
         });
     };
 
+    let navigator = use_navigator().unwrap();
     let onsave = {
         let song_handle = song.clone();
         Callback::from(move |song: Song| {
             let song_handle = song_handle.clone();
+            let song_handle2 = song_handle.clone();
             if song.id.is_some() {
                 wasm_bindgen_futures::spawn_local(async move {
                     song_handle.set(Some(
@@ -60,9 +64,10 @@ pub fn editor_page() -> Html {
                             .send()
                             .await
                             .unwrap()
-                            .json()
+                            .json::<Vec<Song>>()
                             .await
-                            .unwrap(),
+                            .unwrap()
+                            .remove(0),
                     ));
                 });
             } else {
@@ -77,11 +82,20 @@ pub fn editor_page() -> Html {
                             .send()
                             .await
                             .unwrap()
-                            .json()
+                            .json::<Vec<Song>>()
                             .await
-                            .unwrap(),
+                            .unwrap()
+                            .remove(0),
                     ))
                 });
+            }
+            if let Some(id) = song_handle2.as_ref().unwrap().id.as_ref() {
+                navigator
+                    .push_with_query(
+                        &Route::Editor,
+                        &([("id", id)].iter().cloned().collect::<HashMap<_, _>>()),
+                    )
+                    .unwrap()
             }
         })
     };
