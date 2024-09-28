@@ -1,6 +1,8 @@
+use crate::components::SongEditor;
 use gloo_net::http::Request;
 use serde::Deserialize;
 use shared::song::Song;
+use stylist::Style;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -24,31 +26,77 @@ pub fn editor_page() -> Html {
 
     let song = use_state(|| None);
     {
-        let song = song.clone();
+        let song_handle = song.clone();
         use_effect_with((), move |_| {
             if let Some(api_url) = query.api_url() {
                 wasm_bindgen_futures::spawn_local(async move {
-                    let fetched_song: Song = Request::get(&api_url)
-                        .send()
-                        .await
-                        .unwrap()
-                        .json()
-                        .await
-                        .unwrap();
-                    song.set(Some(fetched_song));
+                    song_handle.set(Some(
+                        Request::get(&api_url)
+                            .send()
+                            .await
+                            .unwrap()
+                            .json()
+                            .await
+                            .unwrap(),
+                    ));
                 });
             } else {
-                song.set(Some(Song::default()));
+                song_handle.set(Some(Song::default()));
             }
             || ()
         });
     };
 
-    let title = song
-        .as_ref()
-        .map(|song| song.data.title.clone())
-        .unwrap_or("".into());
+    let onsave = {
+        let song_handle = song.clone();
+        Callback::from(move |song: Song| {
+            let song_handle = song_handle.clone();
+            if song.id.is_some() {
+                wasm_bindgen_futures::spawn_local(async move {
+                    song_handle.set(Some(
+                        Request::put("/api/songs")
+                            .json(&vec![song])
+                            .unwrap()
+                            .send()
+                            .await
+                            .unwrap()
+                            .json()
+                            .await
+                            .unwrap(),
+                    ));
+                });
+            } else {
+                if song.data.title == "" {
+                    return;
+                }
+                wasm_bindgen_futures::spawn_local(async move {
+                    song_handle.set(Some(
+                        Request::post("/api/songs")
+                            .json(&vec![song])
+                            .unwrap()
+                            .send()
+                            .await
+                            .unwrap()
+                            .json()
+                            .await
+                            .unwrap(),
+                    ))
+                });
+            }
+        })
+    };
+
+    if song.is_none() {
+        return html! {};
+    }
+    let song = song.as_ref().unwrap().clone();
+
     html! {
-        <h1>{title}</h1>
+        <div class={Style::new(include_str!("editor.css")).expect("Unwrapping CSS should work!")}>
+            <SongEditor
+                song={song}
+                onsave={onsave}
+            />
+        </div>
     }
 }

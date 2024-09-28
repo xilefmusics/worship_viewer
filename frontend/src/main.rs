@@ -1,5 +1,5 @@
 mod app;
-mod collection;
+mod components;
 mod pages;
 mod route;
 
