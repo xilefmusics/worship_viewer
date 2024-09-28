@@ -1,4 +1,28 @@
 :root {
   width: 100%;
   height: 100%;
+  --top-height: 60px;
+}
+
+.editor-header {
+  height: var(--top-height);
+  background-color: var(--bg1);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: left;
+}
+
+.editor-main {
+  position: relative;
+  top: var(--top-height)
+  height: calc(100% - var(--top-height)) 
+}
+
+.back-button {
+  margin: 1em;
+}
+
+.back-button:hover {
+  color: var(--primary);
 }

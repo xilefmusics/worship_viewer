@@ -9,6 +9,7 @@ use yew::prelude::*;
 pub struct Props {
     pub song: Song,
     pub onsave: Callback<Song>,
+    pub onback: Callback<MouseEvent>,
 }
 
 #[function_component(SongEditor)]
@@ -61,15 +62,23 @@ pub fn song_editor(props: &Props) -> Html {
 
     html! {
         <div class={Style::new(include_str!("song_editor.css")).expect("Unwrapping CSS should work!")}>
-            <AspectRatio left={1./SQRT_2}>
-                <SongViewer />
-                <Editor
-                    content={props.song.format_chord_pro(None, None)}
-                    onsave={onsave}
-                    onautoformat={onautoformat}
-                    syntax_parser={syntax_parser}
-                />
-            </AspectRatio>
+            <div class="editor-header">
+                <span
+                    class="material-symbols-outlined back-button"
+                    onclick={props.onback.clone()}
+                >{"arrow_back"}</span>
+            </div>
+            <div class="editor-main">
+                <AspectRatio left={1./SQRT_2}>
+                    <SongViewer />
+                    <Editor
+                        content={props.song.format_chord_pro(None, None)}
+                        onsave={onsave}
+                        onautoformat={onautoformat}
+                        syntax_parser={syntax_parser}
+                    />
+                </AspectRatio>
+            </div>
         </div>
     }
 }

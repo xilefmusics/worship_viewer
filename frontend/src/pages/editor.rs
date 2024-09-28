@@ -100,6 +100,11 @@ pub fn editor_page() -> Html {
         })
     };
 
+    let navigator = use_navigator().unwrap();
+    let onback = Callback::from(move |_: MouseEvent| {
+        navigator.back();
+    });
+
     if song.is_none() {
         return html! {};
     }
@@ -110,6 +115,7 @@ pub fn editor_page() -> Html {
             <SongEditor
                 song={song}
                 onsave={onsave}
+                onback={onback}
             />
         </div>
     }
