@@ -55,3 +55,7 @@ button:hover {
   background-color: #cc0000;
 }
 
+.button:hover {
+  color: var(--primary);
+}
+
