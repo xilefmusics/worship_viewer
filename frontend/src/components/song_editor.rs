@@ -5,6 +5,7 @@ use shared::song::Song;
 use std::f64::consts::SQRT_2;
 use stylist::Style;
 use yew::prelude::*;
+use yew_hooks::use_size;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -16,6 +17,10 @@ pub struct Props {
 
 #[function_component(SongEditor)]
 pub fn song_editor(props: &Props) -> Html {
+    let div_ref = use_node_ref();
+    let state = use_size(div_ref.clone());
+    let show_viewer = state.0 > state.1;
+
     let new = use_state(|| false);
     let toggle_new = {
         let new = new.clone();
@@ -81,6 +86,30 @@ pub fn song_editor(props: &Props) -> Html {
         .build()
         .expect("static parser should build");
 
+    let editor_html = html! {
+        { if *new {html!{
+            <div class="editor-new">
+                <StringInput
+                    bind_handle={import_url}
+                    placeholder={"Enter a URL to https://tabs.ultimate-guitar.com/ or leave empty".to_string()}
+
+                />
+                <button class="editor-new-button" onclick={onimport}>
+                    {"Import or Create"}
+                </button>
+            </div>
+        }} else {html!{
+            <div class="editor-wrapper">
+                <Editor
+                    content={props.song.format_chord_pro(None, None)}
+                    onsave={onsave}
+                    onautoformat={onautoformat}
+                    syntax_parser={syntax_parser}
+                />
+            </div>
+        }}}
+    };
+
     html! {
         <div class={Style::new(include_str!("song_editor.css")).expect("Unwrapping CSS should work!")}>
             <div class="editor-header">
@@ -94,31 +123,15 @@ pub fn song_editor(props: &Props) -> Html {
                     onclick={toggle_new}
                 >{"add"}</span>
             </div>
-            <div class="editor-main">
-                <AspectRatio left={1./SQRT_2}>
-                    <SongViewer />
-                    { if *new {html!{
-                        <div class="editor-new">
-                            <StringInput
-                                bind_handle={import_url}
-                                placeholder={"Enter a URL to https://tabs.ultimate-guitar.com/ or leave empty".to_string()}
-
-                            />
-                            <button class="editor-new-button" onclick={onimport}>
-                                {"Import or Create"}
-                            </button>
-                        </div>
-                    }} else {html!{
-                        <div class="editor-wrapper">
-                            <Editor
-                                content={props.song.format_chord_pro(None, None)}
-                                onsave={onsave}
-                                onautoformat={onautoformat}
-                                syntax_parser={syntax_parser}
-                            />
-                        </div>
-                    }}}
-                </AspectRatio>
+            <div ref={div_ref} class="editor-main">
+                { if show_viewer {html!{
+                    <AspectRatio left={1./SQRT_2}>
+                        <SongViewer />
+                        {editor_html}
+                    </AspectRatio>
+                }} else {html!{
+                    {editor_html}
+                }}}
             </div>
         </div>
     }

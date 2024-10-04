@@ -22,7 +22,7 @@
 
 .editor-wrapper {
   overflow: scroll;
-  height: calc(100% - var(--top-height)) 
+  height: 100%;
 }
 
 .separator {
