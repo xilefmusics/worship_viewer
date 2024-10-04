@@ -5,6 +5,7 @@ use serde::Deserialize;
 use shared::song::Song;
 use std::collections::HashMap;
 use stylist::Style;
+use url::Url;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -100,6 +101,30 @@ pub fn editor_page() -> Html {
         })
     };
 
+    let onimport = {
+        let song_handle = song.clone();
+        Callback::from(move |url: String| {
+            let url = Url::parse(&url).unwrap();
+            let api_url = format!(
+                "/api/import/{}{}",
+                url.host_str().unwrap_or("unknown").replace(".", "/"),
+                url.path()
+            );
+            let song_handle = song_handle.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                song_handle.set(Some(
+                    Request::get(&api_url)
+                        .send()
+                        .await
+                        .unwrap()
+                        .json::<Song>()
+                        .await
+                        .unwrap(),
+                ))
+            });
+        })
+    };
+
     let navigator = use_navigator().unwrap();
     let onback = Callback::from(move |_: MouseEvent| {
         navigator.back();
@@ -116,6 +141,7 @@ pub fn editor_page() -> Html {
                 song={song}
                 onsave={onsave}
                 onback={onback}
+                onimport={onimport}
             />
         </div>
     }

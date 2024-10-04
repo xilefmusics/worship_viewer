@@ -1,4 +1,5 @@
 use super::{AspectRatio, SongViewer};
+use fancy_yew::components::input::StringInput;
 use fancy_yew::components::{Editor, SyntaxParser};
 use shared::song::Song;
 use std::f64::consts::SQRT_2;
@@ -10,10 +11,20 @@ pub struct Props {
     pub song: Song,
     pub onsave: Callback<Song>,
     pub onback: Callback<MouseEvent>,
+    pub onimport: Callback<String>,
 }
 
 #[function_component(SongEditor)]
 pub fn song_editor(props: &Props) -> Html {
+    let new = use_state(|| false);
+    let toggle_new = {
+        let new = new.clone();
+        move |_: MouseEvent| {
+            new.set(!*new);
+        }
+    };
+    let import_url = use_state(|| String::default());
+
     let onsave: Callback<String, ()> = {
         let onsave = props.onsave.clone();
         let id = props.song.id.clone();
@@ -29,6 +40,16 @@ pub fn song_editor(props: &Props) -> Html {
             .unwrap()
             .format_chord_pro(None, None)
     });
+
+    let onimport = {
+        let import_url = import_url.clone();
+        let new = new.clone();
+        let onimport = props.onimport.clone();
+        move |_: MouseEvent| {
+            onimport.emit((*import_url).clone());
+            new.set(false);
+        }
+    };
 
     let syntax_parser = SyntaxParser::builder()
         .transition("default", "{", "meta-begin", Some("default"), 1)
@@ -64,19 +85,37 @@ pub fn song_editor(props: &Props) -> Html {
         <div class={Style::new(include_str!("song_editor.css")).expect("Unwrapping CSS should work!")}>
             <div class="editor-header">
                 <span
-                    class="material-symbols-outlined back-button"
+                    class="material-symbols-outlined button"
                     onclick={props.onback.clone()}
                 >{"arrow_back"}</span>
+                <div class="seperator"></div>
+                <span
+                    class="material-symbols-outlined button"
+                    onclick={toggle_new}
+                >{"add"}</span>
             </div>
             <div class="editor-main">
                 <AspectRatio left={1./SQRT_2}>
                     <SongViewer />
-                    <Editor
-                        content={props.song.format_chord_pro(None, None)}
-                        onsave={onsave}
-                        onautoformat={onautoformat}
-                        syntax_parser={syntax_parser}
-                    />
+                    { if *new {html!{
+                        <div class="editor-new">
+                            <StringInput
+                                bind_handle={import_url}
+                                placeholder={"Enter a URL to https://tabs.ultimate-guitar.com/ or leave empty".to_string()}
+
+                            />
+                            <button class="editor-new-button" onclick={onimport}>
+                                {"Import or Create"}
+                            </button>
+                        </div>
+                    }} else {html!{
+                        <Editor
+                            content={props.song.format_chord_pro(None, None)}
+                            onsave={onsave}
+                            onautoformat={onautoformat}
+                            syntax_parser={syntax_parser}
+                        />
+                    }}}
                 </AspectRatio>
             </div>
         </div>

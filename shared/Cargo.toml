@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 fancy_surreal = { path = "../../fancy_surreal", optional = true }
-chordlib = { path = "../../chordlib" }
+chordlib = { path = "../../chordlib", features = ["html"] }
 serde = { version = "1.0.163", features = ["derive"] }
 
 [features]
