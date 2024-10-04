@@ -17,7 +17,11 @@
 
 .editor-main {
   position: relative;
-  top: var(--top-height)
+  height: calc(100% - var(--top-height))
+}
+
+.editor-wrapper {
+  overflow: scroll;
   height: calc(100% - var(--top-height)) 
 }
 

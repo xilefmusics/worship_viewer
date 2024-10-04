@@ -1,7 +1,7 @@
 use std::cmp::min;
 use stylist::Style;
 use yew::prelude::*;
-use yew_hooks::use_window_size;
+use yew_hooks::use_size;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -15,7 +15,11 @@ pub struct Props {
 pub fn aspect_ratio(props: &Props) -> Html {
     let combined = props.left + props.right;
 
-    let (parent_width, parent_height) = use_window_size();
+    let div_ref = use_node_ref();
+    let state = use_size(div_ref.clone());
+    let parent_width = state.0;
+    let parent_height = state.1;
+
     let combined_width = min(
         parent_width as u32,
         (parent_height as f64 * combined) as u32,
@@ -92,7 +96,7 @@ pub fn aspect_ratio(props: &Props) -> Html {
     });
 
     html! {
-        <div class={style}>
+        <div ref={div_ref} class={style}>
             <div class={"aspect-ratio-container"}>
                 { first_child }
                 { last_child }

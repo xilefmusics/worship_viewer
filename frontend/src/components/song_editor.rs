@@ -109,12 +109,14 @@ pub fn song_editor(props: &Props) -> Html {
                             </button>
                         </div>
                     }} else {html!{
-                        <Editor
-                            content={props.song.format_chord_pro(None, None)}
-                            onsave={onsave}
-                            onautoformat={onautoformat}
-                            syntax_parser={syntax_parser}
-                        />
+                        <div class="editor-wrapper">
+                            <Editor
+                                content={props.song.format_chord_pro(None, None)}
+                                onsave={onsave}
+                                onautoformat={onautoformat}
+                                syntax_parser={syntax_parser}
+                            />
+                        </div>
                     }}}
                 </AspectRatio>
             </div>
