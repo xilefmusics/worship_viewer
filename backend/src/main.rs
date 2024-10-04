@@ -18,7 +18,7 @@ use settings::Settings;
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
-    env_logger::init_from_env(Env::default().default_filter_or("debug"));
+    env_logger::init_from_env(Env::default().default_filter_or("warn"));
 
     let settings = Settings::new();
     let database = Data::new(

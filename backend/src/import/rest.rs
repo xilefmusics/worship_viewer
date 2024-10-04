@@ -1,10 +1,9 @@
+use super::import;
 use crate::error::AppError;
-use crate::song::Song;
 
-use actix_web::{get, web::Path, HttpRequest, HttpResponse};
+use actix_web::{get, web::Path, HttpResponse};
 
-#[get("/api/import/{url:.*}")]
-pub async fn get(req: HttpRequest, url: Path<String>) -> Result<HttpResponse, AppError> {
-    dbg!(url);
-    Ok(HttpResponse::Ok().json(Song::default()))
+#[get("/api/import/{identifier:.*}")]
+pub async fn get(identifier: Path<String>) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(import(&identifier).await?))
 }

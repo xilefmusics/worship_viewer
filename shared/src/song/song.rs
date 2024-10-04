@@ -26,12 +26,12 @@ impl TryFrom<&str> for Song {
 }
 
 impl Song {
-    pub fn import_ultimate_guitar() -> Result<Self, chordlib::Error> {
+    pub fn import_ultimate_guitar(s: &str) -> Result<Self, chordlib::Error> {
         Ok(Self {
             id: None,
             not_a_song: false,
             blobs: vec![],
-            data: ultimate_guitar::load_html("")?,
+            data: ultimate_guitar::load_html(s)?,
         })
     }
 
