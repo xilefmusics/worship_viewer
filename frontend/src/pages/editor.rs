@@ -104,6 +104,11 @@ pub fn editor_page() -> Html {
     let onimport = {
         let song_handle = song.clone();
         Callback::from(move |url: String| {
+            if url.len() == 0 {
+                song_handle.set(Some(Song::default()));
+                return;
+            }
+
             let url = Url::parse(&url).unwrap();
             let api_url = format!(
                 "/api/import/{}{}",
