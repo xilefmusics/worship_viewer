@@ -126,7 +126,9 @@ pub fn song_editor(props: &Props) -> Html {
             <div ref={div_ref} class="editor-main">
                 { if show_viewer {html!{
                     <AspectRatio left={1./SQRT_2}>
-                        <SongViewer />
+                        <SongViewer 
+                            song={props.song.clone()}
+                        />
                         {editor_html}
                     </AspectRatio>
                 }} else {html!{

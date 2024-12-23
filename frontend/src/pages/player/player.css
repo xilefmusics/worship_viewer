@@ -250,7 +250,7 @@ select:hover {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%) rotate(-45deg);
-    animation: fadeOutPulsate 1s ease-in-out forwards; /* Reverse the animation */
+    animation: fadeOutPulsate 10s ease-in-out forwards; /* Reverse the animation */
 }
 
 #unheart::before,
