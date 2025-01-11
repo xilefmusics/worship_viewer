@@ -12,7 +12,7 @@ pub struct Props {
     #[prop_or_default]
     pub override_key: Option<SimpleChord>,
     #[prop_or_default]
-    pub page: Option<u32>,
+    pub page: Option<usize>,
 }
 
 #[function_component(SongViewer)]
