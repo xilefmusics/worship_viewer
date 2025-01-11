@@ -1,5 +1,7 @@
 use chordlib::inputs::{chord_pro, ultimate_guitar};
-use chordlib::outputs::{FormatChordPro, FormatOutputLines, OutputLine};
+use chordlib::outputs::{
+    CharPageSet, FormatCharPages, FormatChordPro, FormatOutputLines, OutputLine,
+};
 use chordlib::types::{SimpleChord, Song as SongData};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -45,6 +47,22 @@ impl Song {
         language: Option<usize>,
     ) -> Vec<OutputLine> {
         (&(self.data)).format_output_lines(key, language)
+    }
+
+    pub fn format_chord_page(
+        &self,
+        width: usize,
+        height: usize,
+        key: Option<SimpleChord>,
+        language: Option<usize>,
+        page: usize,
+        set: &CharPageSet,
+    ) -> String {
+        let pages = (&(self.data)).format_char_pages(width, height, key, language);
+        if !(pages.len() > page) {
+            return String::new();
+        }
+        pages[page].render(set)
     }
 }
 
