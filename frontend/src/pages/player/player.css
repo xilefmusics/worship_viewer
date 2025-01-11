@@ -37,12 +37,24 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: left;
 }
 
 .top.active {
   visibility: visible;
   height: var(--top-bottom-height);
+}
+
+.top-left {
+  justify-content: left;
+}
+
+.top-middle {
+  flex: 1;
+  justify-content: center;
+}
+
+.top-right {
+  justify-content: right;
 }
 
 .back-button {
