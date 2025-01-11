@@ -69,8 +69,19 @@ pub fn songs_page() -> Html {
         })
         .collect::<Html>();
 
+    let new_button = {
+        let navigator = navigator.clone();
+        move |_: MouseEvent| navigator.push(&Route::Editor)
+    };
+
     html! {
         <div class={Style::new(include_str!("songs.css")).expect("Unwrapping CSS should work!")}>
+            <div class="controlls">
+                <span
+                    class="material-symbols-outlined back-button"
+                    onclick={new_button}
+                >{"add"}</span>
+            </div>
             <div class="songs">
                 {songs}
             </div>

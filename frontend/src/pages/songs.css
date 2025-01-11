@@ -44,3 +44,17 @@
   max-width: 20em;
 }
 
+.controlls {
+  padding: 1em;
+  margin-right: 2em;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: right;
+  width: 100%;
+}
+
+.controlls span:hover {
+  color: var(--primary);
+}
+
