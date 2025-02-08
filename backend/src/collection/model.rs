@@ -1,6 +1,8 @@
-use super::{Collection, CollectionDatabase};
+use super::{Collection, CollectionDatabase, DefaultCollectionLink};
+use crate::song::LinkDatabase as SongLinkDatabase;
 use crate::AppError;
 use fancy_surreal::Client;
+use shared::song::Link as SongLink;
 use std::sync::Arc;
 
 pub struct Model;
@@ -110,5 +112,58 @@ impl Model {
             .wrapper_js_map_unpack("element.content.songs.nr")
             .query_direct::<Option<String>>()
             .await?)
+    }
+
+    pub async fn add_song_to_default_collection(
+        db: Arc<Client<'_>>,
+        owner: &str,
+        song_link: SongLink,
+    ) -> Result<(), AppError> {
+        let links = db
+            .table("default_collection_link")
+            .owner(owner)
+            .select()?
+            .query::<DefaultCollectionLink>()
+            .await?;
+
+        if links.len() > 1 {
+            return Err(AppError::Database(
+                "Inconsistent state, to many default_collection_links for the same user found"
+                    .into(),
+            ));
+        }
+
+        if links.len() == 1 {
+            let mut collection = Self::get_one(
+                db.clone(),
+                vec![owner.into()],
+                &links.first().unwrap().collection_id,
+            )
+            .await?;
+            collection.songs.push(song_link);
+            Self::put(db.clone(), vec![owner.into()], vec![collection]).await?;
+        } else {
+            let collection = Collection {
+                id: None,
+                title: "default".into(),
+                cover: "".into(),
+                songs: vec![song_link],
+            };
+            let collections = Self::create(db.clone(), owner, vec![collection]).await?;
+            let collection = collections.first().unwrap();
+            let link = DefaultCollectionLink {
+                id: None,
+                collection_id: collection
+                    .id
+                    .clone()
+                    .ok_or(AppError::Database("Created collection has no id".into()))?,
+            };
+
+            db.table("default_collection_link")
+                .owner(owner)
+                .create::<DefaultCollectionLink>(vec![link])
+                .await?;
+        }
+        Ok(())
     }
 }

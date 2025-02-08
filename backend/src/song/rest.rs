@@ -1,7 +1,9 @@
 use super::{Model, QueryParams, Song};
+use crate::collection::Model as CollectionModel;
 use crate::error::AppError;
 use crate::rest::parse_user_header;
 use crate::user::Model as UserModel;
+use shared::song::Link as SongLink;
 
 use fancy_surreal::Client;
 
@@ -73,8 +75,20 @@ pub async fn post(
     db: Data<Client<'_>>,
 ) -> Result<HttpResponse, AppError> {
     let db = db.into_inner();
-    Ok(HttpResponse::Created()
-        .json(Model::create(db.clone(), &parse_user_header(&req)?, songs.into_inner()).await?))
+    let owner = parse_user_header(&req)?;
+    let songs = Model::create(db.clone(), &owner, songs.into_inner()).await?;
+    for song in &songs {
+        let song_link = SongLink {
+            id: song
+                .id
+                .clone()
+                .ok_or(AppError::Database("Song has no id".into()))?,
+            nr: None,
+            key: None,
+        };
+        CollectionModel::add_song_to_default_collection(db.clone(), &owner, song_link).await?;
+    }
+    Ok(HttpResponse::Created().json(songs))
 }
 
 #[delete("/api/songs")]
