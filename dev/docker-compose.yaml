@@ -2,30 +2,8 @@ services:
   db:
     image: surrealdb/surrealdb:v1.5.4
     command: start --log debug --user root --pass root memory --allow-scripting
-
-  backend:
-    build:
-      context: .
-      dockerfile: ./backend.Dockerfile
-    working_dir: /app/src/worship_viewer/backend
-    command: cargo watch -cqx run
-    environment:
-      DB_HOST: db
-    volumes:
-    - ..:/app/src/worship_viewer
-    - ../../fancy_surreal:/app/src/fancy_surreal
-    - ../../chordlib:/app/src/chordlib
-
-  frontend:
-    build:
-      context: .
-      dockerfile: ./frontend.Dockerfile
-    working_dir: /app/src/worship_viewer/frontend
-    command: trunk serve --address 0.0.0.0
-    volumes:
-    - ..:/app/src/worship_viewer
-    - ../../fancy_yew:/app/src/fancy_yew
-    - ../../chordlib:/app/src/chordlib
+    ports:
+    - 8000:8000
 
   proxauth:
     image: xilefmusics/proxauth:0.1.0
@@ -36,7 +14,7 @@ services:
           password: 5fa96090628b61ce59ce0a40b30710c584c8d294885ea0dfbaf491ed8970d9f4
           salt: 11463a4a-9f9c-4e17-bd05-96ebc1a68277
         rules:
-        - toHost: backend
+        - toHost: host.docker.internal
           toPort: 8082
           fromPath: "/api"
           toPath: "/api"
@@ -45,7 +23,7 @@ services:
           textColor: "#ebdbb2"
           primaryColor: "#cc241d"
           title: "Worship Viewer"
-        - toHost: frontend
+        - toHost: host.docker.internal
           toPort: 8080
           allowedUsers: [test]
           redirectToLogin: true
@@ -54,4 +32,4 @@ services:
           primaryColor: "#cc241d"
           title: "Worship Viewer"
     ports:
-    - 8080:8080
+    - 8081:8080
