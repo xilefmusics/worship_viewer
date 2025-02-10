@@ -1,0 +1,61 @@
+:root {
+  width: 100%;
+  height: 100%;
+  --top-height: 60px;
+}
+
+.editor-header {
+  height: var(--top-height);
+  background-color: var(--bg1);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 1em;
+  padding-right: 1em;
+}
+
+.editor-main {
+  position: relative;
+  height: calc(100% - var(--top-height))
+}
+
+.editor-wrapper {
+  overflow: scroll;
+  height: 100%;
+}
+
+.separator {
+  width: 100%;
+  flex: 1;
+}
+
+.editor-new {
+  display: flex;
+  flex-direction: column;
+}
+
+input {
+	background-color: var(--fg1);
+	color: var(--bg2);
+  padding: 0.4rem;
+  border: none;
+  margin: 1em 0 1em 0;
+}
+
+
+button {
+  background-color: var(--primary);
+  padding: 0.4rem;
+  font-weight: bold;
+  border: none;
+}
+
+button:hover {
+  background-color: #cc0000;
+}
+
+.button:hover {
+  color: var(--primary);
+}
+

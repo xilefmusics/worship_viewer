@@ -1,0 +1,22 @@
+:root {
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  overflow: hidden;
+}
+
+p, span.keyword, span.chord {
+  color: black;
+  white-space: pre-wrap;
+  font-family: 'Rubik Mono One', monospace;
+  margin: 0;
+  padding: 0;
+}
+
+span.keyword, span.chord {
+  font-weight: bold;
+}
+
+p.headline {
+  color: gray;
+}

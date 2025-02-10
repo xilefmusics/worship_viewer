@@ -1,5 +1,5 @@
+use crate::components::SongViewer;
 use shared::player::PlayerItem;
-use shared::song::{FormatOutputLines, OutputLine, SimpleChord};
 use stylist::Style;
 use yew::prelude::*;
 
@@ -11,6 +11,7 @@ pub struct Props {
     pub override_key: Option<u8>,
 }
 
+// TODO: Make this component obsolete by adding the blob renderer to the song viewer
 #[function_component(PageComponent)]
 pub fn page_components(props: &Props) -> Html {
     match &props.item {
@@ -20,26 +21,8 @@ pub fn page_components(props: &Props) -> Html {
             </div>
         },
         PlayerItem::Chords(song) => {
-            let title = if let Some(artist) = song.artist.as_ref() {
-                format!("{} ({})", &song.title, artist)
-            } else {
-                song.title.to_string()
-            };
-
             html! {
-                <div
-                    style={format!("font-size: {}px;background-color: white;", &props.font_size)}
-                    class={Style::new(include_str!("page.css")).expect("Unwrapping CSS should work!")}
-                >
-                    <div class="wrapper">
-                        <div class="title">{&title}</div>
-                        {song.format_output_lines(props.override_key.map(|key| SimpleChord::new(key)), None).iter().map(|line| match line {
-                            OutputLine::Keyword(text) => html!{<span class="keyword">{text}</span>},
-                            OutputLine::Chord(text) => html!{<span class="chord">{text}</span>},
-                            OutputLine::Text(text) => html!{<span class="text">{text}</span>},
-                        }).collect::<Html>()}
-                    </div>
-                </div>
+                <SongViewer song={song.clone()}/>
             }
         }
     }

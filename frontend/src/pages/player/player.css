@@ -37,12 +37,24 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: left;
 }
 
 .top.active {
   visibility: visible;
   height: var(--top-bottom-height);
+}
+
+.top-left {
+  justify-content: left;
+}
+
+.top-middle {
+  flex: 1;
+  justify-content: center;
+}
+
+.top-right {
+  justify-content: right;
 }
 
 .back-button {
@@ -250,7 +262,7 @@ select:hover {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%) rotate(-45deg);
-    animation: fadeOutPulsate 1s ease-in-out forwards; /* Reverse the animation */
+    animation: fadeOutPulsate 10s ease-in-out forwards; /* Reverse the animation */
 }
 
 #unheart::before,

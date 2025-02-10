@@ -5,6 +5,7 @@ use gloo_net::http::Request;
 use serde::Deserialize;
 use shared::player::{Orientation, Player, PlayerItem, TocItem};
 use shared::song::SimpleChord;
+use std::collections::HashMap;
 use stylist::{css, yew::Global, Style};
 use url::Url;
 use web_sys::window;
@@ -295,6 +296,26 @@ pub fn player_page() -> Html {
         player_handle.set(Some(player.update_orientation(orientation)));
     }
 
+    let edit_button = {
+        let navigator = navigator.clone();
+        let id = match player.item().0 {
+            PlayerItem::Blob(_) => "".to_string(),
+            PlayerItem::Chords(song) => song.id.clone().unwrap_or("".to_string()),
+        };
+
+        move |_: MouseEvent| {
+            if &id == "" {
+                return;
+            }
+            navigator
+                .push_with_query(
+                    &Route::Editor,
+                    &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>()),
+                )
+                .unwrap()
+        }
+    };
+
     html! {
         <>
         <Global css={css!("html,body{padding: 0;margin: 0;border: 0;background: #1e1e1e; overflow: hidden; overscroll-behavior: none; }")} />
@@ -302,10 +323,20 @@ pub fn player_page() -> Html {
             class={Style::new(include_str!("player.css")).expect("Unwrapping CSS should work!")}
             >
             <div class={if *active {"top active"} else {"top"}}>
-                <span
-                    class="material-symbols-outlined back-button"
-                    onclick={onclick_back_button}
-                >{"arrow_back"}</span>
+                <div class="top-left">
+                    <span
+                        class="material-symbols-outlined back-button"
+                        onclick={onclick_back_button}
+                    >{"arrow_back"}</span>
+                </div>
+                <div class="top-middle">
+                </div>
+                <div class="top-right">
+                    <span
+                        class="material-symbols-outlined back-button"
+                        onclick={edit_button}
+                    >{"edit"}</span>
+                </div>
             </div>
             <div onclick={onclick} class={if *active {"middle active"} else {"middle"}}>
                 <PagesComponent
