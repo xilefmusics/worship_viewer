@@ -54,7 +54,7 @@ pub async fn put(
             db.clone(),
             UserModel::get_or_create(db, &parse_user_header(&req)?)
                 .await?
-                .read,
+                .write,
             collections.into_inner(),
         )
         .await?,
@@ -90,7 +90,7 @@ pub async fn delete(
             db.clone(),
             UserModel::get_or_create(db, &parse_user_header(&req)?)
                 .await?
-                .read,
+                .write,
             collections.into_inner(),
         )
         .await?,

@@ -59,7 +59,7 @@ pub async fn put_metadata(
             db.clone(),
             UserModel::get_or_create(db, &parse_user_header(&req)?)
                 .await?
-                .read,
+                .write,
             blobs.into_inner(),
         )
         .await?,
@@ -89,7 +89,7 @@ pub async fn delete_metadata(
             db.clone(),
             UserModel::get_or_create(db, &parse_user_header(&req)?)
                 .await?
-                .read,
+                .write,
             blobs.into_inner(),
         )
         .await?,
