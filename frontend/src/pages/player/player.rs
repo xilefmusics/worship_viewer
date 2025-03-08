@@ -172,6 +172,8 @@ pub fn player_page() -> Html {
                     Key::Chord(chord) => Key::from(chord.transpose(1)),
                     Key::Nashville => Key::Nashville,
                 }))
+            } else if e.key() == "N" {
+                override_key.set(Some(Key::Nashville))
             } else if e.key() == "r" {
                 override_key.set(None)
             } else if e.key() == "l" {
