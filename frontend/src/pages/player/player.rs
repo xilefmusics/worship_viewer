@@ -4,7 +4,7 @@ use gloo::timers::callback::Timeout;
 use gloo_net::http::Request;
 use serde::Deserialize;
 use shared::player::{Orientation, Player, PlayerItem, TocItem};
-use shared::song::SimpleChord;
+use shared::song::{Key, SimpleChord};
 use std::collections::HashMap;
 use stylist::{css, yew::Global, Style};
 use url::Url;
@@ -149,23 +149,29 @@ pub fn player_page() -> Html {
             } else if e.key() == "Escape" {
                 navigator.push(&back_route);
             } else if e.key() == "A" {
-                override_key.set(Some(0))
+                override_key.set(Some(Key::from(SimpleChord::new(0))))
             } else if e.key() == "B" {
-                override_key.set(Some(2))
+                override_key.set(Some(Key::from(SimpleChord::new(2))))
             } else if e.key() == "C" {
-                override_key.set(Some(3))
+                override_key.set(Some(Key::from(SimpleChord::new(3))))
             } else if e.key() == "D" {
-                override_key.set(Some(5))
+                override_key.set(Some(Key::from(SimpleChord::new(5))))
             } else if e.key() == "E" {
-                override_key.set(Some(7))
+                override_key.set(Some(Key::from(SimpleChord::new(7))))
             } else if e.key() == "F" {
-                override_key.set(Some(8))
+                override_key.set(Some(Key::from(SimpleChord::new(8))))
             } else if e.key() == "G" {
-                override_key.set(Some(10))
+                override_key.set(Some(Key::from(SimpleChord::new(10))))
             } else if e.key() == "b" || e.key() == "-" {
-                override_key.set(override_key.map(|key| (key + 11) % 12))
+                override_key.set(override_key.as_ref().map(|key| match key {
+                    Key::Chord(chord) => Key::from(chord.transpose(11)),
+                    Key::Nashville => Key::Nashville,
+                }))
             } else if e.key() == "#" || e.key() == "+" {
-                override_key.set(override_key.map(|key| (key + 1) % 12))
+                override_key.set(override_key.as_ref().map(|key| match key {
+                    Key::Chord(chord) => Key::from(chord.transpose(1)),
+                    Key::Nashville => Key::Nashville,
+                }))
             } else if e.key() == "r" {
                 override_key.set(None)
             } else if e.key() == "l" {
@@ -215,30 +221,32 @@ pub fn player_page() -> Html {
             let input: HtmlInputElement = e.target_unchecked_into();
             if input.value() == "default" {
                 override_key.set(None)
+            } else if input.value() == "nashville" {
+                override_key.set(Some(Key::Nashville))
             } else if input.value() == "A" {
-                override_key.set(Some(0))
+                override_key.set(Some(Key::from(SimpleChord::new(0))))
             } else if input.value() == "Bb" {
-                override_key.set(Some(1))
+                override_key.set(Some(Key::from(SimpleChord::new(1))))
             } else if input.value() == "B" {
-                override_key.set(Some(2))
+                override_key.set(Some(Key::from(SimpleChord::new(2))))
             } else if input.value() == "C" {
-                override_key.set(Some(3))
+                override_key.set(Some(Key::from(SimpleChord::new(3))))
             } else if input.value() == "Db" {
-                override_key.set(Some(4))
+                override_key.set(Some(Key::from(SimpleChord::new(4))))
             } else if input.value() == "D" {
-                override_key.set(Some(5))
+                override_key.set(Some(Key::from(SimpleChord::new(5))))
             } else if input.value() == "Eb" {
-                override_key.set(Some(6))
+                override_key.set(Some(Key::from(SimpleChord::new(6))))
             } else if input.value() == "E" {
-                override_key.set(Some(7))
+                override_key.set(Some(Key::from(SimpleChord::new(7))))
             } else if input.value() == "F" {
-                override_key.set(Some(8))
+                override_key.set(Some(Key::from(SimpleChord::new(8))))
             } else if input.value() == "F#" {
-                override_key.set(Some(9))
+                override_key.set(Some(Key::from(SimpleChord::new(9))))
             } else if input.value() == "G" {
-                override_key.set(Some(10))
+                override_key.set(Some(Key::from(SimpleChord::new(10))))
             } else if input.value() == "Ab" {
-                override_key.set(Some(11))
+                override_key.set(Some(Key::from(SimpleChord::new(11))))
             }
         }
     };
@@ -342,7 +350,7 @@ pub fn player_page() -> Html {
                 <PagesComponent
                     item={player.item().0.clone()}
                     item2={player.item().1.map(|item| item.clone())}
-                    override_key={*override_key}
+                    override_key={(*override_key).clone()}
                     half_page_scroll={player.is_half_page_scroll()}
                     active={*active}
                 />
@@ -353,12 +361,15 @@ pub fn player_page() -> Html {
                     class={if let PlayerItem::Chords(_) = player.item().0 {"visible"} else {"invisible"}}
                 >
                     {
-                        vec!["default", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab"]
+                        vec!["default", "nashville", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab"]
                             .iter()
                             .map(|option| html! {
                                 <option
                                     value={&**option}
-                                    selected={ option == &(*override_key).map(|key| SimpleChord::new(0).format(&SimpleChord::new(key)).as_ref()).unwrap_or("default") }
+                                    selected={ *option == (*override_key).as_ref().map(|key| match key {
+                                Key::Chord(_) => SimpleChord::default().format(&key).as_ref(),
+                                Key::Nashville => "nashville".into(),
+                            }).unwrap_or("default") }
 
                                 >
                                     {option}

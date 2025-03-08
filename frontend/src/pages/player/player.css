@@ -21,6 +21,7 @@
   --top-bottom-height: 60px;
   height: var(--vh);
   width: 100vw;
+  overflow: hidden;
 }
 
 * {

@@ -1,5 +1,6 @@
 use crate::components::SongViewer;
 use shared::player::PlayerItem;
+use shared::song::Key;
 use stylist::Style;
 use yew::prelude::*;
 
@@ -8,10 +9,9 @@ pub struct Props {
     #[prop_or_default]
     pub item: PlayerItem,
     pub font_size: i32,
-    pub override_key: Option<u8>,
+    pub override_key: Option<Key>,
 }
 
-// TODO: Make this component obsolete by adding the blob renderer to the song viewer
 #[function_component(PageComponent)]
 pub fn page_components(props: &Props) -> Html {
     match &props.item {
@@ -22,7 +22,10 @@ pub fn page_components(props: &Props) -> Html {
         },
         PlayerItem::Chords(song) => {
             html! {
-                <SongViewer song={song.clone()}/>
+                <SongViewer
+                    song={song.clone()}
+                    override_key={props.override_key.clone()}
+                />
             }
         }
     }

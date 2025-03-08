@@ -5,18 +5,6 @@
   overflow: hidden;
 }
 
-p, span.keyword, span.chord {
+span, h1, h2 {
   color: black;
-  white-space: pre-wrap;
-  font-family: 'Rubik Mono One', monospace;
-  margin: 0;
-  padding: 0;
-}
-
-span.keyword, span.chord {
-  font-weight: bold;
-}
-
-p.headline {
-  color: gray;
 }

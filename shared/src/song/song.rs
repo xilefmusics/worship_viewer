@@ -1,8 +1,6 @@
 use chordlib::inputs::{chord_pro, ultimate_guitar};
-use chordlib::outputs::{
-    CharPageSet, FormatCharPages, FormatChordPro, FormatOutputLines, OutputLine,
-};
-use chordlib::types::{SimpleChord, Song as SongData};
+use chordlib::outputs::{FormatChordPro, FormatHTML};
+use chordlib::types::{Key, Song as SongData};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -37,32 +35,17 @@ impl Song {
         })
     }
 
-    pub fn format_chord_pro(&self, key: Option<SimpleChord>, language: Option<usize>) -> String {
-        (&(self.data)).format_chord_pro(key, language)
+    pub fn format_worship_pro(&self, key: Option<&Key>, language: Option<usize>) -> String {
+        (&(self.data)).format_chord_pro(key, language, true)
     }
 
-    pub fn format_output_lines(
+    pub fn format_html(
         &self,
-        key: Option<SimpleChord>,
+        key: Option<&Key>,
         language: Option<usize>,
-    ) -> Vec<OutputLine> {
-        (&(self.data)).format_output_lines(key, language)
-    }
-
-    pub fn format_chord_page(
-        &self,
-        width: usize,
-        height: usize,
-        key: Option<SimpleChord>,
-        language: Option<usize>,
-        page: usize,
-        set: &CharPageSet,
-    ) -> String {
-        let pages = (&(self.data)).format_char_pages(width, height, key, language);
-        if !(pages.len() > page) {
-            return String::new();
-        }
-        pages[page].render(set)
+        scale: Option<f32>,
+    ) -> (String, String) {
+        (&(self.data)).format_html_page(key, language, scale)
     }
 }
 

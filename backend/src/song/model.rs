@@ -1,4 +1,4 @@
-use super::{Filter, Song};
+use super::{CollectionSongs, Filter, Song};
 use crate::AppError;
 use fancy_surreal::Client;
 use serde::{Deserialize, Serialize};
@@ -42,9 +42,9 @@ impl Model {
                 .id(collection)
                 .field("content.songs.id")
                 .fetch("content.songs.id")
-                .wrapper_js_map_unpack("element.content.songs.id")
-                .query::<Song>()
+                .query_direct_one::<CollectionSongs>()
                 .await?
+                .to_songs()
         } else {
             db.table("songs").owners(owners).select()?.query().await?
         })

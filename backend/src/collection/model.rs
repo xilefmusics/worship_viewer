@@ -1,5 +1,4 @@
 use super::{Collection, CollectionDatabase, DefaultCollectionLink};
-use crate::song::LinkDatabase as SongLinkDatabase;
 use crate::AppError;
 use fancy_surreal::Client;
 use shared::song::Link as SongLink;

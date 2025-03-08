@@ -43,7 +43,7 @@ pub fn song_editor(props: &Props) -> Html {
     let onautoformat = Callback::from(|content: String| {
         Song::try_from(content.as_str())
             .unwrap()
-            .format_chord_pro(None, None)
+            .format_worship_pro(None, None)
     });
 
     let onimport = {
@@ -67,6 +67,9 @@ pub fn song_editor(props: &Props) -> Html {
         .transition("meta-key", "key:", "meta-middle", Some("meta-key"), 1)
         .transition("meta-key", "section:", "meta-middle", Some("meta-key"), 1)
         .transition("meta-key", "language:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "tempo:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "time:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "comment:", "meta-middle", Some("meta-key"), 1)
         .transition("meta-key", ":", "meta-middle", Some("meta-key-error"), 1)
         .transition("meta-key", "}", "meta-end", Some("meta-key"), 1)
         .transition("meta-middle", ":", "meta-middle", None, 0)
@@ -101,7 +104,7 @@ pub fn song_editor(props: &Props) -> Html {
         }} else {html!{
             <div class="editor-wrapper">
                 <Editor
-                    content={props.song.format_chord_pro(None, None)}
+                    content={props.song.format_worship_pro(None, None)}
                     onsave={onsave}
                     onautoformat={onautoformat}
                     syntax_parser={syntax_parser}
@@ -126,7 +129,7 @@ pub fn song_editor(props: &Props) -> Html {
             <div ref={div_ref} class="editor-main">
                 { if show_viewer {html!{
                     <AspectRatio left={1./SQRT_2}>
-                        <SongViewer 
+                        <SongViewer
                             song={props.song.clone()}
                         />
                         {editor_html}
