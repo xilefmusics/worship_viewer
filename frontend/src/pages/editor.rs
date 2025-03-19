@@ -55,7 +55,7 @@ pub fn editor_page() -> Html {
         let song_handle = song.clone();
         Callback::from(move |song: Song| {
             let song_handle = song_handle.clone();
-            let song_handle2 = song_handle.clone();
+            let navigator = navigator.clone();
             if song.id.is_some() {
                 wasm_bindgen_futures::spawn_local(async move {
                     song_handle.set(Some(
@@ -76,27 +76,26 @@ pub fn editor_page() -> Html {
                     return;
                 }
                 wasm_bindgen_futures::spawn_local(async move {
-                    song_handle.set(Some(
-                        Request::post("/api/songs")
-                            .json(&vec![song])
+                    let song = Request::post("/api/songs")
+                        .json(&vec![song])
+                        .unwrap()
+                        .send()
+                        .await
+                        .unwrap()
+                        .json::<Vec<Song>>()
+                        .await
+                        .unwrap()
+                        .remove(0);
+                    if let Some(id) = song.id.as_ref() {
+                        navigator
+                            .replace_with_query(
+                                &Route::Editor,
+                                &([("id", id)].iter().cloned().collect::<HashMap<_, _>>()),
+                            )
                             .unwrap()
-                            .send()
-                            .await
-                            .unwrap()
-                            .json::<Vec<Song>>()
-                            .await
-                            .unwrap()
-                            .remove(0),
-                    ))
+                    }
+                    song_handle.set(Some(song));
                 });
-            }
-            if let Some(id) = song_handle2.as_ref().unwrap().id.as_ref() {
-                navigator
-                    .push_with_query(
-                        &Route::Editor,
-                        &([("id", id)].iter().cloned().collect::<HashMap<_, _>>()),
-                    )
-                    .unwrap()
             }
         })
     };
