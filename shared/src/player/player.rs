@@ -314,7 +314,7 @@ impl From<Song> for Player {
                     .iter()
                     .map(|blob| PlayerItem::Blob(blob.to_string()))
                     .collect::<Vec<PlayerItem>>();
-                if song.data.sections.len() > 0 {
+                if song.data.sections.len() > 0 || items.len() == 0 {
                     items.push(PlayerItem::Chords(song.clone()))
                 }
                 items
