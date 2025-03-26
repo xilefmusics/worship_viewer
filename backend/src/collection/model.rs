@@ -145,7 +145,7 @@ impl Model {
             let collection = Collection {
                 id: None,
                 title: "default".into(),
-                cover: "".into(),
+                cover: "mysongs".into(),
                 songs: vec![song_link],
             };
             let collections = Self::create(db.clone(), owner, vec![collection]).await?;
