@@ -20,6 +20,11 @@ pub fn song_editor(props: &Props) -> Html {
     let div_ref = use_node_ref();
     let state = use_size(div_ref.clone());
     let show_viewer = state.0 > state.1;
+    let width = if show_viewer {
+        state.0 - (state.1 as f64 / SQRT_2) as u32
+    } else {
+        state.0
+    };
 
     let new = use_state(|| false);
     let toggle_new = {
@@ -108,6 +113,7 @@ pub fn song_editor(props: &Props) -> Html {
                     onsave={onsave}
                     onautoformat={onautoformat}
                     syntax_parser={syntax_parser}
+                    style={format!("width: {}px;", width)}
                 />
             </div>
         }}}
