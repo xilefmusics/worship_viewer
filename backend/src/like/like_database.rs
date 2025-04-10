@@ -1,8 +1,8 @@
 use super::Like;
-use fancy_surreal::{Id, RecordId};
+use fancy_surreal::RecordId;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LikeDatabase {
     pub id: Option<String>,
     pub song: RecordId,
@@ -12,7 +12,7 @@ impl Into<Like> for LikeDatabase {
     fn into(self) -> Like {
         Like {
             id: self.id,
-            song: self.song.id.to_string(),
+            song: self.song.key().to_string(),
         }
     }
 }
@@ -21,10 +21,7 @@ impl Into<LikeDatabase> for Like {
     fn into(self) -> LikeDatabase {
         LikeDatabase {
             id: self.id,
-            song: RecordId {
-                tb: "songs".to_string(),
-                id: Id::String(self.song),
-            },
+            song: RecordId::from_table_key("songs", self.song),
         }
     }
 }

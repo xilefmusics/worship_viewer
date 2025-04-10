@@ -2,7 +2,7 @@ use super::Collection;
 use crate::song::LinkDatabase as SongLinkDatabase;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CollectionDatabase {
     pub id: Option<String>,
     pub title: String,

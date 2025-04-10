@@ -9,12 +9,12 @@ fancy_yew = { path = "../../fancy_yew" }
 yew = { version = "0.21.0", features = ["csr"] }
 yew-router = "0.18"
 stylist = { version = "0.13.0", features = ["yew_integration", "parser"] }
-wasm-bindgen-futures = "0.4.42"
-wasm-bindgen = "0.2.92"
-gloo-net = "0.5.0"
+wasm-bindgen-futures = "0.4.50"
+wasm-bindgen = "0.2.100"
+gloo-net = "0.6.0"
 gloo-console = "0.3.0"
-yew-hooks = "0.3.1"
-web-sys = "0.3.69"
+yew-hooks = "0.3.3"
+web-sys = "0.3.77"
 gloo = "0.11.0"
-serde = { version = "1.0.163", features = ["derive"] }
-url = "2.5.0"
+serde = { version = "1.0.219", features = ["derive"] }
+url = "2.5.4"

@@ -127,7 +127,7 @@ impl Model {
             .query_direct::<RecordId>()
             .await?
             .into_iter()
-            .map(|id| id.id.to_string())
+            .map(|id| id.key().to_string())
             .collect::<Vec<String>>())
     }
 }
