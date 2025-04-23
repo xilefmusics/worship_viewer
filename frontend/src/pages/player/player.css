@@ -17,7 +17,7 @@
 	--bg1: #272727;
 	--bg2: #1e1e1e;
 
-  --vh: 100vh;
+  --vh: 100dvh;
   --top-bottom-height: 60px;
   height: var(--vh);
   width: 100vw;
