@@ -117,7 +117,6 @@ pub async fn get_id(
 
     let path = PathBuf::from(std::env::var("BLOB_DIR").unwrap_or("blobs".into()))
         .join(PathBuf::from(file_name));
-    dbg!(&path);
 
     Ok(NamedFile::open(path).map_err(|err| AppError::Filesystem(format!("{}", err)))?)
 }
