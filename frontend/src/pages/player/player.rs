@@ -114,6 +114,26 @@ pub fn player_page() -> Html {
         }
     };
 
+    let edit_button = {
+        let navigator = navigator.clone();
+        let id = match player.as_ref().map(|p|p.item().0).unwrap_or(&PlayerItem::Blob("".to_string())) {
+            PlayerItem::Blob(_) => "".to_string(),
+            PlayerItem::Chords(song) => song.id.clone().unwrap_or("".to_string()),
+        };
+
+        move |_: MouseEvent| {
+            if &id == "" {
+                return;
+            }
+            navigator
+                .push_with_query(
+                    &Route::Editor,
+                    &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>()),
+                )
+                .unwrap()
+        }
+    };
+
     {
         let player = player.clone();
         let active = active.clone();
@@ -121,6 +141,7 @@ pub fn player_page() -> Html {
         let override_key = override_key.clone();
         let back_route = query.back_route();
         let toggle_like = toggle_like.clone();
+        let edit_button = edit_button.clone();
         use_event_with_window("keydown", move |e: KeyboardEvent| {
             if let Some(target) = e.target() {
                 if target.to_string() == "[object HTMLInputElement]" {
@@ -142,6 +163,8 @@ pub fn player_page() -> Html {
                 || e.key() == "k"
             {
                 player.set(player.as_ref().map(|player| player.prev()))
+            } else if e.key() == "e" {
+                edit_button(web_sys::MouseEvent::new("click").unwrap());
             } else if e.key() == "s" {
                 player.set(player.as_ref().map(|player| player.next_scroll_type()))
             } else if e.key() == "m" {
@@ -305,26 +328,6 @@ pub fn player_page() -> Html {
     if orientation != player.orientation() {
         player_handle.set(Some(player.update_orientation(orientation)));
     }
-
-    let edit_button = {
-        let navigator = navigator.clone();
-        let id = match player.item().0 {
-            PlayerItem::Blob(_) => "".to_string(),
-            PlayerItem::Chords(song) => song.id.clone().unwrap_or("".to_string()),
-        };
-
-        move |_: MouseEvent| {
-            if &id == "" {
-                return;
-            }
-            navigator
-                .push_with_query(
-                    &Route::Editor,
-                    &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>()),
-                )
-                .unwrap()
-        }
-    };
 
     html! {
         <>
