@@ -4,7 +4,7 @@ WORKDIR /fancy_surreal
 RUN git clone --depth 1 --branch 0.3.1 https://github.com/xilefmusics/fancy_surreal.git .
 
 WORKDIR /fancy_yew
-RUN git clone --depth 1 --branch 0.5.1 https://github.com/xilefmusics/fancy_yew.git .
+RUN git clone --depth 1 --branch 0.6.0 https://github.com/xilefmusics/fancy_yew.git .
 
 WORKDIR /chordlib
 RUN git clone --depth 1 --branch 0.3.3 https://github.com/xilefmusics/chordlib.git .

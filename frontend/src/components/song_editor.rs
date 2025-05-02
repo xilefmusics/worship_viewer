@@ -2,6 +2,7 @@ use super::{AspectRatio, SongViewer};
 use fancy_yew::components::input::StringInput;
 use fancy_yew::components::{Editor, SyntaxParser};
 use shared::song::Song;
+use fancy_yew::toast_notifications::show_error;
 use std::f64::consts::SQRT_2;
 use stylist::Style;
 use yew::prelude::*;
@@ -38,17 +39,31 @@ pub fn song_editor(props: &Props) -> Html {
     let onsave: Callback<String, ()> = {
         let onsave = props.onsave.clone();
         let id = props.song.id.clone();
-        Callback::from(move |content: String| {
-            let mut song = Song::try_from(content.as_str()).unwrap();
-            song.id = id.clone();
-            onsave.emit(song);
+        Callback::from(move |content: String| match Song::try_from(content.as_str()) {
+            Ok(mut song) => {
+                if song.id.is_none() {
+                    song.id = id.clone();
+                }
+                onsave.emit(song);
+            }
+            Err(e) => {
+                show_error(
+                    "Error parsing song",
+                    &format!("{e}"),
+                );
+            }
         })
     };
 
-    let onautoformat = Callback::from(|content: String| {
-        Song::try_from(content.as_str())
-            .unwrap()
-            .format_worship_pro(None, None)
+    let onautoformat = Callback::from(|content: String| match Song::try_from(content.as_str()) {
+        Ok(song) => song.format_worship_pro(None, None),
+        Err(e) => {
+            show_error(
+                "Error parsing song",
+                &format!("{e}"),
+            );
+            content
+        }
     });
 
     let onimport = {
