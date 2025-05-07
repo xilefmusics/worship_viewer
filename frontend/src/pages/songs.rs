@@ -1,6 +1,6 @@
 use crate::route::Route;
 use gloo_net::http::Request;
-use shared::song::{Key, Song};
+use shared::song::{ChordRepresentation, SimpleChord, Song};
 use std::collections::HashMap;
 use stylist::Style;
 use yew::prelude::*;
@@ -42,7 +42,7 @@ pub fn songs_page() -> Html {
                 .data
                 .key
                 .as_ref()
-                .map(|key| key.format(&Key::default()))
+                .map(|key| key.format(&SimpleChord::default(), &ChordRepresentation::Default))
                 .unwrap_or("");
             let onclick = {
                 let navigator = navigator.clone();

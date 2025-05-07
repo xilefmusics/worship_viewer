@@ -1,6 +1,6 @@
 use super::PageComponent;
 use shared::player::PlayerItem;
-use shared::song::Key;
+use shared::song::{SimpleChord, ChordRepresentation};
 use std::f64::consts::SQRT_2;
 use stylist::Style;
 use yew::prelude::*;
@@ -35,7 +35,8 @@ pub struct Props {
     #[prop_or_default]
     pub item: PlayerItem,
     pub item2: Option<PlayerItem>,
-    pub override_key: Option<Key>,
+    pub override_key: Option<SimpleChord>,
+    pub override_representation: Option<ChordRepresentation>,
     pub half_page_scroll: bool,
     pub active: bool, // this is there for the component to redraw if it changes
 }
@@ -75,6 +76,7 @@ pub fn pages_component(props: &Props) -> Html {
                         item={props.item.clone()}
                         font_size={font_size}
                         override_key={props.override_key.clone()}
+                        override_representation={props.override_representation.clone()}
                     />
                 </div>
                 if let Some(item) = props.item2.clone() {
@@ -86,6 +88,7 @@ pub fn pages_component(props: &Props) -> Html {
                             item={item}
                             font_size={font_size}
                             override_key={props.override_key.clone()}
+                            override_representation={props.override_representation.clone()}
                         />
                     </div>
                 }

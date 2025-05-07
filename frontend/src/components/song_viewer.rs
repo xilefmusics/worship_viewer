@@ -1,5 +1,5 @@
-use shared::song::Key;
 use shared::song::Song;
+use shared::song::{ChordRepresentation, SimpleChord};
 use stylist::Style;
 use yew::prelude::*;
 use yew_hooks::use_size;
@@ -8,7 +8,9 @@ use yew_hooks::use_size;
 pub struct Props {
     pub song: Song,
     #[prop_or_default]
-    pub override_key: Option<Key>,
+    pub override_key: Option<SimpleChord>,
+    #[prop_or_default]
+    pub override_representation: Option<ChordRepresentation>,
 }
 
 #[function_component(SongViewer)]
@@ -16,8 +18,12 @@ pub fn song_viewer(props: &Props) -> Html {
     let div_ref = use_node_ref();
     let (_, height) = use_size(div_ref.clone());
     let scale = height as f32 / 1123.0;
-    let override_key = props.override_key.as_ref();
-    let (html_string, css_string) = props.song.format_html(override_key, None, Some(scale));
+    let (html_string, css_string) = props.song.format_html(
+        props.override_key.as_ref(),
+        props.override_representation.as_ref(),
+        None,
+        Some(scale as f32),
+    );
     html! {
         <div
             ref={div_ref}

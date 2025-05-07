@@ -1,6 +1,6 @@
 use chordlib::inputs::{chord_pro, ultimate_guitar};
 use chordlib::outputs::{FormatChordPro, FormatHTML};
-use chordlib::types::{Key, Song as SongData};
+use chordlib::types::{ChordRepresentation, SimpleChord, Song as SongData};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -35,17 +35,23 @@ impl Song {
         })
     }
 
-    pub fn format_worship_pro(&self, key: Option<&Key>, language: Option<usize>) -> String {
-        (&(self.data)).format_chord_pro(key, language, true)
+    pub fn format_worship_pro(
+        &self,
+        representation: Option<&ChordRepresentation>,
+        key: Option<&SimpleChord>,
+        language: Option<usize>,
+    ) -> String {
+        (&(self.data)).format_chord_pro(key, representation, language, true)
     }
 
     pub fn format_html(
         &self,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         scale: Option<f32>,
     ) -> (String, String) {
-        (&(self.data)).format_html_page(key, language, scale)
+        (&(self.data)).format_html_page(key, representation, language, scale)
     }
 }
 

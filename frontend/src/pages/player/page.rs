@@ -1,6 +1,6 @@
 use crate::components::SongViewer;
 use shared::player::PlayerItem;
-use shared::song::Key;
+use shared::song::{ChordRepresentation, SimpleChord};
 use stylist::Style;
 use yew::prelude::*;
 
@@ -9,7 +9,8 @@ pub struct Props {
     #[prop_or_default]
     pub item: PlayerItem,
     pub font_size: i32,
-    pub override_key: Option<Key>,
+    pub override_key: Option<SimpleChord>,
+    pub override_representation: Option<ChordRepresentation>,
 }
 
 #[function_component(PageComponent)]
@@ -25,6 +26,7 @@ pub fn page_components(props: &Props) -> Html {
                 <SongViewer
                     song={song.clone()}
                     override_key={props.override_key.clone()}
+                    override_representation={props.override_representation.clone()}
                 />
             }
         }

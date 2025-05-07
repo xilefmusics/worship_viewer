@@ -1,4 +1,4 @@
-FROM bitnami/git:2.48.1 as DependencyDownloader
+FROM bitnami/git:2.49.0 AS dependencydownloader
 
 WORKDIR /fancy_surreal
 RUN git clone --depth 1 --branch 0.3.1 https://github.com/xilefmusics/fancy_surreal.git .
@@ -7,13 +7,13 @@ WORKDIR /fancy_yew
 RUN git clone --depth 1 --branch 0.6.0 https://github.com/xilefmusics/fancy_yew.git .
 
 WORKDIR /chordlib
-RUN git clone --depth 1 --branch 0.3.3 https://github.com/xilefmusics/chordlib.git .
+RUN git clone --depth 1 --branch 0.3.4 https://github.com/xilefmusics/chordlib.git .
 
-FROM rust:1.86.0-bookworm as builder
+FROM rust:1.86.0-slim AS builder
 
-COPY --from=DependencyDownloader /fancy_surreal /fancy_surreal
-COPY --from=DependencyDownloader /fancy_yew /fancy_yew
-COPY --from=DependencyDownloader /chordlib /chordlib
+COPY --from=dependencydownloader /fancy_surreal /fancy_surreal
+COPY --from=dependencydownloader /fancy_yew /fancy_yew
+COPY --from=dependencydownloader /chordlib /chordlib
 
 RUN export CARGO_BUILD_JOBS=$(nproc) && \
     cargo install cargo-binstall && \

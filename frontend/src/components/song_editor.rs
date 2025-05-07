@@ -56,7 +56,7 @@ pub fn song_editor(props: &Props) -> Html {
     };
 
     let onautoformat = Callback::from(|content: String| match Song::try_from(content.as_str()) {
-        Ok(song) => song.format_worship_pro(None, None),
+        Ok(song) => song.format_worship_pro(None, None, None),
         Err(e) => {
             show_error(
                 "Error parsing song",
@@ -124,7 +124,7 @@ pub fn song_editor(props: &Props) -> Html {
         }} else {html!{
             <div class="editor-wrapper">
                 <Editor
-                    content={props.song.format_worship_pro(None, None)}
+                    content={props.song.format_worship_pro(None, None, None)}
                     onsave={onsave}
                     onautoformat={onautoformat}
                     syntax_parser={syntax_parser}
