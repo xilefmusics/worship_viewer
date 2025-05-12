@@ -18,3 +18,4 @@ web-sys = "0.3.77"
 gloo = "0.11.0"
 serde = { version = "1.0.219", features = ["derive"] }
 url = "2.5.4"
+getrandom_0_3 = { package = "getrandom", version = "0.3.3", features = ["wasm_js"] }
