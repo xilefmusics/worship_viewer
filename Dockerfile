@@ -7,7 +7,7 @@ WORKDIR /fancy_yew
 RUN git clone --depth 1 --branch 0.6.1 https://github.com/xilefmusics/fancy_yew.git .
 
 WORKDIR /chordlib
-RUN git clone --depth 1 --branch 0.4.0 https://github.com/xilefmusics/chordlib.git .
+RUN git clone --depth 1 --branch 0.4.1 https://github.com/xilefmusics/chordlib.git .
 
 FROM rust:1.86.0-slim AS builder
 
