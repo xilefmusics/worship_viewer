@@ -1,11 +1,11 @@
 use super::PageComponent;
 use shared::player::PlayerItem;
-use shared::song::{SimpleChord, ChordRepresentation};
+use shared::song::{ChordRepresentation, SimpleChord};
 use std::f64::consts::SQRT_2;
 use stylist::Style;
 use yew::prelude::*;
-use yew_hooks::use_window_size;
 use yew_hooks::use_size;
+use yew_hooks::use_window_size;
 
 fn get_content_dimensions(
     dimensions: (u32, u32),
