@@ -1,10 +1,10 @@
-FROM bitnami/git:2.49.0 AS dependencydownloader
+FROM bitnami/git:2.50.0 AS dependencydownloader
 
 WORKDIR /fancy_surreal
 RUN git clone --depth 1 --branch 0.3.1 https://github.com/xilefmusics/fancy_surreal.git .
 
 WORKDIR /fancy_yew
-RUN git clone --depth 1 --branch 0.6.1 https://github.com/xilefmusics/fancy_yew.git .
+RUN git clone --depth 1 --branch 0.6.2 https://github.com/xilefmusics/fancy_yew.git .
 
 WORKDIR /chordlib
 RUN git clone --depth 1 --branch 0.4.7 https://github.com/xilefmusics/chordlib.git .
