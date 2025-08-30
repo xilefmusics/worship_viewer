@@ -1,4 +1,4 @@
-use super::{CollectionSongs, Filter, Song};
+use super::{SongLinkSongs, Filter, Song};
 use crate::AppError;
 use fancy_surreal::Client;
 use serde::{Deserialize, Serialize};
@@ -40,9 +40,19 @@ impl Model {
                 .owners(owners.clone())
                 .select()?
                 .id(collection)
-                .field("content.songs.id")
+                .field("content.songs")
                 .fetch("content.songs.id")
-                .query_direct_one::<CollectionSongs>()
+                .query_direct_one::<SongLinkSongs>()
+                .await?
+                .to_songs()
+        } else if let Some(setlist) = &filter.get_setlist() {
+            db.table("setlists")
+                .owners(owners.clone())
+                .select()?
+                .id(setlist)
+                .field("content.songs")
+                .fetch("content.songs.id")
+                .query_direct_one::<SongLinkSongs>()
                 .await?
                 .to_songs()
         } else {

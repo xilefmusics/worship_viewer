@@ -17,7 +17,7 @@
 
 .editor-main {
   position: relative;
-  height: calc(100% - var(--top-height))
+  height: calc(100% - var(--top-height));
 }
 
 .editor-wrapper {
@@ -49,10 +49,6 @@ button {
   padding: 0.4rem;
   font-weight: bold;
   border: none;
-}
-
-button:hover {
-  background-color: #cc0000;
 }
 
 .button:hover {

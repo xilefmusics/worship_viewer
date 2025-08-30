@@ -1,11 +1,11 @@
-mod collection_songs;
+mod songlink_songs;
 mod filter;
 mod link_database;
 mod model;
 mod query_params;
 pub mod rest;
 
-use collection_songs::CollectionSongs;
+use songlink_songs::SongLinkSongs;
 pub use filter::Filter;
 pub use link_database::LinkDatabase;
 pub use model::Model;

@@ -18,6 +18,7 @@ use yew_router::prelude::*;
 pub struct Query {
     pub id: Option<String>,
     pub collection: Option<String>,
+    pub setlist: Option<String>,
 }
 
 impl Query {
@@ -33,12 +34,17 @@ impl Query {
             if let Some(collection) = &self.collection {
                 query_pairs.append_pair("collection", collection);
             }
+            if let Some(setlist) = &self.setlist {
+                query_pairs.append_pair("setlist", setlist);
+            }
         }
         base.make_relative(&url).unwrap().to_string()
     }
 
     pub fn back_route(&self) -> Route {
-        if self.collection.is_some() {
+        if self.setlist.is_some() {
+            Route::Setlists
+        } else if self.collection.is_some() {
             Route::Collections
         } else if self.id.is_some() {
             Route::Songs
@@ -133,6 +139,23 @@ pub fn player_page() -> Html {
             navigator
                 .push_with_query(
                     &Route::Editor,
+                    &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>()),
+                )
+                .unwrap()
+        }
+    };
+
+    let edit_setlist_button = {
+        let navigator = navigator.clone();
+        let id = query.setlist.clone().unwrap_or("".to_string());
+
+        move |_: MouseEvent| {
+            if &id == "" {
+                return;
+            }
+            navigator
+                .push_with_query(
+                    &Route::SetlistEditor,
                     &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>()),
                 )
                 .unwrap()
@@ -354,15 +377,27 @@ pub fn player_page() -> Html {
             <div class={if *active {"top active"} else {"top"}}>
                 <div class="top-left">
                     <span
-                        class="material-symbols-outlined back-button"
+                        class="material-symbols-outlined left-button"
                         onclick={onclick_back_button}
                     >{"arrow_back"}</span>
                 </div>
                 <div class="top-middle">
                 </div>
                 <div class="top-right">
+                    {
+                        if query.setlist.is_some() {
+                            html! {
+                                <span
+                                    class="material-symbols-outlined right-button"
+                                    onclick={edit_setlist_button}
+                                >{"contract_edit"}</span>
+                            }
+                        } else {
+                            html! {}
+                        }
+                    }
                     <span
-                        class="material-symbols-outlined back-button"
+                        class="material-symbols-outlined right-button"
                         onclick={edit_button}
                     >{"edit"}</span>
                 </div>

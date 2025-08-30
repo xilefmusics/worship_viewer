@@ -1,0 +1,128 @@
+:root {
+    width: 100%;
+    height: 100%;
+    --top-height: 60px;
+}
+
+.editor-header {
+    height: var(--top-height);
+    background-color: var(--bg1);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+.editor-main {
+    position: relative;
+    height: calc(100% - 2 * var(--top-height));
+    display: flex;
+}
+
+button {
+  background-color: var(--primary);
+  padding: 0.4rem;
+  font-weight: bold;
+  border: none;
+}
+
+.button:hover {
+  color: var(--primary);
+}
+
+ul {
+    height: 100%;
+    flex: 1;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow: scroll;
+}
+
+li {
+    list-style: none;
+    border-bottom: 1px solid var(--fg1);
+    padding: 1rem;
+    margin: 1rem;
+    display: flex;
+}
+
+.left {
+  align-items: left;
+  min-width: 8rem;
+}
+
+.middle {
+  flex: 1;
+  align-items: left;
+  min-width: 8rem;
+  padding-left: 1rem;
+}
+
+.right {
+  align-items: right;
+  min-width: 4rem;
+  text-align: right;
+}
+
+ul.song-list {
+    border-left: 1px solid var(--fg1);
+}
+
+ul.song-list li {
+    margin-top: 1.75rem;
+    margin-bottom: 1.75rem;
+}
+
+.meta {
+    display: flex;
+    height: var(--top-height);
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 1em;
+}
+
+input {
+    background-color: var(--bg1);
+    border-radius: 4px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease-in-out;
+    font-size: 1.3rem;
+    border: 1px solid var(--fg1);
+    padding: 0.4rem;
+}
+
+input:focus {
+    border-color: var(--primary);
+}
+
+select {
+  -webkit-appearance: none; /* Remove default Chrome and Safari styling */
+  -moz-appearance: none;    /* Remove default Firefox styling */
+  appearance: none;         /* Remove default styling for other browsers */
+  background: none;         /* Remove background */
+  border: none;             /* Remove border */
+  font: inherit;            /* Inherit font settings from parent */
+  color: var(--fg1);
+  background-color: transparent; /* Set background to transparent */
+  background-image: none;
+  outline: none;
+  text-align: right;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
+  border-radius: 1rem;
+  margin-right: 1em;
+  min-width: auto;
+  width: auto;
+}
+
+select:hover {
+  color: var(--primary);
+  background-color: var(--bgh);
+}

@@ -58,11 +58,19 @@
   justify-content: right;
 }
 
-.back-button {
-  margin: 1em;
+.left-button {
+  margin-left: 1em;
 }
 
-.back-button:hover {
+.right-button {
+  margin-right: 1em;
+}
+
+.left-button:hover {
+  color: var(--primary);
+}
+
+.right-button:hover {
   color: var(--primary);
 }
 

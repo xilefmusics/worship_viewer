@@ -1,4 +1,6 @@
-use super::pages::{CollectionsPage, EditorPage, IndexPage, PlayerPage, SetlistsPage, SongsPage};
+use super::pages::{
+    CollectionsPage, EditorPage, IndexPage, PlayerPage, SetlistEditorPage, SetlistsPage, SongsPage,
+};
 use fancy_yew::layouts::{NavItemBuilder, Navable, VerticalLayout as Layout};
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -17,6 +19,8 @@ pub enum Route {
     Player,
     #[at("/editor")]
     Editor,
+    #[at("/setlist-editor")]
+    SetlistEditor,
     #[not_found]
     #[at("/404")]
     NotFound,
@@ -62,8 +66,7 @@ impl Navable for Route {
             <Layout<Route>
                 nav_routes={Route::route_items()}
                 fullscreen={match route {
-                    Route::Player => true,
-                    Route::Editor => true,
+                    Route::Player | Route::Editor | Route::SetlistEditor => true,
                     _ => false,
                 }}
             >{
@@ -74,6 +77,7 @@ impl Navable for Route {
                     Route::Setlists => html! { <SetlistsPage /> },
                     Route::Player => html! { <PlayerPage /> },
                     Route::Editor => html! { <EditorPage /> },
+                    Route::SetlistEditor => html! { <SetlistEditorPage /> },
                     Route::NotFound => html! { <h1>{ "404 Not Found" }</h1> },
         }}
             </Layout<Route>>

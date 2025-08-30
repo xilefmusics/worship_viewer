@@ -5,6 +5,7 @@ mod import;
 mod like;
 mod player;
 mod rest;
+mod setlist;
 mod settings;
 mod song;
 mod user;
@@ -70,6 +71,11 @@ async fn main() -> Result<(), AppError> {
             .service(import::rest::get)
             .service(rest::get_index)
             .service(rest::get_static_files)
+            .service(setlist::rest::get)
+            .service(setlist::rest::get_id)
+            .service(setlist::rest::put)
+            .service(setlist::rest::post)
+            .service(setlist::rest::delete)
             .service(
                 Files::new("/", std::env::var("STATIC_DIR").unwrap_or("static".into()))
                     .show_files_listing(),

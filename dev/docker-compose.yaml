@@ -1,6 +1,6 @@
 services:
   db:
-    image: surrealdb/surrealdb:v2.0.5
+    image: surrealdb/surrealdb:v2.3.7-dev
     command: start --log debug --user root --pass root memory --allow-scripting
     ports:
     - 8000:8000

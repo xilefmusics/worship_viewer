@@ -1,0 +1,60 @@
+:root {
+  align-items: center;
+  display: flex;
+  height: var(--vh);
+  width: 100vw;
+  flex-direction: column;
+}
+
+.setlists {
+  overflow-y: scroll;
+  flex: 1;
+}
+
+.setlist {
+  display: flex;
+  padding: 1.2rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  margin: 0.8rem;
+  background-color: var(--bg1);
+  min-width: 20rem;
+  max-width: 60rem;
+}
+
+.left {
+  align-items: left;
+  min-width: 8rem;
+}
+
+.middle {
+  flex: 1;
+  align-items: left;
+  min-width: 8rem;
+  padding-left: 1rem;
+}
+
+.right {
+  align-items: right;
+  min-width: 4rem;
+  text-align: right;
+}
+
+.title-column {
+  max-width: 20em;
+}
+
+.controlls {
+  padding: 1em;
+  margin-right: 2em;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: right;
+  width: 100%;
+}
+
+.controlls span:hover {
+  color: var(--primary);
+}
+

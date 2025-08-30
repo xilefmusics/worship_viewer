@@ -4,4 +4,5 @@ pub mod like;
 pub mod player;
 pub mod song;
 pub mod user;
+pub mod setlist;
 pub use chordlib::Error as ChordlibError;
