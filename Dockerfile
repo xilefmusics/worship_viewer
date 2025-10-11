@@ -7,7 +7,7 @@ WORKDIR /fancy_yew
 RUN git clone --depth 1 --branch 0.6.2 https://github.com/xilefmusics/fancy_yew.git .
 
 WORKDIR /chordlib
-RUN git clone --depth 1 --branch 0.4.7 https://github.com/xilefmusics/chordlib.git .
+RUN git clone --depth 1 --branch 0.4.8 https://github.com/xilefmusics/chordlib.git .
 
 FROM rust:1.90.0-slim AS builder
 
@@ -18,7 +18,9 @@ COPY --from=dependencydownloader /chordlib /chordlib
 RUN export CARGO_BUILD_JOBS=$(nproc) && \
     cargo install cargo-binstall && \
     cargo binstall trunk --version 0.21.14 --no-confirm && \
-    rustup target add wasm32-unknown-unknown
+    rustup target add wasm32-unknown-unknown && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends pkg-config libssl-dev build-essential ca-certificates
 
 WORKDIR /wrk
 COPY ./shared ./shared
