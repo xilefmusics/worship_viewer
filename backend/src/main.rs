@@ -9,19 +9,19 @@ mod setlist;
 mod settings;
 mod song;
 mod user;
+mod export;
 
 use actix_files::Files;
 use actix_web::{web::Data, web::PayloadConfig, App, HttpServer};
 use env_logger::Env;
 use error::AppError;
 use fancy_surreal::Client;
-use settings::Settings;
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     env_logger::init_from_env(Env::default().default_filter_or("warn"));
 
-    let settings = Settings::new();
+    let settings = settings::get();
     let database = Data::new(
         Client::new(
             &settings.db_host,
@@ -76,12 +76,13 @@ async fn main() -> Result<(), AppError> {
             .service(setlist::rest::put)
             .service(setlist::rest::post)
             .service(setlist::rest::delete)
+            .service(export::rest::get)
             .service(
                 Files::new("/", std::env::var("STATIC_DIR").unwrap_or("static".into()))
                     .show_files_listing(),
             )
     })
-    .bind((settings.host, settings.port))
+    .bind((settings.host.clone(), settings.port))
     .map_err(|err| AppError::Other(format!("Couldn't bind port ({})", err)))?
     .run()
     .await

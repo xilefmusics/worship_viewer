@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 #[derive(Debug, Clone)]
 pub struct Settings {
     pub db_host: String,
@@ -8,6 +10,8 @@ pub struct Settings {
     pub db_database: String,
     pub host: String,
     pub port: u16,
+    pub printer_host: String,
+    pub printer_port: u16,
 }
 
 impl Settings {
@@ -27,6 +31,17 @@ impl Settings {
                 .unwrap_or("8082".into())
                 .parse::<u16>()
                 .unwrap_or(8082),
+            printer_host: std::env::var("PRINTER_HOST").unwrap_or("localhost".into()),
+            printer_port: std::env::var("PRINTER_PORT")
+                .unwrap_or("3000".into())
+                .parse::<u16>()
+                .unwrap_or(3000),
         }
     }
+}
+
+static SETTINGS: OnceLock<Settings> = OnceLock::new();
+
+pub fn get() -> &'static Settings {
+    SETTINGS.get_or_init(Settings::new)
 }

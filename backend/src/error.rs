@@ -3,6 +3,7 @@ use actix_web::{HttpResponse, ResponseError};
 use awc::error::{PayloadError, SendRequestError};
 use fancy_surreal;
 use shared::ChordlibError;
+use zip::result::ZipError;
 use std::error;
 use std::fmt;
 use std::io;
@@ -69,6 +70,18 @@ impl From<ChordlibError> for AppError {
 
 impl From<FromUtf8Error> for AppError {
     fn from(err: FromUtf8Error) -> Self {
+        Self::Other(err.to_string())
+    }
+}
+
+impl From<reqwest::Error> for AppError {
+    fn from(err: reqwest::Error) -> Self {
+        Self::Other(err.to_string())
+    }
+}
+
+impl From<ZipError> for AppError {
+    fn from(err: ZipError) -> Self {
         Self::Other(err.to_string())
     }
 }

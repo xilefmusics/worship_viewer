@@ -45,10 +45,9 @@ More detailed information can be found in the [Dockerfile](https://github.com/xi
 Once all dependencies are installed, start the four components using the following commands:
 
 ``` bash
-surreal start --log debug --user root --pass root memory --allow-scripting
+cd dev && docker compose up
 cd backend && cargo watch -cqx run
 cd frontend && trunk serve
-CONFIG_FILE="./proxauth-config.yaml" proxauth
 ```
 
 You can then log in at `localhost:8081` using the same credentials:

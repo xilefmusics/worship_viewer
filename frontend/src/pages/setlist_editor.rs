@@ -1,6 +1,5 @@
 use crate::components::SetlistEditor;
 use crate::route::Route;
-use gloo::console::log;
 use gloo_net::http::Request;
 use serde::Deserialize;
 use shared::setlist::Setlist;

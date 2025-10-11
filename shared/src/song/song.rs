@@ -35,13 +35,14 @@ impl Song {
         })
     }
 
-    pub fn format_worship_pro(
+    pub fn format_chord_pro(
         &self,
         representation: Option<&ChordRepresentation>,
         key: Option<&SimpleChord>,
         language: Option<usize>,
+        worship_pro_features: bool,
     ) -> String {
-        (&(self.data)).format_chord_pro(key, representation, language, true)
+        (&(self.data)).format_chord_pro(key, representation, language, worship_pro_features)
     }
 
     pub fn format_html(

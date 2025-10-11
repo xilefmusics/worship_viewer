@@ -5,6 +5,13 @@ services:
     ports:
     - 8000:8000
 
+  printer:
+    image: xilefmusics/html2pdf:0.1.0
+    environment:
+      CONCURRENCY: 1
+    ports:
+    - 3000:3000
+
   proxauth:
     image: xilefmusics/proxauth:0.1.0
     environment:
