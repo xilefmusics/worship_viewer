@@ -1,7 +1,6 @@
 use super::{PagesComponent, TableOfContentsComponent};
 use crate::route::Route;
-use gloo::timers::callback::Timeout;
-use gloo_net::http::Request;
+use gloo::{net::http::Request, timers::callback::Timeout};
 use serde::Deserialize;
 use shared::player::{Orientation, Player, PlayerItem, TocItem};
 use shared::song::{ChordRepresentation, SimpleChord};
@@ -23,8 +22,12 @@ pub struct Query {
 
 impl Query {
     pub fn api_url(&self) -> String {
+        self.url("/api/player", None)
+    }
+
+    fn url(&self, path: &str, format: Option<&str>) -> String {
         let base = Url::parse("https://example.net").unwrap();
-        let mut url = Url::parse("https://example.net/api/player").unwrap();
+        let mut url = Url::parse(&format!("https://example.net{path}")).unwrap();
         {
             let mut query_pairs = url.query_pairs_mut();
 
@@ -36,6 +39,9 @@ impl Query {
             }
             if let Some(setlist) = &self.setlist {
                 query_pairs.append_pair("setlist", setlist);
+            }
+            if let Some(format) = format {
+                query_pairs.append_pair("format", format);
             }
         }
         base.make_relative(&url).unwrap().to_string()
@@ -52,6 +58,22 @@ impl Query {
             Route::NotFound
         }
     }
+
+    fn export_handler(&self, format: &str, export_active: UseStateHandle<bool>) -> Callback<MouseEvent> {
+        let url = self.url("/api/export", Some(format));
+        Callback::from(move |_: MouseEvent| {
+            let url = url.clone();
+            let export_active = export_active.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                export_active.set(false);
+                web_sys::window()
+                    .unwrap()
+                    .location()
+                    .set_href(&url)
+                    .unwrap();
+            });
+        })
+    }
 }
 
 #[function_component(PlayerPage)]
@@ -65,6 +87,7 @@ pub fn player_page() -> Html {
 
     let player = use_state(|| None);
     let active = use_state(|| false);
+    let export_menu_active = use_state(|| false);
     let override_key = use_state(|| None);
     let override_representation = use_state(|| None);
     {
@@ -121,6 +144,12 @@ pub fn player_page() -> Html {
         }
     };
 
+    let query_current = Query {
+        id: player.as_ref().and_then(|p| p.song_id()),
+        collection: None,
+        setlist: None,
+    };
+
     let edit_button = {
         let navigator = navigator.clone();
         let id = match player
@@ -165,6 +194,7 @@ pub fn player_page() -> Html {
     {
         let player = player.clone();
         let active = active.clone();
+        let export_menu_active = export_menu_active.clone();
         let navigator = navigator.clone();
         let override_key = override_key.clone();
         let override_representation = override_representation.clone();
@@ -198,6 +228,7 @@ pub fn player_page() -> Html {
                 player.set(player.as_ref().map(|player| player.next_scroll_type()))
             } else if e.key() == "m" {
                 active.set(!*active);
+                export_menu_active.set(false);
             } else if e.key() == "Escape" {
                 navigator.push(&back_route);
             } else if e.key() == "A" {
@@ -236,6 +267,7 @@ pub fn player_page() -> Html {
     let onclick = {
         let player = player.clone();
         let active = active.clone();
+        let export_menu_active = export_menu_active.clone();
         let last_click_time = last_click_time.clone();
 
         move |e: MouseEvent| {
@@ -253,6 +285,7 @@ pub fn player_page() -> Html {
                 player.set(player.as_ref().map(|player| player.next()));
             } else {
                 active.set(!*active);
+                export_menu_active.set(false);
                 if double_tap_detected {
                     toggle_like()
                 }
@@ -264,6 +297,13 @@ pub fn player_page() -> Html {
         let player = player.clone();
         move |_: MouseEvent| {
             player.set(player.as_ref().map(|player| player.next_scroll_type()));
+        }
+    };
+
+    let onclick_export = {
+        let export_menu_active = export_menu_active.clone();
+        move |_: MouseEvent| {
+            export_menu_active.set(!*export_menu_active);
         }
     };
 
@@ -384,6 +424,23 @@ pub fn player_page() -> Html {
                 <div class="top-middle">
                 </div>
                 <div class="top-right">
+                    <span
+                        class="material-symbols-outlined right-button"
+                        onclick={onclick_export}
+                    >{"download"}</span>
+                    <div
+                        id="exportMenu"
+                        class={if *export_menu_active {"active"} else {""}}
+                    >
+                        <label>{"Song"}</label>
+                        <button onclick={query_current.export_handler("WorshipPro", export_menu_active.clone())}>{"WorshipPro"}</button>
+                        <button onclick={query_current.export_handler("ChordPro", export_menu_active.clone())}>{"ChordPro"}</button>
+                        <button onclick={query_current.export_handler("Pdf", export_menu_active.clone())}>{"PDF"}</button>
+                        <label>{"List"}</label>
+                        <button onclick={query.export_handler("WorshipPro", export_menu_active.clone())}>{"WorshipPro"}</button>
+                        <button onclick={query.export_handler("ChordPro", export_menu_active.clone())}>{"ChordPro"}</button>
+                        <button onclick={query.export_handler("Pdf", export_menu_active.clone())}>{"PDF"}</button>
+                    </div>
                     {
                         if query.setlist.is_some() {
                             html! {
