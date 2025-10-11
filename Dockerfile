@@ -1,4 +1,4 @@
-FROM bitnami/git:2.51.0 AS dependencydownloader
+FROM alpine/git:v2.49.1 AS dependencydownloader
 
 WORKDIR /fancy_surreal
 RUN git clone --depth 1 --branch 0.3.1 https://github.com/xilefmusics/fancy_surreal.git .
@@ -9,7 +9,7 @@ RUN git clone --depth 1 --branch 0.6.2 https://github.com/xilefmusics/fancy_yew.
 WORKDIR /chordlib
 RUN git clone --depth 1 --branch 0.4.7 https://github.com/xilefmusics/chordlib.git .
 
-FROM rust:1.89.0-slim AS builder
+FROM rust:1.90.0-slim AS builder
 
 COPY --from=dependencydownloader /fancy_surreal /fancy_surreal
 COPY --from=dependencydownloader /fancy_yew /fancy_yew
