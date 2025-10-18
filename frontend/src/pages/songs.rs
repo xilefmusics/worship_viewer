@@ -16,7 +16,12 @@ pub fn songs_page() -> Html {
             let songs = songs.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let response = Request::get("/api/songs").send().await.unwrap();
-                let fetched_songs: Vec<Song> = response.json().await.unwrap();
+                let mut fetched_songs: Vec<Song> = response.json().await.unwrap();
+                fetched_songs.sort_by_key(|song| song.data.title.clone());
+                let fetched_songs: Vec<Song> = fetched_songs
+                    .into_iter()
+                    .filter(|song| !song.not_a_song)
+                    .collect();
                 songs.set(fetched_songs);
             });
             || ()

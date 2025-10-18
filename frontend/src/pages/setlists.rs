@@ -16,7 +16,8 @@ pub fn setlists_page() -> Html {
             let setlists = setlists.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let response = Request::get("/api/setlists").send().await.unwrap();
-                let fetched_setlists: Vec<Setlist> = response.json().await.unwrap();
+                let mut fetched_setlists: Vec<Setlist> = response.json().await.unwrap();
+                fetched_setlists.sort_by_key(|setlist| setlist.title.clone());
                 setlists.set(fetched_setlists);
             });
             || ()
