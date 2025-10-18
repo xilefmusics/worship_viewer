@@ -59,7 +59,11 @@ impl Query {
         }
     }
 
-    fn export_handler(&self, format: &str, export_active: UseStateHandle<bool>) -> Callback<MouseEvent> {
+    fn export_handler(
+        &self,
+        format: &str,
+        export_active: UseStateHandle<bool>,
+    ) -> Callback<MouseEvent> {
         let url = self.url("/api/export", Some(format));
         Callback::from(move |_: MouseEvent| {
             let url = url.clone();

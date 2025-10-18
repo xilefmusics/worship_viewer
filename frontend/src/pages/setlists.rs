@@ -1,82 +1,100 @@
 use crate::route::Route;
+use gloo_net::http::Request;
 use shared::setlist::Setlist;
 use std::collections::HashMap;
 use stylist::Style;
 use yew::prelude::*;
 use yew_router::prelude::*;
-use gloo_net::http::Request;
 
 #[function_component(SetlistsPage)]
 pub fn setlists_page() -> Html {
-let setlists = use_state(|| vec![]);
+    let setlists = use_state(|| Vec::<Setlist>::new());
+
     {
         let setlists = setlists.clone();
         use_effect_with((), move |_| {
             let setlists = setlists.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let mut fetched_setlists: Vec<Setlist> = Request::get("/api/setlists")
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
-                fetched_setlists.sort_by_key(|setlist| setlist.title.clone());
+                let response = Request::get("/api/setlists").send().await.unwrap();
+                let fetched_setlists: Vec<Setlist> = response.json().await.unwrap();
                 setlists.set(fetched_setlists);
             });
             || ()
         });
-    };
+    }
 
     let navigator = use_navigator().unwrap();
 
-    let setlists = setlists
+    let setlist_cards = setlists
         .iter()
         .map(|setlist| {
             let title = setlist.title.clone();
-            let onclick = {
-                let navigator = navigator.clone();
-                let id = setlist.id.clone().unwrap();
-                move |_: MouseEvent| {
-                    navigator
-                        .push_with_query(
-                            &Route::Player,
-                            &([("setlist", &id)]
-                                .iter()
-                                .cloned()
-                                .collect::<HashMap<_, _>>()),
-                        )
-                        .unwrap()
-                }
-            };
+            let song_count = setlist.songs.len();
+            let song_label = format!("{} song{}", song_count, if song_count == 1 { "" } else { "s" });
+            let navigator = navigator.clone();
+            let id = setlist.id.clone().unwrap();
+            let onclick = Callback::from(move |_: MouseEvent| {
+                navigator
+                    .push_with_query(
+                        &Route::Player,
+                        &([("setlist", &id)]
+                            .iter()
+                            .cloned()
+                            .collect::<HashMap<_, _>>()),
+                    )
+                    .unwrap()
+            });
+
             html! {
-                <div
-                    class="setlist"
+                <button
+                    type="button"
+                    class="setlist-card"
                     onclick={onclick}
                 >
-                    <div class="left">{title}</div>
-                    <div class="middle"></div>
-                    <div class="right"></div>
-                </div>
+                    <div class="setlist-card__content">
+                        <span class="setlist-card__title">{title}</span>
+                        <span class="setlist-card__meta">{song_label}</span>
+                    </div>
+                    <span class="material-symbols-outlined setlist-card__chevron">{"chevron_right"}</span>
+                </button>
             }
         })
         .collect::<Html>();
 
     let new_button = {
         let navigator = navigator.clone();
-        move |_: MouseEvent| navigator.push(&Route::SetlistEditor)
+        Callback::from(move |_: MouseEvent| navigator.push(&Route::SetlistEditor))
     };
 
+    let stylesheet = Style::new(include_str!("setlists.css")).expect("Unwrapping CSS should work!");
+    let has_setlists = !setlists.is_empty();
+
     html! {
-        <div class={Style::new(include_str!("setlists.css")).expect("Unwrapping CSS should work!")}>
-            <div class="controlls">
-                <span
-                    class="material-symbols-outlined back-button"
+        <div class={classes!(stylesheet, "setlists-page")}>
+            <div class="setlists-toolbar">
+                <button
+                    type="button"
+                    class="setlists-toolbar__cta"
                     onclick={new_button}
-                >{"add"}</span>
+                >
+                    <span class="material-symbols-outlined">{"add"}</span>
+                    <span>{"New setlist"}</span>
+                </button>
             </div>
             <div class="setlists">
-                {setlists}
+                {
+                    if has_setlists {
+                        setlist_cards
+                    } else {
+                        html! {
+                            <div class="setlists-empty">
+                                <span class="material-symbols-outlined setlists-empty__icon">{"playlist_add"}</span>
+                                <p>{"No setlists yet."}</p>
+                                <p>{"Create your first one to get started."}</p>
+                            </div>
+                        }
+                    }
+                }
             </div>
         </div>
     }

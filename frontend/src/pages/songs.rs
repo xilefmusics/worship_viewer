@@ -8,33 +8,24 @@ use yew_router::prelude::*;
 
 #[function_component(SongsPage)]
 pub fn songs_page() -> Html {
-    let songs = use_state(|| vec![]);
+    let songs = use_state(|| Vec::<Song>::new());
+
     {
         let songs = songs.clone();
         use_effect_with((), move |_| {
             let songs = songs.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let mut fetched_songs: Vec<Song> = Request::get("/api/songs")
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
-                fetched_songs.sort_by_key(|song| song.data.title.clone());
-                let fetched_songs: Vec<Song> = fetched_songs
-                    .into_iter()
-                    .filter(|song| !song.not_a_song)
-                    .collect();
+                let response = Request::get("/api/songs").send().await.unwrap();
+                let fetched_songs: Vec<Song> = response.json().await.unwrap();
                 songs.set(fetched_songs);
             });
             || ()
         });
-    };
+    }
 
     let navigator = use_navigator().unwrap();
 
-    let songs = songs
+    let song_cards = songs
         .iter()
         .map(|song| {
             let title = song.data.title.clone();
@@ -43,47 +34,79 @@ pub fn songs_page() -> Html {
                 .key
                 .as_ref()
                 .map(|key| key.format(&SimpleChord::default(), &ChordRepresentation::Default))
-                .unwrap_or("");
-            let onclick = {
-                let navigator = navigator.clone();
-                let id = song.id.clone().unwrap();
-                move |_: MouseEvent| {
-                    navigator
-                        .push_with_query(
-                            &Route::Player,
-                            &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>()),
-                        )
-                        .unwrap()
-                }
+                .unwrap_or_default();
+            let has_key = !key.is_empty();
+            let key_label = if has_key {
+                format!("Key {}", key)
+            } else {
+                "Key not set".to_string()
             };
+            let key_classes = if has_key {
+                classes!("song-card__meta")
+            } else {
+                classes!("song-card__meta", "song-card__meta--empty")
+            };
+            let navigator = navigator.clone();
+            let id = song.id.clone().unwrap();
+            let onclick = Callback::from(move |_: MouseEvent| {
+                navigator
+                    .push_with_query(
+                        &Route::Player,
+                        &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>()),
+                    )
+                    .unwrap()
+            });
+
             html! {
-                <div
-                    class="song"
+                <button
+                    type="button"
+                    class="song-card"
                     onclick={onclick}
                 >
-                    <div class="left">{title}</div>
-                    <div class="middle"></div>
-                    <div class="right">{key}</div>
-                </div>
+                    <div class="song-card__content">
+                        <span class="song-card__title">{title}</span>
+                        <span class={key_classes}>{key_label}</span>
+                    </div>
+                    <span class="material-symbols-outlined song-card__chevron">{"chevron_right"}</span>
+                </button>
             }
         })
         .collect::<Html>();
 
     let new_button = {
         let navigator = navigator.clone();
-        move |_: MouseEvent| navigator.push(&Route::Editor)
+        Callback::from(move |_: MouseEvent| navigator.push(&Route::Editor))
     };
 
+    let stylesheet = Style::new(include_str!("songs.css")).expect("Unwrapping CSS should work!");
+    let has_songs = !songs.is_empty();
+
     html! {
-        <div class={Style::new(include_str!("songs.css")).expect("Unwrapping CSS should work!")}>
-            <div class="controlls">
-                <span
-                    class="material-symbols-outlined back-button"
+        <div class={classes!(stylesheet, "songs-page")}>
+            <div class="songs-toolbar">
+                <button
+                    type="button"
+                    class="songs-toolbar__cta"
                     onclick={new_button}
-                >{"add"}</span>
+                >
+                    <span class="material-symbols-outlined">{"add"}</span>
+                    <span>{"New song"}</span>
+                </button>
             </div>
             <div class="songs">
-                {songs}
+                {
+                    if has_songs {
+                        song_cards
+                    } else {
+                        html! {
+                            <div class="songs-empty">
+                                <span class="material-symbols-outlined songs-empty__icon">{"library_music"}</span>
+                                <p>{"No songs found."}</p>
+                                <p>{"Add your first song to start building setlists."}</p>
+                            </div>
+                        }
+                    }
+                }
             </div>
         </div>
     }
