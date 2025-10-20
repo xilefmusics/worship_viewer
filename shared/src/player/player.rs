@@ -3,6 +3,12 @@ use crate::song::Song;
 
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
+use std::sync::OnceLock;
+
+fn empty_item() -> &'static PlayerItem {
+    static EMPTY_ITEM: OnceLock<PlayerItem> = OnceLock::new();
+    EMPTY_ITEM.get_or_init(PlayerItem::default)
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 pub struct Player {
@@ -114,6 +120,9 @@ impl Player {
     }
 
     pub fn item(&self) -> (&PlayerItem, Option<&PlayerItem>) {
+        if self.items.len() == 0 {
+            return (empty_item(), None);
+        }
         let current = match self.scroll_type {
             ScrollType::OnePage | ScrollType::HalfPage | ScrollType::TwoPage | ScrollType::Book => {
                 &self.items[self.index]
@@ -165,7 +174,7 @@ impl Player {
         self.index
     }
     pub fn max_index(&self) -> usize {
-        self.items.len() - 1
+        self.items.len().saturating_sub(1)
     }
 
     fn increment(&mut self) {

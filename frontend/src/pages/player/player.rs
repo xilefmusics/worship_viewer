@@ -403,9 +403,6 @@ pub fn player_page() -> Html {
         return html! {};
     }
     let player = player.as_ref().unwrap();
-    if player.is_empty() {
-        return html! {};
-    }
 
     let orientation = Orientation::from_dimensions(window_dimensions);
     if orientation != player.orientation() {

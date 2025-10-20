@@ -101,6 +101,28 @@ pub fn setlist_editor_page() -> Html {
         })
     };
 
+    let ondelete = {
+        let navigator = navigator.clone();
+        let setlist_handle = setlist.clone();
+        Callback::from(move |target: Setlist| {
+            if target.id.is_none() {
+                return;
+            }
+            let navigator = navigator.clone();
+            let setlist_handle = setlist_handle.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                Request::delete("/api/setlists")
+                    .json(&vec![target])
+                    .unwrap()
+                    .send()
+                    .await
+                    .unwrap();
+                setlist_handle.set(Some(Setlist::default()));
+                navigator.push(&Route::Setlists);
+            });
+        })
+    };
+
     let onback = Callback::from(move |_: MouseEvent| {
         navigator.back();
     });
@@ -116,6 +138,7 @@ pub fn setlist_editor_page() -> Html {
                 setlist={setlist}
                 onsave={onsave}
                 onback={onback}
+                ondelete={ondelete}
             />
         </div>
     }

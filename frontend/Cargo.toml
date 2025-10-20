@@ -19,3 +19,4 @@ gloo = "0.11.0"
 serde = { version = "1.0.228", features = ["derive"] }
 url = "2.5.7"
 getrandom_0_3 = { package = "getrandom", version = "0.3.4", features = ["wasm_js"] }
+js-sys = "0.3.81"

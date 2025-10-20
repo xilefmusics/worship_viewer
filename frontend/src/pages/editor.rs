@@ -53,6 +53,7 @@ pub fn editor_page() -> Html {
     let navigator = use_navigator().unwrap();
     let onsave = {
         let song_handle = song.clone();
+        let navigator = navigator.clone();
         Callback::from(move |song: Song| {
             let song_handle = song_handle.clone();
             let navigator = navigator.clone();
@@ -129,10 +130,34 @@ pub fn editor_page() -> Html {
         })
     };
 
-    let navigator = use_navigator().unwrap();
-    let onback = Callback::from(move |_: MouseEvent| {
-        navigator.back();
-    });
+    let ondelete = {
+        let song_handle = song.clone();
+        let navigator = navigator.clone();
+        Callback::from(move |target: Song| {
+            if target.id.is_none() {
+                return;
+            }
+            let navigator = navigator.clone();
+            let song_handle = song_handle.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                Request::delete("/api/songs")
+                    .json(&vec![target])
+                    .unwrap()
+                    .send()
+                    .await
+                    .unwrap();
+                song_handle.set(Some(Song::default()));
+                navigator.push(&Route::Songs);
+            });
+        })
+    };
+
+    let onback = {
+        let navigator = navigator.clone();
+        Callback::from(move |_: MouseEvent| {
+            navigator.back();
+        })
+    };
 
     if song.is_none() {
         return html! {};
@@ -144,6 +169,7 @@ pub fn editor_page() -> Html {
             <SongEditor
                 song={song}
                 onsave={onsave}
+                ondelete={ondelete}
                 onback={onback}
                 onimport={onimport}
             />

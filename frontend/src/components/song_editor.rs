@@ -12,6 +12,7 @@ use yew_hooks::use_size;
 pub struct Props {
     pub song: Song,
     pub onsave: Callback<Song>,
+    pub ondelete: Callback<Song>,
     pub onback: Callback<MouseEvent>,
     pub onimport: Callback<String>,
 }
@@ -28,13 +29,33 @@ pub fn song_editor(props: &Props) -> Html {
     };
 
     let new = use_state(|| false);
+    let show_delete_dialog = use_state(|| false);
     let toggle_new = {
         let new = new.clone();
-        move |_: MouseEvent| {
+        Callback::from(move |_: MouseEvent| {
             new.set(!*new);
-        }
+        })
     };
     let import_url = use_state(|| String::default());
+    let can_delete = props.song.id.is_some();
+    let delete_song = {
+        let show_delete_dialog = show_delete_dialog.clone();
+        Callback::from(move |_: MouseEvent| show_delete_dialog.set(true))
+    };
+    let close_delete_dialog = {
+        let show_delete_dialog = show_delete_dialog.clone();
+        Callback::from(move |_: MouseEvent| show_delete_dialog.set(false))
+    };
+    let confirm_delete = {
+        let show_delete_dialog = show_delete_dialog.clone();
+        let ondelete = props.ondelete.clone();
+        let song = props.song.clone();
+        Callback::from(move |_: MouseEvent| {
+            show_delete_dialog.set(false);
+            ondelete.emit(song.clone());
+        })
+    };
+    let stop_dialog_click = Callback::from(|event: MouseEvent| event.stop_propagation());
 
     let onsave: Callback<String, ()> = {
         let onsave = props.onsave.clone();
@@ -138,11 +159,63 @@ pub fn song_editor(props: &Props) -> Html {
                     onclick={props.onback.clone()}
                 >{"arrow_back"}</span>
                 <div class="seperator"></div>
-                <span
-                    class="material-symbols-outlined button"
-                    onclick={toggle_new}
-                >{"add"}</span>
+                <div class="editor-actions">
+                    {
+                        if can_delete {
+                            html! {
+                                <span
+                                    class="material-symbols-outlined button"
+                                    onclick={delete_song.clone()}
+                                >{"delete"}</span>
+                            }
+                        } else {
+                            html! {}
+                        }
+                    }
+                    <span
+                        class="material-symbols-outlined button"
+                        onclick={toggle_new.clone()}
+                    >{"add"}</span>
+                </div>
             </div>
+            {
+                if *show_delete_dialog {
+                    html! {
+                        <div class="dialog-backdrop" onclick={close_delete_dialog.clone()}>
+                            <div
+                                class="dialog dialog--danger"
+                                role="dialog"
+                                aria-modal="true"
+                                onclick={stop_dialog_click.clone()}
+                            >
+                                <span class="dialog__title">{"Delete this song?"}</span>
+                                <p class="dialog__body">
+                                    {"This action will permanently remove the song. This cannot be undone."}
+                                </p>
+                                <div class="dialog__actions">
+                                    <button
+                                        type="button"
+                                        class="dialog__button dialog__button--ghost"
+                                        onclick={close_delete_dialog.clone()}
+                                    >
+                                        {"Cancel"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="dialog__button dialog__button--danger"
+                                        onclick={confirm_delete.clone()}
+                                    >
+                                        <span class="material-symbols-outlined">{"delete"}</span>
+                                        <span>{"Delete song"}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                } else {
+                    html! {}
+                }
+            }
             <div ref={div_ref} class="editor-main">
                 { if show_viewer {html!{
                     <AspectRatio left={1./SQRT_2}>

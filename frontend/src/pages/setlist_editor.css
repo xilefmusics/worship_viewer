@@ -1,22 +1,10 @@
 :root {
-  width: 100%;
-  height: 100%;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    background-color: var(--bg, transparent);
 }
 
-.left {
-  align-items: left;
-  min-width: 8rem;
-}
-
-.middle {
-  flex: 1;
-  align-items: left;
-  min-width: 8rem;
-  padding-left: 1rem;
-}
-
-.right {
-  align-items: right;
-  min-width: 4rem;
-  text-align: right;
+:root > * {
+    flex: 1;
 }

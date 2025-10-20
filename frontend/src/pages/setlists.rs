@@ -28,6 +28,7 @@ pub fn setlists_page() -> Html {
 
     let setlist_cards = setlists
         .iter()
+        .rev()
         .map(|setlist| {
             let title = setlist.title.clone();
             let song_count = setlist.songs.len();
