@@ -1,0 +1,315 @@
+name: Sessions endpoints
+vars:
+  base_url: http://localhost:3001
+  token_admin: admin
+
+testcases:
+  - name: create-session-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "sessionuser@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "sessionuser@test.com"
+          - result.bodyjson.role ShouldEqual "default"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-session-primary
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.user.id ShouldEqual "{{.create-session-user.userid}}"
+        vars:
+          sessionid_primary:
+            from: result.bodyjson.id
+
+  - name: create-session-secondary
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.user.id ShouldEqual "{{.create-session-user.userid}}"
+        vars:
+          sessionid_secondary:
+            from: result.bodyjson.id
+
+  - name: get-me-sessions-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/sessions"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-me-sessions-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  - name: get-me-session-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/sessions/admin"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "admin"
+
+  - name: get-me-session-admin-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/sessions/unknown"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-me-sessions-default
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/sessions"
+        headers:
+          Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
+
+  - name: get-me-session-default
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/sessions/{{.create-session-primary.sessionid_primary}}"
+        headers:
+          Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.create-session-primary.sessionid_primary}}"
+          - result.bodyjson.user.id ShouldEqual "{{.create-session-user.userid}}"
+
+  - name: get-me-session-default-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/sessions/invalid"
+        headers:
+          Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-me-session-missing-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/me/sessions/{{.create-session-secondary.sessionid_secondary}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-me-session-invalid
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/me/sessions/nonexistent"
+        headers:
+          Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-me-session
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/me/sessions/{{.create-session-secondary.sessionid_secondary}}"
+        headers:
+          Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.create-session-secondary.sessionid_secondary}}"
+
+  - name: get-me-sessions-after-delete
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/sessions"
+        headers:
+          Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  - name: post-session-missing-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: post-session-default-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 403
+
+  - name: post-session-invalid-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/invalid/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-sessions-for-user-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-sessions-for-user-default
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 403
+
+  - name: get-sessions-for-user-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  - name: get-session-for-user-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-session-for-user-default
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
+        headers:
+          Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 403
+
+  - name: get-session-for-user-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.create-session-primary.sessionid_primary}}"
+          - result.bodyjson.user.id ShouldEqual "{{.create-session-user.userid}}"
+
+  - name: get-session-for-user-admin-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/missing"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-session-for-user-missing-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-session-for-user-default
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
+        headers:
+          Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 403
+
+  - name: delete-session-for-user-admin
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.create-session-primary.sessionid_primary}}"
+
+  - name: delete-session-for-user-admin-notfound
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-session-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.create-session-user.userid}}"
+          - result.bodyjson.email ShouldEqual "sessionuser@test.com"
+
