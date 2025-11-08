@@ -1,5 +1,6 @@
 use super::pages::{
     CollectionsPage, EditorPage, IndexPage, PlayerPage, SetlistEditorPage, SetlistsPage, SongsPage,
+    ImprintPage, PrivacyPage, TermsPage, LoginPage, LogoutPage
 };
 use fancy_yew::layouts::{NavItemBuilder, Navable, VerticalLayout as Layout};
 use yew::prelude::*;
@@ -21,6 +22,16 @@ pub enum Route {
     Editor,
     #[at("/setlist-editor")]
     SetlistEditor,
+    #[at("/impressum")]
+    Imprint,
+    #[at("/datenschutz")]
+    Privacy,
+    #[at("/agb")]
+    Terms,
+    #[at("/login")]
+    Login,
+    #[at("/logout")]
+    Logout,
     #[not_found]
     #[at("/404")]
     NotFound,
@@ -78,6 +89,11 @@ impl Navable for Route {
                     Route::Player => html! { <PlayerPage /> },
                     Route::Editor => html! { <EditorPage /> },
                     Route::SetlistEditor => html! { <SetlistEditorPage /> },
+                    Route::Imprint => html! { <ImprintPage /> },
+                    Route::Privacy => html! { <PrivacyPage /> },
+                    Route::Terms => html! { <TermsPage /> },
+                    Route::Login => html! { <LoginPage /> },
+                    Route::Logout => html! { <LogoutPage /> },
                     Route::NotFound => html! { <h1>{ "404 Not Found" }</h1> },
         }}
             </Layout<Route>>
