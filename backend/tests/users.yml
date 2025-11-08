@@ -1,0 +1,307 @@
+name: Users me endpoint
+vars:
+  base_url: http://localhost:3001
+  token_admin: admin
+
+testcases:
+  - name: get-users-me-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-users-me-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: post-users
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "anormaluser@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "anormaluser@test.com"
+          - result.bodyjson.role ShouldEqual "default"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: post-users-mail-conflict
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "anormaluser@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 409
+
+  - name: post-users-invalid-mail
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "invalid"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+  
+  - name: post-users-missing-mail
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {}
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-users-invalid-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer invalid"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "invalid"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: post-users-missing-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Content-Type: application/json
+        body: |
+          {
+            "email": "invalid"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-users-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
+
+  - name: get-users-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-users-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users"
+        assertions:
+          - result.statuscode ShouldEqual 401
+  
+  - name: get-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-users.userid}}"
+          - result.bodyjson.email ShouldEqual "anormaluser@test.com"
+          - result.bodyjson.role ShouldEqual "default"
+          - result.bodyjson.read ShouldHaveLength 0
+          - result.bodyjson.write ShouldHaveLength 0
+        
+  - name: get-user-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-user-no-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-invalid-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/invalid"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: create-session-for-default-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: ""
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: get-users-me-default
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-users.userid}}"
+          - result.bodyjson.email ShouldEqual "anormaluser@test.com"
+          - result.bodyjson.role ShouldEqual "default"
+          - result.bodyjson.read ShouldHaveLength 0
+          - result.bodyjson.write ShouldHaveLength 0
+
+  - name: get-users-default
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 403
+
+  - name: post-users-default
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "invalid"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 403
+
+  - name: get-user-default
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 403
+
+  - name: delete-user-default
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 403
+
+  - name: delete-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-users.userid}}"
+          - result.bodyjson.email ShouldEqual "anormaluser@test.com"
+          - result.bodyjson.role ShouldEqual "default"
+          - result.bodyjson.read ShouldHaveLength 0
+          - result.bodyjson.write ShouldHaveLength 0
+
+  - name: delete-user-again
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-user-no-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-invalid-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/invalid"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 404

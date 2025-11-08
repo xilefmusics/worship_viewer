@@ -1,90 +1,87 @@
-mod blob;
-mod collection;
+mod auth;
+mod database;
+mod docs;
 mod error;
-mod import;
-mod like;
-mod player;
-mod rest;
-mod setlist;
+mod mail;
+mod resources;
 mod settings;
-mod song;
-mod user;
-mod export;
 
-use actix_files::Files;
-use actix_web::{web::Data, web::PayloadConfig, App, HttpServer};
-use env_logger::Env;
-use error::AppError;
-use fancy_surreal::Client;
+use std::sync::Arc;
 
-#[tokio::main]
-async fn main() -> Result<(), AppError> {
-    env_logger::init_from_env(Env::default().default_filter_or("warn"));
+use actix_web::{App, HttpServer, middleware::Logger, web::Data};
+use anyhow::{Context, Result as AnyResult};
+use chrono::Utc;
+use tracing::info;
+use tracing_subscriber::EnvFilter;
 
-    let settings = settings::get();
-    let database = Data::new(
-        Client::new(
-            &settings.db_host,
-            settings.db_port,
-            &settings.db_user,
-            &settings.db_password,
-            &settings.db_database,
-            &settings.db_namespace,
+use crate::auth::oidc;
+use crate::resources::{Session, SessionModel, User, UserModel, UserRole};
+use crate::settings::Settings;
+
+#[actix_web::main]
+async fn main() -> AnyResult<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
         )
-        .await
-        .map_err(|err| AppError::Other(format!("Couldn't connect to database ({})", err)))?,
+        .with_target(false)
+        .compact()
+        .init();
+
+    let settings = Settings::init()?;
+
+    let db = Data::new(database::Database::new().await?);
+    db.migrate().await.context("database migration failed")?;
+
+    if let Some(email) = settings.initial_admin_user_email.as_ref() {
+        let admin = db
+            .create_user(User {
+                id: String::new(),
+                email: email.to_owned(),
+                role: UserRole::Admin,
+                read: vec![],
+                write: vec![],
+                created_at: Utc::now(),
+                last_login_at: None,
+                request_count: 0,
+            })
+            .await
+            .context("failed to create admin user")?;
+        info!(
+            "Created admin user {} with email: {}",
+            admin.id, admin.email
+        );
+
+        if settings.initial_admin_user_test_session {
+            let session = db
+                .create_session(Session::admin(admin))
+                .await
+                .context("failed to create a test session for the admin user")?;
+            info!(
+                "Created a test session {} for the admin user. DO NOT USE THIS IN PRODUCTION",
+                session.id,
+            );
+        }
+    }
+
+    let oidc_clients = Data::new(Arc::new(oidc::build_clients(settings).await?));
+    info!(
+        "Starting server on http://{}:{}",
+        settings.host, settings.port
     );
 
     HttpServer::new(move || {
-        let database = database.clone();
         App::new()
-            .app_data(database)
-            .app_data(PayloadConfig::new(1 << 25))
-            .service(user::rest::get)
-            .service(user::rest::get_id)
-            .service(user::rest::put)
-            .service(user::rest::post)
-            .service(user::rest::delete)
-            .service(blob::rest::get_metadata)
-            .service(blob::rest::get_metadata_id)
-            .service(blob::rest::put_metadata)
-            .service(blob::rest::post_metadata)
-            .service(blob::rest::delete_metadata)
-            .service(blob::rest::get_id)
-            .service(song::rest::get)
-            .service(song::rest::get_id)
-            .service(song::rest::put)
-            .service(song::rest::post)
-            .service(song::rest::delete)
-            .service(collection::rest::get)
-            .service(collection::rest::get_id)
-            .service(collection::rest::put)
-            .service(collection::rest::post)
-            .service(collection::rest::delete)
-            .service(like::rest::get)
-            .service(like::rest::get_id)
-            .service(like::rest::put)
-            .service(like::rest::post)
-            .service(like::rest::delete)
-            .service(like::rest::toggle)
-            .service(player::rest::get)
-            .service(import::rest::get)
-            .service(rest::get_index)
-            .service(rest::get_static_files)
-            .service(setlist::rest::get)
-            .service(setlist::rest::get_id)
-            .service(setlist::rest::put)
-            .service(setlist::rest::post)
-            .service(setlist::rest::delete)
-            .service(export::rest::get)
-            .service(
-                Files::new("/", std::env::var("STATIC_DIR").unwrap_or("static".into()))
-                    .show_files_listing(),
-            )
+            .app_data(db.clone())
+            .app_data(oidc_clients.clone())
+            .wrap(Logger::default())
+            .wrap(auth::middleware::cors())
+            .service(auth::rest::scope())
+            .service(docs::reset::scope())
+            .service(resources::rest::scope())
     })
-    .bind((settings.host.clone(), settings.port))
-    .map_err(|err| AppError::Other(format!("Couldn't bind port ({})", err)))?
+    .bind((settings.host.clone(), settings.port))?
     .run()
     .await
-    .map_err(|err| AppError::Other(format!("Server crashed ({})", err)))
+    .context("server exited unexpectedly")
 }
