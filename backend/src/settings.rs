@@ -8,7 +8,6 @@ static SETTINGS: OnceCell<Settings> = OnceCell::new();
 pub struct Settings {
     pub host: String,
     pub port: u16,
-    pub frontend_origin: String,
     pub post_login_path: String,
     pub cookie_name: String,
     pub cookie_secure: bool,
@@ -46,14 +45,15 @@ pub struct Settings {
 
     pub gmail_app_password: String,
     pub gmail_from: String,
+
+    pub static_dir: String,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
             host: "127.0.0.1".into(),
-            port: 3001,
-            frontend_origin: "http://localhost:8080".into(),
+            port: 8080,
             post_login_path: "/".into(),
             cookie_name: "sso_session".into(),
             cookie_secure: false,
@@ -80,6 +80,7 @@ impl Default for Settings {
             initial_admin_user_test_session: false,
             gmail_app_password: String::new(),
             gmail_from: String::new(),
+            static_dir: "static".into(),
         }
     }
 }

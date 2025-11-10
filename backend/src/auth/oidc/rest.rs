@@ -202,16 +202,14 @@ struct AuthCallbackQuery {
 fn resolve_frontend_redirect(settings: &Settings, requested: Option<&str>) -> String {
     requested
         .and_then(sanitize_redirect)
-        .map(|path| format!("{}{}", settings.frontend_origin.trim_end_matches('/'), path))
-        .unwrap_or_else(|| join_frontend_path(settings, &settings.post_login_path))
+        .unwrap_or_else(|| default_frontend_path(&settings.post_login_path))
 }
 
-fn join_frontend_path(settings: &Settings, path: &str) -> String {
-    let base = settings.frontend_origin.trim_end_matches('/');
+fn default_frontend_path(path: &str) -> String {
     let trimmed = path.trim();
     if trimmed.is_empty() || trimmed == "/" {
-        base.to_string()
+        "/".to_string()
     } else {
-        format!("{}/{}", base, trimmed.trim_start_matches('/'))
+        format!("/{}", trimmed.trim_start_matches('/'))
     }
 }

@@ -7,15 +7,19 @@ use crate::route::Route;
 
 #[derive(Clone, PartialEq)]
 pub struct Api {
-    base_url: String,
     navigator: Navigator,
 }
 
 impl Api {
-    pub fn new(base_url: String, navigator: Navigator) -> Self {
-        Self {
-            base_url,
-            navigator,
+    pub fn new(navigator: Navigator) -> Self {
+        Self { navigator }
+    }
+
+    fn build_path(path: &str) -> String {
+        if path.starts_with('/') {
+            path.to_string()
+        } else {
+            format!("/{}", path)
         }
     }
 
@@ -23,7 +27,7 @@ impl Api {
     where
         T: DeserializeOwned + Default,
     {
-        let response = Request::get(&format!("{}{}", self.base_url, path))
+        let response = Request::get(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .send()
             .await?;
@@ -48,7 +52,7 @@ impl Api {
         T: DeserializeOwned + Default,
         B: ?Sized + Serialize,
     {
-        let response = Request::post(&format!("{}{}", self.base_url, path))
+        let response = Request::post(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .json(body)?
             .send()
@@ -73,7 +77,7 @@ impl Api {
     where
         T: DeserializeOwned + Default,
     {
-        let response = Request::post(&format!("{}{}", self.base_url, path))
+        let response = Request::post(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .send()
             .await?;
@@ -110,9 +114,9 @@ impl Api {
     pub fn auth_login_url(&self, provider: Option<&str>) -> String {
         match provider {
             Some(provider) if !provider.is_empty() => {
-                format!("{}/auth/login?provider={}", self.base_url, provider)
+                format!("/auth/login?provider={}", provider)
             }
-            _ => format!("{}/auth/login", self.base_url),
+            _ => "/auth/login".into(),
         }
     }
 

@@ -2,12 +2,14 @@ mod auth;
 mod database;
 mod docs;
 mod error;
+mod frontend;
 mod mail;
 mod resources;
 mod settings;
 
 use std::sync::Arc;
 
+use actix_files::Files;
 use actix_web::{App, HttpServer, middleware::Logger, web::Data};
 use anyhow::{Context, Result as AnyResult};
 use chrono::Utc;
@@ -75,10 +77,15 @@ async fn main() -> AnyResult<()> {
             .app_data(db.clone())
             .app_data(oidc_clients.clone())
             .wrap(Logger::default())
-            .wrap(auth::middleware::cors())
             .service(auth::rest::scope())
             .service(docs::reset::scope())
             .service(resources::rest::scope())
+            .service(frontend::get_index)
+            .service(frontend::get_static_files)
+            .service(
+                Files::new("/", std::env::var("STATIC_DIR").unwrap_or("static".into()))
+                    .show_files_listing(),
+            )
     })
     .bind((settings.host.clone(), settings.port))?
     .run()

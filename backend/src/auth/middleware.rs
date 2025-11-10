@@ -1,13 +1,9 @@
 use std::future::{Ready, ready};
 use std::rc::Rc;
 
-use actix_cors::Cors;
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready};
 use actix_web::web::Data;
-use actix_web::{
-    Error, HttpMessage,
-    http::{Method, header},
-};
+use actix_web::{Error, HttpMessage};
 use futures_util::future::LocalBoxFuture;
 
 use super::authorization_bearer;
@@ -145,18 +141,4 @@ where
             service.call(req).await
         })
     }
-}
-
-pub fn cors() -> Cors {
-    let settings = Settings::global();
-    let origin = settings.frontend_origin.clone();
-    Cors::default()
-        .allowed_origin(&origin)
-        .allowed_methods(vec![Method::GET, Method::POST, Method::OPTIONS])
-        .allowed_headers(vec![
-            header::ACCEPT,
-            header::CONTENT_TYPE,
-            header::AUTHORIZATION,
-        ])
-        .supports_credentials()
 }

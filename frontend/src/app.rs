@@ -1,8 +1,8 @@
 use super::route::Route;
+use crate::api::ApiProvider;
 use fancy_yew::layouts::Navable;
 use yew::prelude::*;
 use yew_router::prelude::*;
-use crate::api::ApiProvider;
 
 #[function_component(App)]
 pub fn app() -> Html {
