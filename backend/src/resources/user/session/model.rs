@@ -25,7 +25,7 @@ impl Model for Database {
             .await?
             .take::<Option<SessionRecord>>(0)?
             .map(SessionRecord::into_session)
-            .ok_or(AppError::NotFound)
+            .ok_or(AppError::NotFound("session not found".into()))
     }
 
     async fn create_session(&self, session: Session) -> Result<Session, AppError> {

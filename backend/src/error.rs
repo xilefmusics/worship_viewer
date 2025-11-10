@@ -1,10 +1,8 @@
-use actix_web::http::{StatusCode, header};
+use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
 use serde_json::json;
 use thiserror::Error;
 use tracing::error;
-
-use crate::settings::Settings;
 
 #[derive(Debug, Error)]
 pub enum AppError {
@@ -13,7 +11,7 @@ pub enum AppError {
     #[error("forbidden")]
     Forbidden,
     #[error("not found")]
-    NotFound,
+    NotFound(String),
     #[error("invalid request: {0}")]
     InvalidRequest(String),
     #[error("{0}")]
@@ -78,7 +76,7 @@ impl From<surrealdb::Error> for AppError {
                     AppError::invalid_request(dberr.to_string())
                 }
                 surrealdb::error::Db::NoRecordFound | surrealdb::error::Db::IdNotFound { .. } => {
-                    AppError::NotFound
+                    AppError::NotFound("record not found".into())
                 }
                 _ => Self::database(err),
             }
@@ -93,7 +91,7 @@ impl ResponseError for AppError {
         match self {
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
             AppError::Forbidden => StatusCode::FORBIDDEN,
-            AppError::NotFound => StatusCode::NOT_FOUND,
+            AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::InvalidRequest(_) => StatusCode::BAD_REQUEST,
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
@@ -104,10 +102,6 @@ impl ResponseError for AppError {
         if matches!(self, AppError::Internal(_)) {
             error!("{}", self);
         }
-        let origin = Settings::global().frontend_origin.clone();
-        HttpResponse::build(self.status_code())
-            .insert_header((header::ACCESS_CONTROL_ALLOW_ORIGIN, origin))
-            .insert_header((header::ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
-            .json(json!({ "error": self.to_string() }))
+        HttpResponse::build(self.status_code()).json(json!({ "error": self.to_string() }))
     }
 }

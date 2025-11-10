@@ -32,7 +32,7 @@ impl Model for Database {
             .select(user_resource(id)?)
             .await?
             .map(UserRecord::into_user)
-            .ok_or(AppError::NotFound)
+            .ok_or(AppError::NotFound("user not found".into()))
     }
 
     async fn get_user_by_email(&self, email: &str) -> Result<Option<User>, AppError> {
@@ -59,7 +59,7 @@ impl Model for Database {
             .delete(user_resource(id)?)
             .await?
             .map(UserRecord::into_user)
-            .ok_or(AppError::NotFound)
+            .ok_or(AppError::NotFound("user not found".into()))
     }
 
     async fn get_user_by_email_or_create(&self, email: &str) -> Result<User, AppError> {

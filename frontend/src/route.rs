@@ -1,6 +1,6 @@
 use super::pages::{
-    CollectionsPage, EditorPage, IndexPage, PlayerPage, SetlistEditorPage, SetlistsPage, SongsPage,
-    ImprintPage, PrivacyPage, TermsPage, LoginPage, LogoutPage
+    CollectionsPage, EditorPage, ImprintPage, IndexPage, LoginPage, LogoutPage, PlayerPage,
+    PrivacyPage, SetlistEditorPage, SetlistsPage, SongsPage, TermsPage,
 };
 use fancy_yew::layouts::{NavItemBuilder, Navable, VerticalLayout as Layout};
 use yew::prelude::*;
@@ -77,7 +77,7 @@ impl Navable for Route {
             <Layout<Route>
                 nav_routes={Route::route_items()}
                 fullscreen={match route {
-                    Route::Player | Route::Editor | Route::SetlistEditor => true,
+                    Route::Player | Route::Editor | Route::SetlistEditor | Route::Login | Route::Logout | Route::Terms | Route::Imprint | Route::Privacy => true,
                     _ => false,
                 }}
             >{

@@ -3,8 +3,6 @@ use yew_router::prelude::*;
 
 use super::Api;
 
-pub const API_BASE_URL: &str = "http://localhost:3001";
-
 #[derive(Properties, PartialEq)]
 pub struct ApiProviderProps {
     #[prop_or_default]
@@ -16,7 +14,7 @@ pub fn api_provider(props: &ApiProviderProps) -> Html {
     let navigator = use_navigator().unwrap();
     let api = {
         let navigator = navigator.clone();
-        use_memo((), move |_| Api::new(API_BASE_URL.to_string(), navigator))
+        use_memo((), move |_| Api::new(navigator))
     };
 
     html! {
