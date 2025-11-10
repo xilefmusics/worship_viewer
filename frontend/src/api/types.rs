@@ -22,32 +22,35 @@ pub enum Role {
     Admin,
 }
 
-impl Role {
-    pub fn to_str(&self) -> &'static str {
-        match self {
-            Role::Default => "default",
-            Role::Admin => "admin",
-        }
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct User {
+    #[allow(unused)]
     pub id: String,
+    #[allow(unused)]
     pub email: String,
+    #[allow(unused)]
     pub role: Role,
+    #[allow(unused)]
     pub read: Vec<String>,
+    #[allow(unused)]
     pub write: Vec<String>,
+    #[allow(unused)]
     pub last_login_at: Option<DateTime<Utc>>,
+    #[allow(unused)]
     pub request_count: u64,
+    #[allow(unused)]
     pub created_at: DateTime<Utc>,
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct Session {
+    #[allow(unused)]
     pub id: String,
+    #[allow(unused)]
     pub user: User,
+    #[allow(unused)]
     pub created_at: DateTime<Utc>,
+    #[allow(unused)]
     pub expires_at: DateTime<Utc>,
 }
 

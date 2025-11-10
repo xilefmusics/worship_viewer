@@ -255,6 +255,7 @@ pub fn login() -> Html {
     html! {
         <div class={page_style}>
             <main>
+            <h1>{"Helps you lead worship — then steps aside when the Spirit takes over."}</h1>
                 <section>
 
                     { if *signup { html!{
