@@ -26,3 +26,16 @@ impl ApiError {
         }
     }
 }
+
+impl std::fmt::Display for ApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ApiError::BadRequest(msg) => write!(f, "Bad Request: {msg}"),
+            ApiError::Unauthorized(msg) => write!(f, "Unauthorized: {msg}"),
+            ApiError::Forbidden(msg) => write!(f, "Forbidden: {msg}"),
+            ApiError::Conflict(msg) => write!(f, "Conflict: {msg}"),
+            ApiError::InternalServerError(msg) => write!(f, "Internal Server Error: {msg}"),
+            ApiError::Network(msg) => write!(f, "Network Error: {msg}"),
+        }
+    }
+}

@@ -80,51 +80,36 @@ pub fn imprint_page() -> Html {
             <main>
                 <section class="legal-card">
                     <h1>{ "Impressum" }</h1>
-                    <p class="legal-note">{ "Bitte ersetzen Sie alle Platzhalter durch die tatsächlichen Angaben Ihres Unternehmens, um den Anforderungen der §§ 5 TMG und 55 RStV zu entsprechen." }</p>
 
                     <div class="legal-block">
                         <h2>{ "Angaben gemäß § 5 TMG" }</h2>
                         <p>
-                            { "Unternehmensname GmbH" }<br />
-                            { "Musterstraße 1" }<br />
-                            { "12345 Musterstadt" }
+                            { "Felix Rollbühler" }<br />
+                            { "Münklinger Str. 2" }<br />
+                            { "75378 Bad Liebenzell" }
                         </p>
-                    </div>
-
-                    <div class="legal-block">
-                        <h2>{ "Vertreten durch" }</h2>
-                        <p>{ "Geschäftsführer: Max Mustermann" }</p>
                     </div>
 
                     <div class="legal-block">
                         <h2>{ "Kontakt" }</h2>
                         <p>
-                            { "Telefon: +49 (0) 123 456789" }<br />
-                            { "E-Mail: legal@example.com" }<br />
-                            { "Fax: +49 (0) 123 456788" }
+                            { "E-Mail: info@worshipviewer.com" }<br />
                         </p>
-                    </div>
-
-                    <div class="legal-block">
-                        <h2>{ "Registereintrag" }</h2>
-                        <p>
-                            { "Eintragung im Handelsregister." }<br />
-                            { "Registergericht: Amtsgericht Musterstadt" }<br />
-                            { "Registernummer: HRB 123456" }
-                        </p>
-                    </div>
-
-                    <div class="legal-block">
-                        <h2>{ "Umsatzsteuer-ID" }</h2>
-                        <p>{ "Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz: DE123456789" }</p>
                     </div>
 
                     <div class="legal-block">
                         <h2>{ "Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV" }</h2>
                         <p>
-                            { "Max Mustermann" }<br />
-                            { "Musterstraße 1" }<br />
-                            { "12345 Musterstadt" }
+                            { "Felix Rollbühler" }<br />
+                            { "Münklinger Str. 2" }<br />
+                            { "75378 Bad Liebenzell" }
+                        </p>
+                    </div>
+
+                    <div class="legal-block">
+                        <h2>{ "Hinweis" }</h2>
+                        <p>
+                            { "Diese App wird privat betrieben und dient nicht kommerziellen Zwecken." }<br />
                         </p>
                     </div>
 
@@ -132,7 +117,7 @@ pub fn imprint_page() -> Html {
                         <h2>{ "EU-Streitschlichtung" }</h2>
                         <p>
                             { "Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: " }
-                            <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noreferrer">{ "https://ec.europa.eu/consumers/odr" }</a>
+                            <a href="https://consumer-redress.ec.europa.eu" target="_blank" rel="noreferrer">{ "https://ec.europa.eu/consumers/odr" }</a>
                             { ". Unsere E-Mail-Adresse finden Sie oben im Impressum." }
                         </p>
                     </div>
@@ -141,6 +126,8 @@ pub fn imprint_page() -> Html {
                         <h2>{ "Verbraucherstreitbeilegung/Universalschlichtungsstelle" }</h2>
                         <p>{ "Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen." }</p>
                     </div>
+
+                    <p class="legal-note">{ "Stand: 10. November 2025" }</p>
 
                     <LegalLinks />
                 </section>

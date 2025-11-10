@@ -22,11 +22,11 @@ pub enum Route {
     Editor,
     #[at("/setlist-editor")]
     SetlistEditor,
-    #[at("/impressum")]
+    #[at("/imprint")]
     Imprint,
-    #[at("/datenschutz")]
+    #[at("/privacy")]
     Privacy,
-    #[at("/agb")]
+    #[at("/terms")]
     Terms,
     #[at("/login")]
     Login,
