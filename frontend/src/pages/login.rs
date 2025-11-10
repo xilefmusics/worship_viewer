@@ -88,10 +88,46 @@ pub fn login() -> Html {
             }
 
             & main {
-                width: min(420px, 100%);
+                width: min(460px, 100%);
+                display: flex;
+                flex-direction: column;
+                gap: 24px;
             }
 
-            & section {
+            & .lead {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+                border-radius: 20px;
+                padding: 24px;
+                background: var(--bg-dark);
+            }
+
+            & .lead__eyebrow {
+                font-size: 0.8rem;
+                letter-spacing: 0.14em;
+                text-transform: uppercase;
+                color: var(--text-muted);
+            }
+
+            & .lead h1 {
+                margin: 0;
+                font-size: 1.6rem;
+                font-weight: 600;
+                color: var(--text);
+            }
+
+            & .lead p {
+                margin: 0 auto;
+                max-width: 35ch;
+                color: var(--text-muted);
+                font-size: 0.95rem;
+                line-height: 1.5;
+            }
+
+            & .auth-card {
                 background: var(--bg);
                 border-radius: 24px;
                 padding: 32px;
@@ -240,7 +276,7 @@ pub fn login() -> Html {
             }
 
             @media (max-width: 480px) {
-                & section {
+                & .auth-card {
                     padding: 24px;
                 }
 
@@ -255,8 +291,12 @@ pub fn login() -> Html {
     html! {
         <div class={page_style}>
             <main>
-            <h1>{"Helps you lead worship — then steps aside when the Spirit takes over."}</h1>
-                <section>
+                <section class="lead">
+                    <span class="lead__eyebrow">{ "All for His glory" }</span>
+                    <h1>{ "Helps you lead worship — then steps aside when the Spirit takes over." }</h1>
+                    <p>{ "Focus on the room not the screen! Don't make music - worship!" }</p>
+                </section>
+                <section class="auth-card">
 
                     { if *signup { html!{
                         <header>
