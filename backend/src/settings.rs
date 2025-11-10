@@ -69,7 +69,7 @@ impl Default for Settings {
             oidc_issuer_url: "https://accounts.google.com".into(),
             oidc_client_id: String::new(),
             oidc_client_secret: None,
-            oidc_redirect_url: String::new(),
+            oidc_redirect_url: "http://localhost:8080/auth/callback".into(),
             oidc_scopes: vec!["openid".into(), "profile".into(), "email".into()],
             apple_issuer_url: None,
             apple_client_id: None,
