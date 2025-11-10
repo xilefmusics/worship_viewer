@@ -1,7 +1,7 @@
 use anyhow::{Context, Result as AnyResult, anyhow};
 use surrealdb::Surreal;
 use surrealdb::engine::any::{Any, connect};
-use surrealdb::opt::auth::Root;
+use surrealdb::opt::auth::{Database as DbAuth};
 use surrealdb_migrations::MigrationRunner;
 
 use std::env;
@@ -23,9 +23,14 @@ impl Database {
 
         match (&settings.db_username, &settings.db_password) {
             (Some(username), Some(password)) => {
-                db.signin(Root { username, password })
-                    .await
-                    .with_context(|| "failed to sign into SurrealDB with provided credentials")?;
+                db.signin(DbAuth {
+                    namespace: &settings.db_namespace,
+                    database: &settings.db_database,
+                    username,
+                    password,
+                })
+                .await
+                .with_context(|| "failed to sign into SurrealDB with provided credentials")?;
             }
             (None, None) => {}
             _ => {
