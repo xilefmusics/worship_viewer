@@ -6,7 +6,7 @@ use crate::auth::otp::rest::{OtpRequest, OtpVerify};
 use crate::resources::user::Role;
 use crate::resources::{CreateUserRequest, Session, User};
 
-pub mod reset {
+pub mod rest {
     use super::{ApiDoc, OpenApi};
     use utoipa_swagger_ui::SwaggerUi;
 

@@ -9,7 +9,6 @@ mod settings;
 
 use std::sync::Arc;
 
-use actix_files::Files;
 use actix_web::{App, HttpServer, middleware::Logger, web::Data};
 use anyhow::{Context, Result as AnyResult};
 use chrono::Utc;
@@ -78,14 +77,9 @@ async fn main() -> AnyResult<()> {
             .app_data(oidc_clients.clone())
             .wrap(Logger::default())
             .service(auth::rest::scope())
-            .service(docs::reset::scope())
+            .service(docs::rest::scope())
             .service(resources::rest::scope())
-            .service(frontend::get_index)
-            .service(frontend::get_static_files)
-            .service(
-                Files::new("/", std::env::var("STATIC_DIR").unwrap_or("static".into()))
-                    .show_files_listing(),
-            )
+            .service(frontend::rest::scope())
     })
     .bind((settings.host.clone(), settings.port))?
     .run()
