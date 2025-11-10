@@ -34,6 +34,7 @@ RUN trunk build --release
 FROM ubuntu:24.04
 
 COPY --from=builder /wrk/backend/target/release/backend /app/worship_viewer
+COPY --from=builder /wrk/backend/target/release/backend/surreal_db/ /app/surreal_db
 COPY --from=builder /wrk/frontend/dist/ /app/static
 
 ENTRYPOINT ["/app/worship_viewer"]
