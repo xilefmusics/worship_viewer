@@ -1,19 +1,26 @@
 use crate::route::Route;
 use gloo_net::http::Request;
-use shared::collection::Collection;
+use shared::{collection::Collection};
 use std::collections::HashMap;
 use stylist::Style;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
+use crate::api::use_api;
+
 #[function_component(CollectionsPage)]
 pub fn collection_page() -> Html {
     let collections = use_state(|| vec![]);
+    let user = use_state(|| None);
+    let api = use_api();
     {
         let collections = collections.clone();
+        let user = user.clone();
         use_effect_with((), move |_| {
             let collections = collections.clone();
+            let user = user.clone();
             wasm_bindgen_futures::spawn_local(async move {
+                user.set(Some(api.get_users_me().await.unwrap()));
                 let fetched_collections: Vec<Collection> = Request::get("/api/collections")
                     .send()
                     .await
@@ -58,6 +65,9 @@ pub fn collection_page() -> Html {
 
     html! {
         <div class={Style::new(include_str!("collections.css")).expect("Unwrapping CSS should work!")}>
+            <div class="collections">
+                <p>{user.as_ref().map(|user| user.email.as_str()).unwrap_or("loading")}</p>
+            </div>
             <div class="collections">
                 {collections}
             </div>
