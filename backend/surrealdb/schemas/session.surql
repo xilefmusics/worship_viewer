@@ -1,6 +1,6 @@
 DEFINE TABLE OVERWRITE session SCHEMAFULL;
 
-DEFINE FIELD user ON session TYPE record<user>
+DEFINE FIELD OVERWRITE user ON session TYPE record<user>
   ASSERT $value != NONE;
 
 DEFINE FIELD OVERWRITE created_at ON session TYPE datetime
