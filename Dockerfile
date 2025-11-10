@@ -37,4 +37,6 @@ COPY --from=builder /wrk/backend/target/release/backend /app/worship_viewer
 COPY --from=builder /wrk/backend/surrealdb/ /app/surrealdb
 COPY --from=builder /wrk/frontend/dist/ /app/static
 
+EXPOSE 8080
+WORKDIR /app
 ENTRYPOINT ["/app/worship_viewer"]
