@@ -33,6 +33,10 @@ RUN trunk build --release
 
 FROM ubuntu:24.04
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /wrk/backend/target/release/backend /app/worship_viewer
 COPY --from=builder /wrk/backend/surrealdb/ /app/surrealdb
 COPY --from=builder /wrk/frontend/dist/ /app/static
