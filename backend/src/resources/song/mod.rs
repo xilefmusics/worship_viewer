@@ -1,4 +1,4 @@
-pub use shared::song::Song;
+pub use shared::song::{CreateSong, Song};
 
 mod model;
 pub use model::Model;

@@ -1,16 +1,16 @@
 pub mod rest;
 
 pub mod blob;
-pub use blob::Blob;
+pub use blob::{Blob, CreateBlob};
 
 pub mod collection;
-pub use collection::Collection;
+pub use collection::{Collection, CreateCollection};
 
 pub mod setlist;
-pub use setlist::Setlist;
+pub use setlist::{CreateSetlist, Setlist};
 
 pub mod song;
-pub use song::Song;
+pub use song::{CreateSong, Song};
 
 pub mod user;
 pub use user::CreateUserRequest;

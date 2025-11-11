@@ -4,7 +4,10 @@ use utoipa::{Modify, OpenApi};
 
 use crate::auth::otp::rest::{OtpRequest, OtpVerify};
 use crate::resources::user::Role;
-use crate::resources::{Blob, Collection, CreateUserRequest, Session, Setlist, Song, User};
+use crate::resources::{
+    Blob, Collection, CreateBlob, CreateCollection, CreateSetlist, CreateSong, CreateUserRequest,
+    Session, Setlist, Song, User,
+};
 use shared::blob::FileType;
 use shared::song::Link as SongLink;
 
@@ -68,9 +71,13 @@ pub mod rest {
             OtpVerify,
             ErrorResponse,
             Song,
+            CreateSong,
             Collection,
+            CreateCollection,
             Setlist,
+            CreateSetlist,
             Blob,
+            CreateBlob,
             FileType,
             SongLink
         )

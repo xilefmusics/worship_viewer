@@ -1,5 +1,8 @@
 DEFINE TABLE OVERWRITE blob SCHEMAFULL;
 
+DEFINE FIELD OVERWRITE owner ON blob TYPE record<user>
+    ASSERT $value != NONE;
+
 DEFINE FIELD OVERWRITE file_type ON blob TYPE string
     ASSERT $value INSIDE ["image/png", "image/jpeg", "image/svg"];
 
