@@ -1,27 +1,25 @@
 use actix_web::{
     HttpResponse, Scope, delete, get, post, put,
-    web::{self, Data, Json, Path},
+    web::{self, Data, Json, Path, ReqData},
 };
 
 use super::Model;
-use crate::auth::middleware::RequireAdmin;
 use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
+use crate::resources::User;
+#[allow(unused_imports)]
 use crate::resources::collection::Collection;
+use crate::resources::collection::CreateCollection;
 
 pub fn scope() -> Scope {
     web::scope("/collections")
         .service(get_collections)
         .service(get_collection)
-        .service(
-            web::scope("")
-                .wrap(RequireAdmin::default())
-                .service(create_collection)
-                .service(update_collection)
-                .service(delete_collection),
-        )
+        .service(create_collection)
+        .service(update_collection)
+        .service(delete_collection)
 }
 
 #[utoipa::path(
@@ -39,8 +37,11 @@ pub fn scope() -> Scope {
     )
 )]
 #[get("")]
-async fn get_collections(db: Data<Database>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_collections().await?))
+async fn get_collections(
+    db: Data<Database>,
+    user: ReqData<User>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(db.get_collections(&user.id).await?))
 }
 
 #[utoipa::path(
@@ -63,19 +64,22 @@ async fn get_collections(db: Data<Database>) -> Result<HttpResponse, AppError> {
     )
 )]
 #[get("/{id}")]
-async fn get_collection(db: Data<Database>, id: Path<String>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_collection(&id).await?))
+async fn get_collection(
+    db: Data<Database>,
+    user: ReqData<User>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(db.get_collection(&user.id, &id).await?))
 }
 
 #[utoipa::path(
     post,
     path = "/api/v1/collections",
-    request_body = Collection,
+    request_body = CreateCollection,
     responses(
         (status = 201, description = "Create a new collection", body = Collection),
         (status = 400, description = "Invalid collection payload", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Admin role required", body = ErrorResponse),
         (status = 500, description = "Failed to create collection", body = ErrorResponse)
     ),
     tag = "Collections",
@@ -87,9 +91,10 @@ async fn get_collection(db: Data<Database>, id: Path<String>) -> Result<HttpResp
 #[post("")]
 async fn create_collection(
     db: Data<Database>,
-    payload: Json<Collection>,
+    user: ReqData<User>,
+    payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(db.create_collection(payload.into_inner()).await?))
+    Ok(HttpResponse::Created().json(db.create_collection(&user.id, payload.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -98,12 +103,11 @@ async fn create_collection(
     params(
         ("id" = String, Path, description = "Collection identifier")
     ),
-    request_body = Collection,
+    request_body = CreateCollection,
     responses(
         (status = 200, description = "Update an existing collection", body = Collection),
         (status = 400, description = "Invalid collection identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Admin role required", body = ErrorResponse),
         (status = 404, description = "Collection not found", body = ErrorResponse),
         (status = 500, description = "Failed to update collection", body = ErrorResponse)
     ),
@@ -116,12 +120,14 @@ async fn create_collection(
 #[put("/{id}")]
 async fn update_collection(
     db: Data<Database>,
+    user: ReqData<User>,
     id: Path<String>,
-    payload: Json<Collection>,
+    payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
-    let mut collection = payload.into_inner();
-    collection.id = Some(id.clone());
-    Ok(HttpResponse::Ok().json(db.update_collection(&id, collection).await?))
+    Ok(HttpResponse::Ok().json(
+        db.update_collection(&user.id, &id, payload.into_inner())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -134,7 +140,6 @@ async fn update_collection(
         (status = 200, description = "Delete a collection", body = Collection),
         (status = 400, description = "Invalid collection identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Admin role required", body = ErrorResponse),
         (status = 404, description = "Collection not found", body = ErrorResponse),
         (status = 500, description = "Failed to delete collection", body = ErrorResponse)
     ),
@@ -145,6 +150,10 @@ async fn update_collection(
     )
 )]
 #[delete("/{id}")]
-async fn delete_collection(db: Data<Database>, id: Path<String>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_collection(&id).await?))
+async fn delete_collection(
+    db: Data<Database>,
+    user: ReqData<User>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(db.delete_collection(&user.id, &id).await?))
 }

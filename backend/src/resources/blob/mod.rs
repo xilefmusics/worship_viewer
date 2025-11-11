@@ -1,4 +1,4 @@
-pub use shared::blob::Blob;
+pub use shared::blob::{Blob, CreateBlob};
 
 mod model;
 pub use model::Model;

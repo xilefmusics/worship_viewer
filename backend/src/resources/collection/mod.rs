@@ -1,4 +1,4 @@
-pub use shared::collection::Collection;
+pub use shared::collection::{Collection, CreateCollection};
 
 mod model;
 pub use model::Model;

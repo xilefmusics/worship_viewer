@@ -1,4 +1,4 @@
-pub use shared::setlist::Setlist;
+pub use shared::setlist::{CreateSetlist, Setlist};
 
 mod model;
 pub use model::Model;
