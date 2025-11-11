@@ -1,7 +1,7 @@
 use anyhow::{Context, Result as AnyResult, anyhow};
 use surrealdb::Surreal;
 use surrealdb::engine::any::{Any, connect};
-use surrealdb::opt::auth::{Database as DbAuth};
+use surrealdb::opt::auth::Database as DbAuth;
 use surrealdb_migrations::MigrationRunner;
 
 use std::env;

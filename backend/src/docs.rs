@@ -4,7 +4,8 @@ use utoipa::{Modify, OpenApi};
 
 use crate::auth::otp::rest::{OtpRequest, OtpVerify};
 use crate::resources::user::Role;
-use crate::resources::{CreateUserRequest, Session, User};
+use crate::resources::{Blob, Collection, CreateUserRequest, Session, Setlist, Song, User};
+use shared::blob::FileType;
 
 pub mod rest {
     use super::{ApiDoc, OpenApi};
@@ -23,9 +24,9 @@ pub mod rest {
         crate::auth::otp::rest::otp_request,
         crate::auth::otp::rest::otp_verify,
         crate::auth::rest::logout,
-        crate::resources::user::rest::get_user,
+        crate::resources::user::rest::get_users_me,
         crate::resources::user::rest::get_users,
-        crate::resources::user::rest::get_user_by_id,
+        crate::resources::user::rest::get_user,
         crate::resources::user::rest::create_user,
         crate::resources::user::rest::delete_user,
         crate::resources::user::session::rest::get_sessions_for_current_user,
@@ -34,7 +35,27 @@ pub mod rest {
         crate::resources::user::session::rest::get_sessions_for_user,
         crate::resources::user::session::rest::get_session_for_user,
         crate::resources::user::session::rest::create_session_for_user,
-        crate::resources::user::session::rest::delete_session_for_user
+        crate::resources::user::session::rest::delete_session_for_user,
+        crate::resources::song::rest::get_songs,
+        crate::resources::song::rest::get_song,
+        crate::resources::song::rest::create_song,
+        crate::resources::song::rest::update_song,
+        crate::resources::song::rest::delete_song,
+        crate::resources::collection::rest::get_collections,
+        crate::resources::collection::rest::get_collection,
+        crate::resources::collection::rest::create_collection,
+        crate::resources::collection::rest::update_collection,
+        crate::resources::collection::rest::delete_collection,
+        crate::resources::blob::rest::get_blobs,
+        crate::resources::blob::rest::get_blob,
+        crate::resources::blob::rest::create_blob,
+        crate::resources::blob::rest::update_blob,
+        crate::resources::blob::rest::delete_blob,
+        crate::resources::setlist::rest::get_setlists,
+        crate::resources::setlist::rest::get_setlist,
+        crate::resources::setlist::rest::create_setlist,
+        crate::resources::setlist::rest::update_setlist,
+        crate::resources::setlist::rest::delete_setlist
     ),
     components(
         schemas(
@@ -44,12 +65,21 @@ pub mod rest {
             CreateUserRequest,
             OtpRequest,
             OtpVerify,
-            ErrorResponse
+            ErrorResponse,
+            Song,
+            Collection,
+            Setlist,
+            Blob,
+            FileType
         )
     ),
     tags(
         (name = "Auth", description = "Authentication endpoints"),
-        (name = "Users", description = "User resources")
+        (name = "Users", description = "User resources"),
+        (name = "Songs", description = "Song resources"),
+        (name = "Collections", description = "Collection resources"),
+        (name = "Blobs", description = "Blob resources"),
+        (name = "Setlists", description = "Setlist resources")
     ),
     modifiers(&SessionSecurity)
 )]

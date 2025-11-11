@@ -20,8 +20,7 @@ impl Model for Database {
         Ok(self
             .db
             .select("user")
-            .await
-            .map_err(|err| AppError::database(err))?
+            .await?
             .into_iter()
             .map(UserRecord::into_user)
             .collect())

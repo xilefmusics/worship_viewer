@@ -1,7 +1,11 @@
 use super::FileType;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "backend")]
+use utoipa::ToSchema;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct Blob {
     pub id: Option<String>,
     pub file_type: FileType,

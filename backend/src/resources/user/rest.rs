@@ -13,7 +13,7 @@ use crate::error::AppError;
 
 pub fn scope() -> Scope {
     web::scope("/users")
-        .service(get_user)
+        .service(get_users_me)
         .service(session::rest::get_sessions_for_current_user)
         .service(session::rest::get_session_for_current_user)
         .service(session::rest::delete_session_for_current_user)
@@ -22,7 +22,7 @@ pub fn scope() -> Scope {
                 .wrap(RequireAdmin::default())
                 .service(create_user)
                 .service(delete_user)
-                .service(get_user_by_id)
+                .service(get_user)
                 .service(get_users)
                 .service(session::rest::get_sessions_for_user)
                 .service(session::rest::get_session_for_user)
@@ -46,7 +46,7 @@ pub fn scope() -> Scope {
     )
 )]
 #[get("/me")]
-async fn get_user(user: ReqData<User>) -> HttpResponse {
+async fn get_users_me(user: ReqData<User>) -> HttpResponse {
     HttpResponse::Ok().json(user.into_inner())
 }
 
@@ -70,7 +70,7 @@ async fn get_user(user: ReqData<User>) -> HttpResponse {
     )
 )]
 #[get("/{id}")]
-async fn get_user_by_id(db: Data<Database>, id: Path<String>) -> Result<HttpResponse, AppError> {
+async fn get_user(db: Data<Database>, id: Path<String>) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(db.get_user(&id).await?))
 }
 
