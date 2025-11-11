@@ -2,17 +2,24 @@ use super::{AspectRatio, SongViewer};
 use fancy_yew::components::input::StringInput;
 use fancy_yew::components::{Editor, SyntaxParser};
 use fancy_yew::toast_notifications::show_error;
-use shared::song::Song;
+use shared::song::{CreateSong, Song};
 use std::f64::consts::SQRT_2;
 use stylist::Style;
 use yew::prelude::*;
 use yew_hooks::use_size;
 
+#[derive(Clone, PartialEq)]
+pub struct SongSavePayload {
+    pub id: Option<String>,
+    pub data: CreateSong,
+}
+
 #[derive(Properties, PartialEq)]
 pub struct Props {
-    pub song: Song,
-    pub onsave: Callback<Song>,
-    pub ondelete: Callback<Song>,
+    pub song: CreateSong,
+    pub song_id: Option<String>,
+    pub onsave: Callback<SongSavePayload>,
+    pub ondelete: Callback<String>,
     pub onback: Callback<MouseEvent>,
     pub onimport: Callback<String>,
 }
@@ -37,7 +44,7 @@ pub fn song_editor(props: &Props) -> Html {
         })
     };
     let import_url = use_state(|| String::default());
-    let can_delete = props.song.id.is_some();
+    let can_delete = props.song_id.is_some();
     let delete_song = {
         let show_delete_dialog = show_delete_dialog.clone();
         Callback::from(move |_: MouseEvent| show_delete_dialog.set(true))
@@ -49,24 +56,30 @@ pub fn song_editor(props: &Props) -> Html {
     let confirm_delete = {
         let show_delete_dialog = show_delete_dialog.clone();
         let ondelete = props.ondelete.clone();
-        let song = props.song.clone();
+        let song_id = props.song_id.clone();
         Callback::from(move |_: MouseEvent| {
             show_delete_dialog.set(false);
-            ondelete.emit(song.clone());
+            if let Some(id) = song_id.clone() {
+                ondelete.emit(id);
+            }
         })
     };
     let stop_dialog_click = Callback::from(|event: MouseEvent| event.stop_propagation());
 
     let onsave: Callback<String, ()> = {
         let onsave = props.onsave.clone();
-        let id = props.song.id.clone();
+        let id = props.song_id.clone();
+        let blobs = props.song.blobs.clone();
         Callback::from(
-            move |content: String| match Song::try_from(content.as_str()) {
+            move |content: String| match CreateSong::try_from(content.as_str()) {
                 Ok(mut song) => {
-                    if song.id.is_none() {
-                        song.id = id.clone();
+                    if song.blobs.is_empty() && !blobs.is_empty() {
+                        song.blobs = blobs.clone();
                     }
-                    onsave.emit(song);
+                    onsave.emit(SongSavePayload {
+                        id: id.clone(),
+                        data: song,
+                    });
                 }
                 Err(e) => {
                     show_error("Error parsing song", &format!("{e}"));
@@ -75,13 +88,16 @@ pub fn song_editor(props: &Props) -> Html {
         )
     };
 
-    let onautoformat = Callback::from(|content: String| match Song::try_from(content.as_str()) {
-        Ok(song) => song.format_chord_pro(None, None, None, true),
-        Err(e) => {
-            show_error("Error parsing song", &format!("{e}"));
-            content
-        }
-    });
+    let onautoformat =
+        Callback::from(
+            |content: String| match CreateSong::try_from(content.as_str()) {
+                Ok(song) => song.format_chord_pro(None, None, None, true),
+                Err(e) => {
+                    show_error("Error parsing song", &format!("{e}"));
+                    content
+                }
+            },
+        );
 
     let onimport = {
         let import_url = import_url.clone();
@@ -125,6 +141,9 @@ pub fn song_editor(props: &Props) -> Html {
         .label_style("chord", "color", "#d79921")
         .build()
         .expect("static parser should build");
+
+    let mut viewer_song = Song::from(props.song.clone());
+    viewer_song.id = props.song_id.clone().unwrap_or_default();
 
     let editor_html = html! {
         { if *new {html!{
@@ -220,7 +239,7 @@ pub fn song_editor(props: &Props) -> Html {
                 { if show_viewer {html!{
                     <AspectRatio left={1./SQRT_2}>
                         <SongViewer
-                            song={props.song.clone()}
+                            song={viewer_song.clone()}
                         />
                         {editor_html}
                     </AspectRatio>

@@ -162,7 +162,7 @@ pub fn player_page() -> Html {
             .unwrap_or(&PlayerItem::Blob("".to_string()))
         {
             PlayerItem::Blob(_) => "".to_string(),
-            PlayerItem::Chords(song) => song.id.clone().unwrap_or("".to_string()),
+            PlayerItem::Chords(song) => song.id.clone(),
         };
 
         move |_: MouseEvent| {

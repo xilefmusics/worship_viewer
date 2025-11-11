@@ -1,8 +1,8 @@
-use crate::components::SongEditor;
+use crate::components::{SongEditor, SongSavePayload};
 use crate::route::Route;
 use gloo_net::http::Request;
 use serde::Deserialize;
-use shared::song::Song;
+use shared::song::{CreateSong, Song};
 use std::collections::HashMap;
 use stylist::Style;
 use url::Url;
@@ -16,7 +16,36 @@ pub struct Query {
 
 impl Query {
     pub fn api_url(&self) -> Option<String> {
-        self.id.as_ref().map(|id| format!("/api/songs/{}", id))
+        self.id.as_ref().map(|id| format!("/api/v1/songs/{}", id))
+    }
+}
+
+#[derive(Clone, PartialEq)]
+struct EditorState {
+    id: Option<String>,
+    data: CreateSong,
+}
+
+impl EditorState {
+    fn new() -> Self {
+        Self {
+            id: None,
+            data: CreateSong::default(),
+        }
+    }
+}
+
+impl From<Song> for EditorState {
+    fn from(value: Song) -> Self {
+        let id = if value.id.is_empty() {
+            None
+        } else {
+            Some(value.id.clone())
+        };
+        Self {
+            id,
+            data: value.into(),
+        }
     }
 }
 
@@ -27,24 +56,23 @@ pub fn editor_page() -> Html {
         .query::<Query>()
         .unwrap_or(Query::default());
 
-    let song = use_state(|| None);
+    let song = use_state(|| None::<EditorState>);
     {
         let song_handle = song.clone();
         use_effect_with((), move |_| {
             if let Some(api_url) = query.api_url() {
                 wasm_bindgen_futures::spawn_local(async move {
-                    song_handle.set(Some(
-                        Request::get(&api_url)
-                            .send()
-                            .await
-                            .unwrap()
-                            .json()
-                            .await
-                            .unwrap(),
-                    ));
+                    let fetched: Song = Request::get(&api_url)
+                        .send()
+                        .await
+                        .unwrap()
+                        .json()
+                        .await
+                        .unwrap();
+                    song_handle.set(Some(fetched.into()));
                 });
             } else {
-                song_handle.set(Some(Song::default()));
+                song_handle.set(Some(EditorState::new()));
             }
             || ()
         });
@@ -54,48 +82,47 @@ pub fn editor_page() -> Html {
     let onsave = {
         let song_handle = song.clone();
         let navigator = navigator.clone();
-        Callback::from(move |song: Song| {
-            let song_handle = song_handle.clone();
+        Callback::from(move |payload: SongSavePayload| {
             let navigator = navigator.clone();
-            if song.id.is_some() {
+            let song_handle = song_handle.clone();
+            let data = payload.data.clone();
+            if let Some(id) = payload.id.clone() {
                 wasm_bindgen_futures::spawn_local(async move {
-                    song_handle.set(Some(
-                        Request::put("/api/songs")
-                            .json(&vec![song])
-                            .unwrap()
-                            .send()
-                            .await
-                            .unwrap()
-                            .json::<Vec<Song>>()
-                            .await
-                            .unwrap()
-                            .remove(0),
-                    ));
-                });
-            } else {
-                if song.data.title == "" {
-                    return;
-                }
-                wasm_bindgen_futures::spawn_local(async move {
-                    let song = Request::post("/api/songs")
-                        .json(&vec![song])
+                    let updated: Song = Request::put(&format!("/api/v1/songs/{}", id))
+                        .json(&data)
                         .unwrap()
                         .send()
                         .await
                         .unwrap()
-                        .json::<Vec<Song>>()
+                        .json()
+                        .await
+                        .unwrap();
+                    song_handle.set(Some(updated.into()));
+                });
+            } else {
+                if data.data.title.is_empty() {
+                    return;
+                }
+                wasm_bindgen_futures::spawn_local(async move {
+                    let created: Song = Request::post("/api/v1/songs")
+                        .json(&data)
+                        .unwrap()
+                        .send()
                         .await
                         .unwrap()
-                        .remove(0);
-                    if let Some(id) = song.id.as_ref() {
-                        navigator
-                            .replace_with_query(
-                                &Route::Editor,
-                                &([("id", id)].iter().cloned().collect::<HashMap<_, _>>()),
-                            )
-                            .unwrap()
-                    }
-                    song_handle.set(Some(song));
+                        .json()
+                        .await
+                        .unwrap();
+                    navigator
+                        .replace_with_query(
+                            &Route::Editor,
+                            &([("id", &created.id)]
+                                .iter()
+                                .cloned()
+                                .collect::<HashMap<_, _>>()),
+                        )
+                        .unwrap();
+                    song_handle.set(Some(created.into()));
                 });
             }
         })
@@ -104,28 +131,27 @@ pub fn editor_page() -> Html {
     let onimport = {
         let song_handle = song.clone();
         Callback::from(move |url: String| {
-            if url.len() == 0 {
-                song_handle.set(Some(Song::default()));
+            if url.is_empty() {
+                song_handle.set(Some(EditorState::new()));
                 return;
             }
 
             let url = Url::parse(&url).unwrap();
             let api_url = format!(
                 "/api/import/{}{}",
-                url.host_str().unwrap_or("unknown").replace(".", "/"),
+                url.host_str().unwrap_or("unknown").replace('.', "/"),
                 url.path()
             );
             let song_handle = song_handle.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                song_handle.set(Some(
-                    Request::get(&api_url)
-                        .send()
-                        .await
-                        .unwrap()
-                        .json::<Song>()
-                        .await
-                        .unwrap(),
-                ))
+                let imported: Song = Request::get(&api_url)
+                    .send()
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                song_handle.set(Some(imported.into()));
             });
         })
     };
@@ -133,20 +159,15 @@ pub fn editor_page() -> Html {
     let ondelete = {
         let song_handle = song.clone();
         let navigator = navigator.clone();
-        Callback::from(move |target: Song| {
-            if target.id.is_none() {
-                return;
-            }
+        Callback::from(move |target_id: String| {
             let navigator = navigator.clone();
             let song_handle = song_handle.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                Request::delete("/api/songs")
-                    .json(&vec![target])
-                    .unwrap()
+                Request::delete(&format!("/api/v1/songs/{}", target_id))
                     .send()
                     .await
                     .unwrap();
-                song_handle.set(Some(Song::default()));
+                song_handle.set(Some(EditorState::new()));
                 navigator.push(&Route::Songs);
             });
         })
@@ -167,7 +188,8 @@ pub fn editor_page() -> Html {
     html! {
         <div class={Style::new(include_str!("editor.css")).expect("Unwrapping CSS should work!")}>
             <SongEditor
-                song={song}
+                song={song.data.clone()}
+                song_id={song.id.clone()}
                 onsave={onsave}
                 ondelete={ondelete}
                 onback={onback}

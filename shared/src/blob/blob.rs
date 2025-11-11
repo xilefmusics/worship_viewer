@@ -4,10 +4,11 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "backend")]
 use utoipa::ToSchema;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct Blob {
-    pub id: Option<String>,
+    pub id: String,
+    pub owner: String,
     pub file_type: FileType,
     pub width: u32,
     pub height: u32,
@@ -16,19 +17,30 @@ pub struct Blob {
 
 impl Blob {
     pub fn file_name(&self) -> Option<String> {
-        self.id
-            .as_ref()
-            .map(|id| format!("{}{}", id, self.file_type.file_ending()))
+        if self.id.is_empty() {
+            None
+        } else {
+            Some(format!("{}{}", self.id, self.file_type.file_ending()))
+        }
     }
 }
 
-#[cfg(feature = "backend")]
-impl fancy_surreal::Databasable for Blob {
-    fn get_id(&self) -> Option<String> {
-        self.id.clone()
-    }
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct CreateBlob {
+    pub file_type: FileType,
+    pub width: u32,
+    pub height: u32,
+    pub ocr: String,
+}
 
-    fn set_id(&mut self, id: Option<String>) {
-        self.id = id;
+impl From<Blob> for CreateBlob {
+    fn from(value: Blob) -> Self {
+        Self {
+            file_type: value.file_type,
+            width: value.width,
+            height: value.height,
+            ocr: value.ocr,
+        }
     }
 }

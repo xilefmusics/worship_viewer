@@ -1,6 +1,6 @@
 use crate::route::Route;
 use gloo_net::http::Request;
-use shared::{collection::Collection};
+use shared::collection::Collection;
 use std::collections::HashMap;
 use stylist::Style;
 use yew::prelude::*;
@@ -21,7 +21,7 @@ pub fn collection_page() -> Html {
             let user = user.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 user.set(Some(api.get_users_me().await.unwrap()));
-                let fetched_collections: Vec<Collection> = Request::get("/api/collections")
+                let fetched_collections: Vec<Collection> = Request::get("/api/v1/collections")
                     .send()
                     .await
                     .unwrap()
@@ -39,11 +39,11 @@ pub fn collection_page() -> Html {
     let collections = collections
         .iter()
         .map(|collection| {
-            let cover = "/api/blobs/".to_string() + &collection.cover;
+            let cover = "/api/v1/blobs/".to_string() + &collection.cover;
             let title = &collection.title;
             let onclick = {
                 let navigator = navigator.clone();
-                let id = collection.id.clone().unwrap();
+                let id = collection.id.clone();
                 move |_: MouseEvent| {
                     navigator
                         .push_with_query(

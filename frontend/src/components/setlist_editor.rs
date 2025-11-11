@@ -1,7 +1,7 @@
 use fancy_yew::components::input::StringInput;
 use gloo_net::http::Request;
 use js_sys::Reflect;
-use shared::setlist::Setlist;
+use shared::setlist::CreateSetlist;
 use shared::song::Song;
 use shared::song::{ChordRepresentation, SimpleChord};
 use std::collections::HashMap;
@@ -10,12 +10,19 @@ use wasm_bindgen::JsValue;
 use web_sys::{DragEvent, TouchEvent};
 use yew::prelude::*;
 
+#[derive(Clone, PartialEq)]
+pub struct SetlistSavePayload {
+    pub id: Option<String>,
+    pub data: CreateSetlist,
+}
+
 #[derive(Properties, PartialEq)]
 pub struct Props {
-    pub setlist: Setlist,
-    pub onsave: Callback<Setlist>,
+    pub setlist: CreateSetlist,
+    pub setlist_id: Option<String>,
+    pub onsave: Callback<SetlistSavePayload>,
     pub onback: Callback<MouseEvent>,
-    pub ondelete: Callback<Setlist>,
+    pub ondelete: Callback<String>,
 }
 
 fn chord_from_value(value: &str) -> Option<SimpleChord> {
@@ -66,7 +73,6 @@ fn move_item_to(mut items: Vec<Item>, from_idx: usize, target_idx: usize) -> Vec
 #[function_component(SetlistEditor)]
 pub fn setlist_editor(props: &Props) -> Html {
     let title = use_state(|| props.setlist.title.clone());
-    let id = use_state(|| props.setlist.id.clone());
 
     let songs = use_state(|| vec![]);
     let items = use_state(|| vec![]);
@@ -81,7 +87,7 @@ pub fn setlist_editor(props: &Props) -> Html {
         use_effect_with((), move |_| {
             let songs = songs.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let mut fetched_songs: Vec<Song> = Request::get("/api/songs")
+                let mut fetched_songs: Vec<Song> = Request::get("/api/v1/songs")
                     .send()
                     .await
                     .unwrap()
@@ -95,14 +101,14 @@ pub fn setlist_editor(props: &Props) -> Html {
                     .collect();
                 let map = fetched_songs
                     .iter()
-                    .filter_map(|song| {
-                        Some((
-                            song.id.as_ref()?.clone(),
+                    .map(|song| {
+                        (
+                            song.id.clone(),
                             (
                                 song.data.title.clone(),
                                 song.data.key.as_ref().map(|key| format_key_label(key)),
                             ),
-                        ))
+                        )
                     })
                     .collect::<HashMap<_, _>>();
                 songs.set(fetched_songs);
@@ -133,7 +139,7 @@ pub fn setlist_editor(props: &Props) -> Html {
 
     {
         let show_delete_dialog = show_delete_dialog.clone();
-        use_effect_with(props.setlist.id.clone(), move |_| {
+        use_effect_with(props.setlist_id.clone(), move |_| {
             show_delete_dialog.set(false);
             || ()
         });
@@ -152,11 +158,10 @@ pub fn setlist_editor(props: &Props) -> Html {
     let onsave = {
         let items = items.clone();
         let title = title.clone();
-        let id = id.clone();
+        let setlist_id = props.setlist_id.clone();
         let onsave_upstream = props.onsave.clone();
         Callback::from(move |_: MouseEvent| {
-            let new_setlist = Setlist {
-                id: (*id).clone(),
+            let new_setlist = CreateSetlist {
                 title: (*title).clone(),
                 songs: (*items)
                     .iter()
@@ -167,13 +172,16 @@ pub fn setlist_editor(props: &Props) -> Html {
                     })
                     .collect(),
             };
-            onsave_upstream.emit(new_setlist);
+            onsave_upstream.emit(SetlistSavePayload {
+                id: setlist_id.clone(),
+                data: new_setlist,
+            });
         })
     };
 
     let total_items = (*items).len();
     let disable_save = (*title).trim().is_empty();
-    let can_delete = (*id).is_some();
+    let can_delete = props.setlist_id.is_some();
     let mut counts = HashMap::<String, usize>::new();
     for item in (*items).iter() {
         *counts.entry(item.id.clone()).or_insert(0) += 1;
@@ -205,27 +213,13 @@ pub fn setlist_editor(props: &Props) -> Html {
         Callback::from(move |_: MouseEvent| show_delete_dialog.set(false))
     };
     let confirm_delete = {
-        let items = items.clone();
-        let title = title.clone();
-        let id = id.clone();
+        let setlist_id = props.setlist_id.clone();
         let show_delete_dialog = show_delete_dialog.clone();
         let ondelete = props.ondelete.clone();
         Callback::from(move |_: MouseEvent| {
-            if let Some(current_id) = (*id).clone() {
-                let setlist = Setlist {
-                    id: Some(current_id),
-                    title: (*title).clone(),
-                    songs: (*items)
-                        .iter()
-                        .map(|item| shared::song::Link {
-                            id: item.id.clone(),
-                            nr: None,
-                            key: item.key.clone(),
-                        })
-                        .collect(),
-                };
+            if let Some(current_id) = setlist_id.clone() {
                 show_delete_dialog.set(false);
-                ondelete.emit(setlist);
+                ondelete.emit(current_id);
             } else {
                 show_delete_dialog.set(false);
             }
@@ -674,7 +668,7 @@ pub fn setlist_editor(props: &Props) -> Html {
                                 <ul class="song-list">
                                     {
                                         for filtered_songs.iter().map(|song| {
-                                            let id = song.id.clone().unwrap_or_default();
+                                            let id = song.id.clone();
                                             let song_title = song.data.title.clone();
                                             let song_key_label = song
                                                 .data
