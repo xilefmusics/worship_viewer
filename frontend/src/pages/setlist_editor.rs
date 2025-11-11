@@ -1,8 +1,8 @@
-use crate::components::SetlistEditor;
+use crate::components::{SetlistEditor, SetlistSavePayload};
 use crate::route::Route;
 use gloo_net::http::Request;
 use serde::Deserialize;
-use shared::setlist::Setlist;
+use shared::setlist::{CreateSetlist, Setlist};
 use std::collections::HashMap;
 use stylist::Style;
 use yew::prelude::*;
@@ -15,7 +15,36 @@ pub struct Query {
 
 impl Query {
     pub fn api_url(&self) -> Option<String> {
-        self.id.as_ref().map(|id| format!("/api/setlists/{}", id))
+        self.id
+            .as_ref()
+            .map(|id| format!("/api/v1/setlists/{}", id))
+    }
+}
+
+#[derive(Clone, PartialEq)]
+struct EditorState {
+    id: Option<String>,
+    data: CreateSetlist,
+}
+
+impl EditorState {
+    fn new() -> Self {
+        Self {
+            id: None,
+            data: CreateSetlist::default(),
+        }
+    }
+}
+
+impl From<Setlist> for EditorState {
+    fn from(value: Setlist) -> Self {
+        Self {
+            id: Some(value.id),
+            data: CreateSetlist {
+                title: value.title,
+                songs: value.songs,
+            },
+        }
     }
 }
 
@@ -26,24 +55,23 @@ pub fn setlist_editor_page() -> Html {
         .query::<Query>()
         .unwrap_or(Query::default());
 
-    let setlist = use_state(|| None);
+    let setlist = use_state(|| None::<EditorState>);
     {
         let setlist_handle = setlist.clone();
         use_effect_with((), move |_| {
             if let Some(api_url) = query.api_url() {
                 wasm_bindgen_futures::spawn_local(async move {
-                    setlist_handle.set(Some(
-                        Request::get(&api_url)
-                            .send()
-                            .await
-                            .unwrap()
-                            .json()
-                            .await
-                            .unwrap(),
-                    ));
+                    let fetched: Setlist = Request::get(&api_url)
+                        .send()
+                        .await
+                        .unwrap()
+                        .json()
+                        .await
+                        .unwrap();
+                    setlist_handle.set(Some(fetched.into()));
                 });
             } else {
-                setlist_handle.set(Some(Setlist::default()));
+                setlist_handle.set(Some(EditorState::new()));
             }
             || ()
         });
@@ -54,48 +82,47 @@ pub fn setlist_editor_page() -> Html {
     let onsave = {
         let setlist_handle = setlist.clone();
         let navigator = navigator.clone();
-        Callback::from(move |setlist: Setlist| {
-            let setlist_handle = setlist_handle.clone();
+        Callback::from(move |payload: SetlistSavePayload| {
             let navigator = navigator.clone();
-            if setlist.id.is_some() {
+            let setlist_handle = setlist_handle.clone();
+            let data = payload.data.clone();
+            if let Some(id) = payload.id.clone() {
                 wasm_bindgen_futures::spawn_local(async move {
-                    setlist_handle.set(Some(
-                        Request::put("/api/setlists")
-                            .json(&vec![setlist])
-                            .unwrap()
-                            .send()
-                            .await
-                            .unwrap()
-                            .json::<Vec<Setlist>>()
-                            .await
-                            .unwrap()
-                            .remove(0),
-                    ));
-                });
-            } else {
-                if setlist.title == "" {
-                    return;
-                }
-                wasm_bindgen_futures::spawn_local(async move {
-                    let setlist = Request::post("/api/setlists")
-                        .json(&vec![setlist])
+                    let updated: Setlist = Request::put(&format!("/api/v1/setlists/{}", id))
+                        .json(&data)
                         .unwrap()
                         .send()
                         .await
                         .unwrap()
-                        .json::<Vec<Setlist>>()
+                        .json()
+                        .await
+                        .unwrap();
+                    setlist_handle.set(Some(updated.into()));
+                });
+            } else {
+                if data.title.trim().is_empty() {
+                    return;
+                }
+                wasm_bindgen_futures::spawn_local(async move {
+                    let created: Setlist = Request::post("/api/v1/setlists")
+                        .json(&data)
+                        .unwrap()
+                        .send()
                         .await
                         .unwrap()
-                        .remove(0);
-                    if let Some(id) = setlist.id.as_ref() {
-                        navigator
-                            .replace_with_query(
-                                &Route::SetlistEditor,
-                                &([("id", id)].iter().cloned().collect::<HashMap<_, _>>()),
-                            )
-                            .unwrap()
-                    }
-                    setlist_handle.set(Some(setlist));
+                        .json()
+                        .await
+                        .unwrap();
+                    navigator
+                        .replace_with_query(
+                            &Route::SetlistEditor,
+                            &([("id", &created.id)]
+                                .iter()
+                                .cloned()
+                                .collect::<HashMap<_, _>>()),
+                        )
+                        .unwrap();
+                    setlist_handle.set(Some(created.into()));
                 });
             }
         })
@@ -104,20 +131,15 @@ pub fn setlist_editor_page() -> Html {
     let ondelete = {
         let navigator = navigator.clone();
         let setlist_handle = setlist.clone();
-        Callback::from(move |target: Setlist| {
-            if target.id.is_none() {
-                return;
-            }
+        Callback::from(move |target_id: String| {
             let navigator = navigator.clone();
             let setlist_handle = setlist_handle.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                Request::delete("/api/setlists")
-                    .json(&vec![target])
-                    .unwrap()
+                Request::delete(&format!("/api/v1/setlists/{}", target_id))
                     .send()
                     .await
                     .unwrap();
-                setlist_handle.set(Some(Setlist::default()));
+                setlist_handle.set(Some(EditorState::new()));
                 navigator.push(&Route::Setlists);
             });
         })
@@ -135,7 +157,8 @@ pub fn setlist_editor_page() -> Html {
     html! {
         <div class={Style::new(include_str!("setlist_editor.css")).expect("Unwrapping CSS should work!")}>
             <SetlistEditor
-                setlist={setlist}
+                setlist={setlist.data.clone()}
+                setlist_id={setlist.id.clone()}
                 onsave={onsave}
                 onback={onback}
                 ondelete={ondelete}

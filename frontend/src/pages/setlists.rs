@@ -15,7 +15,7 @@ pub fn setlists_page() -> Html {
         use_effect_with((), move |_| {
             let setlists = setlists.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let response = Request::get("/api/setlists").send().await.unwrap();
+                let response = Request::get("/api/v1/setlists").send().await.unwrap();
                 let mut fetched_setlists: Vec<Setlist> = response.json().await.unwrap();
                 fetched_setlists.sort_by_key(|setlist| setlist.title.clone());
                 setlists.set(fetched_setlists);
@@ -34,7 +34,7 @@ pub fn setlists_page() -> Html {
             let song_count = setlist.songs.len();
             let song_label = format!("{} song{}", song_count, if song_count == 1 { "" } else { "s" });
             let navigator = navigator.clone();
-            let id = setlist.id.clone().unwrap();
+            let id = setlist.id.clone();
             let onclick = Callback::from(move |_: MouseEvent| {
                 navigator
                     .push_with_query(

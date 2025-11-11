@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "backend")]
 use utoipa::ToSchema;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub enum FileType {
     #[serde(rename(deserialize = "image/png", serialize = "image/png"))]

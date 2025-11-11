@@ -18,7 +18,7 @@ pub fn page_components(props: &Props) -> Html {
     match &props.item {
         PlayerItem::Blob(id) => html! {
             <div class={Style::new(include_str!("page.css")).expect("Unwrapping CSS should work!")}>
-                <img src={format!("/api/blobs/{}", id)}/>
+                <img src={format!("/api/v1/blobs/{}", id)}/>
             </div>
         },
         PlayerItem::Chords(song) => {

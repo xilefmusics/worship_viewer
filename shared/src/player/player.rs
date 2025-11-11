@@ -316,6 +316,11 @@ impl Add for Player {
 
 impl From<Song> for Player {
     fn from(song: Song) -> Self {
+        let toc_id = if song.id.is_empty() {
+            None
+        } else {
+            Some(song.id.clone())
+        };
         Self {
             items: {
                 let mut items = song
@@ -334,7 +339,7 @@ impl From<Song> for Player {
                 vec![TocItem {
                     idx: 0,
                     title: song.data.title,
-                    id: song.id,
+                    id: toc_id,
                     nr: String::new(),
                     liked: false,
                 }]

@@ -15,7 +15,7 @@ pub fn songs_page() -> Html {
         use_effect_with((), move |_| {
             let songs = songs.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let response = Request::get("/api/songs").send().await.unwrap();
+                let response = Request::get("/api/v1/songs").send().await.unwrap();
                 let mut fetched_songs: Vec<Song> = response.json().await.unwrap();
                 fetched_songs.sort_by_key(|song| song.data.title.clone());
                 let fetched_songs: Vec<Song> = fetched_songs
@@ -52,7 +52,7 @@ pub fn songs_page() -> Html {
                 classes!("song-card__meta", "song-card__meta--empty")
             };
             let navigator = navigator.clone();
-            let id = song.id.clone().unwrap();
+            let id = song.id.clone();
             let onclick = Callback::from(move |_: MouseEvent| {
                 navigator
                     .push_with_query(
