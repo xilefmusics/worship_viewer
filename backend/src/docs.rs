@@ -6,6 +6,7 @@ use crate::auth::otp::rest::{OtpRequest, OtpVerify};
 use crate::resources::user::Role;
 use crate::resources::{Blob, Collection, CreateUserRequest, Session, Setlist, Song, User};
 use shared::blob::FileType;
+use shared::song::Link as SongLink;
 
 pub mod rest {
     use super::{ApiDoc, OpenApi};
@@ -70,7 +71,8 @@ pub mod rest {
             Collection,
             Setlist,
             Blob,
-            FileType
+            FileType,
+            SongLink
         )
     ),
     tags(
