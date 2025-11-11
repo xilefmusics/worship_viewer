@@ -1,7 +1,11 @@
 use crate::song::Link as SongLink;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg(feature = "backend")]
+use utoipa::ToSchema;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct Collection {
     pub id: Option<String>,
     pub title: String,

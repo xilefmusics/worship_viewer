@@ -7,6 +7,7 @@ edition = "2021"
 fancy_surreal = { path = "../../fancy_surreal", optional = true }
 chordlib = { path = "../../chordlib", features = ["html"] }
 serde = { version = "1.0.228", features = ["derive"] }
+utoipa = { version = "4", optional = true }
 
 [features]
-backend = ["fancy_surreal"]
+backend = ["fancy_surreal", "utoipa"]
