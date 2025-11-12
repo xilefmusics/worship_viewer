@@ -8,15 +8,15 @@ use crate::error::AppError;
 
 pub trait Model {
     async fn get_blobs(&self, owners: Vec<String>) -> Result<Vec<Blob>, AppError>;
-    async fn get_blob(&self, owners: &[String], id: &str) -> Result<Blob, AppError>;
+    async fn get_blob(&self, owners: Vec<String>, id: &str) -> Result<Blob, AppError>;
     async fn create_blob(&self, owner: &str, blob: CreateBlob) -> Result<Blob, AppError>;
     async fn update_blob(
         &self,
-        owners: &[String],
+        owners: Vec<String>,
         id: &str,
         blob: CreateBlob,
     ) -> Result<Blob, AppError>;
-    async fn delete_blob(&self, owners: &[String], id: &str) -> Result<Blob, AppError>;
+    async fn delete_blob(&self, owners: Vec<String>, id: &str) -> Result<Blob, AppError>;
 }
 
 impl Model for Database {
@@ -40,7 +40,7 @@ impl Model for Database {
             .collect())
     }
 
-    async fn get_blob(&self, owners: &[String], id: &str) -> Result<Blob, AppError> {
+    async fn get_blob(&self, owners: Vec<String>, id: &str) -> Result<Blob, AppError> {
         match self.db.select(blob_resource(id)?).await? {
             Some(record) if blob_belongs_to(&record, owners) => Ok(record.into_blob()),
             _ => Err(AppError::NotFound("blob not found".into())),
@@ -62,7 +62,7 @@ impl Model for Database {
 
     async fn update_blob(
         &self,
-        owner: &[String],
+        owner: Vec<String>,
         id: &str,
         blob: CreateBlob,
     ) -> Result<Blob, AppError> {
@@ -94,7 +94,7 @@ impl Model for Database {
             .ok_or_else(|| AppError::database("failed to upsert blob"))
     }
 
-    async fn delete_blob(&self, owner: &[String], id: &str) -> Result<Blob, AppError> {
+    async fn delete_blob(&self, owner: Vec<String>, id: &str) -> Result<Blob, AppError> {
         let resource = blob_resource(id)?;
         if let Some(existing) = self.db.select(resource.clone()).await? {
             if !blob_belongs_to(&existing, owner) {
@@ -170,7 +170,7 @@ fn owner_thing(user_id: &str) -> Thing {
     Thing::from(("user".to_owned(), user_id.to_owned()))
 }
 
-fn blob_belongs_to(record: &BlobRecord, owners: &[String]) -> bool {
+fn blob_belongs_to(record: &BlobRecord, owners: Vec<String>) -> bool {
     record
         .owner
         .as_ref()
