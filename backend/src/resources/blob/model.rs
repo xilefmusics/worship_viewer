@@ -7,24 +7,29 @@ use crate::database::Database;
 use crate::error::AppError;
 
 pub trait Model {
-    async fn get_blobs(&self, owner_id: &str) -> Result<Vec<Blob>, AppError>;
-    async fn get_blob(&self, owner_id: &str, id: &str) -> Result<Blob, AppError>;
-    async fn create_blob(&self, owner_id: &str, blob: CreateBlob) -> Result<Blob, AppError>;
+    async fn get_blobs(&self, owners: Vec<String>) -> Result<Vec<Blob>, AppError>;
+    async fn get_blob(&self, owners: &[String], id: &str) -> Result<Blob, AppError>;
+    async fn create_blob(&self, owner: &str, blob: CreateBlob) -> Result<Blob, AppError>;
     async fn update_blob(
         &self,
-        owner_id: &str,
+        owners: &[String],
         id: &str,
         blob: CreateBlob,
     ) -> Result<Blob, AppError>;
-    async fn delete_blob(&self, owner_id: &str, id: &str) -> Result<Blob, AppError>;
+    async fn delete_blob(&self, owners: &[String], id: &str) -> Result<Blob, AppError>;
 }
 
 impl Model for Database {
-    async fn get_blobs(&self, owner_id: &str) -> Result<Vec<Blob>, AppError> {
+    async fn get_blobs(&self, owners: Vec<String>) -> Result<Vec<Blob>, AppError> {
+        let owners = owners
+            .into_iter()
+            .map(|owner_id| owner_thing(&owner_id))
+            .collect::<Vec<_>>();
+
         let mut response = self
             .db
-            .query("SELECT * FROM blob WHERE owner = $owner")
-            .bind(("owner", owner_thing(owner_id)))
+            .query("SELECT * FROM blob WHERE owner IN $owners")
+            .bind(("owners", owners))
             .await
             .map_err(AppError::database)?;
 
@@ -35,17 +40,21 @@ impl Model for Database {
             .collect())
     }
 
-    async fn get_blob(&self, owner_id: &str, id: &str) -> Result<Blob, AppError> {
+    async fn get_blob(&self, owners: &[String], id: &str) -> Result<Blob, AppError> {
         match self.db.select(blob_resource(id)?).await? {
-            Some(record) if blob_belongs_to(&record, owner_id) => Ok(record.into_blob()),
+            Some(record) if blob_belongs_to(&record, owners) => Ok(record.into_blob()),
             _ => Err(AppError::NotFound("blob not found".into())),
         }
     }
 
-    async fn create_blob(&self, owner_id: &str, blob: CreateBlob) -> Result<Blob, AppError> {
+    async fn create_blob(&self, owner: &str, blob: CreateBlob) -> Result<Blob, AppError> {
         self.db
             .create("blob")
-            .content(BlobRecord::from_payload(None, owner_thing(owner_id), blob))
+            .content(BlobRecord::from_payload(
+                None,
+                Some(owner_thing(owner)),
+                blob,
+            ))
             .await?
             .map(BlobRecord::into_blob)
             .ok_or_else(|| AppError::database("failed to create blob"))
@@ -53,19 +62,19 @@ impl Model for Database {
 
     async fn update_blob(
         &self,
-        owner_id: &str,
+        owner: &[String],
         id: &str,
         blob: CreateBlob,
     ) -> Result<Blob, AppError> {
         let resource = blob_resource(id)?;
         if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !blob_belongs_to(&existing, owner_id) {
+            if !blob_belongs_to(&existing, owner) {
                 return Err(AppError::NotFound("blob not found".into()));
             }
         }
 
         let record_id = Thing::from(resource.clone());
-        let record = BlobRecord::from_payload(Some(record_id), owner_thing(owner_id), blob);
+        let record = BlobRecord::from_payload(Some(record_id), None, blob);
 
         if let Some(updated) = self
             .db
@@ -85,10 +94,10 @@ impl Model for Database {
             .ok_or_else(|| AppError::database("failed to upsert blob"))
     }
 
-    async fn delete_blob(&self, owner_id: &str, id: &str) -> Result<Blob, AppError> {
+    async fn delete_blob(&self, owner: &[String], id: &str) -> Result<Blob, AppError> {
         let resource = blob_resource(id)?;
         if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !blob_belongs_to(&existing, owner_id) {
+            if !blob_belongs_to(&existing, owner) {
                 return Err(AppError::NotFound("blob not found".into()));
             }
         } else {
@@ -145,10 +154,10 @@ impl BlobRecord {
         }
     }
 
-    fn from_payload(id: Option<Thing>, owner: Thing, blob: CreateBlob) -> Self {
+    fn from_payload(id: Option<Thing>, owner: Option<Thing>, blob: CreateBlob) -> Self {
         Self {
             id,
-            owner: Some(owner),
+            owner: owner,
             file_type: blob.file_type,
             width: blob.width,
             height: blob.height,
@@ -161,10 +170,10 @@ fn owner_thing(user_id: &str) -> Thing {
     Thing::from(("user".to_owned(), user_id.to_owned()))
 }
 
-fn blob_belongs_to(record: &BlobRecord, owner_id: &str) -> bool {
+fn blob_belongs_to(record: &BlobRecord, owners: &[String]) -> bool {
     record
         .owner
         .as_ref()
-        .map(|owner| owner.id.to_string() == owner_id)
+        .map(|owner| owners.contains(&owner.id.to_string()))
         .unwrap_or(false)
 }

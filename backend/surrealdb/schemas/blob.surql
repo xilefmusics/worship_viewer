@@ -14,3 +14,7 @@ DEFINE FIELD OVERWRITE height ON blob TYPE int
 
 DEFINE FIELD OVERWRITE ocr ON blob TYPE string
     VALUE $value ?? $before ?? "";
+
+DEFINE FIELD OVERWRITE created_at ON blob TYPE datetime
+    VALUE $before ?? time::now()
+    READONLY;

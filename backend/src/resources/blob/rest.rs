@@ -38,7 +38,16 @@ pub fn scope() -> Scope {
 )]
 #[get("")]
 async fn get_blobs(db: Data<Database>, user: ReqData<User>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_blobs(&user.id).await?))
+    Ok(HttpResponse::Ok().json(
+        db.get_blobs(
+            user.read
+                .iter()
+                .cloned()
+                .chain(std::iter::once(user.id.clone()))
+                .collect::<Vec<_>>(),
+        )
+        .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -66,7 +75,7 @@ async fn get_blob(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_blob(&user.id, &id).await?))
+    Ok(HttpResponse::Ok().json(db.get_blob(&user.read, &id).await?))
 }
 
 #[utoipa::path(
@@ -121,7 +130,10 @@ async fn update_blob(
     id: Path<String>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.update_blob(&user.id, &id, payload.into_inner()).await?))
+    Ok(HttpResponse::Ok().json(
+        db.update_blob(&user.write, &id, payload.into_inner())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -149,5 +161,5 @@ async fn delete_blob(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_blob(&user.id, &id).await?))
+    Ok(HttpResponse::Ok().json(db.delete_blob(&user.write, &id).await?))
 }
