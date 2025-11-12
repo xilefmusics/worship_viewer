@@ -39,4 +39,20 @@ impl User {
             request_count: 0,
         }
     }
+
+    pub fn read(&self) -> Vec<String> {
+        self.read
+            .iter()
+            .cloned()
+            .chain(std::iter::once(self.id.clone()))
+            .collect()
+    }
+
+    pub fn write(&self) -> Vec<String> {
+        self.write
+            .iter()
+            .cloned()
+            .chain(std::iter::once(self.id.clone()))
+            .collect()
+    }
 }
