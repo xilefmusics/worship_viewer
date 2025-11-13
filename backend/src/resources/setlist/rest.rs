@@ -38,7 +38,7 @@ pub fn scope() -> Scope {
 )]
 #[get("")]
 async fn get_setlists(db: Data<Database>, user: ReqData<User>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_setlists(&user.id).await?))
+    Ok(HttpResponse::Ok().json(db.get_setlists(user.read()).await?))
 }
 
 #[utoipa::path(
@@ -66,7 +66,7 @@ async fn get_setlist(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_setlist(&user.id, &id).await?))
+    Ok(HttpResponse::Ok().json(db.get_setlist(user.read(), &id).await?))
 }
 
 #[utoipa::path(
@@ -121,7 +121,7 @@ async fn update_setlist(
     payload: Json<CreateSetlist>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.update_setlist(&user.id, &id, payload.into_inner())
+        db.update_setlist(user.write(), &id, payload.into_inner())
             .await?,
     ))
 }
@@ -151,5 +151,5 @@ async fn delete_setlist(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_setlist(&user.id, &id).await?))
+    Ok(HttpResponse::Ok().json(db.delete_setlist(user.write(), &id).await?))
 }
