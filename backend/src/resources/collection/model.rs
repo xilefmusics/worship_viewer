@@ -10,28 +10,37 @@ use crate::database::Database;
 use crate::error::AppError;
 
 pub trait Model {
-    async fn get_collections(&self, owner_id: &str) -> Result<Vec<Collection>, AppError>;
-    async fn get_collection(&self, owner_id: &str, id: &str) -> Result<Collection, AppError>;
+    async fn get_collections(&self, owners: Vec<String>) -> Result<Vec<Collection>, AppError>;
+    async fn get_collection(&self, owners: Vec<String>, id: &str) -> Result<Collection, AppError>;
     async fn create_collection(
         &self,
-        owner_id: &str,
+        owner: &str,
         collection: CreateCollection,
     ) -> Result<Collection, AppError>;
     async fn update_collection(
         &self,
-        owner_id: &str,
+        owners: Vec<String>,
         id: &str,
         collection: CreateCollection,
     ) -> Result<Collection, AppError>;
-    async fn delete_collection(&self, owner_id: &str, id: &str) -> Result<Collection, AppError>;
+    async fn delete_collection(
+        &self,
+        owners: Vec<String>,
+        id: &str,
+    ) -> Result<Collection, AppError>;
 }
 
 impl Model for Database {
-    async fn get_collections(&self, owner_id: &str) -> Result<Vec<Collection>, AppError> {
+    async fn get_collections(&self, owners: Vec<String>) -> Result<Vec<Collection>, AppError> {
+        let owners = owners
+            .into_iter()
+            .map(|owner_id| owner_thing(&owner_id))
+            .collect::<Vec<_>>();
+
         let mut response = self
             .db
-            .query("SELECT * FROM collection WHERE owner = $owner")
-            .bind(("owner", owner_thing(owner_id)))
+            .query("SELECT * FROM collection WHERE owner IN $owners")
+            .bind(("owners", owners))
             .await?;
 
         Ok(response
@@ -41,25 +50,23 @@ impl Model for Database {
             .collect())
     }
 
-    async fn get_collection(&self, owner_id: &str, id: &str) -> Result<Collection, AppError> {
+    async fn get_collection(&self, owners: Vec<String>, id: &str) -> Result<Collection, AppError> {
         match self.db.select(collection_resource(id)?).await? {
-            Some(record) if collection_belongs_to(&record, owner_id) => {
-                Ok(record.into_collection())
-            }
+            Some(record) if collection_belongs_to(&record, owners) => Ok(record.into_collection()),
             _ => Err(AppError::NotFound("collection not found".into())),
         }
     }
 
     async fn create_collection(
         &self,
-        owner_id: &str,
+        owner: &str,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
         self.db
             .create("collection")
             .content(CollectionRecord::from_payload(
                 None,
-                owner_thing(owner_id),
+                Some(owner_thing(owner)),
                 collection,
             ))
             .await?
@@ -69,20 +76,19 @@ impl Model for Database {
 
     async fn update_collection(
         &self,
-        owner_id: &str,
+        owners: Vec<String>,
         id: &str,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
         let resource = collection_resource(id)?;
         if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !collection_belongs_to(&existing, owner_id) {
+            if !collection_belongs_to(&existing, owners) {
                 return Err(AppError::NotFound("collection not found".into()));
             }
         }
 
         let record_id = Thing::from(resource.clone());
-        let record =
-            CollectionRecord::from_payload(Some(record_id), owner_thing(owner_id), collection);
+        let record = CollectionRecord::from_payload(Some(record_id), None, collection);
 
         if let Some(updated) = self
             .db
@@ -102,10 +108,14 @@ impl Model for Database {
             .ok_or_else(|| AppError::database("failed to upsert collection"))
     }
 
-    async fn delete_collection(&self, owner_id: &str, id: &str) -> Result<Collection, AppError> {
+    async fn delete_collection(
+        &self,
+        owners: Vec<String>,
+        id: &str,
+    ) -> Result<Collection, AppError> {
         let resource = collection_resource(id)?;
         if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !collection_belongs_to(&existing, owner_id) {
+            if !collection_belongs_to(&existing, owners) {
                 return Err(AppError::NotFound("collection not found".into()));
             }
         } else {
@@ -138,7 +148,7 @@ struct CollectionRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     owner: Option<Thing>,
     title: String,
-    cover: String,
+    cover: Option<Thing>,
     #[serde(default)]
     songs: Vec<SongLinkRecord>,
 }
@@ -155,20 +165,33 @@ impl CollectionRecord {
                 .map(|thing| thing.id.to_string())
                 .unwrap_or_default(),
             title: self.title,
-            cover: self.cover,
+            cover: self
+                .cover
+                .map(|thing| thing.id.to_string())
+                .unwrap_or_default(),
             songs: self.songs.into_iter().map(Into::into).collect(),
         }
     }
 
-    fn from_payload(id: Option<Thing>, owner: Thing, collection: CreateCollection) -> Self {
+    fn from_payload(id: Option<Thing>, owner: Option<Thing>, collection: CreateCollection) -> Self {
         Self {
             id,
-            owner: Some(owner),
+            owner: owner,
             title: collection.title,
-            cover: collection.cover,
+            cover: Some(blob_thing(&collection.cover)),
             songs: collection.songs.into_iter().map(Into::into).collect(),
         }
     }
+}
+
+fn blob_thing(blob_id: &str) -> Thing {
+    if let Ok(thing) = blob_id.parse::<Thing>() {
+        if thing.tb == "blob" {
+            return thing;
+        }
+    }
+
+    Thing::from(("blob".to_owned(), blob_id.to_owned()))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -214,10 +237,10 @@ fn song_thing(song_id: &str) -> Thing {
     Thing::from(("song".to_owned(), song_id.to_owned()))
 }
 
-fn collection_belongs_to(record: &CollectionRecord, owner_id: &str) -> bool {
+fn collection_belongs_to(record: &CollectionRecord, owners: Vec<String>) -> bool {
     record
         .owner
         .as_ref()
-        .map(|owner| owner.id.to_string() == owner_id)
+        .map(|owner| owners.contains(&owner.id.to_string()))
         .unwrap_or(false)
 }
