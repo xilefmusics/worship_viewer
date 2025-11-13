@@ -41,7 +41,7 @@ async fn get_collections(
     db: Data<Database>,
     user: ReqData<User>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_collections(&user.id).await?))
+    Ok(HttpResponse::Ok().json(db.get_collections(user.read()).await?))
 }
 
 #[utoipa::path(
@@ -69,7 +69,7 @@ async fn get_collection(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_collection(&user.id, &id).await?))
+    Ok(HttpResponse::Ok().json(db.get_collection(user.read(), &id).await?))
 }
 
 #[utoipa::path(
@@ -125,7 +125,7 @@ async fn update_collection(
     payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.update_collection(&user.id, &id, payload.into_inner())
+        db.update_collection(user.write(), &id, payload.into_inner())
             .await?,
     ))
 }
@@ -155,5 +155,5 @@ async fn delete_collection(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_collection(&user.id, &id).await?))
+    Ok(HttpResponse::Ok().json(db.delete_collection(user.write(), &id).await?))
 }
