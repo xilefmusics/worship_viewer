@@ -12,8 +12,7 @@ DEFINE FIELD OVERWRITE blobs ON song TYPE array<record<blob>>
 DEFINE FIELD OVERWRITE data ON song TYPE object
     ASSERT $value != NONE;
 
-DEFINE FIELD OVERWRITE data.title ON song TYPE string
-    ASSERT string::len(string::trim($value)) > 0;
+DEFINE FIELD OVERWRITE data.title ON song TYPE string;
 
 DEFINE FIELD OVERWRITE data.subtitle ON song TYPE option<string>;
 DEFINE FIELD OVERWRITE data.copyright ON song TYPE option<string>;
