@@ -38,7 +38,7 @@ pub fn scope() -> Scope {
 )]
 #[get("")]
 async fn get_songs(db: Data<Database>, user: ReqData<User>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_songs(&user.id).await?))
+    Ok(HttpResponse::Ok().json(db.get_songs(user.read()).await?))
 }
 
 #[utoipa::path(
@@ -66,7 +66,7 @@ async fn get_song(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_song(&user.id, &id).await?))
+    Ok(HttpResponse::Ok().json(db.get_song(user.read(), &id).await?))
 }
 
 #[utoipa::path(
@@ -121,7 +121,7 @@ async fn update_song(
     id: Path<String>,
     payload: Json<CreateSong>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.update_song(&user.id, &id, payload.into_inner()).await?))
+    Ok(HttpResponse::Ok().json(db.update_song(user.write(), &id, payload.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -149,5 +149,5 @@ async fn delete_song(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_song(&user.id, &id).await?))
+    Ok(HttpResponse::Ok().json(db.delete_song(user.write(), &id).await?))
 }
