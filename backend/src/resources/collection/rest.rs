@@ -12,11 +12,16 @@ use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::collection::Collection;
 use crate::resources::collection::CreateCollection;
+#[allow(unused_imports)]
+use crate::resources::song::Song;
+use shared::player::Player;
 
 pub fn scope() -> Scope {
     web::scope("/collections")
         .service(get_collections)
         .service(get_collection)
+        .service(get_collection_songs)
+        .service(get_collection_player)
         .service(create_collection)
         .service(update_collection)
         .service(delete_collection)
@@ -70,6 +75,68 @@ async fn get_collection(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(db.get_collection(user.read(), &id).await?))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/collections/{id}/player",
+    params(
+        ("id" = String, Path, description = "Collection identifier")
+    ),
+    responses(
+        (status = 200, description = "Return player metadata for a collection", body = Player),
+        (status = 400, description = "Invalid collection identifier", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Collection not found", body = ErrorResponse),
+        (status = 500, description = "Failed to fetch collection player data", body = ErrorResponse)
+    ),
+    tag = "Collections",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[get("/{id}/player")]
+async fn get_collection_player(
+    db: Data<Database>,
+    user: ReqData<User>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(
+        db.get_collection_songs(user.read(), &id)
+            .await?
+            .into_iter()
+            .map(Player::from)
+            .try_fold(Player::default(), |acc, player| Ok::<Player, AppError>(acc + player))?,
+    ))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/collections/{id}/songs",
+    params(
+        ("id" = String, Path, description = "Collection identifier")
+    ),
+    responses(
+        (status = 200, description = "Return the songs for a collection", body = [Song]),
+        (status = 400, description = "Invalid collection identifier", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Collection not found", body = ErrorResponse),
+        (status = 500, description = "Failed to fetch collection songs", body = ErrorResponse)
+    ),
+    tag = "Collections",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[get("/{id}/songs")]
+async fn get_collection_songs(
+    db: Data<Database>,
+    user: ReqData<User>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(db.get_collection_songs(user.read(), &id).await?))
 }
 
 #[utoipa::path(

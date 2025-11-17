@@ -230,7 +230,7 @@ pub struct SongRecord {
 }
 
 impl SongRecord {
-    fn into_song(self) -> Song {
+    pub fn into_song(self) -> Song {
         Song {
             id: self
                 .id

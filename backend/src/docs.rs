@@ -10,6 +10,7 @@ use crate::resources::{
 };
 use shared::blob::FileType;
 use shared::like::LikeStatus;
+use shared::player::{Orientation, Player, PlayerItem, ScrollType, TocItem};
 use shared::song::Link as SongLink;
 
 pub mod rest {
@@ -43,6 +44,7 @@ pub mod rest {
         crate::resources::user::session::rest::delete_session_for_user,
         crate::resources::song::rest::get_songs,
         crate::resources::song::rest::get_song,
+        crate::resources::song::rest::get_song_player,
         crate::resources::song::rest::create_song,
         crate::resources::song::rest::update_song,
         crate::resources::song::rest::delete_song,
@@ -50,6 +52,8 @@ pub mod rest {
         crate::resources::song::rest::update_song_like_status,
         crate::resources::collection::rest::get_collections,
         crate::resources::collection::rest::get_collection,
+        crate::resources::collection::rest::get_collection_player,
+        crate::resources::collection::rest::get_collection_songs,
         crate::resources::collection::rest::create_collection,
         crate::resources::collection::rest::update_collection,
         crate::resources::collection::rest::delete_collection,
@@ -60,6 +64,8 @@ pub mod rest {
         crate::resources::blob::rest::delete_blob,
         crate::resources::setlist::rest::get_setlists,
         crate::resources::setlist::rest::get_setlist,
+        crate::resources::setlist::rest::get_setlist_player,
+        crate::resources::setlist::rest::get_setlist_songs,
         crate::resources::setlist::rest::create_setlist,
         crate::resources::setlist::rest::update_setlist,
         crate::resources::setlist::rest::delete_setlist
@@ -83,7 +89,12 @@ pub mod rest {
             CreateBlob,
             FileType,
             SongLink,
-            LikeStatus
+            LikeStatus,
+            Player,
+            PlayerItem,
+            TocItem,
+            ScrollType,
+            Orientation
         )
     ),
     tags(
