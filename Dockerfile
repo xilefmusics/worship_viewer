@@ -50,8 +50,9 @@ COPY --from=builder /usr/lib/x86_64-linux-gnu/libz.so.1 /usr/lib/x86_64-linux-gn
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /usr/lib/x86_64-linux-gnu/libstdc++.so.6
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-# shell to orchestrate tests
+# shell & utilities to orchestrate tests
 COPY --from=builder /bin/sh /bin/sh
+COPY --from=builder /bin/sleep /bin/sleep
 
 SHELL ["/bin/sh", "-c"]
 
