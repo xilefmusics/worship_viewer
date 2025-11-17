@@ -14,7 +14,7 @@ pub struct OtpVerifyPayload {
     pub code: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
     #[default]
@@ -52,6 +52,17 @@ pub struct Session {
     pub created_at: DateTime<Utc>,
     #[allow(unused)]
     pub expires_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CreateUserRequest {
+    pub email: String,
+    #[serde(default)]
+    pub role: Role,
+    #[serde(default)]
+    pub read: Vec<String>,
+    #[serde(default)]
+    pub write: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
