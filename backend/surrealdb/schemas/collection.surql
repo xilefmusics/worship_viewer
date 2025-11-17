@@ -18,3 +18,18 @@ DEFINE FIELD OVERWRITE songs.*.nr ON collection TYPE option<string>;
 DEFINE FIELD OVERWRITE songs.*.key ON collection TYPE option<object>;
 DEFINE FIELD OVERWRITE songs.*.key.level ON collection TYPE int
     ASSERT $value >= 0 AND $value < 12;
+
+DEFINE EVENT OVERWRITE collection_user_cascade ON user
+    WHEN $event = "DELETE"
+    THEN DELETE collection WHERE owner = $before.id;
+
+DEFINE EVENT OVERWRITE collection_cover_blob_cascade ON blob
+    WHEN $event = "DELETE"
+    THEN DELETE collection WHERE cover = $before.id;
+
+DEFINE EVENT OVERWRITE collection_song_remove ON song
+    WHEN $event = "DELETE"
+    THEN UPDATE collection
+        SET songs = array::filter(songs, function ($value) {
+            $value.id != $before.id
+        });

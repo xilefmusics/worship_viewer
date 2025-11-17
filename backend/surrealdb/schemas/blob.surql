@@ -18,3 +18,7 @@ DEFINE FIELD OVERWRITE ocr ON blob TYPE string
 DEFINE FIELD OVERWRITE created_at ON blob TYPE datetime
     VALUE $before ?? time::now()
     READONLY;
+
+DEFINE EVENT OVERWRITE blob_user_cascade ON user
+    WHEN $event = "DELETE"
+    THEN DELETE blob WHERE owner = $before.id;
