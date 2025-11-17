@@ -61,6 +61,7 @@ COPY --from=builder /usr/local/bin/venom /usr/local/bin/venom
 COPY --from=builder /wrk/backend/tests /app/tests
 COPY --from=builder /wrk/backend/target/release/backend /app/worship_viewer
 COPY --from=builder /wrk/backend/surrealdb /app/surrealdb
+COPY --from=builder /wrk/frontend/dist/ /app/static
 
 WORKDIR /app
 
@@ -71,7 +72,7 @@ RUN set -eux; \
     ./worship_viewer & \
     backend_pid=$!; \
     trap "kill $backend_pid 2>/dev/null || true" EXIT; \
-    sleep 10; \
+    sleep 5; \
     /usr/local/bin/venom run /app/tests/*.yml; \
     kill $backend_pid; \
     wait $backend_pid 2>/dev/null || true
