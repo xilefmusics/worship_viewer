@@ -18,10 +18,8 @@ RUN export CARGO_BUILD_JOBS=$(nproc) && \
     apt-get update && \
     apt-get install -y --no-install-recommends pkg-config libssl-dev build-essential ca-certificates curl && \
     VENOM_VERSION=1.1.0 && \
-    curl -L "https://github.com/ovh/venom/releases/download/v${VENOM_VERSION}/venom.linux-amd64.tar.gz" -o /tmp/venom.tar.gz && \
-    tar -xzf /tmp/venom.tar.gz -C /usr/local/bin && \
-    chmod +x /usr/local/bin/venom && \
-    rm /tmp/venom.tar.gz
+    curl -L "https://github.com/ovh/venom/releases/download/v${VENOM_VERSION}/venom.linux-amd64" -o /usr/local/bin/venom && \
+    chmod +x /usr/local/bin/venom
 
 WORKDIR /wrk
 COPY ./shared ./shared
