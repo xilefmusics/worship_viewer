@@ -18,6 +18,19 @@ pub trait Model {
         song: CreateSong,
     ) -> Result<Song, AppError>;
     async fn delete_song(&self, owners: Vec<String>, id: &str) -> Result<Song, AppError>;
+    async fn get_song_like(
+        &self,
+        owners: Vec<String>,
+        user_id: &str,
+        id: &str,
+    ) -> Result<bool, AppError>;
+    async fn set_song_like(
+        &self,
+        owners: Vec<String>,
+        user_id: &str,
+        id: &str,
+        liked: bool,
+    ) -> Result<bool, AppError>;
 }
 
 impl Model for Database {
@@ -50,7 +63,11 @@ impl Model for Database {
     async fn create_song(&self, owner: &str, song: CreateSong) -> Result<Song, AppError> {
         self.db
             .create("song")
-            .content(SongRecord::from_payload(None, Some(owner_thing(owner)), song))
+            .content(SongRecord::from_payload(
+                None,
+                Some(owner_thing(owner)),
+                song,
+            ))
             .await?
             .map(SongRecord::into_song)
             .ok_or_else(|| AppError::database("failed to create song"))
@@ -105,6 +122,86 @@ impl Model for Database {
             .await?
             .map(SongRecord::into_song)
             .ok_or_else(|| AppError::NotFound("song not found".into()))
+    }
+
+    async fn get_song_like(
+        &self,
+        owners: Vec<String>,
+        user_id: &str,
+        id: &str,
+    ) -> Result<bool, AppError> {
+        let resource = song_resource(id)?;
+        let existing = self
+            .db
+            .select(resource.clone())
+            .await?
+            .ok_or_else(|| AppError::NotFound("song not found".into()))?;
+
+        if !song_belongs_to(&existing, owners) {
+            return Err(AppError::NotFound("song not found".into()));
+        }
+
+        let owner = owner_thing(user_id);
+        let song = Thing::from(resource);
+
+        let mut response = self
+            .db
+            .query("SELECT * FROM like WHERE owner = $owner AND song = $song LIMIT 1")
+            .bind(("owner", owner))
+            .bind(("song", song))
+            .await?;
+
+        let likes: Vec<LikeRecord> = response.take(0)?;
+        Ok(!likes.is_empty())
+    }
+
+    async fn set_song_like(
+        &self,
+        owners: Vec<String>,
+        user_id: &str,
+        id: &str,
+        liked: bool,
+    ) -> Result<bool, AppError> {
+        let resource = song_resource(id)?;
+        let existing = self
+            .db
+            .select(resource.clone())
+            .await?
+            .ok_or_else(|| AppError::NotFound("song not found".into()))?;
+
+        if !song_belongs_to(&existing, owners) {
+            return Err(AppError::NotFound("song not found".into()));
+        }
+
+        let owner = owner_thing(user_id);
+        let song = Thing::from(resource);
+
+        let mut response = self
+            .db
+            .query("SELECT * FROM like WHERE owner = $owner AND song = $song LIMIT 1")
+            .bind(("owner", owner.clone()))
+            .bind(("song", song.clone()))
+            .await?;
+
+        let mut likes: Vec<LikeRecord> = response.take(0)?;
+        let existing_like = likes.pop();
+
+        if liked {
+            if existing_like.is_none() {
+                let _: Option<LikeRecord> = self
+                    .db
+                    .create("like")
+                    .content(LikeRecord::new(owner, song))
+                    .await?;
+            }
+            Ok(true)
+        } else if let Some(record) = existing_like.and_then(|like| like.id) {
+            let resource = (record.tb.clone(), record.id.to_string());
+            let _: Option<LikeRecord> = self.db.delete(resource).await?;
+            Ok(false)
+        } else {
+            Ok(false)
+        }
     }
 }
 
@@ -188,4 +285,22 @@ fn song_belongs_to(record: &SongRecord, owners: Vec<String>) -> bool {
         .as_ref()
         .map(|owner| owners.contains(&owner.id.to_string()))
         .unwrap_or(false)
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct LikeRecord {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    id: Option<Thing>,
+    owner: Thing,
+    song: Thing,
+}
+
+impl LikeRecord {
+    fn new(owner: Thing, song: Thing) -> Self {
+        Self {
+            id: None,
+            owner,
+            song,
+        }
+    }
 }
