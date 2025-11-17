@@ -60,6 +60,7 @@ SHELL ["/bin/sh", "-c"]
 COPY --from=builder /usr/local/bin/venom /usr/local/bin/venom
 COPY --from=builder /wrk/backend/tests /app/tests
 COPY --from=builder /wrk/backend/target/release/backend /app/worship_viewer
+COPY --from=builder /wrk/backend/surrealdb /app/surrealdb
 
 WORKDIR /app
 
