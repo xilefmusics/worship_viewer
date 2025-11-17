@@ -3,15 +3,21 @@ use surrealdb::sql::Thing;
 
 use shared::{
     collection::{Collection, CreateCollection},
-    song::{Link as SongLink, SimpleChord},
+    song::{Link as SongLink, SimpleChord, Song},
 };
 
 use crate::database::Database;
 use crate::error::AppError;
+use crate::resources::song::SongRecord;
 
 pub trait Model {
     async fn get_collections(&self, owners: Vec<String>) -> Result<Vec<Collection>, AppError>;
     async fn get_collection(&self, owners: Vec<String>, id: &str) -> Result<Collection, AppError>;
+    async fn get_collection_songs(
+        &self,
+        owners: Vec<String>,
+        id: &str,
+    ) -> Result<Vec<Song>, AppError>;
     async fn create_collection(
         &self,
         owner: &str,
@@ -55,6 +61,29 @@ impl Model for Database {
             Some(record) if collection_belongs_to(&record, owners) => Ok(record.into_collection()),
             _ => Err(AppError::NotFound("collection not found".into())),
         }
+    }
+
+    async fn get_collection_songs(
+        &self,
+        owners: Vec<String>,
+        id: &str,
+    ) -> Result<Vec<Song>, AppError> {
+        let resource = collection_resource(id)?;
+        let mut response = self
+            .db
+            .query("SELECT owner, songs FROM collection WHERE id = $id FETCH songs.id")
+            .bind(("id", Thing::from(resource.clone())))
+            .await?;
+
+        let record = response
+            .take::<Option<CollectionSongsRecord>>(0)?
+            .ok_or_else(|| AppError::NotFound("collection not found".into()))?;
+
+        if !record.belongs_to(&owners) {
+            return Err(AppError::NotFound("collection not found".into()));
+        }
+
+        Ok(record.into_songs())
     }
 
     async fn create_collection(
@@ -243,4 +272,40 @@ fn collection_belongs_to(record: &CollectionRecord, owners: Vec<String>) -> bool
         .as_ref()
         .map(|owner| owners.contains(&owner.id.to_string()))
         .unwrap_or(false)
+}
+
+#[derive(Deserialize)]
+struct CollectionSongsRecord {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    owner: Option<Thing>,
+    #[serde(default)]
+    songs: Vec<FetchedSongRecord>,
+}
+
+impl CollectionSongsRecord {
+    fn belongs_to(&self, owners: &[String]) -> bool {
+        self.owner
+            .as_ref()
+            .map(|owner| owners.contains(&owner.id.to_string()))
+            .unwrap_or(false)
+    }
+
+    fn into_songs(self) -> Vec<Song> {
+        self.songs
+            .into_iter()
+            .map(|record| record.into_song())
+            .collect()
+    }
+}
+
+#[derive(Deserialize)]
+struct FetchedSongRecord {
+    #[serde(rename = "id")]
+    song: SongRecord,
+}
+
+impl FetchedSongRecord {
+    fn into_song(self) -> Song {
+        self.song.into_song()
+    }
 }

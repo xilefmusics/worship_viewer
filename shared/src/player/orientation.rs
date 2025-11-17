@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "backend")]
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
 pub enum Orientation {
     #[default]
     Portrait,

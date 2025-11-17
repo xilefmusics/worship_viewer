@@ -3,15 +3,18 @@ use surrealdb::sql::Thing;
 
 use shared::{
     setlist::{CreateSetlist, Setlist},
-    song::{Link as SongLink, SimpleChord},
+    song::{Link as SongLink, SimpleChord, Song},
 };
 
 use crate::database::Database;
 use crate::error::AppError;
+use crate::resources::song::SongRecord;
 
 pub trait Model {
     async fn get_setlists(&self, owners: Vec<String>) -> Result<Vec<Setlist>, AppError>;
     async fn get_setlist(&self, owners: Vec<String>, id: &str) -> Result<Setlist, AppError>;
+    async fn get_setlist_songs(&self, owners: Vec<String>, id: &str)
+    -> Result<Vec<Song>, AppError>;
     async fn create_setlist(
         &self,
         owner: &str,
@@ -56,6 +59,29 @@ impl Model for Database {
             }
             None => Err(AppError::NotFound("setlist not found".into())),
         }
+    }
+
+    async fn get_setlist_songs(
+        &self,
+        owners: Vec<String>,
+        id: &str,
+    ) -> Result<Vec<Song>, AppError> {
+        let resource = setlist_resource(id)?;
+        let mut response = self
+            .db
+            .query("SELECT owner, songs FROM setlist WHERE id = $id FETCH songs.id")
+            .bind(("id", Thing::from(resource.clone())))
+            .await?;
+
+        let record = response
+            .take::<Option<SetlistSongsRecord>>(0)?
+            .ok_or_else(|| AppError::NotFound("setlist not found".into()))?;
+
+        if !record.belongs_to(&owners) {
+            return Err(AppError::NotFound("setlist not found".into()));
+        }
+
+        Ok(record.into_songs())
     }
 
     async fn create_setlist(
@@ -172,6 +198,42 @@ impl SetlistRecord {
             title: setlist.title,
             songs: setlist.songs.into_iter().map(Into::into).collect(),
         }
+    }
+}
+
+#[derive(Deserialize)]
+struct SetlistSongsRecord {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    owner: Option<Thing>,
+    #[serde(default)]
+    songs: Vec<FetchedSongRecord>,
+}
+
+impl SetlistSongsRecord {
+    fn belongs_to(&self, owners: &[String]) -> bool {
+        self.owner
+            .as_ref()
+            .map(|owner| owners.contains(&owner.id.to_string()))
+            .unwrap_or(false)
+    }
+
+    fn into_songs(self) -> Vec<Song> {
+        self.songs
+            .into_iter()
+            .map(|record| record.into_song())
+            .collect()
+    }
+}
+
+#[derive(Deserialize)]
+struct FetchedSongRecord {
+    #[serde(rename = "id")]
+    song: SongRecord,
+}
+
+impl FetchedSongRecord {
+    fn into_song(self) -> Song {
+        self.song.into_song()
     }
 }
 

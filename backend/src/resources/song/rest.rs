@@ -13,11 +13,13 @@ use crate::resources::song::CreateSong;
 #[allow(unused_imports)]
 use crate::resources::song::Song;
 use shared::like::LikeStatus;
+use shared::player::Player;
 
 pub fn scope() -> Scope {
     web::scope("/songs")
         .service(get_songs)
         .service(get_song)
+        .service(get_song_player)
         .service(create_song)
         .service(update_song)
         .service(delete_song)
@@ -70,6 +72,34 @@ async fn get_song(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(db.get_song(user.read(), &id).await?))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/songs/{id}/player",
+    params(
+        ("id" = String, Path, description = "Song identifier")
+    ),
+    responses(
+        (status = 200, description = "Return player metadata for a song", body = Player),
+        (status = 400, description = "Invalid song identifier", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Song not found", body = ErrorResponse),
+        (status = 500, description = "Failed to fetch song player data", body = ErrorResponse)
+    ),
+    tag = "Songs",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[get("/{id}/player")]
+async fn get_song_player(
+    db: Data<Database>,
+    user: ReqData<User>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(Player::from(db.get_song(user.read(), &id).await?)))
 }
 
 #[utoipa::path(
