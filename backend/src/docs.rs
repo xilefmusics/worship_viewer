@@ -62,6 +62,7 @@ pub mod rest {
         crate::resources::blob::rest::create_blob,
         crate::resources::blob::rest::update_blob,
         crate::resources::blob::rest::delete_blob,
+        crate::resources::blob::rest::download_blob_image,
         crate::resources::setlist::rest::get_setlists,
         crate::resources::setlist::rest::get_setlist,
         crate::resources::setlist::rest::get_setlist_player,

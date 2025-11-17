@@ -1,6 +1,9 @@
+use std::io::ErrorKind;
+use std::path::Path;
+
 use actix_web::{
     HttpResponse, Scope, delete, get, post, put,
-    web::{self, Data, Json, Path, ReqData},
+    web::{self, Data, Json, Path as PathParam, ReqData},
 };
 
 use super::Model;
@@ -12,6 +15,7 @@ use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::blob::Blob;
 use crate::resources::blob::CreateBlob;
+use crate::settings::Settings;
 
 pub fn scope() -> Scope {
     web::scope("/blobs")
@@ -20,6 +24,7 @@ pub fn scope() -> Scope {
         .service(create_blob)
         .service(update_blob)
         .service(delete_blob)
+        .service(download_blob_image)
 }
 
 #[utoipa::path(
@@ -64,7 +69,7 @@ async fn get_blobs(db: Data<Database>, user: ReqData<User>) -> Result<HttpRespon
 async fn get_blob(
     db: Data<Database>,
     user: ReqData<User>,
-    id: Path<String>,
+    id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(db.get_blob(user.read(), &id).await?))
 }
@@ -118,7 +123,7 @@ async fn create_blob(
 async fn update_blob(
     db: Data<Database>,
     user: ReqData<User>,
-    id: Path<String>,
+    id: PathParam<String>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
@@ -150,7 +155,49 @@ async fn update_blob(
 async fn delete_blob(
     db: Data<Database>,
     user: ReqData<User>,
-    id: Path<String>,
+    id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(db.delete_blob(user.write(), &id).await?))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/blobs/{id}/image",
+    params(
+        ("id" = String, Path, description = "Blob identifier")
+    ),
+    responses(
+        (status = 200, description = "Download the blob image", body = Vec<u8>),
+        (status = 400, description = "Invalid blob identifier", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Blob not found", body = ErrorResponse),
+        (status = 500, description = "Failed to download blob", body = ErrorResponse)
+    ),
+    tag = "Blobs",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[get("/{id}/image")]
+async fn download_blob_image(
+    db: Data<Database>,
+    user: ReqData<User>,
+    id: PathParam<String>,
+) -> Result<HttpResponse, AppError> {
+    let id = id.into_inner();
+    let blob = db.get_blob(user.read(), &id).await?;
+
+    let settings = Settings::global();
+    let root = Path::new(&settings.blob_dir);
+    let file_path = root.join(format!("{}{}", id, blob.file_type.file_ending()));
+
+    let bytes = tokio::fs::read(&file_path).await.map_err(|err| match err.kind() {
+        ErrorKind::NotFound => AppError::NotFound("blob image not found".into()),
+        _ => AppError::Internal(format!("failed to read blob image: {}", err)),
+    })?;
+
+    Ok(HttpResponse::Ok()
+        .content_type(blob.file_type.mime())
+        .body(bytes))
 }

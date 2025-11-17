@@ -47,6 +47,7 @@ pub struct Settings {
     pub gmail_from: String,
 
     pub static_dir: String,
+    pub blob_dir: String,
 }
 
 impl Default for Settings {
@@ -81,6 +82,7 @@ impl Default for Settings {
             gmail_app_password: String::new(),
             gmail_from: String::new(),
             static_dir: "static".into(),
+            blob_dir: "blobs".into(),
         }
     }
 }
