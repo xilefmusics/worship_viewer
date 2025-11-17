@@ -108,14 +108,20 @@ impl Model for Database {
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
         let resource = setlist_resource(id)?;
-        if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !setlist_belongs_to(&existing, owners) {
+        let owner = match self.db.select(resource.clone()).await? {
+            Some(existing) => {
+                if !setlist_belongs_to(&existing, owners.clone()) {
+                    return Err(AppError::NotFound("setlist not found".into()));
+                }
+                existing.owner
+            }
+            None => {
                 return Err(AppError::NotFound("setlist not found".into()));
             }
-        }
+        };
 
         let record_id = Thing::from(resource.clone());
-        let record = SetlistRecord::from_payload(Some(record_id), None, setlist);
+        let record = SetlistRecord::from_payload(Some(record_id), owner.clone(), setlist);
 
         if let Some(updated) = self
             .db

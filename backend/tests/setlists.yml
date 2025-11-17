@@ -449,7 +449,10 @@ testcases:
             ]
           }
         assertions:
-          - result.statuscode ShouldEqual 400
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-setlist-success.setlistid}}"
+          - result.bodyjson.owner ShouldEqual "{{.create-setlist-owner-user.userid}}"
+          - result.bodyjson.title ShouldEqual "Updated Sunday Set"
 
   - name: put-setlist-success-write-user
     steps:
@@ -468,7 +471,22 @@ testcases:
             ]
           }
         assertions:
-          - result.statuscode ShouldEqual 400
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-setlist-success.setlistid}}"
+          - result.bodyjson.owner ShouldEqual "{{.create-setlist-owner-user.userid}}"
+          - result.bodyjson.title ShouldEqual "Write User Updated Set"
+
+  - name: get-setlist-owner-after-write-update
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.owner ShouldEqual "{{.create-setlist-owner-user.userid}}"
+          - result.bodyjson.title ShouldEqual "Write User Updated Set"
 
   - name: put-setlist-noperm-user
     steps:
