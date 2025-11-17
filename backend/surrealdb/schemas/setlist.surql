@@ -16,3 +16,14 @@ DEFINE FIELD OVERWRITE songs.*.nr ON setlist TYPE option<string>;
 DEFINE FIELD OVERWRITE songs.*.key ON setlist TYPE option<object>;
 DEFINE FIELD OVERWRITE songs.*.key.level ON setlist TYPE int
     ASSERT $value >= 0 AND $value < 12;
+
+DEFINE EVENT OVERWRITE setlist_user_cascade ON user
+    WHEN $event = "DELETE"
+    THEN DELETE setlist WHERE owner = $before.id;
+
+DEFINE EVENT OVERWRITE setlist_song_remove ON song
+    WHEN $event = "DELETE"
+    THEN UPDATE setlist
+        SET songs = array::filter(songs, function ($value) {
+            $value.id != $before.id
+        });

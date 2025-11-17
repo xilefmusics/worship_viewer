@@ -67,3 +67,14 @@ DEFINE FIELD OVERWRITE data.sections.*.lines.*.parts.*.chord.duration ON song TY
 
 DEFINE FIELD OVERWRITE data.sections.*.lines.*.parts.*.chord.optional ON song TYPE bool
     VALUE $value ?? $before ?? false;
+
+DEFINE EVENT OVERWRITE song_user_cascade ON user
+    WHEN $event = "DELETE"
+    THEN DELETE song WHERE owner = $before.id;
+
+DEFINE EVENT OVERWRITE song_blob_remove ON blob
+    WHEN $event = "DELETE"
+    THEN UPDATE song
+        SET blobs = array::filter(blobs, function ($value) {
+            $value != $before.id
+        });
