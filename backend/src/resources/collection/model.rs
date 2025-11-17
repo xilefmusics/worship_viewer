@@ -110,14 +110,19 @@ impl Model for Database {
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
         let resource = collection_resource(id)?;
-        if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !collection_belongs_to(&existing, owners) {
-                return Err(AppError::NotFound("collection not found".into()));
-            }
+        let existing = self
+            .db
+            .select(resource.clone())
+            .await?
+            .ok_or_else(|| AppError::NotFound("collection not found".into()))?;
+
+        if !collection_belongs_to(&existing, owners) {
+            return Err(AppError::NotFound("collection not found".into()));
         }
 
         let record_id = Thing::from(resource.clone());
-        let record = CollectionRecord::from_payload(Some(record_id), None, collection);
+        let record =
+            CollectionRecord::from_payload(Some(record_id), existing.owner.clone(), collection);
 
         if let Some(updated) = self
             .db
