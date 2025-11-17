@@ -22,4 +22,12 @@ impl FileType {
             Self::SVG => ".svg",
         }
     }
+
+    pub fn mime(&self) -> &'static str {
+        match self {
+            Self::PNG => "image/png",
+            Self::JPEG => "image/jpeg",
+            Self::SVG => "image/svg",
+        }
+    }
 }
