@@ -1,0 +1,687 @@
+name: Blobs endpoints
+vars:
+  base_url: http://localhost:8080
+  token_admin: admin
+
+testcases:
+  # Setup: Users and sessions
+  - name: create-blob-owner-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "blobowner@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "blobowner@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-blob-owner-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-blob-owner-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-blob-read-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "blobread@test.com",
+            "read": ["{{.create-blob-owner-user.userid}}"]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "blobread@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-blob-read-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-blob-read-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-blob-write-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "blobwrite@test.com",
+            "write": ["{{.create-blob-owner-user.userid}}"]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "blobwrite@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-blob-write-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-blob-write-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-blob-noperm-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "blobnoperm@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "blobnoperm@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-blob-noperm-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-blob-noperm-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  # POST /api/v1/blobs tests
+  - name: post-blob-success
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 1920,
+            "height": 1080,
+            "ocr": "Owner blob"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.owner ShouldEqual "{{.create-blob-owner-user.userid}}"
+          - result.bodyjson.file_type ShouldEqual "image/png"
+        vars:
+          blobid:
+            from: result.bodyjson.id
+
+  - name: post-blob-success-for-read
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/jpeg",
+            "width": 800,
+            "height": 600,
+            "ocr": "Blob for read permission"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.file_type ShouldEqual "image/jpeg"
+        vars:
+          blobid:
+            from: result.bodyjson.id
+
+  - name: post-blob-success-for-write
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 640,
+            "height": 480,
+            "ocr": "Blob for write permission"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          blobid:
+            from: result.bodyjson.id
+
+  - name: post-blob-invalid-payload-missing-width
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "height": 1080,
+            "ocr": "Missing width"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-blob-missing-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 1920,
+            "height": 1080,
+            "ocr": "No token"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: post-blob-invalid-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer invalid"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 1920,
+            "height": 1080,
+            "ocr": "Invalid token"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  # GET /api/v1/blobs tests
+  - name: get-blobs-success-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-blobs-success-read
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-blobs-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-blobs-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  # GET /api/v1/blobs/{id} tests
+  - name: get-blob-success-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-blob-success.blobid}}"
+          - result.bodyjson.ocr ShouldEqual "Owner blob"
+
+  - name: get-blob-success-read
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success-for-read.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.file_type ShouldEqual "image/jpeg"
+
+  - name: get-blob-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/user:invalid"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-blob-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-blob-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-blob-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/nonexistent-blob"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-blob-no-permission
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # PUT /api/v1/blobs/{id} tests
+  - name: put-blob-success-owner
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 2560,
+            "height": 1440,
+            "ocr": "Updated owner blob"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.width ShouldEqual 2560
+          - result.bodyjson.ocr ShouldEqual "Updated owner blob"
+
+  - name: put-blob-success-write
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success-for-write.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-write-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 800,
+            "height": 600,
+            "ocr": "Updated by write user"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.ocr ShouldEqual "Updated by write user"
+
+  - name: put-blob-invalid-id
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/user:invalid"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 400,
+            "height": 300,
+            "ocr": "Invalid id"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: put-blob-invalid-payload
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "height": 1080,
+            "ocr": "Missing width"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: put-blob-missing-token
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        headers:
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 1024,
+            "height": 768,
+            "ocr": "No token"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: put-blob-invalid-token
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        headers:
+          Authorization: "Bearer invalid"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 1024,
+            "height": 768,
+            "ocr": "Invalid token"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: put-blob-no-permission
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-noperm-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 1024,
+            "height": 768,
+            "ocr": "No permission"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: put-blob-read-only
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success-for-read.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-read-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 1024,
+            "height": 768,
+            "ocr": "Read only user"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # DELETE /api/v1/blobs/{id} tests
+  - name: post-blob-for-delete
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 500,
+            "height": 500,
+            "ocr": "Blob to delete"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          blobid:
+            from: result.bodyjson.id
+
+  - name: post-blob-for-delete-write
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 700,
+            "height": 700,
+            "ocr": "Blob delete by write"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          blobid:
+            from: result.bodyjson.id
+
+  - name: delete-blob-success-owner
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-for-delete.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-blob-for-delete.blobid}}"
+
+  - name: delete-blob-success-write
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-for-delete-write.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-write-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-blob-for-delete-write.blobid}}"
+
+  - name: delete-blob-invalid-id
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/blobs/user:invalid"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: delete-blob-missing-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-blob-invalid-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-blob-notfound
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/blobs/nonexistent-blob"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-blob-no-permission
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-blob-read-only
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success-for-read.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-blob-again
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-for-delete.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # Cleanup: remove users
+  - name: delete-blob-owner-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-blob-owner-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: delete-blob-read-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-blob-read-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: delete-blob-write-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-blob-write-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: delete-blob-noperm-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-blob-noperm-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+

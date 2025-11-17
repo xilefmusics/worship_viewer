@@ -107,7 +107,9 @@ async fn get_collection_player(
             .await?
             .into_iter()
             .map(Player::from)
-            .try_fold(Player::default(), |acc, player| Ok::<Player, AppError>(acc + player))?,
+            .try_fold(Player::default(), |acc, player| {
+                Ok::<Player, AppError>(acc + player)
+            })?,
     ))
 }
 

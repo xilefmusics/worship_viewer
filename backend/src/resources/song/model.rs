@@ -241,20 +241,10 @@ pub struct SongRecord {
 impl SongRecord {
     pub fn into_song(self) -> Song {
         Song {
-            id: self
-                .id
-                .map(id_from_thing)
-                .unwrap_or_default(),
-            owner: self
-                .owner
-                .map(id_from_thing)
-                .unwrap_or_default(),
+            id: self.id.map(id_from_thing).unwrap_or_default(),
+            owner: self.owner.map(id_from_thing).unwrap_or_default(),
             not_a_song: self.not_a_song,
-            blobs: self
-                .blobs
-                .into_iter()
-                .map(id_from_thing)
-                .collect(),
+            blobs: self.blobs.into_iter().map(id_from_thing).collect(),
             data: self.data,
         }
     }

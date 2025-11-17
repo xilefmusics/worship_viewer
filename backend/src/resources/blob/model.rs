@@ -1,5 +1,6 @@
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
+use surrealdb::sql::{Datetime, Thing};
 
 use shared::blob::{Blob, CreateBlob};
 
@@ -53,6 +54,7 @@ impl Model for Database {
             .content(BlobRecord::from_payload(
                 None,
                 Some(owner_thing(owner)),
+                Some(Utc::now().into()),
                 blob,
             ))
             .await?
@@ -62,36 +64,35 @@ impl Model for Database {
 
     async fn update_blob(
         &self,
-        owner: Vec<String>,
+        owners: Vec<String>,
         id: &str,
         blob: CreateBlob,
     ) -> Result<Blob, AppError> {
         let resource = blob_resource(id)?;
-        if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !blob_belongs_to(&existing, owner) {
-                return Err(AppError::NotFound("blob not found".into()));
-            }
+        let existing = self
+            .db
+            .select(resource.clone())
+            .await?
+            .ok_or_else(|| AppError::NotFound("blob not found".into()))?;
+
+        if !blob_belongs_to(&existing, owners) {
+            return Err(AppError::NotFound("blob not found".into()));
         }
 
         let record_id = Thing::from(resource.clone());
-        let record = BlobRecord::from_payload(Some(record_id), None, blob);
-
-        if let Some(updated) = self
-            .db
-            .update(resource.clone())
-            .content(record.clone())
-            .await?
-            .map(BlobRecord::into_blob)
-        {
-            return Ok(updated);
-        }
+        let record = BlobRecord::from_payload(
+            Some(record_id),
+            existing.owner.clone(),
+            existing.created_at.clone(),
+            blob,
+        );
 
         self.db
-            .create(resource)
+            .update(resource)
             .content(record)
             .await?
             .map(BlobRecord::into_blob)
-            .ok_or_else(|| AppError::database("failed to upsert blob"))
+            .ok_or_else(|| AppError::database("failed to update blob"))
     }
 
     async fn delete_blob(&self, owner: Vec<String>, id: &str) -> Result<Blob, AppError> {
@@ -134,6 +135,8 @@ struct BlobRecord {
     height: u32,
     #[serde(default)]
     ocr: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    created_at: Option<Datetime>,
 }
 
 impl BlobRecord {
@@ -154,14 +157,20 @@ impl BlobRecord {
         }
     }
 
-    fn from_payload(id: Option<Thing>, owner: Option<Thing>, blob: CreateBlob) -> Self {
+    fn from_payload(
+        id: Option<Thing>,
+        owner: Option<Thing>,
+        created_at: Option<Datetime>,
+        blob: CreateBlob,
+    ) -> Self {
         Self {
             id,
-            owner: owner,
+            owner,
             file_type: blob.file_type,
             width: blob.width,
             height: blob.height,
             ocr: blob.ocr,
+            created_at,
         }
     }
 }
