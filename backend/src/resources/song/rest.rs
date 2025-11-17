@@ -9,9 +9,10 @@ use crate::database::Database;
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
+use crate::resources::song::CreateSong;
 #[allow(unused_imports)]
 use crate::resources::song::Song;
-use crate::resources::song::CreateSong;
+use shared::like::LikeStatus;
 
 pub fn scope() -> Scope {
     web::scope("/songs")
@@ -20,6 +21,8 @@ pub fn scope() -> Scope {
         .service(create_song)
         .service(update_song)
         .service(delete_song)
+        .service(get_song_like_status)
+        .service(update_song_like_status)
 }
 
 #[utoipa::path(
@@ -121,7 +124,10 @@ async fn update_song(
     id: Path<String>,
     payload: Json<CreateSong>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.update_song(user.write(), &id, payload.into_inner()).await?))
+    Ok(HttpResponse::Ok().json(
+        db.update_song(user.write(), &id, payload.into_inner())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -150,4 +156,67 @@ async fn delete_song(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(db.delete_song(user.write(), &id).await?))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/songs/{id}/likes",
+    params(
+        ("id" = String, Path, description = "Song identifier")
+    ),
+    responses(
+        (status = 200, description = "Return like status for a song", body = LikeStatus),
+        (status = 400, description = "Invalid song identifier", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Song not found", body = ErrorResponse),
+        (status = 500, description = "Failed to get like status for a song", body = ErrorResponse)
+    ),
+    tag = "Songs",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[get("/{id}/likes")]
+async fn get_song_like_status(
+    db: Data<Database>,
+    user: ReqData<User>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    let liked = db.get_song_like(user.read(), &user.id, &id).await?;
+
+    Ok(HttpResponse::Ok().json(LikeStatus { liked }))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/songs/{id}/likes",
+    params(
+        ("id" = String, Path, description = "Song identifier")
+    ),
+    request_body = LikeStatus,
+    responses(
+        (status = 200, description = "Update like status for a song", body = LikeStatus),
+        (status = 400, description = "Invalid song identifier", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Song not found", body = ErrorResponse),
+        (status = 500, description = "Failed to update like status for a song", body = ErrorResponse)
+    ),
+    tag = "Songs",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[put("/{id}/likes")]
+async fn update_song_like_status(
+    db: Data<Database>,
+    user: ReqData<User>,
+    id: Path<String>,
+    payload: Json<LikeStatus>,
+) -> Result<HttpResponse, AppError> {
+    let LikeStatus { liked } = payload.into_inner();
+    let liked = db.set_song_like(user.read(), &user.id, &id, liked).await?;
+
+    Ok(HttpResponse::Ok().json(LikeStatus { liked }))
 }

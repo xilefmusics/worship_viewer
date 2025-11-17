@@ -1,3 +1,3 @@
 mod like;
 
-pub use like::Like;
+pub use like::{Like, LikeStatus};

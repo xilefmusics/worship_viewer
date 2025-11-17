@@ -9,6 +9,7 @@ use crate::resources::{
     Session, Setlist, Song, User,
 };
 use shared::blob::FileType;
+use shared::like::LikeStatus;
 use shared::song::Link as SongLink;
 
 pub mod rest {
@@ -45,6 +46,8 @@ pub mod rest {
         crate::resources::song::rest::create_song,
         crate::resources::song::rest::update_song,
         crate::resources::song::rest::delete_song,
+        crate::resources::song::rest::get_song_like_status,
+        crate::resources::song::rest::update_song_like_status,
         crate::resources::collection::rest::get_collections,
         crate::resources::collection::rest::get_collection,
         crate::resources::collection::rest::create_collection,
@@ -79,7 +82,8 @@ pub mod rest {
             Blob,
             CreateBlob,
             FileType,
-            SongLink
+            SongLink,
+            LikeStatus
         )
     ),
     tags(
