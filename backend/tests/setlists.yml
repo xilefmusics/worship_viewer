@@ -1,0 +1,616 @@
+name: Setlists endpoints
+vars:
+  base_url: http://localhost:8080
+  token_admin: admin
+
+testcases:
+  # Setup users and sessions
+  - name: create-setlist-owner-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "setlistowner@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "setlistowner@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-setlist-owner-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-setlist-owner-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-setlist-read-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "setlistread@test.com",
+            "read": ["{{.create-setlist-owner-user.userid}}"]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "setlistread@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-setlist-read-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-setlist-read-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-setlist-write-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "setlistwrite@test.com",
+            "write": ["{{.create-setlist-owner-user.userid}}"]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "setlistwrite@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-setlist-write-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-setlist-write-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-setlist-noperm-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "setlistnoperm@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "setlistnoperm@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-setlist-noperm-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-setlist-noperm-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  # Create songs for linking
+  - name: create-setlist-song-one
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Setlist Song One",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.data.title ShouldEqual "Setlist Song One"
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: create-setlist-song-two
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Setlist Song Two",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.data.title ShouldEqual "Setlist Song Two"
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  # POST /setlists validations
+  - name: post-setlist-missing-songs
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Missing Songs"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-setlist-missing-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Unauthorized Setlist",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: post-setlist-success
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Sunday Morning Set",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}", "nr": "1" },
+              { "id": "{{.create-setlist-song-two.songid}}", "nr": "2" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.owner ShouldEqual "{{.create-setlist-owner-user.userid}}"
+          - result.bodyjson.title ShouldEqual "Sunday Morning Set"
+          - result.bodyjson.songs ShouldHaveLength 2
+        vars:
+          setlistid:
+            from: result.bodyjson.id
+
+  # GET /setlists
+  - name: get-setlists-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  - name: get-setlists-read-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer {{.create-setlist-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  - name: get-setlists-noperm-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer {{.create-setlist-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 0
+
+  - name: get-setlists-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  # GET /setlists/{id}
+  - name: get-setlist-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-setlist-success.setlistid}}"
+          - result.bodyjson.songs ShouldHaveLength 2
+
+  - name: get-setlist-read-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-setlist-noperm-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-setlist-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-setlist-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/song:invalid"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  # GET /setlists/{id}/songs
+  - name: get-setlist-songs-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/songs"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
+
+  - name: get-setlist-songs-read-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/songs"
+        headers:
+          Authorization: "Bearer {{.create-setlist-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
+
+  - name: get-setlist-songs-noperm-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/songs"
+        headers:
+          Authorization: "Bearer {{.create-setlist-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-setlist-songs-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/songs"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-setlist-songs-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/song:invalid/songs"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  # GET /setlists/{id}/player
+  - name: get-setlist-player-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/player"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.toc ShouldHaveLength 2
+
+  - name: get-setlist-player-read-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/player"
+        headers:
+          Authorization: "Bearer {{.create-setlist-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.toc ShouldHaveLength 2
+
+  - name: get-setlist-player-noperm-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/player"
+        headers:
+          Authorization: "Bearer {{.create-setlist-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-setlist-player-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/song:invalid/player"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  # PUT /setlists/{id}
+  - name: put-setlist-success-owner
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Updated Sunday Set",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}", "nr": "1" },
+              { "id": "{{.create-setlist-song-two.songid}}", "nr": "2" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: put-setlist-success-write-user
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-write-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Write User Updated Set",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}", "nr": "10" },
+              { "id": "{{.create-setlist-song-two.songid}}", "nr": "20" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: put-setlist-noperm-user
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-noperm-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Should Fail",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: put-setlist-missing-token
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Unauthorized Update",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: put-setlist-invalid-id
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/setlists/song:invalid"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Invalid Id",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  # DELETE /setlists/{id}
+  - name: delete-setlist-noperm-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-setlist-missing-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-setlist-invalid-id
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/setlists/song:invalid"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: delete-setlist-success
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-setlist-success.setlistid}}"
+
+  - name: delete-setlist-again
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # Cleanup users to keep environment idempotent
+  - name: cleanup-delete-setlist-owner-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-setlist-owner-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: cleanup-delete-setlist-read-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-setlist-read-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: cleanup-delete-setlist-write-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-setlist-write-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: cleanup-delete-setlist-noperm-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-setlist-noperm-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
