@@ -61,11 +61,14 @@ COPY --from=builder /wrk/backend/target/release/backend /app/worship_viewer
 
 WORKDIR /app
 
+ENV INITIAL_ADMIN_USER_EMAIL="admin@example.com" \
+    INITIAL_ADMIN_USER_TEST_SESSION=true
+
 RUN set -eux; \
     ./worship_viewer & \
     backend_pid=$!; \
     trap "kill $backend_pid 2>/dev/null || true" EXIT; \
-    sleep 5; \
+    sleep 10; \
     /usr/local/bin/venom run /app/tests/*.yml; \
     kill $backend_pid; \
     wait $backend_pid 2>/dev/null || true
@@ -85,7 +88,7 @@ COPY --from=builder /usr/lib/x86_64-linux-gnu/libz.so.1 /usr/lib/x86_64-linux-gn
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /usr/lib/x86_64-linux-gnu/libstdc++.so.6
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-COPY --from=builder /wrk/backend/target/release/backend /app/worship_viewer
+COPY --from=tester /app/worship_viewer /app/worship_viewer
 COPY --from=builder /wrk/backend/surrealdb/ /app/surrealdb
 COPY --from=builder /wrk/frontend/dist/ /app/static
 
