@@ -2,11 +2,9 @@ use actix_web::{
     HttpResponse, Scope, delete, get, post,
     web::{self, Data, Json, Path, ReqData},
 };
-use chrono::Utc;
-use serde::Deserialize;
-use utoipa::ToSchema;
-
-use super::{Model, Role, User, session};
+use super::{CreateUserRequest, Model, User, session};
+#[allow(unused_imports)]
+use crate::docs::ErrorResponse;
 use crate::auth::middleware::RequireAdmin;
 use crate::database::Database;
 use crate::error::AppError;
@@ -144,28 +142,3 @@ async fn delete_user(db: Data<Database>, id: Path<String>) -> Result<HttpRespons
     Ok(HttpResponse::Ok().json(db.delete_user(&id).await?))
 }
 
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct CreateUserRequest {
-    pub email: String,
-    #[serde(default)]
-    pub role: Role,
-    #[serde(default)]
-    pub read: Vec<String>,
-    #[serde(default)]
-    pub write: Vec<String>,
-}
-
-impl CreateUserRequest {
-    pub fn into_user(self) -> User {
-        User {
-            id: String::new(),
-            email: self.email,
-            role: self.role,
-            read: self.read,
-            write: self.write,
-            created_at: Utc::now(),
-            last_login_at: None,
-            request_count: 0,
-        }
-    }
-}

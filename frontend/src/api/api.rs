@@ -1,19 +1,23 @@
-use gloo_net::http::Request;
+use gloo_net::http::{Request, Response};
 use serde::{de::DeserializeOwned, Serialize};
+use url::Url;
 use yew_router::prelude::Navigator;
 
+use shared::auth::otp::{OtpRequest, OtpVerify};
 use shared::blob::Blob;
 use shared::blob::CreateBlob;
 use shared::collection::Collection;
 use shared::collection::CreateCollection;
+use shared::error::ErrorResponse;
 use shared::like::LikeStatus;
 use shared::player::Player;
 use shared::setlist::CreateSetlist;
 use shared::setlist::Setlist;
 use shared::song::CreateSong;
 use shared::song::Song;
+use shared::user::{CreateUserRequest, Session, User};
 
-use super::{ApiError, CreateUserRequest, ErrorResponse, OtpRequestPayload, OtpVerifyPayload, Session, User};
+use super::ApiError;
 use crate::route::Route;
 
 #[derive(Clone, PartialEq)]
@@ -34,6 +38,25 @@ impl Api {
         }
     }
 
+    async fn map_error(&self, response: Response) -> ApiError {
+        let status = response.status();
+        let error = response
+            .json::<ErrorResponse>()
+            .await
+            .map(|resp| ApiError::from_error_response(status, resp))
+            .unwrap_or_else(|err| {
+                ApiError::InternalServerError(format!("Failed to parse error response: {err}"))
+            });
+
+        match error {
+            ApiError::Unauthorized(msg) => {
+                self.route_logout();
+                ApiError::Unauthorized(msg)
+            }
+            err => err,
+        }
+    }
+
     async fn get<T>(&self, path: &str) -> Result<T, ApiError>
     where
         T: DeserializeOwned + Default,
@@ -46,15 +69,7 @@ impl Api {
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
             204 => Ok(T::default()),
-            status => Err(
-                match response.json::<ErrorResponse>().await?.to_api_error(status) {
-                    ApiError::Unauthorized(msg) => {
-                        self.route_logout();
-                        ApiError::Unauthorized(msg)
-                    }
-                    err => err,
-                },
-            ),
+            _ => Err(self.map_error(response).await),
         }
     }
 
@@ -72,15 +87,7 @@ impl Api {
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
             204 => Ok(T::default()),
-            status => Err(
-                match response.json::<ErrorResponse>().await?.to_api_error(status) {
-                    ApiError::Unauthorized(msg) => {
-                        self.route_logout();
-                        ApiError::Unauthorized(msg)
-                    }
-                    err => err,
-                },
-            ),
+            _ => Err(self.map_error(response).await),
         }
     }
 
@@ -96,15 +103,7 @@ impl Api {
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
             204 => Ok(T::default()),
-            status => Err(
-                match response.json::<ErrorResponse>().await?.to_api_error(status) {
-                    ApiError::Unauthorized(msg) => {
-                        self.route_logout();
-                        ApiError::Unauthorized(msg)
-                    }
-                    err => err,
-                },
-            ),
+            _ => Err(self.map_error(response).await),
         }
     }
 
@@ -122,15 +121,7 @@ impl Api {
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
             204 => Ok(T::default()),
-            status => Err(
-                match response.json::<ErrorResponse>().await?.to_api_error(status) {
-                    ApiError::Unauthorized(msg) => {
-                        self.route_logout();
-                        ApiError::Unauthorized(msg)
-                    }
-                    err => err,
-                },
-            ),
+            _ => Err(self.map_error(response).await),
         }
     }
 
@@ -146,15 +137,7 @@ impl Api {
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
             204 => Ok(T::default()),
-            status => Err(
-                match response.json::<ErrorResponse>().await?.to_api_error(status) {
-                    ApiError::Unauthorized(msg) => {
-                        self.route_logout();
-                        ApiError::Unauthorized(msg)
-                    }
-                    err => err,
-                },
-            ),
+            _ => Err(self.map_error(response).await),
         }
     }
 
@@ -170,15 +153,7 @@ impl Api {
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
             204 => Err(ApiError::InternalServerError("Unexpected 204 response for entity retrieval".into())),
-            status => Err(
-                match response.json::<ErrorResponse>().await?.to_api_error(status) {
-                    ApiError::Unauthorized(msg) => {
-                        self.route_logout();
-                        ApiError::Unauthorized(msg)
-                    }
-                    err => err,
-                },
-            ),
+            _ => Err(self.map_error(response).await),
         }
     }
 
@@ -196,15 +171,7 @@ impl Api {
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
             204 => Err(ApiError::InternalServerError("Unexpected 204 response for entity update".into())),
-            status => Err(
-                match response.json::<ErrorResponse>().await?.to_api_error(status) {
-                    ApiError::Unauthorized(msg) => {
-                        self.route_logout();
-                        ApiError::Unauthorized(msg)
-                    }
-                    err => err,
-                },
-            ),
+            _ => Err(self.map_error(response).await),
         }
     }
 
@@ -222,15 +189,7 @@ impl Api {
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
             204 => Err(ApiError::InternalServerError("Unexpected 204 response for entity creation".into())),
-            status => Err(
-                match response.json::<ErrorResponse>().await?.to_api_error(status) {
-                    ApiError::Unauthorized(msg) => {
-                        self.route_logout();
-                        ApiError::Unauthorized(msg)
-                    }
-                    err => err,
-                },
-            ),
+            _ => Err(self.map_error(response).await),
         }
     }
 
@@ -246,25 +205,17 @@ impl Api {
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
             204 => Err(ApiError::InternalServerError("Unexpected 204 response for entity deletion".into())),
-            status => Err(
-                match response.json::<ErrorResponse>().await?.to_api_error(status) {
-                    ApiError::Unauthorized(msg) => {
-                        self.route_logout();
-                        ApiError::Unauthorized(msg)
-                    }
-                    err => err,
-                },
-            ),
+            _ => Err(self.map_error(response).await),
         }
     }
 
     pub async fn request_otp(&self, email: String) -> Result<(), ApiError> {
-        self.post("/auth/otp/request", &OtpRequestPayload { email })
+        self.post("/auth/otp/request", &OtpRequest { email })
             .await
     }
 
     pub async fn verify_otp(&self, email: String, code: String) -> Result<Session, ApiError> {
-        self.post("/auth/otp/verify", &OtpVerifyPayload { email, code })
+        self.post("/auth/otp/verify", &OtpVerify { email, code })
             .await
     }
 
@@ -365,12 +316,24 @@ impl Api {
         self.delete_entity(&format!("/api/v1/songs/{}", id)).await
     }
 
+    pub async fn import_song_from_url(&self, raw_url: &str) -> Result<Song, ApiError> {
+        let parsed =
+            Url::parse(raw_url).map_err(|err| ApiError::BadRequest(format!("Invalid URL: {err}")))?;
+        let host = parsed.host_str().unwrap_or("unknown").replace('.', "/");
+        let path = format!("/api/import/{}{}", host, parsed.path());
+        self.get_entity(&path).await
+    }
+
     pub async fn get_song_like_status(&self, id: &str) -> Result<LikeStatus, ApiError> {
         self.get(&format!("/api/v1/songs/{}/likes", id)).await
     }
 
     pub async fn update_song_like_status(&self, id: &str, payload: &LikeStatus) -> Result<LikeStatus, ApiError> {
         self.put(&format!("/api/v1/songs/{}/likes", id), payload).await
+    }
+
+    pub async fn toggle_song_like(&self, id: &str) -> Result<bool, ApiError> {
+        self.get(&format!("/api/likes/toggle/{}", id)).await
     }
 
     pub async fn get_collections(&self) -> Result<Vec<Collection>, ApiError> {
@@ -460,15 +423,7 @@ impl Api {
                 let bytes: Vec<u8> = response.binary().await?;
                 Ok(bytes)
             }
-            status => Err(
-                match response.json::<ErrorResponse>().await?.to_api_error(status) {
-                    ApiError::Unauthorized(msg) => {
-                        self.route_logout();
-                        ApiError::Unauthorized(msg)
-                    }
-                    err => err,
-                },
-            ),
+            _ => Err(self.map_error(response).await),
         }
     }
 }

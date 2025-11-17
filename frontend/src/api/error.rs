@@ -1,3 +1,5 @@
+use shared::error::ErrorResponse;
+
 #[derive(Debug)]
 pub enum ApiError {
     BadRequest(String),
@@ -6,12 +8,6 @@ pub enum ApiError {
     Conflict(String),
     InternalServerError(String),
     Network(String),
-}
-
-impl From<gloo_net::Error> for ApiError {
-    fn from(err: gloo_net::Error) -> Self {
-        Self::Network(err.to_string())
-    }
 }
 
 impl ApiError {
@@ -24,6 +20,16 @@ impl ApiError {
             500 => Self::InternalServerError(msg),
             _ => Self::Network(msg),
         }
+    }
+
+    pub fn from_error_response(status: u16, payload: ErrorResponse) -> Self {
+        Self::new(status, payload.error)
+    }
+}
+
+impl From<gloo_net::Error> for ApiError {
+    fn from(err: gloo_net::Error) -> Self {
+        Self::Network(err.to_string())
     }
 }
 

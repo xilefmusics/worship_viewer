@@ -1,8 +1,55 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+use super::Role;
+
+#[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct User {
-    pub id: Option<String>,
+    pub id: String,
+    pub email: String,
+    pub role: Role,
+    #[serde(default)]
     pub read: Vec<String>,
+    #[serde(default)]
     pub write: Vec<String>,
+    pub created_at: DateTime<Utc>,
+    #[serde(default)]
+    pub last_login_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub request_count: u64,
+}
+
+impl User {
+    #[cfg(feature = "backend")]
+    pub fn new<S: Into<String>>(email: S) -> Self {
+        Self {
+            id: String::new(),
+            email: email.into().to_lowercase(),
+            role: Role::default(),
+            read: vec![],
+            write: vec![],
+            created_at: Utc::now(),
+            last_login_at: None,
+            request_count: 0,
+        }
+    }
+
+    #[cfg(feature = "backend")]
+    pub fn read(&self) -> Vec<String> {
+        self.read
+            .iter()
+            .cloned()
+            .chain(std::iter::once(self.id.clone()))
+            .collect()
+    }
+
+    #[cfg(feature = "backend")]
+    pub fn write(&self) -> Vec<String> {
+        self.write
+            .iter()
+            .cloned()
+            .chain(std::iter::once(self.id.clone()))
+            .collect()
+    }
 }

@@ -1,5 +1,5 @@
+use crate::api::use_api;
 use crate::route::Route;
-use gloo_net::http::Request;
 use shared::song::{ChordRepresentation, SimpleChord, Song};
 use std::collections::HashMap;
 use stylist::Style;
@@ -9,14 +9,16 @@ use yew_router::prelude::*;
 #[function_component(SongsPage)]
 pub fn songs_page() -> Html {
     let songs = use_state(|| Vec::<Song>::new());
+    let api = use_api();
 
     {
         let songs = songs.clone();
+        let api = api.clone();
         use_effect_with((), move |_| {
             let songs = songs.clone();
+            let api = api.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let response = Request::get("/api/v1/songs").send().await.unwrap();
-                let mut fetched_songs: Vec<Song> = response.json().await.unwrap();
+                let mut fetched_songs = api.get_songs().await.unwrap();
                 fetched_songs.sort_by_key(|song| song.data.title.clone());
                 let fetched_songs: Vec<Song> = fetched_songs
                     .into_iter()
