@@ -103,21 +103,6 @@ impl Song {
     }
 }
 
-#[cfg(feature = "backend")]
-impl fancy_surreal::Databasable for Song {
-    fn get_id(&self) -> Option<String> {
-        if self.id.is_empty() {
-            None
-        } else {
-            Some(self.id.clone())
-        }
-    }
-
-    fn set_id(&mut self, id: Option<String>) {
-        self.id = id.unwrap_or_default();
-    }
-}
-
 impl From<CreateSong> for Song {
     fn from(value: CreateSong) -> Self {
         Self {

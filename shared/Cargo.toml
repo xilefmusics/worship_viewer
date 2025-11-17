@@ -4,10 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fancy_surreal = { path = "../../fancy_surreal", optional = true }
 chordlib = { path = "../../chordlib", features = ["html"] }
 serde = { version = "1.0.228", features = ["derive"] }
 utoipa = { version = "4", optional = true }
 
 [features]
-backend = ["fancy_surreal", "utoipa"]
+backend = ["utoipa"]
