@@ -1,0 +1,1185 @@
+name: Songs endpoints
+vars:
+  base_url: http://localhost:8080
+  token_admin: admin
+
+testcases:
+  # Setup: Create test users
+  - name: create-song-owner-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "songowner@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "songowner@test.com"
+          - result.bodyjson.role ShouldEqual "default"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-song-owner-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-song-owner-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-read-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "readuser@test.com",
+            "read": ["{{.create-song-owner-user.userid}}"]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "readuser@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-read-user-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-read-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-write-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "writeuser@test.com",
+            "write": ["{{.create-song-owner-user.userid}}"]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "writeuser@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-write-user-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-write-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-no-permission-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "nopermission@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "nopermission@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-no-permission-user-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-no-permission-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  # POST /api/v1/songs tests
+  - name: post-song-success
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Test Song",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.owner ShouldEqual "{{.create-song-owner-user.userid}}"
+          - result.bodyjson.data.title ShouldEqual "Test Song"
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: post-song-success-for-read-permission
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Song For Read Permission",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.data.title ShouldEqual "Song For Read Permission"
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: post-song-success-for-write-permission
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Song For Write Permission",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.data.title ShouldEqual "Song For Write Permission"
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: post-song-invalid-payload-missing-data
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": []
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-song-invalid-payload-missing-title
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {}
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-song-invalid-payload-invalid-tempo
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Test Song",
+              "sections": [],
+              "tempo": -1
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-song-invalid-payload-invalid-time
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Test Song",
+              "sections": [],
+              "time": [4, 4, 4]
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-song-missing-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Test Song",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: post-song-invalid-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer invalid"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Test Song",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  # GET /api/v1/songs tests
+  - name: get-songs-success-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-songs-success-default
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-songs-success-with-read-permission
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-read-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-songs-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-songs-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  # GET /api/v1/songs/{id} tests
+  - name: get-song-success
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-song-success.songid}}"
+          - result.bodyjson.owner ShouldEqual "{{.create-song-owner-user.userid}}"
+          - result.bodyjson.data.title ShouldEqual "Test Song"
+
+  - name: get-song-success-with-read-permission
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-read-permission.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-read-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-song-success-for-read-permission.songid}}"
+          - result.bodyjson.data.title ShouldEqual "Song For Read Permission"
+
+  - name: get-song-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/user:invalid"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-song-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-song-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-song-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/nonexistent"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-song-no-permission
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-no-permission-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # GET /api/v1/songs/{id}/player tests
+  - name: get-song-player-success
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/player"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-song-player-success-with-read-permission
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-read-permission.songid}}/player"
+        headers:
+          Authorization: "Bearer {{.create-read-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-song-player-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/user:invalid/player"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-song-player-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/player"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-song-player-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/player"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-song-player-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/nonexistent/player"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-song-player-no-permission
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/player"
+        headers:
+          Authorization: "Bearer {{.create-no-permission-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # PUT /api/v1/songs/{id} tests
+  - name: put-song-success
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Updated Test Song",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-song-success.songid}}"
+          - result.bodyjson.data.title ShouldEqual "Updated Test Song"
+
+  - name: put-song-success-with-write-permission
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-write-permission.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-write-user-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Updated By Write User",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.data.title ShouldEqual "Updated By Write User"
+
+  - name: put-song-invalid-id
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/user:invalid"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Test",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: put-song-invalid-payload
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {}
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: put-song-missing-token
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        headers:
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Test",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: put-song-invalid-token
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        headers:
+          Authorization: "Bearer invalid"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Test",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: put-song-notfound
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/nonexistent"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Test",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: put-song-no-permission
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-no-permission-user-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Test",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: put-song-read-permission-only
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-read-permission.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-read-user-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Test",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # PUT /api/v1/songs/{id} create (upsert) tests
+  - name: put-song-create-success
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/new-song-id"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Created By PUT",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "new-song-id"
+          - result.bodyjson.data.title ShouldEqual "Created By PUT"
+          - result.bodyjson.owner ShouldEqual "{{.create-song-owner-user.userid}}"
+
+  - name: put-song-create-with-write-permission
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/new-song-by-write-user"
+        headers:
+          Authorization: "Bearer {{.create-write-user-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Created By Write User Via PUT",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "new-song-by-write-user"
+          - result.bodyjson.data.title ShouldEqual "Created By Write User Via PUT"
+          - result.bodyjson.owner ShouldEqual "{{.create-write-user.userid}}"
+
+  - name: put-song-create-no-permission
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/new-song-no-permission"
+        headers:
+          Authorization: "Bearer {{.create-no-permission-user-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Should Not Be Created",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.owner ShouldEqual "{{.create-no-permission-user.userid}}"
+
+  # DELETE /api/v1/songs/{id} tests
+  - name: post-song-for-delete
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Song To Delete",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: post-song-for-delete-with-write-permission
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Song To Delete By Write User",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: delete-song-success
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-delete.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-song-for-delete.songid}}"
+
+  - name: delete-song-success-with-write-permission
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-delete-with-write-permission.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-write-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-song-for-delete-with-write-permission.songid}}"
+
+  - name: delete-song-invalid-id
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/songs/user:invalid"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: delete-song-missing-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-song-invalid-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-song-notfound
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/songs/never-existed"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-song-no-permission
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-no-permission-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-song-read-permission-only
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-read-permission.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-read-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-song-again
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-delete.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # GET /api/v1/songs/{id}/likes tests
+  - name: get-song-likes-success-not-liked
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.liked ShouldEqual false
+
+  - name: get-song-likes-success-with-read-permission
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-read-permission.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-read-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.liked ShouldEqual false
+
+  - name: get-song-likes-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/user:invalid/likes"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-song-likes-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-song-likes-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-song-likes-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/likes-never-created/likes"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-song-likes-no-read-permission
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-no-permission-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # PUT /api/v1/songs/{id}/likes tests
+  - name: post-song-for-likes
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Song For Likes",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: put-song-likes-like
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-likes.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "liked": true
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.liked ShouldEqual true
+
+  - name: get-song-likes-success-liked
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-likes.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.liked ShouldEqual true
+
+  - name: put-song-likes-unlike
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-likes.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "liked": false
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.liked ShouldEqual false
+
+  - name: put-song-likes-with-read-permission
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-read-permission.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-read-user-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "liked": true
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.liked ShouldEqual true
+
+  - name: put-song-likes-invalid-id
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/user:invalid/likes"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "liked": true
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: put-song-likes-invalid-payload-missing-liked
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {}
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: put-song-likes-missing-token
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        headers:
+          Content-Type: application/json
+        body: |
+          {
+            "liked": true
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: put-song-likes-invalid-token
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        headers:
+          Authorization: "Bearer invalid"
+          Content-Type: application/json
+        body: |
+          {
+            "liked": true
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: put-song-likes-notfound
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/likes-never-created/likes"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "liked": true
+          }
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: put-song-likes-no-read-permission
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-no-permission-user-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "liked": true
+          }
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # Cleanup: Delete test users
+  - name: delete-song-owner-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-song-owner-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: delete-read-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-read-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: delete-write-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-write-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: delete-no-permission-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-no-permission-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+

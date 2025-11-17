@@ -1,6 +1,6 @@
 name: Users me endpoint
 vars:
-  base_url: http://localhost:3001
+  base_url: http://localhost:8080
   token_admin: admin
 
 testcases:

@@ -1,6 +1,6 @@
 use chordlib::types::Song as SongData;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
+use surrealdb::sql::{Id, Thing};
 
 use shared::song::{CreateSong, Song};
 
@@ -14,6 +14,7 @@ pub trait Model {
     async fn update_song(
         &self,
         owners: Vec<String>,
+        owner: &str,
         id: &str,
         song: CreateSong,
     ) -> Result<Song, AppError>;
@@ -37,7 +38,7 @@ impl Model for Database {
     async fn get_songs(&self, owners: Vec<String>) -> Result<Vec<Song>, AppError> {
         let owners = owners
             .into_iter()
-            .map(|owner_id| owner_thing(&owner_id))
+            .map(|owner| owner_thing(&owner))
             .collect::<Vec<_>>();
 
         let mut response = self
@@ -76,18 +77,26 @@ impl Model for Database {
     async fn update_song(
         &self,
         owners: Vec<String>,
+        owner: &str,
         id: &str,
         song: CreateSong,
     ) -> Result<Song, AppError> {
         let resource = song_resource(id)?;
-        if let Some(existing) = self.db.select(resource.clone()).await? {
+        let owner = if let Some(existing) = self.db.select(resource.clone()).await? {
             if !song_belongs_to(&existing, owners) {
                 return Err(AppError::NotFound("song not found".into()));
             }
-        }
+            existing.owner
+        } else {
+            // Check write permission before creating new song
+            if !owners.contains(&owner.to_string()) {
+                return Err(AppError::NotFound("song not found".into()));
+            }
+            Some(owner_thing(owner))
+        };
 
         let record_id = Thing::from(resource.clone());
-        let record = SongRecord::from_payload(Some(record_id), None, song);
+        let record = SongRecord::from_payload(Some(record_id), owner.clone(), song);
 
         if let Some(updated) = self
             .db
@@ -234,17 +243,17 @@ impl SongRecord {
         Song {
             id: self
                 .id
-                .map(|thing| thing.id.to_string())
+                .map(id_from_thing)
                 .unwrap_or_default(),
             owner: self
                 .owner
-                .map(|thing| thing.id.to_string())
+                .map(id_from_thing)
                 .unwrap_or_default(),
             not_a_song: self.not_a_song,
             blobs: self
                 .blobs
                 .into_iter()
-                .map(|thing| thing.id.to_string())
+                .map(id_from_thing)
                 .collect(),
             data: self.data,
         }
@@ -285,6 +294,19 @@ fn song_belongs_to(record: &SongRecord, owners: Vec<String>) -> bool {
         .as_ref()
         .map(|owner| owners.contains(&owner.id.to_string()))
         .unwrap_or(false)
+}
+
+fn id_from_thing(thing: Thing) -> String {
+    id_to_plain_string(thing.id)
+}
+
+fn id_to_plain_string(id: Id) -> String {
+    match id {
+        Id::String(value) => value,
+        Id::Number(number) => format!("{number}"),
+        Id::Uuid(uuid) => uuid.to_string(),
+        _ => id.to_string(),
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
