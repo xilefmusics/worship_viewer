@@ -155,7 +155,7 @@ async fn update_song(
     payload: Json<CreateSong>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.update_song(user.write(), &id, payload.into_inner())
+        db.update_song(user.write(), &user.id, &id, payload.into_inner())
             .await?,
     ))
 }
