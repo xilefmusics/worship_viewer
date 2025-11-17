@@ -1,0 +1,854 @@
+name: Collections endpoints
+vars:
+  base_url: http://localhost:8080
+  token_admin: admin
+
+testcases:
+  # Setup: Users and sessions
+  - name: create-collection-owner-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "collectionowner@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "collectionowner@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-collection-owner-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-collection-owner-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-collection-read-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "collectionread@test.com",
+            "read": ["{{.create-collection-owner-user.userid}}"]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "collectionread@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-collection-read-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-collection-read-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-collection-write-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "collectionwrite@test.com",
+            "write": ["{{.create-collection-owner-user.userid}}"]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "collectionwrite@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-collection-write-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-collection-write-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-collection-noperm-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "collectionnoperm@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "collectionnoperm@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-collection-noperm-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-collection-noperm-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  # Setup: Songs to link in collections
+  - name: create-collection-song-one
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Collection Song One",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.data.title ShouldEqual "Collection Song One"
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: create-collection-song-two
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Collection Song Two",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.data.title ShouldEqual "Collection Song Two"
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  # POST /api/v1/collections
+  - name: post-collection-success
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Favorite Collection",
+            "cover": "cover-one",
+            "songs": [
+              { "id": "{{.create-collection-song-one.songid}}", "nr": "1" },
+              { "id": "{{.create-collection-song-two.songid}}", "nr": "2" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.owner ShouldEqual "{{.create-collection-owner-user.userid}}"
+          - result.bodyjson.title ShouldEqual "Favorite Collection"
+          - result.bodyjson.songs ShouldHaveLength 2
+        vars:
+          collectionid:
+            from: result.bodyjson.id
+
+  - name: post-collection-invalid-payload-missing-title
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "cover": "cover-two",
+            "songs": [
+              { "id": "{{.create-collection-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-collection-invalid-payload-missing-cover
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "No Cover Collection",
+            "songs": [
+              { "id": "{{.create-collection-song-two.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-collection-invalid-payload-missing-songs
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "No Songs Collection",
+            "cover": "cover-three"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-collection-missing-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Missing Token Collection",
+            "cover": "cover-missing",
+            "songs": [
+              { "id": "{{.create-collection-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: post-collection-invalid-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer invalid"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Invalid Token Collection",
+            "cover": "cover-invalid",
+            "songs": [
+              { "id": "{{.create-collection-song-two.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  # GET /api/v1/collections
+  - name: get-collections-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  - name: get-collections-read-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-collection-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  - name: get-collections-noperm-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-collection-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 0
+
+  - name: get-collections-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-collections-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  # GET /api/v1/collections/{id}
+  - name: get-collection-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-collection-success.collectionid}}"
+          - result.bodyjson.owner ShouldEqual "{{.create-collection-owner-user.userid}}"
+          - result.bodyjson.title ShouldEqual "Favorite Collection"
+
+  - name: get-collection-read-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-collection-success.collectionid}}"
+
+  - name: get-collection-noperm-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-collection-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-collection-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-collection-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/song:invalid"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-collection-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/nonexistent-collection"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # GET /api/v1/collections/{id}/songs
+  - name: get-collection-songs-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/songs"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
+
+  - name: get-collection-songs-read-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/songs"
+        headers:
+          Authorization: "Bearer {{.create-collection-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
+
+  - name: get-collection-songs-noperm-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/songs"
+        headers:
+          Authorization: "Bearer {{.create-collection-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-collection-songs-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/song:invalid/songs"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-collection-songs-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/songs"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-collection-songs-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/never-created-collection/songs"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # GET /api/v1/collections/{id}/player
+  - name: get-collection-player-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/player"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.toc ShouldHaveLength 2
+
+  - name: get-collection-player-read-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/player"
+        headers:
+          Authorization: "Bearer {{.create-collection-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.toc ShouldHaveLength 2
+
+  - name: get-collection-player-noperm-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/player"
+        headers:
+          Authorization: "Bearer {{.create-collection-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-collection-player-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/song:invalid/player"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-collection-player-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/player"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-collection-player-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/player"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  # PUT /api/v1/collections/{id}
+  - name: put-collection-success-owner
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Updated Collection",
+            "cover": "cover-updated",
+            "songs": [
+              { "id": "{{.create-collection-song-two.songid}}", "nr": "10" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.title ShouldEqual "Updated Collection"
+          - result.bodyjson.songs ShouldHaveLength 1
+
+  - name: put-collection-success-write-user
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-write-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Write Updated Collection",
+            "cover": "cover-write",
+            "songs": [
+              { "id": "{{.create-collection-song-one.songid}}", "nr": "5" },
+              { "id": "{{.create-collection-song-two.songid}}", "nr": "6" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.title ShouldEqual "Write Updated Collection"
+          - result.bodyjson.songs ShouldHaveLength 2
+
+  - name: put-collection-read-user
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-read-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Read Attempt Collection",
+            "cover": "cover-read",
+            "songs": [
+              { "id": "{{.create-collection-song-one.songid}}", "nr": "3" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: put-collection-noperm-user
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-noperm-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "No Perm Attempt",
+            "cover": "cover-noperm",
+            "songs": [
+              { "id": "{{.create-collection-song-two.songid}}", "nr": "4" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: put-collection-invalid-id
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/collections/song:invalid"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Invalid Id Collection",
+            "cover": "cover-invalid",
+            "songs": [
+              { "id": "{{.create-collection-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: put-collection-missing-token
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Missing Token Update",
+            "cover": "cover-missing",
+            "songs": [
+              { "id": "{{.create-collection-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: put-collection-invalid-token
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Authorization: "Bearer invalid"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Invalid Token Update",
+            "cover": "cover-invalid-token",
+            "songs": [
+              { "id": "{{.create-collection-song-two.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  # Additional collections for delete scenarios
+  - name: post-collection-for-delete
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Collection To Delete",
+            "cover": "cover-delete",
+            "songs": [
+              { "id": "{{.create-collection-song-one.songid}}", "nr": "1" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          collectionid:
+            from: result.bodyjson.id
+
+  - name: post-collection-for-delete-write
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Collection To Delete By Write",
+            "cover": "cover-delete-write",
+            "songs": [
+              { "id": "{{.create-collection-song-two.songid}}", "nr": "2" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          collectionid:
+            from: result.bodyjson.id
+
+  # DELETE /api/v1/collections/{id}
+  - name: delete-collection-success
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-for-delete.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-collection-for-delete.collectionid}}"
+
+  - name: delete-collection-success-write-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-for-delete-write.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-write-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-collection-for-delete-write.collectionid}}"
+
+  - name: delete-collection-invalid-id
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/collections/song:invalid"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: delete-collection-missing-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-collection-invalid-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-collection-no-permission
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-collection-notfound
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/collections/never-existed-collection"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-collection-again
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-for-delete.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # Cleanup users
+  - name: delete-collection-owner-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-collection-owner-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: delete-collection-read-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-collection-read-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: delete-collection-write-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-collection-write-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: delete-collection-noperm-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-collection-noperm-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
