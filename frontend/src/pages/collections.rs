@@ -10,26 +10,19 @@ use crate::api::use_api;
 #[function_component(CollectionsPage)]
 pub fn collection_page() -> Html {
     let collections = use_state(|| Vec::<Collection>::new());
-    let user = use_state(|| None);
     let api = use_api();
+    let navigator = use_navigator().unwrap();
+
     {
         let collections = collections.clone();
-        let user = user.clone();
-        let api = api.clone();
         use_effect_with((), move |_| {
             let collections = collections.clone();
-            let user = user.clone();
-            let api = api.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                user.set(Some(api.get_users_me().await.unwrap()));
-                let fetched_collections = api.get_collections().await.unwrap();
-                collections.set(fetched_collections);
+                collections.set(api.get_collections().await.unwrap());
             });
             || ()
         });
     };
-
-    let navigator = use_navigator().unwrap();
 
     let collections = collections
         .iter()
@@ -60,9 +53,6 @@ pub fn collection_page() -> Html {
 
     html! {
         <div class={Style::new(include_str!("collections.css")).expect("Unwrapping CSS should work!")}>
-            <div class="collections">
-                <p>{user.as_ref().map(|user| user.email.as_str()).unwrap_or("loading")}</p>
-            </div>
             <div class="collections">
                 {collections}
             </div>

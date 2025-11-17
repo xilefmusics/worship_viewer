@@ -109,7 +109,6 @@ pub fn editor_page() -> Html {
 
     let onimport = {
         let song_handle = song.clone();
-        let api = api.clone();
         Callback::from(move |url: String| {
             if url.is_empty() {
                 song_handle.set(Some(EditorState::new()));
@@ -117,10 +116,10 @@ pub fn editor_page() -> Html {
             }
 
             let song_handle = song_handle.clone();
-            let api = api.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let imported = api.import_song_from_url(&url).await.unwrap();
-                song_handle.set(Some(imported.into()));
+                // TODO: Implement import song from url
+                //let imported = api.import_song_from_url(&url).await.unwrap();
+                song_handle.set(None);
             });
         })
     };

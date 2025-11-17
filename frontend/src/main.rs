@@ -30,19 +30,12 @@ fn register_service_worker() {
         }
 
         let navigator = window.navigator();
-        let Some(service_worker) = navigator.service_worker() else {
-            return;
-        };
+        let service_worker = navigator.service_worker();
 
-        match service_worker.register("/service-worker.js") {
-            Ok(promise) => {
-                if let Err(err) = JsFuture::from(promise).await {
-                    warn!(format!("service worker registration failed: {:?}", err));
-                }
-            }
-            Err(err) => {
-                warn!(format!("service worker registration error: {:?}", err));
-            }
+        let promise = service_worker.register("/service-worker.js");
+
+        if let Err(err) = JsFuture::from(promise).await {
+            warn!(format!("service worker registration failed: {:?}", err));
         }
     });
 }

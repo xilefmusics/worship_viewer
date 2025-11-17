@@ -13,14 +13,6 @@ pub struct Query {
     pub id: Option<String>,
 }
 
-impl Query {
-    pub fn api_url(&self) -> Option<String> {
-        self.id
-            .as_ref()
-            .map(|id| format!("/api/v1/setlists/{}", id))
-    }
-}
-
 #[derive(Clone, PartialEq)]
 struct EditorState {
     id: Option<String>,
