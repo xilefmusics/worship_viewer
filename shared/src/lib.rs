@@ -1,5 +1,7 @@
+pub mod auth;
 pub mod blob;
 pub mod collection;
+pub mod error;
 pub mod like;
 pub mod player;
 pub mod setlist;

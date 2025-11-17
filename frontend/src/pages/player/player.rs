@@ -1,8 +1,9 @@
 use super::{PagesComponent, TableOfContentsComponent};
+use crate::api::use_api;
 use crate::route::Route;
-use gloo::{net::http::Request, timers::callback::Timeout};
+use gloo::timers::callback::Timeout;
 use serde::Deserialize;
-use shared::player::{Orientation, Player, PlayerItem, TocItem};
+use shared::player::{Orientation, PlayerItem, TocItem};
 use shared::song::{ChordRepresentation, SimpleChord};
 use std::collections::HashMap;
 use stylist::{css, yew::Global, Style};
@@ -13,7 +14,7 @@ use yew::prelude::*;
 use yew_hooks::{use_event_with_window, use_window_size};
 use yew_router::prelude::*;
 
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct Query {
     pub id: Option<String>,
     pub collection: Option<String>,
@@ -21,10 +22,6 @@ pub struct Query {
 }
 
 impl Query {
-    pub fn api_url(&self) -> String {
-        self.url("/api/player", None)
-    }
-
     fn url(&self, path: &str, format: Option<&str>) -> String {
         let base = Url::parse("https://example.net").unwrap();
         let mut url = Url::parse(&format!("https://example.net{path}")).unwrap();
@@ -94,18 +91,25 @@ pub fn player_page() -> Html {
     let export_menu_active = use_state(|| false);
     let override_key = use_state(|| None);
     let override_representation = use_state(|| None);
+    let api = use_api();
     {
         let player = player.clone();
-        let api_url = query.api_url();
-        use_effect_with((), move |_| {
+        let api = api.clone();
+        let query = query.clone();
+        use_effect_with(query, move |query| {
+            let player = player.clone();
+            let api = api.clone();
+            let query = query.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let fetched_player: Player = Request::get(&api_url)
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
+                let fetched_player = if let Some(setlist_id) = query.setlist.clone() {
+                    api.get_setlist_player(&setlist_id).await.unwrap()
+                } else if let Some(collection_id) = query.collection.clone() {
+                    api.get_collection_player(&collection_id).await.unwrap()
+                } else if let Some(song_id) = query.id.clone() {
+                    api.get_song_player(&song_id).await.unwrap()
+                } else {
+                    return;
+                };
                 player.set(Some(fetched_player));
             });
             || ()
@@ -118,6 +122,7 @@ pub fn player_page() -> Html {
         let player = player.clone();
         let show_heart = show_heart.clone();
         let show_unheart = show_unheart.clone();
+        let api = api.clone();
         move || {
             let player_handle = player.clone();
             if let Some(player) = player.as_ref() {
@@ -126,14 +131,9 @@ pub fn player_page() -> Html {
                     let show_unheart = show_unheart.clone();
                     let player_handle = player_handle.clone();
                     let player = player.clone();
+                    let api = api.clone();
                     wasm_bindgen_futures::spawn_local(async move {
-                        let like: bool = Request::get(&format!("/api/likes/toggle/{}", id))
-                            .send()
-                            .await
-                            .unwrap()
-                            .json()
-                            .await
-                            .unwrap();
+                        let like = api.toggle_song_like(&id).await.unwrap();
                         player_handle.set(Some(player.set_like(&id, like)));
                         if like {
                             show_heart.set(true);

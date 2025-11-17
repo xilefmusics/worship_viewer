@@ -9,6 +9,7 @@ use actix_web::{
 use super::Model;
 use crate::database::Database;
 #[allow(unused_imports)]
+#[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;

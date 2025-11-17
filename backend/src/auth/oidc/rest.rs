@@ -19,6 +19,8 @@ use utoipa::IntoParams;
 
 use super::{Model as OidcModel, OidcClients, OidcProvider, PendingOidc};
 use crate::database::Database;
+#[allow(unused_imports)]
+use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::{Session, SessionModel, UserModel};
 use crate::settings::Settings;
@@ -148,9 +150,10 @@ async fn callback(
     let user = db
         .get_user_by_email_or_create(claims.email().ok_or(AppError::Unauthorized)?)
         .await?;
-    let session = db.create_session(Session::new(user)).await?;
-
     let settings = Settings::global();
+    let session = db
+        .create_session(Session::new(user, settings.session_ttl_seconds as i64))
+        .await?;
     let redirect_target = resolve_frontend_redirect(settings, redirect_to.as_deref());
 
     Ok(HttpResponse::Found()

@@ -1,5 +1,5 @@
+use crate::api::use_api;
 use crate::route::Route;
-use gloo_net::http::Request;
 use shared::setlist::Setlist;
 use std::collections::HashMap;
 use stylist::Style;
@@ -9,14 +9,16 @@ use yew_router::prelude::*;
 #[function_component(SetlistsPage)]
 pub fn setlists_page() -> Html {
     let setlists = use_state(|| Vec::<Setlist>::new());
+    let api = use_api();
 
     {
         let setlists = setlists.clone();
+        let api = api.clone();
         use_effect_with((), move |_| {
             let setlists = setlists.clone();
+            let api = api.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let response = Request::get("/api/v1/setlists").send().await.unwrap();
-                let mut fetched_setlists: Vec<Setlist> = response.json().await.unwrap();
+                let mut fetched_setlists = api.get_setlists().await.unwrap();
                 fetched_setlists.sort_by_key(|setlist| setlist.title.clone());
                 setlists.set(fetched_setlists);
             });

@@ -1,5 +1,4 @@
-mod session;
-pub use session::Session;
+pub use shared::user::Session;
 
 mod model;
 pub use model::Model;

@@ -55,7 +55,7 @@ async fn main() -> AnyResult<()> {
 
         if settings.initial_admin_user_test_session {
             let session = db
-                .create_session(Session::admin(admin))
+                .create_session(Session::admin(admin, settings.session_ttl_seconds as i64))
                 .await
                 .context("failed to create a test session for the admin user")?;
             info!(

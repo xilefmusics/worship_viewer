@@ -1,23 +1,16 @@
+use crate::api::use_api;
 use crate::components::{SongEditor, SongSavePayload};
 use crate::route::Route;
-use gloo_net::http::Request;
 use serde::Deserialize;
 use shared::song::{CreateSong, Song};
 use std::collections::HashMap;
 use stylist::Style;
-use url::Url;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct Query {
     pub id: Option<String>,
-}
-
-impl Query {
-    pub fn api_url(&self) -> Option<String> {
-        self.id.as_ref().map(|id| format!("/api/v1/songs/{}", id))
-    }
 }
 
 #[derive(Clone, PartialEq)]
@@ -57,18 +50,17 @@ pub fn editor_page() -> Html {
         .unwrap_or(Query::default());
 
     let song = use_state(|| None::<EditorState>);
+    let api = use_api();
     {
         let song_handle = song.clone();
-        use_effect_with((), move |_| {
-            if let Some(api_url) = query.api_url() {
+        let api = api.clone();
+        let query_id = query.id.clone();
+        use_effect_with(query_id, move |id| {
+            if let Some(id) = id.clone() {
+                let song_handle = song_handle.clone();
+                let api = api.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let fetched: Song = Request::get(&api_url)
-                        .send()
-                        .await
-                        .unwrap()
-                        .json()
-                        .await
-                        .unwrap();
+                    let fetched = api.get_song(&id).await.unwrap();
                     song_handle.set(Some(fetched.into()));
                 });
             } else {
@@ -82,37 +74,24 @@ pub fn editor_page() -> Html {
     let onsave = {
         let song_handle = song.clone();
         let navigator = navigator.clone();
+        let api = api.clone();
         Callback::from(move |payload: SongSavePayload| {
             let navigator = navigator.clone();
             let song_handle = song_handle.clone();
             let data = payload.data.clone();
             if let Some(id) = payload.id.clone() {
+                let api = api.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let updated: Song = Request::put(&format!("/api/v1/songs/{}", id))
-                        .json(&data)
-                        .unwrap()
-                        .send()
-                        .await
-                        .unwrap()
-                        .json()
-                        .await
-                        .unwrap();
+                    let updated = api.update_song(&id, &data).await.unwrap();
                     song_handle.set(Some(updated.into()));
                 });
             } else {
                 if data.data.title.is_empty() {
                     return;
                 }
+                let api = api.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let created: Song = Request::post("/api/v1/songs")
-                        .json(&data)
-                        .unwrap()
-                        .send()
-                        .await
-                        .unwrap()
-                        .json()
-                        .await
-                        .unwrap();
+                    let created = api.create_song(&data).await.unwrap();
                     navigator
                         .replace_with_query(
                             &Route::Editor,
@@ -130,27 +109,17 @@ pub fn editor_page() -> Html {
 
     let onimport = {
         let song_handle = song.clone();
+        let api = api.clone();
         Callback::from(move |url: String| {
             if url.is_empty() {
                 song_handle.set(Some(EditorState::new()));
                 return;
             }
 
-            let url = Url::parse(&url).unwrap();
-            let api_url = format!(
-                "/api/import/{}{}",
-                url.host_str().unwrap_or("unknown").replace('.', "/"),
-                url.path()
-            );
             let song_handle = song_handle.clone();
+            let api = api.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let imported: Song = Request::get(&api_url)
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
+                let imported = api.import_song_from_url(&url).await.unwrap();
                 song_handle.set(Some(imported.into()));
             });
         })
@@ -159,14 +128,13 @@ pub fn editor_page() -> Html {
     let ondelete = {
         let song_handle = song.clone();
         let navigator = navigator.clone();
+        let api = api.clone();
         Callback::from(move |target_id: String| {
             let navigator = navigator.clone();
             let song_handle = song_handle.clone();
+            let api = api.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                Request::delete(&format!("/api/v1/songs/{}", target_id))
-                    .send()
-                    .await
-                    .unwrap();
+                api.delete_song(&target_id).await.unwrap();
                 song_handle.set(Some(EditorState::new()));
                 navigator.push(&Route::Songs);
             });

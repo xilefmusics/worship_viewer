@@ -6,11 +6,12 @@ use actix_web::{
 };
 
 use rand::Rng;
-use serde::Deserialize;
+use shared::auth::otp::{OtpRequest, OtpVerify};
 use time::Duration as CookieDuration;
-use utoipa::ToSchema;
 
 use super::Model;
+#[allow(unused_imports)]
+use crate::docs::ErrorResponse;
 use crate::database::Database;
 use crate::error::AppError;
 use crate::mail::Mail;
@@ -85,23 +86,15 @@ async fn otp_verify(
     db.validate_otp(&email, &code).await?;
 
     let session = db
-        .create_session(Session::new(db.get_user_by_email_or_create(&email).await?))
+        .create_session(Session::new(
+            db.get_user_by_email_or_create(&email).await?,
+            Settings::global().session_ttl_seconds as i64,
+        ))
         .await?;
 
     Ok(HttpResponse::Ok()
         .cookie(session_cookie(&session.id))
         .json(session))
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct OtpRequest {
-    email: String,
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct OtpVerify {
-    email: String,
-    code: String,
 }
 
 trait OkIf {

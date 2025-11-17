@@ -1,5 +1,5 @@
+use crate::api::use_api;
 use fancy_yew::components::input::StringInput;
-use gloo_net::http::Request;
 use js_sys::Reflect;
 use shared::setlist::CreateSetlist;
 use shared::song::Song;
@@ -80,20 +80,17 @@ pub fn setlist_editor(props: &Props) -> Html {
     let drag_index = use_state(|| None::<usize>);
     let drag_over_index = use_state(|| None::<usize>);
     let show_delete_dialog = use_state(|| false);
+    let api = use_api();
     {
         let songs = songs.clone();
         let setlist_songs = props.setlist.songs.clone();
         let items = items.clone();
+        let api = api.clone();
         use_effect_with((), move |_| {
             let songs = songs.clone();
+            let api = api.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let mut fetched_songs: Vec<Song> = Request::get("/api/v1/songs")
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
+                let mut fetched_songs = api.get_songs().await.unwrap();
                 fetched_songs.sort_by_key(|song| song.data.title.clone());
                 let fetched_songs: Vec<Song> = fetched_songs
                     .into_iter()

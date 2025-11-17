@@ -1,14 +1,14 @@
-use serde::Serialize;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
-use crate::auth::otp::rest::{OtpRequest, OtpVerify};
+use shared::auth::otp::{OtpRequest, OtpVerify};
 use crate::resources::user::Role;
 use crate::resources::{
     Blob, Collection, CreateBlob, CreateCollection, CreateSetlist, CreateSong, CreateUserRequest,
     Session, Setlist, Song, User,
 };
 use shared::blob::FileType;
+pub use shared::error::ErrorResponse;
 use shared::like::LikeStatus;
 use shared::player::{Orientation, Player, PlayerItem, ScrollType, TocItem};
 use shared::song::Link as SongLink;
@@ -109,11 +109,6 @@ pub mod rest {
     modifiers(&SessionSecurity)
 )]
 pub struct ApiDoc;
-
-#[derive(Debug, Serialize, utoipa::ToSchema)]
-pub struct ErrorResponse {
-    pub error: String,
-}
 
 struct SessionSecurity;
 

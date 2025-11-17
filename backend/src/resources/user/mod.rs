@@ -1,11 +1,8 @@
-mod user;
-pub use user::{Role, User};
+pub use shared::user::{CreateUserRequest, Role, User};
 
 mod model;
-pub use model::Model;
-use model::UserRecord;
+pub use model::{Model, UserRecord};
 
 pub mod rest;
-pub use rest::CreateUserRequest;
 
 pub mod session;

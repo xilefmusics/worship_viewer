@@ -1,5 +1,4 @@
 use crate::route::Route;
-use gloo_net::http::Request;
 use shared::collection::Collection;
 use std::collections::HashMap;
 use stylist::Style;
@@ -10,24 +9,20 @@ use crate::api::use_api;
 
 #[function_component(CollectionsPage)]
 pub fn collection_page() -> Html {
-    let collections = use_state(|| vec![]);
+    let collections = use_state(|| Vec::<Collection>::new());
     let user = use_state(|| None);
     let api = use_api();
     {
         let collections = collections.clone();
         let user = user.clone();
+        let api = api.clone();
         use_effect_with((), move |_| {
             let collections = collections.clone();
             let user = user.clone();
+            let api = api.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 user.set(Some(api.get_users_me().await.unwrap()));
-                let fetched_collections: Vec<Collection> = Request::get("/api/v1/collections")
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
+                let fetched_collections = api.get_collections().await.unwrap();
                 collections.set(fetched_collections);
             });
             || ()

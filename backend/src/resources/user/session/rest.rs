@@ -6,8 +6,11 @@ use serde::Deserialize;
 
 use super::Model;
 use crate::database::Database;
+#[allow(unused_imports)]
+use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::{Session, User, UserModel};
+use crate::settings::Settings;
 
 #[utoipa::path(
     get,
@@ -106,10 +109,13 @@ async fn create_session_for_user(
     db: Data<Database>,
     path: Path<UserIdPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(
-        db.create_session(Session::new(db.get_user(&path.user_id).await?))
-            .await?,
-    ))
+    let ttl = Settings::global().session_ttl_seconds as i64;
+    Ok(
+        HttpResponse::Created().json(
+            db.create_session(Session::new(db.get_user(&path.user_id).await?, ttl))
+                .await?,
+        ),
+    )
 }
 
 #[utoipa::path(
