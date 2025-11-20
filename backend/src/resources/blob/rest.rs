@@ -163,7 +163,7 @@ async fn delete_blob(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/blobs/{id}/image",
+    path = "/api/v1/blobs/{id}/data",
     params(
         ("id" = String, Path, description = "Blob identifier")
     ),
@@ -180,7 +180,7 @@ async fn delete_blob(
         ("SessionToken" = [])
     )
 )]
-#[get("/{id}/image")]
+#[get("/{id}/data")]
 async fn download_blob_image(
     db: Data<Database>,
     user: ReqData<User>,
