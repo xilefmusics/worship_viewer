@@ -27,7 +27,7 @@ pub fn collection_page() -> Html {
     let collections = collections
         .iter()
         .map(|collection| {
-            let cover = "/api/v1/blobs/".to_string() + &collection.cover;
+            let cover = "/api/v1/blobs/".to_string() + &collection.cover + "/data";
             let title = &collection.title;
             let onclick = {
                 let navigator = navigator.clone();
