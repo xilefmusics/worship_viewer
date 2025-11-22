@@ -26,6 +26,7 @@ pub fn scope() -> Scope {
         .service(delete_song)
         .service(get_song_like_status)
         .service(update_song_like_status)
+        .service(import_song)
 }
 
 #[utoipa::path(
@@ -250,4 +251,44 @@ async fn update_song_like_status(
     let liked = db.set_song_like(user.read(), &user.id, &id, liked).await?;
 
     Ok(HttpResponse::Ok().json(LikeStatus { liked }))
+}
+
+async fn import(identifier: &str) -> Result<Song, AppError> {
+    if identifier.starts_with("tabs/ultimate-guitar/com/tab/") {
+        let url = format!("https://tabs.ultimate-guitar.com/tab/{}", &identifier[29..]);
+        let html = reqwest::Client::default()
+            .get(&url)
+            .send()
+            .await?
+            .text()
+            .await?;
+        
+        Ok(Song::import_ultimate_guitar(&html)?)
+    } else {
+        Err(AppError::NotFound("import method not found".into()))
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/songs/import/{identifier:.*}",
+    params(
+        ("identifier" = String, Path, description = "Import identifier (e.g., tabs/ultimate-guitar/com/tab/...)")
+    ),
+    responses(
+        (status = 200, description = "Import a song from external source", body = Song),
+        (status = 400, description = "Invalid import identifier or parsing error", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Import method not found or resource not found", body = ErrorResponse),
+        (status = 500, description = "Failed to import song", body = ErrorResponse)
+    ),
+    tag = "Songs",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[get("/import/{identifier:.*}")]
+async fn import_song(identifier: Path<String>) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(import(&identifier).await?))
 }

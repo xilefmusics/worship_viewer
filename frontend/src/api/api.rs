@@ -1,5 +1,6 @@
 use gloo_net::http::{Request, Response};
 use serde::{de::DeserializeOwned, Serialize};
+use url::Url;
 use yew_router::prelude::Navigator;
 
 use shared::auth::otp::{OtpRequest, OtpVerify};
@@ -150,7 +151,9 @@ impl Api {
 
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
-            204 => Err(ApiError::InternalServerError("Unexpected 204 response for entity retrieval".into())),
+            204 => Err(ApiError::InternalServerError(
+                "Unexpected 204 response for entity retrieval".into(),
+            )),
             _ => Err(self.map_error(response).await),
         }
     }
@@ -168,7 +171,9 @@ impl Api {
 
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
-            204 => Err(ApiError::InternalServerError("Unexpected 204 response for entity update".into())),
+            204 => Err(ApiError::InternalServerError(
+                "Unexpected 204 response for entity update".into(),
+            )),
             _ => Err(self.map_error(response).await),
         }
     }
@@ -186,7 +191,9 @@ impl Api {
 
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
-            204 => Err(ApiError::InternalServerError("Unexpected 204 response for entity creation".into())),
+            204 => Err(ApiError::InternalServerError(
+                "Unexpected 204 response for entity creation".into(),
+            )),
             _ => Err(self.map_error(response).await),
         }
     }
@@ -202,7 +209,9 @@ impl Api {
 
         match response.status() {
             200 | 201 => Ok(response.json::<T>().await?),
-            204 => Err(ApiError::InternalServerError("Unexpected 204 response for entity deletion".into())),
+            204 => Err(ApiError::InternalServerError(
+                "Unexpected 204 response for entity deletion".into(),
+            )),
             _ => Err(self.map_error(response).await),
         }
     }
@@ -221,8 +230,7 @@ impl Api {
 
     #[allow(dead_code)]
     pub async fn request_otp(&self, email: String) -> Result<(), ApiError> {
-        self.post("/auth/otp/request", &OtpRequest { email })
-            .await
+        self.post("/auth/otp/request", &OtpRequest { email }).await
     }
 
     #[allow(dead_code)]
@@ -282,27 +290,36 @@ impl Api {
 
     #[allow(dead_code)]
     pub async fn delete_session_for_current_user(&self, id: &str) -> Result<Session, ApiError> {
-        self.delete(&format!("/api/v1/users/me/sessions/{}", id)).await
+        self.delete(&format!("/api/v1/users/me/sessions/{}", id))
+            .await
     }
 
     #[allow(dead_code)]
     pub async fn get_sessions_for_user(&self, user_id: &str) -> Result<Vec<Session>, ApiError> {
-        self.get(&format!("/api/v1/users/{}/sessions", user_id)).await
+        self.get(&format!("/api/v1/users/{}/sessions", user_id))
+            .await
     }
 
     #[allow(dead_code)]
     pub async fn get_session_for_user(&self, user_id: &str, id: &str) -> Result<Session, ApiError> {
-        self.get(&format!("/api/v1/users/{}/sessions/{}", user_id, id)).await
+        self.get(&format!("/api/v1/users/{}/sessions/{}", user_id, id))
+            .await
     }
 
     #[allow(dead_code)]
     pub async fn create_session_for_user(&self, user_id: &str) -> Result<Session, ApiError> {
-        self.post_empty(&format!("/api/v1/users/{}/sessions", user_id)).await
+        self.post_empty(&format!("/api/v1/users/{}/sessions", user_id))
+            .await
     }
 
     #[allow(dead_code)]
-    pub async fn delete_session_for_user(&self, user_id: &str, id: &str) -> Result<Session, ApiError> {
-        self.delete(&format!("/api/v1/users/{}/sessions/{}", user_id, id)).await
+    pub async fn delete_session_for_user(
+        &self,
+        user_id: &str,
+        id: &str,
+    ) -> Result<Session, ApiError> {
+        self.delete(&format!("/api/v1/users/{}/sessions/{}", user_id, id))
+            .await
     }
 
     #[allow(dead_code)]
@@ -327,7 +344,8 @@ impl Api {
 
     #[allow(dead_code)]
     pub async fn update_song(&self, id: &str, payload: &CreateSong) -> Result<Song, ApiError> {
-        self.put_entity(&format!("/api/v1/songs/{}", id), payload).await
+        self.put_entity(&format!("/api/v1/songs/{}", id), payload)
+            .await
     }
 
     #[allow(dead_code)]
@@ -341,8 +359,13 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn update_song_like_status(&self, id: &str, payload: &LikeStatus) -> Result<LikeStatus, ApiError> {
-        self.put(&format!("/api/v1/songs/{}/likes", id), payload).await
+    pub async fn update_song_like_status(
+        &self,
+        id: &str,
+        payload: &LikeStatus,
+    ) -> Result<LikeStatus, ApiError> {
+        self.put(&format!("/api/v1/songs/{}/likes", id), payload)
+            .await
     }
 
     #[allow(dead_code)]
@@ -367,22 +390,32 @@ impl Api {
 
     #[allow(dead_code)]
     pub async fn get_collection_player(&self, id: &str) -> Result<Player, ApiError> {
-        self.get(&format!("/api/v1/collections/{}/player", id)).await
+        self.get(&format!("/api/v1/collections/{}/player", id))
+            .await
     }
 
     #[allow(dead_code)]
-    pub async fn create_collection(&self, payload: &CreateCollection) -> Result<Collection, ApiError> {
+    pub async fn create_collection(
+        &self,
+        payload: &CreateCollection,
+    ) -> Result<Collection, ApiError> {
         self.post_entity("/api/v1/collections", payload).await
     }
 
     #[allow(dead_code)]
-    pub async fn update_collection(&self, id: &str, payload: &CreateCollection) -> Result<Collection, ApiError> {
-        self.put_entity(&format!("/api/v1/collections/{}", id), payload).await
+    pub async fn update_collection(
+        &self,
+        id: &str,
+        payload: &CreateCollection,
+    ) -> Result<Collection, ApiError> {
+        self.put_entity(&format!("/api/v1/collections/{}", id), payload)
+            .await
     }
 
     #[allow(dead_code)]
     pub async fn delete_collection(&self, id: &str) -> Result<Collection, ApiError> {
-        self.delete_entity(&format!("/api/v1/collections/{}", id)).await
+        self.delete_entity(&format!("/api/v1/collections/{}", id))
+            .await
     }
 
     #[allow(dead_code)]
@@ -411,13 +444,19 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn update_setlist(&self, id: &str, payload: &CreateSetlist) -> Result<Setlist, ApiError> {
-        self.put_entity(&format!("/api/v1/setlists/{}", id), payload).await
+    pub async fn update_setlist(
+        &self,
+        id: &str,
+        payload: &CreateSetlist,
+    ) -> Result<Setlist, ApiError> {
+        self.put_entity(&format!("/api/v1/setlists/{}", id), payload)
+            .await
     }
 
     #[allow(dead_code)]
     pub async fn delete_setlist(&self, id: &str) -> Result<Setlist, ApiError> {
-        self.delete_entity(&format!("/api/v1/setlists/{}", id)).await
+        self.delete_entity(&format!("/api/v1/setlists/{}", id))
+            .await
     }
 
     #[allow(dead_code)]
@@ -437,11 +476,23 @@ impl Api {
 
     #[allow(dead_code)]
     pub async fn update_blob(&self, id: &str, payload: &CreateBlob) -> Result<Blob, ApiError> {
-        self.put_entity(&format!("/api/v1/blobs/{}", id), payload).await
+        self.put_entity(&format!("/api/v1/blobs/{}", id), payload)
+            .await
     }
 
     #[allow(dead_code)]
     pub async fn delete_blob(&self, id: &str) -> Result<Blob, ApiError> {
         self.delete_entity(&format!("/api/v1/blobs/{}", id)).await
+    }
+
+    #[allow(dead_code)]
+    pub async fn import_song_ultimate_guitar(&self, url: &str) -> Result<Song, ApiError> {
+        let url = Url::parse(&url).unwrap();
+        self.get(&format!(
+            "/api/v1/songs/import/{}{}",
+            url.host_str().unwrap_or("unknown").replace(".", "/"),
+            url.path()
+        ))
+        .await
     }
 }

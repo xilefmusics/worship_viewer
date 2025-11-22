@@ -13,7 +13,7 @@ pub struct Query {
     pub id: Option<String>,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Default)]
 struct EditorState {
     id: Option<String>,
     data: CreateSong,
@@ -109,6 +109,7 @@ pub fn editor_page() -> Html {
 
     let onimport = {
         let song_handle = song.clone();
+        let api = api.clone();
         Callback::from(move |url: String| {
             if url.is_empty() {
                 song_handle.set(Some(EditorState::new()));
@@ -116,10 +117,16 @@ pub fn editor_page() -> Html {
             }
 
             let song_handle = song_handle.clone();
+            let url = url.clone();
+            let api = api.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                // TODO: Implement import song from url
-                //let imported = api.import_song_from_url(&url).await.unwrap();
-                song_handle.set(None);
+                song_handle.set(Some(EditorState {
+                    id: song_handle
+                        .as_ref()
+                        .map(|s| s.id.clone())
+                        .unwrap_or_default(),
+                    data: api.import_song_ultimate_guitar(&url).await.unwrap().into(),
+                }));
             });
         })
     };

@@ -86,6 +86,18 @@ impl From<surrealdb::Error> for AppError {
     }
 }
 
+impl From<chordlib::Error> for AppError {
+    fn from(err: chordlib::Error) -> Self {
+        AppError::invalid_request(err.to_string())
+    }
+}
+
+impl From<reqwest::Error> for AppError {
+    fn from(err: reqwest::Error) -> Self {
+        AppError::Internal(format!("HTTP client error: {}", err))
+    }
+}
+
 impl ResponseError for AppError {
     fn status_code(&self) -> StatusCode {
         match self {

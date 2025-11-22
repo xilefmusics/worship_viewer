@@ -50,6 +50,7 @@ pub mod rest {
         crate::resources::song::rest::delete_song,
         crate::resources::song::rest::get_song_like_status,
         crate::resources::song::rest::update_song_like_status,
+        crate::resources::song::rest::import_song,
         crate::resources::collection::rest::get_collections,
         crate::resources::collection::rest::get_collection,
         crate::resources::collection::rest::get_collection_player,
