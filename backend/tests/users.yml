@@ -203,6 +203,145 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  - name: create-cascade-verifier-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "cascadeverifier@test.com",
+            "read": ["{{.post-users.userid}}"]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-cascade-verifier-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-cascade-verifier-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: create-default-user-blob
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 640,
+            "height": 480,
+            "ocr": "Cascade test blob"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.owner ShouldEqual "{{.post-users.userid}}"
+        vars:
+          blobid:
+            from: result.bodyjson.id
+
+  - name: create-default-user-song
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Cascade Song",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.owner ShouldEqual "{{.post-users.userid}}"
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: create-default-user-setlist
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Cascade Setlist",
+            "songs": [
+              { "id": "{{.create-default-user-song.songid}}", "nr": "1" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.owner ShouldEqual "{{.post-users.userid}}"
+        vars:
+          setlistid:
+            from: result.bodyjson.id
+
+  - name: create-default-user-collection
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Cascade Collection",
+            "cover": "{{.create-default-user-blob.blobid}}",
+            "songs": [
+              { "id": "{{.create-default-user-song.songid}}", "nr": "1" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.owner ShouldEqual "{{.post-users.userid}}"
+        vars:
+          collectionid:
+            from: result.bodyjson.id
+
+  - name: like-default-user-song
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.create-default-user-song.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "liked": true
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.liked ShouldEqual true
+
   - name: get-users-me-default
     steps:
       - type: http
@@ -277,6 +416,56 @@ testcases:
           - result.bodyjson.role ShouldEqual "default"
           - result.bodyjson.read ShouldHaveLength 0
           - result.bodyjson.write ShouldHaveLength 0
+
+  - name: get-default-user-session-after-delete
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-default-user-song-after-delete
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.create-default-user-song.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-cascade-verifier-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-default-user-setlist-after-delete
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.create-default-user-setlist.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-cascade-verifier-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-default-user-collection-after-delete
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.create-default-user-collection.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-cascade-verifier-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-default-user-blob-after-delete
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.create-default-user-blob.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-cascade-verifier-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
 
   - name: delete-user-again
     steps:

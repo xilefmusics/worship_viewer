@@ -37,6 +37,27 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  - name: post-collection-cover-blob
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 1024,
+            "height": 768,
+            "ocr": "Collection cover blob"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          blobid:
+            from: result.bodyjson.id
+
   - name: create-collection-read-user
     steps:
       - type: http
@@ -211,6 +232,29 @@ testcases:
           collectionid:
             from: result.bodyjson.id
 
+  - name: post-collection-with-real-cover
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Blob Backed Collection",
+            "cover": "{{.post-collection-cover-blob.blobid}}",
+            "songs": [
+              { "id": "{{.create-collection-song-one.songid}}", "nr": "1" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.cover ShouldEqual "{{.post-collection-cover-blob.blobid}}"
+        vars:
+          cascade_collection_id:
+            from: result.bodyjson.id
+
   - name: post-collection-invalid-payload-missing-title
     steps:
       - type: http
@@ -310,7 +354,7 @@ testcases:
           Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson ShouldHaveLength 2
 
   - name: get-collections-read-user
     steps:
@@ -321,7 +365,7 @@ testcases:
           Authorization: "Bearer {{.create-collection-read-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson ShouldHaveLength 2
 
   - name: get-collections-noperm-user
     steps:
@@ -806,6 +850,27 @@ testcases:
       - type: http
         method: DELETE
         url: "{{.base_url}}/api/v1/collections/{{.post-collection-for-delete.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-collection-cover-blob
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/blobs/{{.post-collection-cover-blob.blobid}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-collection-cover-blob.blobid}}"
+
+  - name: get-collection-after-cover-delete
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-with-real-cover.cascade_collection_id}}"
         headers:
           Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
         assertions:
