@@ -42,6 +42,7 @@ async fn main() -> AnyResult<()> {
                 role: UserRole::Admin,
                 read: vec![],
                 write: vec![],
+                default_collection: None,
                 created_at: Utc::now(),
                 last_login_at: None,
                 request_count: 0,

@@ -1,13 +1,13 @@
+use super::{CreateUserRequest, Model, User, session};
+use crate::auth::middleware::RequireAdmin;
+use crate::database::Database;
+#[allow(unused_imports)]
+use crate::docs::ErrorResponse;
+use crate::error::AppError;
 use actix_web::{
     HttpResponse, Scope, delete, get, post,
     web::{self, Data, Json, Path, ReqData},
 };
-use super::{CreateUserRequest, Model, User, session};
-#[allow(unused_imports)]
-use crate::docs::ErrorResponse;
-use crate::auth::middleware::RequireAdmin;
-use crate::database::Database;
-use crate::error::AppError;
 
 pub fn scope() -> Scope {
     web::scope("/users")
@@ -141,4 +141,3 @@ async fn create_user(
 async fn delete_user(db: Data<Database>, id: Path<String>) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(db.delete_user(&id).await?))
 }
-

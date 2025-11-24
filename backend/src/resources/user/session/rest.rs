@@ -110,12 +110,10 @@ async fn create_session_for_user(
     path: Path<UserIdPath>,
 ) -> Result<HttpResponse, AppError> {
     let ttl = Settings::global().session_ttl_seconds as i64;
-    Ok(
-        HttpResponse::Created().json(
-            db.create_session(Session::new(db.get_user(&path.user_id).await?, ttl))
-                .await?,
-        ),
-    )
+    Ok(HttpResponse::Created().json(
+        db.create_session(Session::new(db.get_user(&path.user_id).await?, ttl))
+            .await?,
+    ))
 }
 
 #[utoipa::path(

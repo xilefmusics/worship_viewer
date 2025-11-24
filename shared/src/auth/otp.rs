@@ -12,4 +12,3 @@ pub struct OtpVerify {
     pub email: String,
     pub code: String,
 }
-

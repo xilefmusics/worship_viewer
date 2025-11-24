@@ -262,7 +262,7 @@ async fn import(identifier: &str) -> Result<Song, AppError> {
             .await?
             .text()
             .await?;
-        
+
         Ok(Song::import_ultimate_guitar(&html)?)
     } else {
         Err(AppError::NotFound("import method not found".into()))

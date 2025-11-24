@@ -2,10 +2,10 @@ use super::{Orientation, PlayerItem, ScrollType, TocItem};
 use crate::song::Song;
 
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "backend")]
-use utoipa::ToSchema;
 use std::ops::Add;
 use std::sync::OnceLock;
+#[cfg(feature = "backend")]
+use utoipa::ToSchema;
 
 fn empty_item() -> &'static PlayerItem {
     static EMPTY_ITEM: OnceLock<PlayerItem> = OnceLock::new();

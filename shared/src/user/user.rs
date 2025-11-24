@@ -13,6 +13,8 @@ pub struct User {
     pub read: Vec<String>,
     #[serde(default)]
     pub write: Vec<String>,
+    #[serde(default)]
+    pub default_collection: Option<String>,
     pub created_at: DateTime<Utc>,
     #[serde(default)]
     pub last_login_at: Option<DateTime<Utc>>,
@@ -29,6 +31,7 @@ impl User {
             role: Role::default(),
             read: vec![],
             write: vec![],
+            default_collection: None,
             created_at: Utc::now(),
             last_login_at: None,
             request_count: 0,

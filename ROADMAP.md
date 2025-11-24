@@ -3,10 +3,11 @@
 ## ☁️ Cloud Migration TODOs
 
 - [x] Implement import
+- [x] Check Cascading Deletes
 - [ ] Create users collection when first song is created
-- [ ] Check Cascading Deletes
 - [ ] Implement export
 - [ ] Implement numbers in collections
+- [ ] Implement proper likes again
 - [ ] Remove apple sso
 
 - [ ] Migrate data
