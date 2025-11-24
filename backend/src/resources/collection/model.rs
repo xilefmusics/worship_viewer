@@ -34,6 +34,12 @@ pub trait Model {
         owners: Vec<String>,
         id: &str,
     ) -> Result<Collection, AppError>;
+    async fn add_song_to_collection(
+        &self,
+        owners: Vec<String>,
+        id: &str,
+        song_link: SongLink,
+    ) -> Result<(), AppError>;
 }
 
 impl Model for Database {
@@ -161,6 +167,29 @@ impl Model for Database {
             .await?
             .map(CollectionRecord::into_collection)
             .ok_or_else(|| AppError::NotFound("collection not found".into()))
+    }
+
+    async fn add_song_to_collection(
+        &self,
+        owners: Vec<String>,
+        id: &str,
+        song_link: SongLink,
+    ) -> Result<(), AppError> {
+        let _ = self
+            .db
+            .query(
+                r#"
+            UPDATE type::thing("collection", $id)
+            SET songs = array::append(songs, $song)
+            WHERE owner IN $owners;
+            "#,
+            )
+            .bind(("id", id.to_owned()))
+            .bind(("owners", owners))
+            .bind(("song", SongLinkRecord::from(song_link)))
+            .await?;
+
+        Ok(())
     }
 }
 
