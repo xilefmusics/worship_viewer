@@ -73,8 +73,9 @@ DEFINE EVENT OVERWRITE song_user_cascade ON user
     THEN DELETE song WHERE owner = $before.id;
 
 DEFINE EVENT OVERWRITE song_blob_remove ON blob
-    WHEN $event = "DELETE"
-    THEN UPDATE song
-        SET blobs = array::filter(blobs, function ($value) {
-            $value != $before.id
-        });
+WHEN $event = "DELETE"
+THEN (
+    UPDATE song
+            SET blobs = blobs[WHERE $this != $before.id]
+            WHERE $before.id INSIDE blobs
+);

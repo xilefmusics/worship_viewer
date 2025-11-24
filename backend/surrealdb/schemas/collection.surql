@@ -29,7 +29,8 @@ DEFINE EVENT OVERWRITE collection_cover_blob_cascade ON blob
 
 DEFINE EVENT OVERWRITE collection_song_remove ON song
     WHEN $event = "DELETE"
-    THEN UPDATE collection
-        SET songs = array::filter(songs, function ($value) {
-            $value.id != $before.id
-        });
+    THEN (
+        UPDATE collection
+            SET songs = songs[WHERE $this.id != $before.id]
+            WHERE $before.id INSIDE songs.*.id
+    );
