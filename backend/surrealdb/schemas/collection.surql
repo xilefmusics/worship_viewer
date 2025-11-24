@@ -34,3 +34,11 @@ DEFINE EVENT OVERWRITE collection_song_remove ON song
             SET songs = songs[WHERE $this.id != $before.id]
             WHERE $before.id INSIDE songs.*.id
     );
+
+DEFINE EVENT OVERWRITE collection_default_collection_unset ON collection
+    WHEN $event = "DELETE"
+    THEN (
+        UPDATE user
+            SET default_collection = NONE
+            WHERE default_collection = $before.id
+    );
