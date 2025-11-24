@@ -354,7 +354,7 @@ testcases:
           Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 2
+          - result.bodyjson ShouldHaveLength 3
 
   - name: get-collections-read-user
     steps:
@@ -365,7 +365,7 @@ testcases:
           Authorization: "Bearer {{.create-collection-read-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 2
+          - result.bodyjson ShouldHaveLength 3
 
   - name: get-collections-noperm-user
     steps:
