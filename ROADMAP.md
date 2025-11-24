@@ -3,6 +3,7 @@
 ## ☁️ Cloud Migration TODOs
 
 - [x] Implement import
+- [ ] Create users collection when first song is created
 - [ ] Check Cascading Deletes
 - [ ] Implement export
 - [ ] Implement numbers in collections
@@ -36,6 +37,9 @@
 - [ ] Bring chordlib to crate.io
 - [ ] Frontend: Handle all navigator calls through the API
 - [ ] Get rid of unwraps
+- [ ] Move PUT upsert from model to rest handler
+- [ ] DB Transactions
+- [ ] Cleanup backend models
 
 ## 🚀 New Features
 
