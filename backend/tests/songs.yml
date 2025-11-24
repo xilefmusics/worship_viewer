@@ -1311,7 +1311,124 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # Default collection auto add tests
+  - name: create-default-collection-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "defaultcollection@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "defaultcollection@test.com"
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: create-default-collection-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-default-collection-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: post-default-collection-song-one
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-default-collection-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Default Collection Song One",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.owner ShouldEqual "{{.create-default-collection-user.userid}}"
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: post-default-collection-song-two
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/songs"
+        headers:
+          Authorization: "Bearer {{.create-default-collection-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Default Collection Song Two",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.owner ShouldEqual "{{.create-default-collection-user.userid}}"
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: get-default-collection-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.create-default-collection-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.create-default-collection-user.userid}}"
+        vars:
+          defaultcollectionid:
+            from: result.bodyjson.default_collection
+
+  - name: get-default-collection-contains-both-songs
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.get-default-collection-user.defaultcollectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-default-collection-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.owner ShouldEqual "{{.create-default-collection-user.userid}}"
+          - result.bodyjson.songs ShouldHaveLength 2
+
   # Cleanup: Delete test users
+  - name: delete-default-collection-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-default-collection-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
   - name: delete-song-owner-user
     steps:
       - type: http
