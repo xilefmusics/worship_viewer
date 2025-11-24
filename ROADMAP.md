@@ -26,6 +26,7 @@
 - [ ] Setlist Editor: Is too wide on IPhone
 - [ ] Import ultimate: First section is often missing
 - [ ] Import chordpro: Fails on `[||:]` and `[:||]` chords
+- [ ] Error when opening an empty setlis
 
 ## 🚧 Maintainance
 

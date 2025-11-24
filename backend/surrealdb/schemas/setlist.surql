@@ -23,7 +23,8 @@ DEFINE EVENT OVERWRITE setlist_user_cascade ON user
 
 DEFINE EVENT OVERWRITE setlist_song_remove ON song
     WHEN $event = "DELETE"
-    THEN UPDATE setlist
-        SET songs = array::filter(songs, function ($value) {
-            $value.id != $before.id
-        });
+    THEN (
+        UPDATE setlist
+            SET songs = songs[WHERE $this.id != $before.id]
+            WHERE $before.id INSIDE songs.*.id
+    );
