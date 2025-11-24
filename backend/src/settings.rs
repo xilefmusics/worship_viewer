@@ -48,6 +48,9 @@ pub struct Settings {
 
     pub static_dir: String,
     pub blob_dir: String,
+
+    pub printer_address: String,
+    pub printer_api_key: String,
 }
 
 impl Default for Settings {
@@ -83,6 +86,8 @@ impl Default for Settings {
             gmail_from: String::new(),
             static_dir: "static".into(),
             blob_dir: "blobs".into(),
+            printer_address: "http://localhost:3000".into(),
+            printer_api_key: "changeme".into(),
         }
     }
 }

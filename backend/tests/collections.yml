@@ -591,6 +591,65 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # GET /api/v1/collections/{id}/export
+  - name: get-collection-export-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/export"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-collection-export-read-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/export"
+        headers:
+          Authorization: "Bearer {{.create-collection-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-collection-export-noperm-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/export"
+        headers:
+          Authorization: "Bearer {{.create-collection-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-collection-export-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/song:invalid/export"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-collection-export-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/export"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-collection-export-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.post-collection-success.collectionid}}/export"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
   # PUT /api/v1/collections/{id}
   - name: put-collection-success-owner
     steps:

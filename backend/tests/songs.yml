@@ -516,6 +516,75 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # GET /api/v1/songs/{id}/export tests
+  - name: get-song-export-success
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/export"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-song-export-success-with-read-permission
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-read-permission.songid}}/export"
+        headers:
+          Authorization: "Bearer {{.create-read-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-song-export-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/user:invalid/export"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-song-export-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/export"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-song-export-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/export"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-song-export-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/nonexistent/export"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-song-export-no-permission
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/export"
+        headers:
+          Authorization: "Bearer {{.create-no-permission-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
   # PUT /api/v1/songs/{id} tests
   - name: put-song-success
     steps:

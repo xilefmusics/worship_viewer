@@ -6,6 +6,7 @@ use crate::resources::{
     Blob, Collection, CreateBlob, CreateCollection, CreateSetlist, CreateSong, CreateUserRequest,
     Session, Setlist, Song, User,
 };
+use crate::resources::song::Format;
 use shared::auth::otp::{OtpRequest, OtpVerify};
 use shared::blob::FileType;
 pub use shared::error::ErrorResponse;
@@ -45,6 +46,7 @@ pub mod rest {
         crate::resources::song::rest::get_songs,
         crate::resources::song::rest::get_song,
         crate::resources::song::rest::get_song_player,
+        crate::resources::song::rest::get_song_export,
         crate::resources::song::rest::create_song,
         crate::resources::song::rest::update_song,
         crate::resources::song::rest::delete_song,
@@ -54,6 +56,7 @@ pub mod rest {
         crate::resources::collection::rest::get_collections,
         crate::resources::collection::rest::get_collection,
         crate::resources::collection::rest::get_collection_player,
+        crate::resources::collection::rest::get_collection_export,
         crate::resources::collection::rest::get_collection_songs,
         crate::resources::collection::rest::create_collection,
         crate::resources::collection::rest::update_collection,
@@ -67,6 +70,7 @@ pub mod rest {
         crate::resources::setlist::rest::get_setlists,
         crate::resources::setlist::rest::get_setlist,
         crate::resources::setlist::rest::get_setlist_player,
+        crate::resources::setlist::rest::get_setlist_export,
         crate::resources::setlist::rest::get_setlist_songs,
         crate::resources::setlist::rest::create_setlist,
         crate::resources::setlist::rest::update_setlist,
@@ -96,7 +100,8 @@ pub mod rest {
             PlayerItem,
             TocItem,
             ScrollType,
-            Orientation
+            Orientation,
+            Format
         )
     ),
     tags(

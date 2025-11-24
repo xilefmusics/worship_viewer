@@ -1,6 +1,6 @@
 use actix_web::{
     HttpResponse, Scope, delete, get, post, put,
-    web::{self, Data, Json, Path, ReqData},
+    web::{self, Data, Json, Path, Query, ReqData},
 };
 
 use super::Model;
@@ -14,7 +14,7 @@ use crate::resources::User;
 use crate::resources::collection::Collection;
 use crate::resources::collection::CreateCollection;
 #[allow(unused_imports)]
-use crate::resources::song::Song;
+use crate::resources::song::{Song, QueryParams, export};
 use shared::player::Player;
 
 pub fn scope() -> Scope {
@@ -23,6 +23,7 @@ pub fn scope() -> Scope {
         .service(get_collection)
         .service(get_collection_songs)
         .service(get_collection_player)
+        .service(get_collection_export)
         .service(create_collection)
         .service(update_collection)
         .service(delete_collection)
@@ -112,6 +113,43 @@ async fn get_collection_player(
                 Ok::<Player, AppError>(acc + player)
             })?,
     ))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/collections/{id}/export",
+    params(
+        ("id" = String, Path, description = "Collection identifier"),
+        ("format" = crate::resources::song::Format, Query, description = "Optional export format: zip, wp, cp, pdf (defaults to wp)")
+    ),
+    responses(
+        (
+            status = 200,
+            description = "Download exported collection file",
+            body = Vec<u8>,
+            content_type = "application/octet-stream"
+        ),
+        (status = 400, description = "Invalid collection identifier", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Collection not found", body = ErrorResponse),
+        (status = 500, description = "Failed to export collection", body = ErrorResponse)
+    ),
+    tag = "Collections",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[get("/{id}/export")]
+async fn get_collection_export(
+    db: Data<Database>,
+    user: ReqData<User>,
+    id: Path<String>,
+    query: Query<QueryParams>,
+) -> Result<HttpResponse, AppError> {
+    let query = query.into_inner();
+    let songs = db.get_collection_songs(user.read(), &id).await?;
+    export(songs, query.format).await
 }
 
 #[utoipa::path(

@@ -338,6 +338,15 @@ impl Api {
     }
 
     #[allow(dead_code)]
+    pub fn get_song_export_url(&self, id: &str, format: &str) -> String {
+        Self::build_path(&format!(
+            "/api/v1/songs/{}/export?format={}",
+            id, format
+        ))
+    }
+
+    #[allow(dead_code)]
+    #[allow(dead_code)]
     pub async fn create_song(&self, payload: &CreateSong) -> Result<Song, ApiError> {
         self.post_entity("/api/v1/songs", payload).await
     }
@@ -395,6 +404,15 @@ impl Api {
     }
 
     #[allow(dead_code)]
+    pub fn get_collection_export_url(&self, id: &str, format: &str) -> String {
+        Self::build_path(&format!(
+            "/api/v1/collections/{}/export?format={}",
+            id, format
+        ))
+    }
+
+    #[allow(dead_code)]
+    #[allow(dead_code)]
     pub async fn create_collection(
         &self,
         payload: &CreateCollection,
@@ -438,6 +456,15 @@ impl Api {
         self.get(&format!("/api/v1/setlists/{}/player", id)).await
     }
 
+    #[allow(dead_code)]
+    pub fn get_setlist_export_url(&self, id: &str, format: &str) -> String {
+        Self::build_path(&format!(
+            "/api/v1/setlists/{}/export?format={}",
+            id, format
+        ))
+    }
+
+    #[allow(dead_code)]
     #[allow(dead_code)]
     pub async fn create_setlist(&self, payload: &CreateSetlist) -> Result<Setlist, ApiError> {
         self.post_entity("/api/v1/setlists", payload).await

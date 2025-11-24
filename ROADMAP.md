@@ -5,10 +5,11 @@
 - [x] Implement import
 - [x] Check Cascading Deletes
 - [x] Create users collection when first song is created
-- [ ] Implement export
+- [x] Remove apple sso
+- [x] Implement export
 - [ ] Implement numbers in collections
 - [ ] Implement proper likes again
-- [ ] Remove apple sso
+- [ ] Update all dependencies
 
 - [ ] Migrate data
 

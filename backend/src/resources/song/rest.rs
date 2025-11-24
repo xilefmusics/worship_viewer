@@ -1,9 +1,9 @@
 use actix_web::{
     HttpResponse, Scope, delete, get, post, put,
-    web::{self, Data, Json, Path, ReqData},
+    web::{self, Data, Json, Path, Query, ReqData},
 };
 
-use super::Model;
+use super::{export, Model, QueryParams};
 use crate::database::Database;
 #[allow(unused_imports)]
 #[allow(unused_imports)]
@@ -25,6 +25,7 @@ pub fn scope() -> Scope {
         .service(get_songs)
         .service(get_song)
         .service(get_song_player)
+        .service(get_song_export)
         .service(create_song)
         .service(update_song)
         .service(delete_song)
@@ -106,6 +107,43 @@ async fn get_song_player(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(Player::from(db.get_song(user.read(), &id).await?)))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/songs/{id}/export",
+    params(
+        ("id" = String, Path, description = "Song identifier"),
+        ("format" = super::Format, Query, description = "Optional export format: zip, wp, cp, pdf (defaults to wp)")
+    ),
+    responses(
+        (
+            status = 200,
+            description = "Download exported song file",
+            body = Vec<u8>,
+            content_type = "application/octet-stream"
+        ),
+        (status = 400, description = "Invalid song identifier", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Song not found", body = ErrorResponse),
+        (status = 500, description = "Failed to export song", body = ErrorResponse)
+    ),
+    tag = "Songs",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[get("/{id}/export")]
+async fn get_song_export(
+    db: Data<Database>,
+    user: ReqData<User>,
+    id: Path<String>,
+    query: Query<QueryParams>,
+) -> Result<HttpResponse, AppError> {
+    let query = query.into_inner();
+    let song = db.get_song(user.read(), &id).await?;
+    export(vec![song], query.format).await
 }
 
 #[utoipa::path(
