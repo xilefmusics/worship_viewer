@@ -13,6 +13,11 @@ pub trait Model {
     async fn create_user(&self, user: User) -> Result<User, AppError>;
     async fn delete_user(&self, id: &str) -> Result<User, AppError>;
     async fn get_user_by_email_or_create(&self, email: &str) -> Result<User, AppError>;
+    async fn set_default_collection_to_user(
+        &self,
+        id: &str,
+        collection_id: &str,
+    ) -> Result<(), AppError>;
 }
 
 impl Model for Database {
@@ -66,6 +71,23 @@ impl Model for Database {
             return Ok(user);
         }
         self.create_user(User::new(email.to_lowercase())).await
+    }
+
+    async fn set_default_collection_to_user(
+        &self,
+        id: &str,
+        collection_id: &str,
+    ) -> Result<(), AppError> {
+        let _ = self
+            .db
+            .query("UPDATE $user SET default_collection = $collection")
+            .bind(("user", Thing::from(("user".to_owned(), id.to_owned()))))
+            .bind((
+                "collection",
+                Thing::from(("collection".to_owned(), collection_id.to_owned())),
+            ))
+            .await?;
+        Ok(())
     }
 }
 
