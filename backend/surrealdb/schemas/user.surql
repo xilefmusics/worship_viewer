@@ -15,7 +15,7 @@ DEFINE FIELD OVERWRITE write ON user TYPE array<record>
     VALUE $value ?? $before ?? [];
 
 DEFINE FIELD OVERWRITE default_collection ON user TYPE option<record<collection>>
-    VALUE $value ?? $before ?? NONE;
+    VALUE IF type::is::none($value) THEN NONE ELSE $value ?? $before ?? NONE END;
 
 DEFINE FIELD OVERWRITE created_at ON user TYPE datetime
     VALUE $before ?? time::now()
