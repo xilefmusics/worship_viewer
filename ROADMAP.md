@@ -4,7 +4,7 @@
 
 - [x] Implement import
 - [x] Check Cascading Deletes
-- [ ] Create users collection when first song is created
+- [x] Create users collection when first song is created
 - [ ] Implement export
 - [ ] Implement numbers in collections
 - [ ] Implement proper likes again
@@ -17,7 +17,9 @@
 - [ ] Clean up GitHub project
 - [ ] Add new logo everywhere
 - [ ] Make google sso public
+- [ ] Mailing does not use my private account
 - [ ] Check legal pages
+- [ ] Get review for Google SSO
 
 ## 🪲 Known Bugs
 
