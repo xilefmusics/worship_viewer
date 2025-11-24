@@ -1,5 +1,5 @@
 const CACHE_NAME = 'worship-viewer-static-v1';
-const CORE_ASSETS = ['/', '/index.html', '/manifest.json', '/favicon.png'];
+const CORE_ASSETS = ['/', '/index.html', '/manifest.json', '/favicon.png', '/appicon.png'];
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
