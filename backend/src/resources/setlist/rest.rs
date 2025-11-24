@@ -1,6 +1,6 @@
 use actix_web::{
     HttpResponse, Scope, delete, get, post, put,
-    web::{self, Data, Json, Path, ReqData},
+    web::{self, Data, Json, Path, Query, ReqData},
 };
 
 use super::Model;
@@ -14,7 +14,7 @@ use crate::resources::setlist::CreateSetlist;
 #[allow(unused_imports)]
 use crate::resources::setlist::Setlist;
 #[allow(unused_imports)]
-use crate::resources::song::Song;
+use crate::resources::song::{Song, QueryParams, export};
 use shared::player::Player;
 
 pub fn scope() -> Scope {
@@ -23,6 +23,7 @@ pub fn scope() -> Scope {
         .service(get_setlist)
         .service(get_setlist_songs)
         .service(get_setlist_player)
+        .service(get_setlist_export)
         .service(create_setlist)
         .service(update_setlist)
         .service(delete_setlist)
@@ -109,6 +110,43 @@ async fn get_setlist_player(
                 Ok::<Player, AppError>(acc + result)
             })?,
     ))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/setlists/{id}/export",
+    params(
+        ("id" = String, Path, description = "Setlist identifier"),
+        ("format" = crate::resources::song::Format, Query, description = "Optional export format: zip, wp, cp, pdf (defaults to wp)")
+    ),
+    responses(
+        (
+            status = 200,
+            description = "Download exported setlist file",
+            body = Vec<u8>,
+            content_type = "application/octet-stream"
+        ),
+        (status = 400, description = "Invalid setlist identifier", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Setlist not found", body = ErrorResponse),
+        (status = 500, description = "Failed to export setlist", body = ErrorResponse)
+    ),
+    tag = "Setlists",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[get("/{id}/export")]
+async fn get_setlist_export(
+    db: Data<Database>,
+    user: ReqData<User>,
+    id: Path<String>,
+    query: Query<QueryParams>,
+) -> Result<HttpResponse, AppError> {
+    let query = query.into_inner();
+    let songs = db.get_setlist_songs(user.read(), &id).await?;
+    export(songs, query.format).await
 }
 
 #[utoipa::path(

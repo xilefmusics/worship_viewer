@@ -1,5 +1,5 @@
 use super::{PagesComponent, TableOfContentsComponent};
-use crate::api::use_api;
+use crate::api::{use_api, Api};
 use crate::route::Route;
 use gloo::timers::callback::Timeout;
 use serde::Deserialize;
@@ -7,7 +7,6 @@ use shared::player::{Orientation, PlayerItem, TocItem};
 use shared::song::{ChordRepresentation, SimpleChord};
 use std::collections::HashMap;
 use stylist::{css, yew::Global, Style};
-use url::Url;
 use web_sys::window;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
@@ -22,28 +21,6 @@ pub struct Query {
 }
 
 impl Query {
-    fn url(&self, path: &str, format: Option<&str>) -> String {
-        let base = Url::parse("https://example.net").unwrap();
-        let mut url = Url::parse(&format!("https://example.net{path}")).unwrap();
-        {
-            let mut query_pairs = url.query_pairs_mut();
-
-            if let Some(id) = &self.id {
-                query_pairs.append_pair("id", id);
-            }
-            if let Some(collection) = &self.collection {
-                query_pairs.append_pair("collection", collection);
-            }
-            if let Some(setlist) = &self.setlist {
-                query_pairs.append_pair("setlist", setlist);
-            }
-            if let Some(format) = format {
-                query_pairs.append_pair("format", format);
-            }
-        }
-        base.make_relative(&url).unwrap().to_string()
-    }
-
     pub fn back_route(&self) -> Route {
         if self.setlist.is_some() {
             Route::Setlists
@@ -56,24 +33,41 @@ impl Query {
         }
     }
 
+    fn export_path(&self, format: &str, api: &Api) -> Option<String> {
+        let format = format.to_lowercase();
+        if let Some(setlist_id) = &self.setlist {
+            Some(api.get_setlist_export_url(setlist_id, &format))
+        } else if let Some(collection_id) = &self.collection {
+            Some(api.get_collection_export_url(collection_id, &format))
+        } else if let Some(id) = &self.id {
+            Some(api.get_song_export_url(id, &format))
+        } else {
+            None
+        }
+    }
+
     fn export_handler(
         &self,
         format: &str,
+        api: Api,
         export_active: UseStateHandle<bool>,
     ) -> Callback<MouseEvent> {
-        let url = self.url("/api/export", Some(format));
-        Callback::from(move |_: MouseEvent| {
-            let url = url.clone();
-            let export_active = export_active.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                export_active.set(false);
-                web_sys::window()
-                    .unwrap()
-                    .location()
-                    .set_href(&url)
-                    .unwrap();
-            });
-        })
+        if let Some(url) = self.export_path(format, &api) {
+            Callback::from(move |_: MouseEvent| {
+                let url = url.clone();
+                let export_active = export_active.clone();
+                wasm_bindgen_futures::spawn_local(async move {
+                    export_active.set(false);
+                    web_sys::window()
+                        .unwrap()
+                        .location()
+                        .set_href(&url)
+                        .unwrap();
+                });
+            })
+        } else {
+            Callback::from(|_: MouseEvent| {})
+        }
     }
 }
 
@@ -434,13 +428,13 @@ pub fn player_page() -> Html {
                         class={if *export_menu_active {"active"} else {""}}
                     >
                         <label>{"Song"}</label>
-                        <button onclick={query_current.export_handler("WorshipPro", export_menu_active.clone())}>{"WorshipPro"}</button>
-                        <button onclick={query_current.export_handler("ChordPro", export_menu_active.clone())}>{"ChordPro"}</button>
-                        <button onclick={query_current.export_handler("Pdf", export_menu_active.clone())}>{"PDF"}</button>
+                        <button onclick={query_current.export_handler("WorshipPro", api.clone(), export_menu_active.clone())}>{"WorshipPro"}</button>
+                        <button onclick={query_current.export_handler("ChordPro", api.clone(), export_menu_active.clone())}>{"ChordPro"}</button>
+                        <button onclick={query_current.export_handler("Pdf", api.clone(), export_menu_active.clone())}>{"PDF"}</button>
                         <label>{"List"}</label>
-                        <button onclick={query.export_handler("WorshipPro", export_menu_active.clone())}>{"WorshipPro"}</button>
-                        <button onclick={query.export_handler("ChordPro", export_menu_active.clone())}>{"ChordPro"}</button>
-                        <button onclick={query.export_handler("Pdf", export_menu_active.clone())}>{"PDF"}</button>
+                        <button onclick={query.export_handler("WorshipPro", api.clone(), export_menu_active.clone())}>{"WorshipPro"}</button>
+                        <button onclick={query.export_handler("ChordPro", api.clone(), export_menu_active.clone())}>{"ChordPro"}</button>
+                        <button onclick={query.export_handler("Pdf", api.clone(), export_menu_active.clone())}>{"PDF"}</button>
                     </div>
                     {
                         if query.setlist.is_some() {

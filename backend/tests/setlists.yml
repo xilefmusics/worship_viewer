@@ -431,6 +431,47 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # GET /setlists/{id}/export
+  - name: get-setlist-export-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/export"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-setlist-export-read-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/export"
+        headers:
+          Authorization: "Bearer {{.create-setlist-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-setlist-export-noperm-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/export"
+        headers:
+          Authorization: "Bearer {{.create-setlist-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-setlist-export-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/song:invalid/export"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
   # PUT /setlists/{id}
   - name: put-setlist-success-owner
     steps:
