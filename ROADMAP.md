@@ -7,6 +7,7 @@
 - [x] Create users collection when first song is created
 - [x] Remove apple sso
 - [x] Implement export
+- [x] Every user needs right to access the chrodthumb blob
 - [ ] Implement numbers in collections
 - [ ] Implement proper likes again
 - [ ] Update all dependencies
