@@ -901,6 +901,175 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  - name: create-song-cascade-blob
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 320,
+            "height": 240,
+            "ocr": "Cascade blob"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          blobid:
+            from: result.bodyjson.id
+
+  - name: put-song-cascade-target
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/cascade-song-delete"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Cascade Song Target",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "cascade-song-delete"
+        vars:
+          songid:
+            from: result.bodyjson.id
+
+  - name: create-setlist-for-song-delete
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Cascade Setlist",
+            "songs": [
+              { "id": "{{.put-song-cascade-target.songid}}", "nr": "1" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          setlistid:
+            from: result.bodyjson.id
+
+  - name: create-collection-for-song-delete
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Cascade Collection",
+            "cover": "{{.create-song-cascade-blob.blobid}}",
+            "songs": [
+              { "id": "{{.put-song-cascade-target.songid}}", "nr": "1" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          collectionid:
+            from: result.bodyjson.id
+
+  - name: like-cascade-song
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.put-song-cascade-target.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "liked": true
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.liked ShouldEqual true
+
+  - name: delete-song-cascade-target
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/songs/{{.put-song-cascade-target.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.put-song-cascade-target.songid}}"
+
+  - name: get-setlist-after-song-delete
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.create-setlist-for-song-delete.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.songs ShouldHaveLength 0
+
+  - name: get-collection-after-song-delete
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections/{{.create-collection-for-song-delete.collectionid}}"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.songs ShouldHaveLength 0
+
+  - name: put-song-cascade-target-recreate
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/songs/{{.put-song-cascade-target.songid}}"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+              "title": "Cascade Song Target Recreated",
+              "sections": []
+            }
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.put-song-cascade-target.songid}}"
+
+  - name: get-song-likes-after-recreate
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs/{{.put-song-cascade-target.songid}}/likes"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.liked ShouldEqual false
+
   # GET /api/v1/songs/{id}/likes tests
   - name: get-song-likes-success-not-liked
     steps:
