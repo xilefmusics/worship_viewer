@@ -92,6 +92,8 @@ pub struct UserRecord {
     read: Vec<Thing>,
     #[serde(default)]
     write: Vec<Thing>,
+    #[serde(default)]
+    default_collection: Option<Thing>,
     created_at: Datetime,
     #[serde(default)]
     last_login_at: Option<Datetime>,
@@ -107,6 +109,7 @@ impl UserRecord {
             role: self.role,
             read: self.read.into_iter().map(|id| id.id.to_string()).collect(),
             write: self.write.into_iter().map(|id| id.id.to_string()).collect(),
+            default_collection: self.default_collection.map(|id| id.id.to_string()),
             created_at: self.created_at.into(),
             last_login_at: self.last_login_at.map(Into::into),
             request_count: self.request_count,
@@ -132,6 +135,9 @@ impl UserRecord {
                 .into_iter()
                 .map(|id| Thing::from(("user".to_owned(), id)))
                 .collect(),
+            default_collection: user
+                .default_collection
+                .map(|id| Thing::from(("collection".to_owned(), id))),
             created_at: user.created_at.into(),
             last_login_at: user.last_login_at.map(Into::into),
             request_count: user.request_count,

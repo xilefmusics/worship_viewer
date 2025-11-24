@@ -1,6 +1,6 @@
-use chrono::{DateTime, Utc};
 #[cfg(feature = "backend")]
 use chrono::Duration;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::User;
@@ -39,4 +39,3 @@ impl Session {
         session
     }
 }
-

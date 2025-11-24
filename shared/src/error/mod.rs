@@ -5,4 +5,3 @@ use serde::{Deserialize, Serialize};
 pub struct ErrorResponse {
     pub error: String,
 }
-

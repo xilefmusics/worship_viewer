@@ -10,9 +10,9 @@ use shared::auth::otp::{OtpRequest, OtpVerify};
 use time::Duration as CookieDuration;
 
 use super::Model;
+use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
-use crate::database::Database;
 use crate::error::AppError;
 use crate::mail::Mail;
 use crate::resources::{Session, SessionModel, UserModel};

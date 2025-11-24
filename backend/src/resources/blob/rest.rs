@@ -193,10 +193,12 @@ async fn download_blob_image(
     let root = Path::new(&settings.blob_dir);
     let file_path = root.join(format!("{}{}", id, blob.file_type.file_ending()));
 
-    let bytes = tokio::fs::read(&file_path).await.map_err(|err| match err.kind() {
-        ErrorKind::NotFound => AppError::NotFound("blob image not found".into()),
-        _ => AppError::Internal(format!("failed to read blob image: {}", err)),
-    })?;
+    let bytes = tokio::fs::read(&file_path)
+        .await
+        .map_err(|err| match err.kind() {
+            ErrorKind::NotFound => AppError::NotFound("blob image not found".into()),
+            _ => AppError::Internal(format!("failed to read blob image: {}", err)),
+        })?;
 
     Ok(HttpResponse::Ok()
         .content_type(blob.file_type.mime())

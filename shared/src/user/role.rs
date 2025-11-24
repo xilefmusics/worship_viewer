@@ -8,4 +8,3 @@ pub enum Role {
     Default,
     Admin,
 }
-
