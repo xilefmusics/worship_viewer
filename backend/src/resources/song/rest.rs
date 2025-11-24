@@ -187,7 +187,7 @@ async fn create_song(
                 &user.id,
                 CreateCollection {
                     title: "Default".to_string(),
-                    cover: "chordthumb".to_string(),
+                    cover: "mysongs".to_string(),
                     songs: vec![SongLink {
                         id: song.id.clone(),
                         nr: None,

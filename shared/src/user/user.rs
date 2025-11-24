@@ -44,6 +44,7 @@ impl User {
             .iter()
             .cloned()
             .chain(std::iter::once(self.id.clone()))
+            .chain(std::iter::once("public".to_string()))
             .collect()
     }
 
