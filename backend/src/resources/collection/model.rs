@@ -175,6 +175,11 @@ impl Model for Database {
         id: &str,
         song_link: SongLink,
     ) -> Result<(), AppError> {
+        let owners = owners
+            .into_iter()
+            .map(|owner_id| owner_thing(&owner_id))
+            .collect::<Vec<_>>();
+
         let _ = self
             .db
             .query(

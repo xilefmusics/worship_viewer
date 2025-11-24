@@ -10,11 +10,15 @@ use crate::database::Database;
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
+use crate::resources::collection::CreateCollection;
+use crate::resources::collection::Model as CollectionModel;
 use crate::resources::song::CreateSong;
 #[allow(unused_imports)]
 use crate::resources::song::Song;
+use crate::resources::user::Model as UserModel;
 use shared::like::LikeStatus;
 use shared::player::Player;
+use shared::song::Link as SongLink;
 
 pub fn scope() -> Scope {
     web::scope("/songs")
@@ -126,7 +130,39 @@ async fn create_song(
     user: ReqData<User>,
     payload: Json<CreateSong>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(db.create_song(&user.id, payload.into_inner()).await?))
+    let song = db.create_song(&user.id, payload.into_inner()).await?;
+
+    if let Some(collection_id) = user.default_collection.as_ref() {
+        db.add_song_to_collection(
+            user.read(),
+            collection_id,
+            SongLink {
+                id: song.id.clone(),
+                nr: None,
+                key: None,
+            },
+        )
+        .await?;
+    } else {
+        let collection = db
+            .create_collection(
+                &user.id,
+                CreateCollection {
+                    title: "Default".to_string(),
+                    cover: "chordthumb".to_string(),
+                    songs: vec![SongLink {
+                        id: song.id.clone(),
+                        nr: None,
+                        key: None,
+                    }],
+                },
+            )
+            .await?;
+        db.set_default_collection_to_user(&user.id, &collection.id)
+            .await?;
+    }
+
+    Ok(HttpResponse::Created().json(song))
 }
 
 #[utoipa::path(
