@@ -3,7 +3,7 @@ use surrealdb::sql::Thing;
 
 use shared::{
     setlist::{CreateSetlist, Setlist},
-    song::{Link as SongLink, SimpleChord, Song},
+    song::{Link as SongLink, LinkOwned as SongLinkOwned, SimpleChord, Song},
 };
 
 use crate::database::Database;
@@ -13,8 +13,11 @@ use crate::resources::song::SongRecord;
 pub trait Model {
     async fn get_setlists(&self, owners: Vec<String>) -> Result<Vec<Setlist>, AppError>;
     async fn get_setlist(&self, owners: Vec<String>, id: &str) -> Result<Setlist, AppError>;
-    async fn get_setlist_songs(&self, owners: Vec<String>, id: &str)
-    -> Result<Vec<Song>, AppError>;
+    async fn get_setlist_songs(
+        &self,
+        owners: Vec<String>,
+        id: &str,
+    ) -> Result<Vec<SongLinkOwned>, AppError>;
     async fn create_setlist(
         &self,
         owner: &str,
@@ -65,7 +68,7 @@ impl Model for Database {
         &self,
         owners: Vec<String>,
         id: &str,
-    ) -> Result<Vec<Song>, AppError> {
+    ) -> Result<Vec<SongLinkOwned>, AppError> {
         let resource = setlist_resource(id)?;
         let mut response = self
             .db
@@ -223,10 +226,10 @@ impl SetlistSongsRecord {
             .unwrap_or(false)
     }
 
-    fn into_songs(self) -> Vec<Song> {
+    fn into_songs(self) -> Vec<SongLinkOwned> {
         self.songs
             .into_iter()
-            .map(|record| record.into_song())
+            .map(|record| record.into_song_link_owned())
             .collect()
     }
 }
@@ -235,11 +238,19 @@ impl SetlistSongsRecord {
 struct FetchedSongRecord {
     #[serde(rename = "id")]
     song: SongRecord,
+    #[serde(default)]
+    nr: Option<String>,
+    #[serde(default)]
+    key: Option<SimpleChord>,
 }
 
 impl FetchedSongRecord {
-    fn into_song(self) -> Song {
-        self.song.into_song()
+    fn into_song_link_owned(self) -> SongLinkOwned {
+        SongLinkOwned {
+            song: self.song.into_song(),
+            nr: self.nr,
+            key: self.key,
+        }
     }
 }
 
