@@ -1,13 +1,13 @@
-use actix_web::{http::header, HttpResponse};
+use actix_web::{HttpResponse, http::header};
 use reqwest::multipart::{Form, Part};
 use serde::Deserialize;
 use utoipa::ToSchema;
 
 use crate::error::AppError;
+use crate::settings::Settings;
 use shared::song::{Song, wrap_html};
 use std::io::{Cursor, Write};
-use zip::{write::FileOptions, CompressionMethod, ZipWriter};
-use crate::settings::Settings;
+use zip::{CompressionMethod, ZipWriter, write::FileOptions};
 
 #[derive(Debug, Deserialize, Clone, Default, ToSchema)]
 #[serde(rename_all = "lowercase")]

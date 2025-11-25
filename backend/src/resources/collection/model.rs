@@ -3,7 +3,7 @@ use surrealdb::sql::Thing;
 
 use shared::{
     collection::{Collection, CreateCollection},
-    song::{Link as SongLink, SimpleChord, Song},
+    song::{Link as SongLink, LinkOwned as SongLinkOwned, SimpleChord},
 };
 
 use crate::database::Database;
@@ -17,7 +17,7 @@ pub trait Model {
         &self,
         owners: Vec<String>,
         id: &str,
-    ) -> Result<Vec<Song>, AppError>;
+    ) -> Result<Vec<SongLinkOwned>, AppError>;
     async fn create_collection(
         &self,
         owner: &str,
@@ -73,7 +73,7 @@ impl Model for Database {
         &self,
         owners: Vec<String>,
         id: &str,
-    ) -> Result<Vec<Song>, AppError> {
+    ) -> Result<Vec<SongLinkOwned>, AppError> {
         let resource = collection_resource(id)?;
         let mut response = self
             .db
@@ -329,10 +329,10 @@ impl CollectionSongsRecord {
             .unwrap_or(false)
     }
 
-    fn into_songs(self) -> Vec<Song> {
+    fn into_songs(self) -> Vec<SongLinkOwned> {
         self.songs
             .into_iter()
-            .map(|record| record.into_song())
+            .map(|record| record.into_song_link_owned())
             .collect()
     }
 }
@@ -341,10 +341,16 @@ impl CollectionSongsRecord {
 struct FetchedSongRecord {
     #[serde(rename = "id")]
     song: SongRecord,
+    nr: Option<String>,
+    key: Option<SimpleChord>,
 }
 
 impl FetchedSongRecord {
-    fn into_song(self) -> Song {
-        self.song.into_song()
+    fn into_song_link_owned(self) -> SongLinkOwned {
+        SongLinkOwned {
+            song: self.song.into_song(),
+            nr: self.nr,
+            key: self.key,
+        }
     }
 }
