@@ -9,8 +9,8 @@
 - [x] Implement export
 - [x] Every user needs right to access the chrodthumb blob
 - [x] Implement numbers in collections
-- [ ] Implement proper likes again
-- [ ] Update all dependencies
+- [x] Implement proper likes again
+- [x] Update all dependencies
 
 - [ ] Migrate data
 
@@ -21,7 +21,6 @@
 - [ ] Make google sso public
 - [ ] Mailing does not use my private account
 - [ ] Check legal pages
-- [ ] Get review for Google SSO
 
 ## 🪲 Known Bugs
 
