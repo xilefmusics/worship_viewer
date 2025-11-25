@@ -11,19 +11,20 @@
 - [x] Implement numbers in collections
 - [x] Implement proper likes again
 - [x] Update all dependencies
+- [x] Migrate data
+- [x] Add new logo everywhere
+- [x] Mailing does not use my private account
 
-- [ ] Migrate data
-
+- [ ] Clean up GitHub project
 - [ ] Change Licencing to AGPL3
 - [ ] Improve Readme.md
-- [ ] Clean up GitHub project
-- [ ] Add new logo everywhere
+
 - [ ] Make google sso public
-- [ ] Mailing does not use my private account
 - [ ] Check legal pages
 
 ## 🪲 Known Bugs
 
+- [ ] Unable to load svgs
 - [ ] Setlist Editor: Drag and drop does not work on mobile
 - [ ] Setlist Editor: Key in picker is always Ab
 - [ ] Song Editor: The first input is not on the expected cursor position
