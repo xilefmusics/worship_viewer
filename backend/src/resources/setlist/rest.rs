@@ -14,7 +14,7 @@ use crate::resources::setlist::CreateSetlist;
 #[allow(unused_imports)]
 use crate::resources::setlist::Setlist;
 #[allow(unused_imports)]
-use crate::resources::song::{Song, QueryParams, export};
+use crate::resources::song::{QueryParams, Song, export};
 use shared::player::Player;
 
 pub fn scope() -> Scope {

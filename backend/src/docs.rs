@@ -1,12 +1,12 @@
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
+use crate::resources::song::Format;
 use crate::resources::user::Role;
 use crate::resources::{
     Blob, Collection, CreateBlob, CreateCollection, CreateSetlist, CreateSong, CreateUserRequest,
     Session, Setlist, Song, User,
 };
-use crate::resources::song::Format;
 use shared::auth::otp::{OtpRequest, OtpVerify};
 use shared::blob::FileType;
 pub use shared::error::ErrorResponse;

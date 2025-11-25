@@ -3,7 +3,7 @@ use actix_web::{
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
-use super::{export, Model, QueryParams};
+use super::{Model, QueryParams, export};
 use crate::database::Database;
 #[allow(unused_imports)]
 #[allow(unused_imports)]

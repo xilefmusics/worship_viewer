@@ -6,4 +6,4 @@ pub use model::{Model, SongRecord};
 pub mod rest;
 
 mod export;
-pub use export::{export, Format, QueryParams};
+pub use export::{Format, QueryParams, export};

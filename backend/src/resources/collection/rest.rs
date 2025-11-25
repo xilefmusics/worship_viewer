@@ -14,7 +14,7 @@ use crate::resources::User;
 use crate::resources::collection::Collection;
 use crate::resources::collection::CreateCollection;
 #[allow(unused_imports)]
-use crate::resources::song::{Song, QueryParams, export};
+use crate::resources::song::{QueryParams, Song, export};
 use shared::player::Player;
 
 pub fn scope() -> Scope {
@@ -108,7 +108,14 @@ async fn get_collection_player(
         db.get_collection_songs(user.read(), &id)
             .await?
             .into_iter()
-            .map(Player::from)
+            .enumerate()
+            .map(|(idx, song_link_owned)| {
+                let mut player = Player::from(song_link_owned.song);
+                player.add_numbers(std::iter::once(
+                    song_link_owned.nr.unwrap_or_else(|| idx.to_string()),
+                ));
+                player
+            })
             .try_fold(Player::default(), |acc, player| {
                 Ok::<Player, AppError>(acc + player)
             })?,
@@ -147,9 +154,15 @@ async fn get_collection_export(
     id: Path<String>,
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
-    let query = query.into_inner();
-    let songs = db.get_collection_songs(user.read(), &id).await?;
-    export(songs, query.format).await
+    export(
+        db.get_collection_songs(user.read(), &id)
+            .await?
+            .into_iter()
+            .map(|song_link_owned| song_link_owned.song)
+            .collect::<Vec<Song>>(),
+        query.into_inner().format,
+    )
+    .await
 }
 
 #[utoipa::path(
@@ -177,7 +190,13 @@ async fn get_collection_songs(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_collection_songs(user.read(), &id).await?))
+    Ok(HttpResponse::Ok().json(
+        db.get_collection_songs(user.read(), &id)
+            .await?
+            .into_iter()
+            .map(|song_link_owned| song_link_owned.song)
+            .collect::<Vec<Song>>(),
+    ))
 }
 
 #[utoipa::path(
