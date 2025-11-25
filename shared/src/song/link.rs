@@ -1,6 +1,6 @@
+use super::Song;
 use chordlib::types::SimpleChord;
 use serde::{Deserialize, Serialize};
-use super::Song;
 
 #[cfg(feature = "backend")]
 use utoipa::ToSchema;

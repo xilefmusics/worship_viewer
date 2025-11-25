@@ -339,10 +339,7 @@ impl Api {
 
     #[allow(dead_code)]
     pub fn get_song_export_url(&self, id: &str, format: &str) -> String {
-        Self::build_path(&format!(
-            "/api/v1/songs/{}/export?format={}",
-            id, format
-        ))
+        Self::build_path(&format!("/api/v1/songs/{}/export?format={}", id, format))
     }
 
     #[allow(dead_code)]
@@ -458,10 +455,7 @@ impl Api {
 
     #[allow(dead_code)]
     pub fn get_setlist_export_url(&self, id: &str, format: &str) -> String {
-        Self::build_path(&format!(
-            "/api/v1/setlists/{}/export?format={}",
-            id, format
-        ))
+        Self::build_path(&format!("/api/v1/setlists/{}/export?format={}", id, format))
     }
 
     #[allow(dead_code)]

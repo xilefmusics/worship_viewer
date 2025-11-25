@@ -16,6 +16,7 @@ use crate::resources::setlist::Setlist;
 #[allow(unused_imports)]
 use crate::resources::song::{QueryParams, Song, export};
 use shared::player::Player;
+use shared::song::LinkOwned as SongLinkOwned;
 
 pub fn scope() -> Scope {
     web::scope("/setlists")
@@ -105,9 +106,16 @@ async fn get_setlist_player(
         db.get_setlist_songs(user.read(), &id)
             .await?
             .into_iter()
-            .map(|song| Player::from(song))
-            .try_fold(Player::default(), |acc, result| {
-                Ok::<Player, AppError>(acc + result)
+            .enumerate()
+            .map(|(idx, link)| {
+                Player::from(SongLinkOwned {
+                    song: link.song,
+                    nr: Some(link.nr.unwrap_or_else(|| idx.to_string())),
+                    key: link.key,
+                })
+            })
+            .try_fold(Player::default(), |acc, player| {
+                Ok::<Player, AppError>(acc + player)
             })?,
     ))
 }
@@ -145,7 +153,12 @@ async fn get_setlist_export(
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
     let query = query.into_inner();
-    let songs = db.get_setlist_songs(user.read(), &id).await?;
+    let songs = db
+        .get_setlist_songs(user.read(), &id)
+        .await?
+        .into_iter()
+        .map(|song_link_owned| song_link_owned.song)
+        .collect::<Vec<Song>>();
     export(songs, query.format).await
 }
 
@@ -174,7 +187,13 @@ async fn get_setlist_songs(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_setlist_songs(user.read(), &id).await?))
+    Ok(HttpResponse::Ok().json(
+        db.get_setlist_songs(user.read(), &id)
+            .await?
+            .into_iter()
+            .map(|song_link_owned| song_link_owned.song)
+            .collect::<Vec<Song>>(),
+    ))
 }
 
 #[utoipa::path(

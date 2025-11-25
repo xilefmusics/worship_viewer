@@ -19,6 +19,7 @@ use crate::resources::user::Model as UserModel;
 use shared::like::LikeStatus;
 use shared::player::Player;
 use shared::song::Link as SongLink;
+use shared::song::LinkOwned as SongLinkOwned;
 
 pub fn scope() -> Scope {
     web::scope("/songs")
@@ -106,7 +107,11 @@ async fn get_song_player(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(Player::from(db.get_song(user.read(), &id).await?)))
+    Ok(HttpResponse::Ok().json(Player::from(SongLinkOwned {
+        song: db.get_song(user.read(), &id).await?,
+        nr: None,
+        key: None,
+    })))
 }
 
 #[utoipa::path(

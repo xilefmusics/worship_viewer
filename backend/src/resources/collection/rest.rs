@@ -16,6 +16,7 @@ use crate::resources::collection::CreateCollection;
 #[allow(unused_imports)]
 use crate::resources::song::{QueryParams, Song, export};
 use shared::player::Player;
+use shared::song::LinkOwned as SongLinkOwned;
 
 pub fn scope() -> Scope {
     web::scope("/collections")
@@ -109,12 +110,12 @@ async fn get_collection_player(
             .await?
             .into_iter()
             .enumerate()
-            .map(|(idx, song_link_owned)| {
-                let mut player = Player::from(song_link_owned.song);
-                player.add_numbers(std::iter::once(
-                    song_link_owned.nr.unwrap_or_else(|| idx.to_string()),
-                ));
-                player
+            .map(|(idx, link)| {
+                Player::from(SongLinkOwned {
+                    song: link.song,
+                    nr: Some(link.nr.unwrap_or_else(|| idx.to_string())),
+                    key: link.key,
+                })
             })
             .try_fold(Player::default(), |acc, player| {
                 Ok::<Player, AppError>(acc + player)

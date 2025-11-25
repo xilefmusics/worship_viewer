@@ -1,5 +1,5 @@
 use super::{Orientation, PlayerItem, ScrollType, TocItem};
-use crate::song::Song;
+use crate::song::LinkOwned as SongLinkOwned;
 
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
@@ -34,19 +34,6 @@ impl Player {
             orientation: Orientation::Portrait,
             between_items: bool::default(),
             index: usize::default(),
-        }
-    }
-
-    pub fn add_numbers_range(&mut self) {
-        self.add_numbers(std::iter::successors(Some(1), |&n| Some(n + 1)).map(|nr| nr.to_string()))
-    }
-
-    pub fn add_numbers<I>(&mut self, numbers: I)
-    where
-        I: IntoIterator<Item = String>,
-    {
-        for (toc_item, nr) in self.toc.iter_mut().zip(numbers.into_iter()) {
-            toc_item.nr = nr
         }
     }
 
@@ -317,33 +304,29 @@ impl Add for Player {
     }
 }
 
-impl From<Song> for Player {
-    fn from(song: Song) -> Self {
-        let toc_id = if song.id.is_empty() {
-            None
-        } else {
-            Some(song.id.clone())
-        };
+impl From<SongLinkOwned> for Player {
+    fn from(link: SongLinkOwned) -> Self {
         Self {
             items: {
-                let mut items = song
+                let mut items = link
+                    .song
                     .blobs
                     .iter()
                     .map(|blob| PlayerItem::Blob(blob.to_string()))
                     .collect::<Vec<PlayerItem>>();
-                if song.data.sections.len() > 0 || items.len() == 0 {
-                    items.push(PlayerItem::Chords(song.clone()))
+                if link.song.data.sections.len() > 0 || items.len() == 0 {
+                    items.push(PlayerItem::Chords(link.song.clone()))
                 }
                 items
             },
-            toc: if song.not_a_song {
+            toc: if link.song.not_a_song {
                 vec![]
             } else {
                 vec![TocItem {
                     idx: 0,
-                    title: song.data.title,
-                    id: toc_id,
-                    nr: String::new(),
+                    title: link.song.data.title,
+                    id: Some(link.song.id.clone()),
+                    nr: link.nr.clone().unwrap_or_default(),
                     liked: false,
                 }]
             },
