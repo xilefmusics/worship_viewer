@@ -6,7 +6,7 @@ RUN git clone --depth 1 --branch 0.6.3 https://github.com/xilefmusics/fancy_yew.
 WORKDIR /chordlib
 RUN git clone --depth 1 --branch 0.4.8 https://github.com/xilefmusics/chordlib.git .
 
-FROM rust:1.91.0-slim AS builder
+FROM rust:1.91.1-slim AS builder
 
 COPY --from=dependencydownloader /fancy_yew /fancy_yew
 COPY --from=dependencydownloader /chordlib /chordlib
@@ -17,7 +17,7 @@ RUN export CARGO_BUILD_JOBS=$(nproc) && \
     rustup target add wasm32-unknown-unknown && \
     apt-get update && \
     apt-get install -y --no-install-recommends pkg-config libssl-dev build-essential ca-certificates curl && \
-    VENOM_VERSION=1.1.0 && \
+    VENOM_VERSION=1.2.0 && \
     curl -L "https://github.com/ovh/venom/releases/download/v${VENOM_VERSION}/venom.linux-amd64" -o /usr/local/bin/venom && \
     chmod +x /usr/local/bin/venom
 
