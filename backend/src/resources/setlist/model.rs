@@ -3,7 +3,7 @@ use surrealdb::sql::Thing;
 
 use shared::{
     setlist::{CreateSetlist, Setlist},
-    song::{Link as SongLink, LinkOwned as SongLinkOwned, SimpleChord, Song},
+    song::{Link as SongLink, LinkOwned as SongLinkOwned, SimpleChord},
 };
 
 use crate::database::Database;
@@ -242,6 +242,8 @@ struct FetchedSongRecord {
     nr: Option<String>,
     #[serde(default)]
     key: Option<SimpleChord>,
+    #[serde(default)]
+    liked: bool,
 }
 
 impl FetchedSongRecord {
@@ -250,6 +252,7 @@ impl FetchedSongRecord {
             song: self.song.into_song(),
             nr: self.nr,
             key: self.key,
+            liked: self.liked,
         }
     }
 }

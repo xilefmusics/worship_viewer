@@ -19,4 +19,5 @@ pub struct LinkOwned {
     pub song: Song,
     pub nr: Option<String>,
     pub key: Option<SimpleChord>,
+    pub liked: bool,
 }

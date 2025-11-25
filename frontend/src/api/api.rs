@@ -360,23 +360,20 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn get_song_like_status(&self, id: &str) -> Result<LikeStatus, ApiError> {
-        self.get(&format!("/api/v1/songs/{}/likes", id)).await
-    }
-
-    #[allow(dead_code)]
-    pub async fn update_song_like_status(
-        &self,
-        id: &str,
-        payload: &LikeStatus,
-    ) -> Result<LikeStatus, ApiError> {
-        self.put(&format!("/api/v1/songs/{}/likes", id), payload)
+    pub async fn get_song_like_status(&self, id: &str) -> Result<bool, ApiError> {
+        self.get(&format!("/api/v1/songs/{}/likes", id))
             .await
+            .map(|like: LikeStatus| like.liked)
     }
 
     #[allow(dead_code)]
-    pub async fn toggle_song_like(&self, id: &str) -> Result<bool, ApiError> {
-        self.get(&format!("/api/likes/toggle/{}", id)).await
+    pub async fn update_song_like_status(&self, id: &str, liked: bool) -> Result<bool, ApiError> {
+        self.put(
+            &format!("/api/v1/songs/{}/likes", id),
+            &LikeStatus { liked },
+        )
+        .await
+        .map(|like: LikeStatus| like.liked)
     }
 
     #[allow(dead_code)]

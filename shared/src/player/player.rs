@@ -60,6 +60,14 @@ impl Player {
         }
     }
 
+    pub fn is_liked(&self, id: &str) -> bool {
+        self.toc
+            .iter()
+            .find(|item| item.id.as_ref() == Some(&id.to_string()))
+            .map(|item| item.liked)
+            .unwrap_or(false)
+    }
+
     pub fn set_like(&self, id: &str, liked: bool) -> Self {
         let mut new = self.clone();
         new.set_like_mut(id, liked);
