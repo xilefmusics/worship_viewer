@@ -335,7 +335,7 @@ impl From<SongLinkOwned> for Player {
                     title: link.song.data.title,
                     id: Some(link.song.id.clone()),
                     nr: link.nr.clone().unwrap_or_default(),
-                    liked: false,
+                    liked: link.liked,
                 }]
             },
             scroll_type: ScrollType::default(),
