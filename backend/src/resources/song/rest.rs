@@ -111,6 +111,7 @@ async fn get_song_player(
         song: db.get_song(user.read(), &id).await?,
         nr: None,
         key: None,
+        liked: db.get_song_like(user.read(), &user.id, &id).await?,
     })))
 }
 

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use chordlib::types::Song as SongData;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Id, Thing};
@@ -32,6 +34,7 @@ pub trait Model {
         id: &str,
         liked: bool,
     ) -> Result<bool, AppError>;
+    async fn get_liked_set(&self, user_id: &str) -> Result<HashSet<String>, AppError>;
 }
 
 impl Model for Database {
@@ -211,6 +214,19 @@ impl Model for Database {
         } else {
             Ok(false)
         }
+    }
+    async fn get_liked_set(&self, user_id: &str) -> Result<HashSet<String>, AppError> {
+        let mut response = self
+            .db
+            .query("SELECT * FROM like WHERE owner = $owner")
+            .bind(("owner", owner_thing(user_id)))
+            .await?;
+
+        let likes: Vec<LikeRecord> = response.take(0)?;
+        Ok(likes
+            .into_iter()
+            .map(|like| like.song.id.to_string())
+            .collect())
     }
 }
 

@@ -13,6 +13,7 @@ use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::collection::Collection;
 use crate::resources::collection::CreateCollection;
+use crate::resources::song::Model as SongModel;
 #[allow(unused_imports)]
 use crate::resources::song::{QueryParams, Song, export};
 use shared::player::Player;
@@ -105,6 +106,7 @@ async fn get_collection_player(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
+    let liked_set = db.get_liked_set(&user.id).await?;
     Ok(HttpResponse::Ok().json(
         db.get_collection_songs(user.read(), &id)
             .await?
@@ -112,8 +114,9 @@ async fn get_collection_player(
             .enumerate()
             .map(|(idx, link)| {
                 Player::from(SongLinkOwned {
+                    liked: liked_set.contains(&link.song.id),
                     song: link.song,
-                    nr: Some(link.nr.unwrap_or_else(|| idx.to_string())),
+                    nr: Some(link.nr.unwrap_or_else(|| (idx + 1).to_string())),
                     key: link.key,
                 })
             })

@@ -125,9 +125,13 @@ pub fn player_page() -> Html {
                     let show_unheart = show_unheart.clone();
                     let player_handle = player_handle.clone();
                     let player = player.clone();
+                    let current_liked = player.is_liked(&id);
                     let api = api.clone();
                     wasm_bindgen_futures::spawn_local(async move {
-                        let like = api.toggle_song_like(&id).await.unwrap();
+                        let like = api
+                            .update_song_like_status(&id, !current_liked)
+                            .await
+                            .unwrap();
                         player_handle.set(Some(player.set_like(&id, like)));
                         if like {
                             show_heart.set(true);

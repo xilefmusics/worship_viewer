@@ -343,6 +343,8 @@ struct FetchedSongRecord {
     song: SongRecord,
     nr: Option<String>,
     key: Option<SimpleChord>,
+    #[serde(default)]
+    liked: bool,
 }
 
 impl FetchedSongRecord {
@@ -351,6 +353,7 @@ impl FetchedSongRecord {
             song: self.song.into_song(),
             nr: self.nr,
             key: self.key,
+            liked: self.liked,
         }
     }
 }
