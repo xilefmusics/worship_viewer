@@ -1,0 +1,16 @@
+.CodeMirror {
+  background-color: var(--bg1);
+  color: var(--fg1);
+  height: 100%;
+  font-family: 'Rubik Mono One', monospace;
+}
+
+.CodeMirror-cursor {
+  border-left: 1px solid var(--fg2);
+}
+
+.CodeMirror-gutters {
+  background-color: var(--bg1);
+  border: unset;
+}
+

@@ -1,7 +1,7 @@
 use super::{AspectRatio, SongViewer};
-use fancy_yew::components::input::StringInput;
-use fancy_yew::components::{Editor, SyntaxParser};
-use fancy_yew::toast_notifications::show_error;
+use crate::components::StringInput;
+use crate::components::toast_notifications::show_error;
+use crate::components::editor::{Editor, SyntaxParser};
 use shared::song::{CreateSong, Song};
 use std::f64::consts::SQRT_2;
 use stylist::Style;

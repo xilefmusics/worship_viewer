@@ -34,12 +34,12 @@
 
 ## 🚧 Maintainance
 
+- [x] Get rid of the fancy_yew dependency
+- [x] Bring chordlib to crate.io
 - [ ] Unify colors and styling
-- [ ] Get rid of the fancy_yew dependency
 - [ ] Pull out abstract components
 - [ ] Change with chord lengths to beats
 - [ ] Get rid of the individual gloo_ crates
-- [ ] Bring chordlib to crate.io
 - [ ] Frontend: Handle all navigator calls through the API
 - [ ] Get rid of unwraps
 - [ ] Move PUT upsert from model to rest handler

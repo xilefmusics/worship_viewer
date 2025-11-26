@@ -1,0 +1,15 @@
+:root {
+  height: 100%;
+  width: 100%;
+}
+
+div {
+  width: unset;
+  height: unset;
+}
+
+* {
+  color: unset;
+  font-family: unset;
+}
+
