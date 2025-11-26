@@ -1,6 +1,6 @@
-use std::io::ErrorKind;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use actix_files::NamedFile;
 use actix_web::{
     HttpResponse, Scope, delete, get, post, put,
     web::{self, Data, Json, Path as PathParam, ReqData},
@@ -185,22 +185,14 @@ async fn download_blob_image(
     db: Data<Database>,
     user: ReqData<User>,
     id: PathParam<String>,
-) -> Result<HttpResponse, AppError> {
-    let id = id.into_inner();
-    let blob = db.get_blob(user.read(), &id).await?;
-
-    let settings = Settings::global();
-    let root = Path::new(&settings.blob_dir);
-    let file_path = root.join(format!("{}{}", id, blob.file_type.file_ending()));
-
-    let bytes = tokio::fs::read(&file_path)
-        .await
-        .map_err(|err| match err.kind() {
-            ErrorKind::NotFound => AppError::NotFound("blob image not found".into()),
-            _ => AppError::Internal(format!("failed to read blob image: {}", err)),
-        })?;
-
-    Ok(HttpResponse::Ok()
-        .content_type(blob.file_type.mime())
-        .body(bytes))
+) -> Result<NamedFile, AppError> {
+    Ok(NamedFile::open(
+        Path::new(&Settings::global().blob_dir).join(PathBuf::from(
+            db.get_blob(user.read(), &id.into_inner())
+                .await?
+                .file_name()
+                .ok_or(AppError::NotFound("blob has no id".into()))?,
+        )),
+    )
+    .map_err(|err| AppError::Internal(format!("{}", err)))?)
 }

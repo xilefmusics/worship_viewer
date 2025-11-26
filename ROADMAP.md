@@ -24,7 +24,7 @@
 
 ## 🪲 Known Bugs
 
-- [ ] Unable to load svgs
+- [x] Unable to load svgs
 - [ ] Setlist Editor: Drag and drop does not work on mobile
 - [ ] Setlist Editor: Key in picker is always Ab
 - [ ] Song Editor: The first input is not on the expected cursor position
