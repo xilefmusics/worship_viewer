@@ -1,9 +1,26 @@
 # Worship Viewer
 
-**Worship Viewer** is an app for managing and displaying digital sheet music.
-It allows users to import entire music books as collections, providing a digital table of contents with corresponding metadata that is searchable.
+A tool to helps you lead worship — then steps aside when the Spirit takes over.
+It's main functionality is to manage and display digital sheet music, but there is a lot more to come.
 
-## Setup Development Environment
+## Main Principles
+
+1. **Single Source Of Truth**: You have one source (your song definition) to render sheets, display slieds, sample click and cue tracks, ... Each member of your worship team has access to the exact same song entities. So as soon as you have your song every one has the exact same song in the format he needs it.
+2. **Be prepared but have all the freedom**: It should be possible to plan your whole set to the resolution of a beat, but to break out of it whenever the Holy Spirit wants to take over. Or even start 100% spontanious session.
+3. **All for His glory**: The whole purpose of this App is to worhip and glorify the one true God the Father, the Son and the Holy Spirt.
+
+## Try It Out
+
+Create your free account at [app.worshipviewer.com](https://app.worshipviewer.com).
+Or run it locally:
+
+```bash
+docker run --rm -p 8080:8080 xilefmusics/worship-viewer:latest
+```
+
+## Contribute
+
+This app is from worshippers for worshippers. You are free to contribute. Yes coding can be an act of worship as well.
 
 ### Install Prerequisites
 
@@ -81,10 +98,10 @@ echo '{
 ### You want the data to survive backend newstarts
 
 ```bash
+# Start the database as a separate process
 docker run --rm -p 8000:8000 surrealdb/surrealdb:v2.4.0-dev start --log debug --user root --pass root memory
-./surreal import --conn http://localhost:8000 --user root --pass root --ns app --db app ./worshipviewer-2025-11-25.surql
-./surreal sql --conn http://127.0.0.1:8000 --user root --pass root --ns app --db app
 
+# Start the backend to connect to the database
 cd backend && \
   INITIAL_ADMIN_USER_EMAIL="admin@example.com" \
   INITIAL_ADMIN_USER_TEST_SESSION=true \
@@ -95,3 +112,7 @@ cd backend && \
   DB_PASSWORD="app" \
   cargo run
 ```
+
+## License
+
+[![AGPL-3.0](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)

@@ -14,11 +14,10 @@
 - [x] Migrate data
 - [x] Add new logo everywhere
 - [x] Mailing does not use my private account
+- [x] Change Licencing to AGPL3
+- [x] Improve Readme.md
 
 - [ ] Clean up GitHub project
-- [ ] Change Licencing to AGPL3
-- [ ] Improve Readme.md
-
 - [ ] Make google sso public
 - [ ] Check legal pages
 
