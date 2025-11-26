@@ -525,18 +525,16 @@ pub fn setlist_editor(props: &Props) -> Html {
                                                     </div>
                                                     <div class="setlist-item__controls">
                                                         <label class="setlist-item__select">
-                                                            <select value={select_value.clone()} onchange={onchange.clone()}>
-                                                                {
-                                                                    available_keys
-                                                                        .iter()
-                                                                        .map(|option| {
-                                                                            html! {
-                                                                                <option value={(*option).to_string()}>{option}</option>
-                                                                            }
-                                                                        })
-                                                                        .collect::<Html>()
-                                                                }
-                                                            </select>
+                                                        <select onchange={onchange.clone()}>
+                                                            { for available_keys.iter().map(|option| html! {
+                                                                <option
+                                                                    value={(*option).to_string()}
+                                                                    selected={select_value == *option}
+                                                                >
+                                                                    {option}
+                                                                </option>
+                                                            })}
+                                                        </select>
                                                         </label>
                                                         <div class="setlist-item__actions">
                                                             <button type="button" class="icon-button" onclick={on_move_up} disabled={!can_move_up} title="Move up">
