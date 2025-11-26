@@ -459,14 +459,25 @@ pub fn player_page() -> Html {
                 </div>
             </div>
             <div onclick={onclick} class={if *active {"middle active"} else {"middle"}}>
-                <PagesComponent
-                    item={player.item().0.clone()}
-                    item2={player.item().1.map(|item| item.clone())}
-                    override_key={(*override_key).clone()}
-                    override_representation={(*override_representation).clone()}
-                    half_page_scroll={player.is_half_page_scroll()}
-                    active={*active}
-                />
+            {
+                if player.is_empty() {
+                    html! {
+                        <div class="middle-empty">
+                        </div>
+                    }
+                } else {
+                    html! {
+                        <PagesComponent
+                            item={player.item().0.clone()}
+                            item2={player.item().1.map(|item| item.clone())}
+                            override_key={(*override_key).clone()}
+                            override_representation={(*override_representation).clone()}
+                            half_page_scroll={player.is_half_page_scroll()}
+                            active={*active}
+                        />
+                    }
+                }
+            }
             </div>
             <div class={if *active {"bottom active"} else {"bottom"}}>
                 <select
