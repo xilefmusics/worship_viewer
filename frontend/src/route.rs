@@ -2,7 +2,7 @@ use super::pages::{
     CollectionsPage, EditorPage, ImprintPage, IndexPage, LoginPage, LogoutPage, PlayerPage,
     PrivacyPage, SetlistEditorPage, SetlistsPage, SongsPage, TermsPage,
 };
-use fancy_yew::layouts::{NavItemBuilder, Navable, VerticalLayout as Layout};
+use crate::components::layouts::{NavItemBuilder, Navable, VerticalLayout as Layout};
 use yew::prelude::*;
 use yew_router::prelude::*;
 

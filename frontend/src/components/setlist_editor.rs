@@ -1,5 +1,5 @@
 use crate::api::use_api;
-use fancy_yew::components::input::StringInput;
+use crate::components::StringInput;
 use js_sys::Reflect;
 use shared::setlist::CreateSetlist;
 use shared::song::Song;
