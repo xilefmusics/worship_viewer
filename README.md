@@ -77,3 +77,21 @@ echo '{
   }
 }' | caddy run --config -
 ```
+
+### You want the data to survive backend newstarts
+
+```bash
+docker run --rm -p 8000:8000 surrealdb/surrealdb:v2.4.0-dev start --log debug --user root --pass root memory
+./surreal import --conn http://localhost:8000 --user root --pass root --ns app --db app ./worshipviewer-2025-11-25.surql
+./surreal sql --conn http://127.0.0.1:8000 --user root --pass root --ns app --db app
+
+cd backend && \
+  INITIAL_ADMIN_USER_EMAIL="admin@example.com" \
+  INITIAL_ADMIN_USER_TEST_SESSION=true \
+  DB_ADDRESS="ws://localhost:8000" \
+  DB_NAMESPACE="app" \
+  DB_DATABASE="app" \
+  DB_USERNAME="app" \
+  DB_PASSWORD="app" \
+  cargo run
+```

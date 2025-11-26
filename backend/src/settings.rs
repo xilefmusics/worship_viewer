@@ -61,7 +61,7 @@ impl Default for Settings {
             post_login_path: "/".into(),
             cookie_name: "sso_session".into(),
             cookie_secure: false,
-            session_ttl_seconds: 3600,
+            session_ttl_seconds: 31536000,
             otp_ttl_seconds: 300,
             otp_pepper: "changeme".into(),
             db_address: "mem://".into(),
