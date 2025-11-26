@@ -6,7 +6,7 @@
 
 .editor-header {
   height: var(--top-height);
-  background-color: var(--bg1);
+  background-color: var(--bg);
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -29,7 +29,7 @@
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background-color: var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -135,7 +135,7 @@
 }
 
 input {
-	background-color: var(--fg1);
+	background-color: var(--bg-light);
 	color: var(--bg2);
   padding: 0.4rem;
   border: none;
@@ -144,7 +144,7 @@ input {
 
 
 button {
-  background-color: var(--primary);
+  background-color: var(--bg);
   padding: 0.4rem;
   font-weight: bold;
   border: none;

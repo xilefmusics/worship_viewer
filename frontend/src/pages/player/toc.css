@@ -1,5 +1,5 @@
 :root {
-  background-color: var(--bg1);
+  background-color: var(--bg);
   width: 100%;
   height: 100%;
   overflow-y: scroll;
@@ -16,7 +16,7 @@ li {
 
 li:hover {
   color: var(--primary);
-  background-color: var(--bgh);
+  background-color: var(--bg-light);
 }
 
 .filter-sort-container {
@@ -35,10 +35,10 @@ li:hover {
 
 .filter-sort:hover {
   color: var(--primary);
-  background-color: var(--bgh);
+  background-color: var(--bg-light);
 }
 
 .selected {
   color: var(--primary);
-  background-color: var(--bgh);
+  background-color: var(--bg-light);
 }
