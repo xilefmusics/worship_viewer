@@ -24,13 +24,13 @@
 ## 🪲 Known Bugs
 
 - [x] Unable to load svgs
-- [ ] Setlist Editor: Drag and drop does not work on mobile
-- [ ] Setlist Editor: Key in picker is always Ab
-- [ ] Song Editor: The first input is not on the expected cursor position
-- [ ] Setlist Editor: Is too wide on IPhone
+- [x] Setlist Editor: Key in picker is always Ab
+- [x] Error when opening an empty setlis
 - [ ] Import ultimate: First section is often missing
 - [ ] Import chordpro: Fails on `[||:]` and `[:||]` chords
-- [ ] Error when opening an empty setlis
+- [ ] Setlist Editor: Drag and drop does not work on mobile
+- [ ] Song Editor: The first input is not on the expected cursor position
+- [ ] Setlist Editor: Is too wide on IPhone
 
 ## 🚧 Maintainance
 
