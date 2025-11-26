@@ -1,6 +1,4 @@
 :root {
-	--bg: #282828;
-  --fg: #ebdbb2;
   --red: #cc241d;
   --green: #98971a;
   --yellow: #d79921;
@@ -10,12 +8,6 @@
   --orange: #d65d0e;
   --gray: #a89984;
 
-	--primary: #bb0000;
-	--fg1: rgba(255, 255, 255, 0.7);
-	--fg2: rgba(255, 255, 255, 0.5);
-	--bgh: #2c2e2e;
-	--bg1: #272727;
-	--bg2: #1e1e1e;
 
   --vh: 100dvh;
   --top-bottom-height: 60px;
@@ -34,7 +26,7 @@
 .top {
   visibility: hidden;
   height: 0;
-  background-color: var(--bg1);
+  background-color: var(--bg);
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -86,7 +78,7 @@
 .bottom {
   visibility: hidden;
   height: 0;
-  background-color: var(--bg1);
+  background-color: var(--bg);
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -148,7 +140,7 @@
 
 .index-chooser-2:hover {
   color: var(--primary);
-  background-color: var(--bgh);
+  background-color: var(--bg-light);
 }
 
 .index-chooser-2::-webkit-outer-spin-button,
@@ -168,7 +160,7 @@
 
 .scroll-changer:hover {
   color: var(--primary);
-  background-color: var(--bgh);
+  background-color: var(--bg-light);
 }
 
 .toc {
@@ -213,7 +205,7 @@ select {
 
 select:hover {
   color: var(--primary);
-  background-color: var(--bgh);
+  background-color: var(--bg-light);
 }
 
 #heart {
@@ -311,7 +303,7 @@ select:hover {
 
 #exportMenu {
     position: absolute;
-    background-color: var(--bg1);
+    background-color: var(--bg);
     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
     z-index: 1;
     right: 1em;
@@ -337,7 +329,7 @@ select:hover {
 } 
 
 #exportMenu button:hover {
-    background-color: var(--bgh);
+    background-color: var(--bg-light);
     color: var(--primary);
 }
 

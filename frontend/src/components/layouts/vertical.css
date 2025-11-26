@@ -2,11 +2,8 @@
   color-scheme: dark;
   --primary: oklch(0.55 0.21 27);
   --bg-dark: oklch(0.1 0 264);
-  --bg1: oklch(0.1 0 264);
-  --bg: oklch(0.2 0 264);
-  --bg2: oklch(0.2 0 264);
+  --bg: oklch(0.23 0 264);
   --bg-light: oklch(0.26 0 264);
-  --bg3: oklch(0.26 0 264);
   --text: oklch(0.96 0 264);
   --fg1: oklch(0.96 0 264);
   --text-muted: oklch(0.76 0 264);
@@ -34,7 +31,7 @@
 body {
   padding: 0;
   margin: 0;
-  background-color: var(--bg1);
+  background-color: var(--bg-dark);
   height: 100dvh;
   width: 100dwh;
   display: flex;
@@ -44,7 +41,7 @@ body {
 
 header#vertical-layout {
   height: 4rem;
-  background-color: var(--bg2);
+  background-color: var(--bg);
   margin: 0.8rem 0.8rem 0 0.8rem;
   border-radius: 1.6rem;
   width: calc(100vw - 1.6rem);
@@ -61,7 +58,7 @@ header#vertical-layout li {
 }
 
 header#vertical-layout li.selected {
-  background-color: var(--bg3);
+  background-color: var(--bg-light);
 }
 
 header#vertical-layout li .text {
@@ -85,13 +82,13 @@ header#vertical-layout li.selected .icon {
 
 main#vertical-layout {
   flex: 1;
-  background-color: var(--bg1);
+  background-color: var(--bg-dark);
   overflow: scroll;
 }
 
 footer#vertical-layout {
   height: 4rem;
-  background-color: var(--bg2);
+  background-color: var(--bg);
 }
 
 footer#vertical-layout nav {
@@ -116,7 +113,7 @@ footer#vertical-layout nav li {
 }
 
 footer#vertical-layout nav li.selected {
-  background-color: var(--bg3);
+  background-color: var(--bg-light);
 }
 
 footer#vertical-layout nav li .text {
