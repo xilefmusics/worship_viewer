@@ -38,15 +38,15 @@ pub fn legal_links() -> Html {
 
     html! {
         <nav class={nav_style} aria-label="Rechtliche Hinweise">
-            <a href="https://worshipviewer.com/terms" target="_blank" rel="noreferrer">
+            <a href="https://worshipviewer.com/imprint">
                 { "Imprint" }
             </a>
             <span aria-hidden="true" class="legal-links__divider">{ "|" }</span>
-            <a href="https://worshipviewer.com/privacy" target="_blank" rel="noreferrer">
+            <a href="https://worshipviewer.com/privacy">
                 { "Privacy Policy" }
             </a>
             <span aria-hidden="true" class="legal-links__divider">{ "|" }</span>
-            <a href="https://worshipviewer.com/terms" target="_blank" rel="noreferrer">
+            <a href="https://worshipviewer.com/terms">
                 { "Terms & Conditions" }
             </a>
         </nav>
