@@ -1,4 +1,5 @@
 mod aspect_ratio;
+pub mod editor;
 pub mod layouts;
 mod legal_links;
 mod offline_overlay;
@@ -7,7 +8,6 @@ mod song_editor;
 mod song_viewer;
 mod string_input;
 pub mod toast_notifications;
-pub mod editor;
 
 pub use aspect_ratio::AspectRatio;
 pub use legal_links::LegalLinks;

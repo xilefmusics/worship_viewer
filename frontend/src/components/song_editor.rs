@@ -1,7 +1,7 @@
 use super::{AspectRatio, SongViewer};
-use crate::components::StringInput;
-use crate::components::toast_notifications::show_error;
 use crate::components::editor::{Editor, SyntaxParser};
+use crate::components::toast_notifications::show_error;
+use crate::components::StringInput;
 use shared::song::{CreateSong, Song};
 use std::f64::consts::SQRT_2;
 use stylist::Style;
