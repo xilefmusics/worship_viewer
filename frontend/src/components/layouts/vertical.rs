@@ -1,6 +1,7 @@
-use super::Navable;
+use super::{Navable, SideMenu};
 
 use stylist::yew::Global;
+use web_sys::window;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -18,6 +19,8 @@ pub struct Props<R: Routable + Navable> {
 pub fn vertical_layout<R: Routable + Navable>(props: &Props<R>) -> Html {
     let navigator = use_navigator().unwrap();
     let location = use_location().unwrap();
+    let menu_open = use_state(|| false);
+
     let nav_items = props
         .nav_routes
         .iter()
@@ -29,14 +32,37 @@ pub fn vertical_layout<R: Routable + Navable>(props: &Props<R>) -> Html {
         })
         .collect::<Html>();
 
-    let account_route = props
+    let toggle_menu = {
+        let menu_open = menu_open.clone();
+        Callback::from(move |_| {
+            menu_open.set(!*menu_open);
+        })
+    };
+
+    let close_menu = {
+        let menu_open = menu_open.clone();
+        Callback::from(move |_| {
+            menu_open.set(false);
+        })
+    };
+
+    let handle_logout = Callback::from(move |_| {
+        if let Some(window) = window() {
+            let location = window.location();
+            let _ = location.set_href("/logout");
+        }
+    });
+
+    let account_route_html = props
         .account_route
         .clone()
         .map(|route| route.to_nav_item().build(&navigator, location.path()))
         .unwrap_or(html! {
-            <li><span class="material-symbols-outlined account">
-                {"account_circle"}
-            </span></li>
+            <li onclick={toggle_menu.clone()} style="cursor: pointer;">
+                <span class="material-symbols-outlined account">
+                    {"account_circle"}
+                </span>
+            </li>
         });
 
     html! {
@@ -44,8 +70,19 @@ pub fn vertical_layout<R: Routable + Navable>(props: &Props<R>) -> Html {
             <Global css={include_str!("vertical.css")} />
             if !props.fullscreen {
                 <header id="vertical-layout">
-                    { account_route }
+                    <div
+                        onclick={toggle_menu.clone()}
+                        style="cursor: pointer; display: contents;"
+                        onmousedown={|e: MouseEvent| e.stop_propagation()}
+                    >
+                        { account_route_html }
+                    </div>
                 </header>
+                <SideMenu
+                    open={*menu_open}
+                    on_close={close_menu}
+                    on_logout={handle_logout}
+                />
             }
             <main id="vertical-layout">
                 {

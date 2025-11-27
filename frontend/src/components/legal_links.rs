@@ -1,8 +1,5 @@
 use stylist::{style, yew::styled_component};
 use yew::prelude::*;
-use yew_router::prelude::*;
-
-use crate::route::Route;
 
 #[styled_component(LegalLinks)]
 pub fn legal_links() -> Html {
@@ -17,9 +14,15 @@ pub fn legal_links() -> Html {
             color: var(--text-muted);
 
             & a {
+                display: inline-flex;
+                flex-direction: column;
+                text-align: center;
+                line-height: 1.2;
+                gap: 2px;
                 color: var(--primary);
                 text-decoration: none;
                 font-weight: 500;
+                white-space: normal;
             }
 
             & a:hover {
@@ -35,11 +38,17 @@ pub fn legal_links() -> Html {
 
     html! {
         <nav class={nav_style} aria-label="Rechtliche Hinweise">
-            <Link<Route> to={Route::Imprint}>{ "Impressum" }</Link<Route>>
+            <a href="https://worshipviewer.com/terms" target="_blank" rel="noreferrer">
+                { "Imprint" }
+            </a>
             <span aria-hidden="true" class="legal-links__divider">{ "|" }</span>
-            <Link<Route> to={Route::Privacy}>{ "Datenschutz" }</Link<Route>>
+            <a href="https://worshipviewer.com/privacy" target="_blank" rel="noreferrer">
+                { "Privacy Policy" }
+            </a>
             <span aria-hidden="true" class="legal-links__divider">{ "|" }</span>
-            <Link<Route> to={Route::Terms}>{ "AGB" }</Link<Route>>
+            <a href="https://worshipviewer.com/terms" target="_blank" rel="noreferrer">
+                { "Terms & Conditions" }
+            </a>
         </nav>
     }
 }

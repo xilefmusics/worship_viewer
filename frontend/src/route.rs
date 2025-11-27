@@ -1,6 +1,6 @@
 use super::pages::{
-    CollectionsPage, EditorPage, ImprintPage, IndexPage, LoginPage, LogoutPage, PlayerPage,
-    PrivacyPage, SetlistEditorPage, SetlistsPage, SongsPage, TermsPage,
+    CollectionsPage, EditorPage, IndexPage, LoginPage, LogoutPage, PlayerPage, SetlistEditorPage,
+    SetlistsPage, SongsPage,
 };
 use crate::components::layouts::{NavItemBuilder, Navable, VerticalLayout as Layout};
 use yew::prelude::*;
@@ -22,12 +22,6 @@ pub enum Route {
     Editor,
     #[at("/setlist-editor")]
     SetlistEditor,
-    #[at("/imprint")]
-    Imprint,
-    #[at("/privacy")]
-    Privacy,
-    #[at("/terms")]
-    Terms,
     #[at("/login")]
     Login,
     #[at("/logout")]
@@ -77,7 +71,7 @@ impl Navable for Route {
             <Layout<Route>
                 nav_routes={Route::route_items()}
                 fullscreen={match route {
-                    Route::Player | Route::Editor | Route::SetlistEditor | Route::Login | Route::Logout | Route::Terms | Route::Imprint | Route::Privacy => true,
+                    Route::Player | Route::Editor | Route::SetlistEditor | Route::Login | Route::Logout => true,
                     _ => false,
                 }}
             >{
@@ -89,9 +83,6 @@ impl Navable for Route {
                     Route::Player => html! { <PlayerPage /> },
                     Route::Editor => html! { <EditorPage /> },
                     Route::SetlistEditor => html! { <SetlistEditorPage /> },
-                    Route::Imprint => html! { <ImprintPage /> },
-                    Route::Privacy => html! { <PrivacyPage /> },
-                    Route::Terms => html! { <TermsPage /> },
                     Route::Login => html! { <LoginPage /> },
                     Route::Logout => html! { <LogoutPage /> },
                     Route::NotFound => html! { <h1>{ "404 Not Found" }</h1> },

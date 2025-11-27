@@ -1,21 +1,15 @@
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{Document, HtmlElement, Element, Window};
+use web_sys::{Document, Element, HtmlElement, Window};
 
 fn get_notifications_div(document: &Document) -> Result<Element, JsValue> {
-    if let Some(existing) = document
-        .query_selector(".fancy-yew-toast-notifications")?
-    {
+    if let Some(existing) = document.query_selector(".fancy-yew-toast-notifications")? {
         return Ok(existing);
     }
 
-    let notifications_div = document
-        .create_element("div")?;
+    let notifications_div = document.create_element("div")?;
     notifications_div.set_class_name("fancy-yew-toast-notifications");
-    document
-        .body()
-        .unwrap()
-        .append_child(&notifications_div)?;
+    document.body().unwrap().append_child(&notifications_div)?;
 
     Ok(notifications_div)
 }
@@ -61,7 +55,7 @@ pub fn create_toast(toast_type: &str, icon: &str, title: &str, text: &str) {
         closure.forget();
     }
 
-    if let Ok(notifications) = get_notifications_div(&document)  {
+    if let Ok(notifications) = get_notifications_div(&document) {
         notifications.append_child(&new_toast).unwrap();
     }
 
