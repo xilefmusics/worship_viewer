@@ -7,7 +7,7 @@ use utoipa::ToSchema;
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub enum PlayerItem {
     Blob(String),
-    Chords(Song),
+    Chords(Song, Option<crate::song::SimpleChord>),
 }
 
 impl Default for PlayerItem {

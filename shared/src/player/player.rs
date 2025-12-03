@@ -323,7 +323,7 @@ impl From<SongLinkOwned> for Player {
                     .map(|blob| PlayerItem::Blob(blob.to_string()))
                     .collect::<Vec<PlayerItem>>();
                 if link.song.data.sections.len() > 0 || items.len() == 0 {
-                    items.push(PlayerItem::Chords(link.song.clone()))
+                    items.push(PlayerItem::Chords(link.song.clone(), link.key.clone()))
                 }
                 items
             },
