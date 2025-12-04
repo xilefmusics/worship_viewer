@@ -160,7 +160,7 @@ pub fn player_page() -> Html {
             .unwrap_or(&PlayerItem::Blob("".to_string()))
         {
             PlayerItem::Blob(_) => "".to_string(),
-            PlayerItem::Chords(song, _) => song.id.clone(),
+            PlayerItem::Chords(song) => song.id.clone(),
         };
 
         move |_: MouseEvent| {
@@ -482,7 +482,7 @@ pub fn player_page() -> Html {
             <div class={if *active {"bottom active"} else {"bottom"}}>
                 <select
                     onchange={onchange2}
-                    class={if let PlayerItem::Chords(..) = player.item().0 {"visible"} else {"invisible"}}
+                    class={if let PlayerItem::Chords(_) = player.item().0 {"visible"} else {"invisible"}}
                 >
                     {
                         vec!["default", "nashville"]
@@ -498,7 +498,7 @@ pub fn player_page() -> Html {
                 </select>
                 <select
                     onchange={onchange}
-                    class={if let PlayerItem::Chords(..) = player.item().0 {"visible"} else {"invisible"}}
+                    class={if let PlayerItem::Chords(_) = player.item().0 {"visible"} else {"invisible"}}
                 >
                     {
                         vec!["default", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab"]

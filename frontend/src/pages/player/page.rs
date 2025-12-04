@@ -21,11 +21,11 @@ pub fn page_components(props: &Props) -> Html {
                 <img src={format!("/api/v1/blobs/{}/data", id)}/>
             </div>
         },
-        PlayerItem::Chords(song, key) => {
+        PlayerItem::Chords(song) => {
             html! {
                 <SongViewer
                     song={song.clone()}
-                    override_key={props.override_key.clone().or(key.clone())}
+                    override_key={props.override_key.clone()}
                     override_representation={props.override_representation.clone()}
                 />
             }
