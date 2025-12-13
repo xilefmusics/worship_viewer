@@ -9,6 +9,12 @@ use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct SongUserSpecificAddons {
+    pub liked: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct Song {
     pub id: String,
     pub owner: String,
@@ -16,6 +22,7 @@ pub struct Song {
     pub blobs: Vec<String>,
     #[cfg_attr(feature = "backend", schema(value_type = Object, additional_properties = true))]
     pub data: SongData,
+    pub user_specific_addons: SongUserSpecificAddons,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
@@ -111,6 +118,7 @@ impl From<CreateSong> for Song {
             not_a_song: value.not_a_song,
             blobs: value.blobs,
             data: value.data,
+            user_specific_addons: SongUserSpecificAddons::default(),
         }
     }
 }

@@ -4,7 +4,7 @@ use chordlib::types::Song as SongData;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Id, Thing};
 
-use shared::song::{CreateSong, Song};
+use shared::song::{CreateSong, Song, SongUserSpecificAddons};
 
 use crate::database::Database;
 use crate::error::AppError;
@@ -262,6 +262,7 @@ impl SongRecord {
             not_a_song: self.not_a_song,
             blobs: self.blobs.into_iter().map(id_from_thing).collect(),
             data: self.data,
+            user_specific_addons: SongUserSpecificAddons::default(),
         }
     }
 

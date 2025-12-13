@@ -190,11 +190,16 @@ async fn get_setlist_songs(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
+    let liked_set = db.get_liked_set(&user.id).await?;
     Ok(HttpResponse::Ok().json(
         db.get_setlist_songs(user.read(), &id)
             .await?
             .into_iter()
-            .map(|song_link_owned| song_link_owned.song)
+            .map(|song_link_owned| {
+                let mut song = song_link_owned.song;
+                song.user_specific_addons.liked = liked_set.contains(&song.id);
+                song
+            })
             .collect::<Vec<Song>>(),
     ))
 }
