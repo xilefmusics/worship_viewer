@@ -26,44 +26,11 @@
 .top {
   visibility: hidden;
   height: 0;
-  background-color: var(--bg);
-  display: flex;
-  flex-direction: row;
-  align-items: center;
 }
 
 .top.active {
   visibility: visible;
   height: var(--top-bottom-height);
-}
-
-.top-left {
-  justify-content: left;
-}
-
-.top-middle {
-  flex: 1;
-  justify-content: center;
-}
-
-.top-right {
-  justify-content: right;
-}
-
-.left-button {
-  margin-left: 1em;
-}
-
-.right-button {
-  margin-right: 1em;
-}
-
-.left-button:hover {
-  color: var(--primary);
-}
-
-.right-button:hover {
-  color: var(--primary);
 }
 
 .middle {

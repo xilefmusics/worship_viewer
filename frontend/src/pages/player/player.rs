@@ -1,5 +1,6 @@
 use super::{PagesComponent, TableOfContentsComponent};
-use crate::api::{use_api, Api};
+use crate::api::use_api;
+use crate::components::{Topbar, TopbarButton, TopbarSelect, TopbarSelectOption, TopbarSpacer};
 use crate::route::Route;
 use gloo::timers::callback::Timeout;
 use serde::Deserialize;
@@ -33,42 +34,54 @@ impl Query {
         }
     }
 
-    fn export_path(&self, format: &str, api: &Api) -> Option<String> {
-        let format = format.to_lowercase();
-        if let Some(setlist_id) = &self.setlist {
-            Some(api.get_setlist_export_url(setlist_id, &format))
-        } else if let Some(collection_id) = &self.collection {
-            Some(api.get_collection_export_url(collection_id, &format))
-        } else if let Some(id) = &self.id {
-            Some(api.get_song_export_url(id, &format))
+    fn to_map(&self) -> HashMap<String, String> {
+        if let Some(setlist) = self.setlist.as_ref() {
+            HashMap::from([("setlist".to_string(), setlist.to_owned())])
+        } else if let Some(collection) = self.collection.as_ref() {
+            HashMap::from([("collection".to_string(), collection.to_owned())])
+        } else if let Some(id) = self.id.as_ref() {
+            HashMap::from([("id".to_string(), id.to_owned())])
         } else {
-            None
+            HashMap::new()
         }
     }
 
-    fn export_handler(
-        &self,
-        format: &str,
-        api: Api,
-        export_active: UseStateHandle<bool>,
-    ) -> Callback<MouseEvent> {
-        if let Some(url) = self.export_path(format, &api) {
-            Callback::from(move |_: MouseEvent| {
-                let url = url.clone();
-                let export_active = export_active.clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    export_active.set(false);
-                    web_sys::window()
-                        .unwrap()
-                        .location()
-                        .set_href(&url)
-                        .unwrap();
-                });
-            })
-        } else {
-            Callback::from(|_: MouseEvent| {})
-        }
-    }
+    //fn export_path(&self, format: &str, api: &Api) -> Option<String> {
+    //    let format = format.to_lowercase();
+    //    if let Some(setlist_id) = &self.setlist {
+    //        Some(api.get_setlist_export_url(setlist_id, &format))
+    //    } else if let Some(collection_id) = &self.collection {
+    //        Some(api.get_collection_export_url(collection_id, &format))
+    //    } else if let Some(id) = &self.id {
+    //        Some(api.get_song_export_url(id, &format))
+    //    } else {
+    //        None
+    //    }
+    //}
+//
+    //fn export_handler(
+    //    &self,
+    //    format: &str,
+    //    api: Api,
+    //    export_active: UseStateHandle<bool>,
+    //) -> Callback<MouseEvent> {
+    //    if let Some(url) = self.export_path(format, &api) {
+    //        Callback::from(move |_: MouseEvent| {
+    //            let url = url.clone();
+    //            let export_active = export_active.clone();
+    //            wasm_bindgen_futures::spawn_local(async move {
+    //                export_active.set(false);
+    //                web_sys::window()
+    //                    .unwrap()
+    //                    .location()
+    //                    .set_href(&url)
+    //                    .unwrap();
+    //            });
+    //        })
+    //    } else {
+    //        Callback::from(|_: MouseEvent| {})
+    //    }
+    //}
 }
 
 #[function_component(PlayerPage)]
@@ -144,12 +157,6 @@ pub fn player_page() -> Html {
                 }
             }
         }
-    };
-
-    let query_current = Query {
-        id: player.as_ref().and_then(|p| p.song_id()),
-        collection: None,
-        setlist: None,
     };
 
     let edit_button = {
@@ -302,12 +309,12 @@ pub fn player_page() -> Html {
         }
     };
 
-    let onclick_export = {
-        let export_menu_active = export_menu_active.clone();
-        move |_: MouseEvent| {
-            export_menu_active.set(!*export_menu_active);
-        }
-    };
+    //let onclick_export = {
+    //    let export_menu_active = export_menu_active.clone();
+    //    move |_: MouseEvent| {
+    //        export_menu_active.set(!*export_menu_active);
+    //    }
+    //};
 
     let onchange = {
         let override_key = override_key.clone();
@@ -410,53 +417,33 @@ pub fn player_page() -> Html {
     html! {
         <>
         <Global css={css!("html,body{padding: 0;margin: 0;border: 0;background: #1e1e1e; overflow: hidden; overscroll-behavior: none; }")} />
-        <div
-            class={Style::new(include_str!("player.css")).expect("Unwrapping CSS should work!")}
-            >
+        <div class={Style::new(include_str!("player.css")).expect("Unwrapping CSS should work!")}>
             <div class={if *active {"top active"} else {"top"}}>
-                <div class="top-left">
-                    <span
-                        class="material-symbols-outlined left-button"
-                        onclick={onclick_back_button}
-                    >{"arrow_back"}</span>
-                </div>
-                <div class="top-middle">
-                </div>
-                <div class="top-right">
-                    <span
-                        class="material-symbols-outlined right-button"
-                        onclick={onclick_export}
-                    >{"download"}</span>
-                    <div
-                        id="exportMenu"
-                        class={if *export_menu_active {"active"} else {""}}
-                    >
-                        <label>{"Song"}</label>
-                        <button onclick={query_current.export_handler("WorshipPro", api.clone(), export_menu_active.clone())}>{"WorshipPro"}</button>
-                        <button onclick={query_current.export_handler("ChordPro", api.clone(), export_menu_active.clone())}>{"ChordPro"}</button>
-                        <button onclick={query_current.export_handler("Pdf", api.clone(), export_menu_active.clone())}>{"PDF"}</button>
-                        <label>{"List"}</label>
-                        <button onclick={query.export_handler("WorshipPro", api.clone(), export_menu_active.clone())}>{"WorshipPro"}</button>
-                        <button onclick={query.export_handler("ChordPro", api.clone(), export_menu_active.clone())}>{"ChordPro"}</button>
-                        <button onclick={query.export_handler("Pdf", api.clone(), export_menu_active.clone())}>{"PDF"}</button>
-                    </div>
-                    {
-                        if query.setlist.is_some() {
-                            html! {
-                                <span
-                                    class="material-symbols-outlined right-button"
-                                    onclick={edit_setlist_button}
-                                >{"contract_edit"}</span>
-                            }
-                        } else {
-                            html! {}
+                <Topbar>
+                    <TopbarButton icon="arrow_back" onclick={onclick_back_button} />
+                    <TopbarSpacer />
+                    <TopbarSelect>
+                    <TopbarSelectOption
+                        icon="monitor"
+                        text="Presenter"
+                        onclick={let navigator = navigator.clone(); let query = query.to_map(); move |_: MouseEvent| navigator.push_with_query(&Route::Presenter, &query).unwrap()}
+                    />
+                    <TopbarSelectOption
+                        icon="news"
+                        text="Player"
+                        selected={true}
+                    />
+                    </TopbarSelect>
+                    <TopbarSpacer />
+                    { if query.setlist.is_some() {
+                        html! {
+                            <TopbarButton icon="contract_edit" onclick={edit_setlist_button} />
                         }
-                    }
-                    <span
-                        class="material-symbols-outlined right-button"
-                        onclick={edit_button}
-                    >{"edit"}</span>
-                </div>
+                    } else {
+                        html! {}
+                    }}
+                    <TopbarButton icon="edit" onclick={edit_button} />
+                </Topbar>
             </div>
             <div onclick={onclick} class={if *active {"middle active"} else {"middle"}}>
             {

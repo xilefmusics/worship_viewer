@@ -7,6 +7,8 @@ mod player;
 mod setlist_editor;
 mod setlists;
 mod songs;
+mod presenter;
+mod presenter_slides;
 
 pub use collections::CollectionsPage;
 pub use editor::EditorPage;
@@ -17,3 +19,5 @@ pub use player::PlayerPage;
 pub use setlist_editor::SetlistEditorPage;
 pub use setlists::SetlistsPage;
 pub use songs::SongsPage;
+pub use presenter::PresenterPage;
+pub use presenter_slides::PresenterSlidesPage;

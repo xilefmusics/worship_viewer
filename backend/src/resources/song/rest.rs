@@ -51,7 +51,13 @@ pub fn scope() -> Scope {
 )]
 #[get("")]
 async fn get_songs(db: Data<Database>, user: ReqData<User>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_songs(user.read()).await?))
+    let liked_set = db.get_liked_set(&user.id).await?;
+    let songs = db.get_songs(user.read()).await?.into_iter().map(|song| {
+        let mut song = song;
+        song.user_specific_addons.liked = liked_set.contains(&song.id);
+        song
+    }).collect::<Vec<Song>>();
+    Ok(HttpResponse::Ok().json(songs))
 }
 
 #[utoipa::path(
@@ -79,7 +85,10 @@ async fn get_song(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_song(user.read(), &id).await?))
+    let liked_set = db.get_liked_set(&user.id).await?;
+    let mut song = db.get_song(user.read(), &id).await?;
+    song.user_specific_addons.liked = liked_set.contains(&song.id);
+    Ok(HttpResponse::Ok().json(song))
 }
 
 #[utoipa::path(

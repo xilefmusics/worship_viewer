@@ -1,0 +1,132 @@
+use super::SlideTextOrientation;
+use stylist::Style;
+use web_sys::{HtmlInputElement, HtmlSelectElement};
+use yew::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Properties, Serialize, Deserialize, PartialEq, Clone)]
+pub struct SettingsData {
+    pub max_lines_per_slide: u8,
+    pub background: u8,
+    pub text_orientation: SlideTextOrientation,
+    pub font_size: u8,
+}
+
+impl Default for SettingsData {
+    fn default() -> Self {
+        Self {
+            max_lines_per_slide: 2,
+            background: 1,
+            text_orientation: SlideTextOrientation::Center,
+            font_size: 60,
+        }
+    }
+}
+
+#[derive(Properties, PartialEq)]
+pub struct SettingsProps {
+    pub settings: SettingsData,
+    pub set_settings: Callback<SettingsData>,
+}
+
+#[function_component(Settings)]
+pub fn settings(props: &SettingsProps) -> Html {
+    let set_max_lines_per_slide = {
+        let settings = props.settings.clone();
+        let set_settings = props.set_settings.clone();
+
+        Callback::from(move |num: u8| {
+            let mut settings = settings.clone();
+            settings.max_lines_per_slide = num;
+            set_settings.emit(settings);
+        })
+    };
+
+    let set_background = {
+        let settings = props.settings.clone();
+        let set_settings = props.set_settings.clone();
+
+        Callback::from(move |num: u8| {
+            let mut settings = settings.clone();
+            settings.background = num;
+            set_settings.emit(settings);
+        })
+    };
+
+    let set_text_orientation = {
+        let settings = props.settings.clone();
+        let set_settings = props.set_settings.clone();
+
+        Callback::from(move |orientation: SlideTextOrientation| {
+            let mut settings = settings.clone();
+            settings.text_orientation = orientation;
+            set_settings.emit(settings);
+        })
+    };
+
+    let set_font_size = {
+        let settings = props.settings.clone();
+        let set_settings = props.set_settings.clone();
+
+        Callback::from(move |num: u8| {
+            let mut settings = settings.clone();
+            settings.font_size = num;
+            set_settings.emit(settings);
+        })
+    };
+
+    html! {
+        <div class={Style::new(include_str!("settings.css")).expect("Unwrapping CSS should work!")}>
+            <div class="setting">
+                <label for="max-lines-per-slide">{"Max lines"}</label>
+                <input
+                    type="number"
+                    id="max-lines-per-slide"
+                    value={props.settings.max_lines_per_slide.to_string()}
+                    oninput={Callback::from(move |e: InputEvent| {
+                        let input: HtmlInputElement = e.target_unchecked_into();
+                        if let Ok(value) = input.value().parse::<u8>() {
+                            if value >= 1 && value <= 10 {
+                                set_max_lines_per_slide.emit(value);
+                            }
+                        }
+                    })}
+                />
+            </div>
+            <div class="setting">
+                <label for="background">{"Background"}</label>
+                <select id="background" value={props.settings.background.to_string()} onchange={Callback::from(move |e: Event| {
+                    let select: HtmlSelectElement = e.target_unchecked_into();
+                    if let Ok(value) = select.value().parse::<u8>() {
+                        set_background.emit(value);
+                    }
+                })}>
+                    <option value="0">{"Black"}</option>
+                    <option value="1">{"Red"}</option>
+                </select>
+            </div>
+            <div class="setting">
+                <label for="text-orientation">{"Text orientation"}</label>
+                <select id="text-orientation" value={props.settings.text_orientation.to_str()} onchange={Callback::from(move |e: Event| {
+                    let select: HtmlSelectElement = e.target_unchecked_into();
+                    if let Ok(value) = select.value().parse::<SlideTextOrientation>() {
+                        set_text_orientation.emit(value);
+                    }
+                })}>
+                    <option value="top">{"Top"}</option>
+                    <option value="center">{"Center"}</option>
+                    <option value="bottom">{"Bottom"}</option>
+                </select>
+            </div>
+            <div class="setting">
+                <label for="font-size">{"Font size"}</label>
+                <input type="number" id="font-size" value={props.settings.font_size.to_string()} oninput={Callback::from(move |e: InputEvent| {
+                    let input: HtmlInputElement = e.target_unchecked_into();
+                    if let Ok(value) = input.value().parse::<u8>() {
+                        set_font_size.emit(value);
+                    }
+                })}/>
+            </div>
+        </div>
+    }
+}
