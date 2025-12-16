@@ -2,7 +2,7 @@
   background-color: var(--bg-dark);
   color: var(--fg1);
   height: 100%;
-  font-family: 'Rubik Mono One', monospace;
+  font-family: 'Roboto Mono', monospace;
 }
 
 .CodeMirror-cursor {

@@ -15,20 +15,21 @@ self.addEventListener("fetch", (event) => {
     fetch(req)
       .then((res) => {
         if (res.ok) {
-          event.waitUntil(
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, res.clone()))
-          );
+          const resForCache = res.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(req, resForCache).catch(() => {});
+          }).catch(() => {});
         }
         return res;
       })
-      .catch(() =>
-        caches.match(req).then((cached) =>
-          cached ||
-          new Response("Offline", {
-            status: 503,
-            headers: { "Content-Type": "text/plain" },
-          })
-        )
-      )
+      .catch(() => {
+        return caches.match(req).then((cached) => {
+          if (cached) {
+            return cached;
+          } else {
+            return new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
+          }
+        });
+      })
   );
 });
