@@ -13,7 +13,7 @@ use data::{OutlineData, SongData};
 use outline::Outline;
 pub use presenter::Presenter;
 use sidebar::{Sidebar, SidebarPanel};
-use slide::SlideTextOrientation;
+use slide::{SlideTextOrientation, HorizontalContainerAlignment, TextAlignment, TextShadow, TextTransform};
 use slides::Slides;
 use toc::{Toc, TocItem};
 use settings::Settings;

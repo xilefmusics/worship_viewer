@@ -21,6 +21,8 @@ pub struct PresenterProps {
 
 #[function_component(Presenter)]
 pub fn presenter(props: &PresenterProps) -> Html {
+    // Always start with defaults - don't load from localStorage
+    // This ensures defaults are always respected on page load
     let settings = use_state(|| SettingsData::default());
     let song_data = use_state(|| None::<SongData>);
     let is_black = use_state(|| false);
@@ -30,6 +32,21 @@ pub fn presenter(props: &PresenterProps) -> Html {
     let current_song_idx = use_state(|| 0);
     let current_song = use_state(|| None::<Song>);
     let slide_sync = use_mut_ref(|| SlideSync::new());
+    
+    // Broadcast default settings on mount to overwrite any old localStorage values
+    {
+        let settings = settings.clone();
+        let slide_sync = slide_sync.clone();
+        use_effect_with((), move |_| {
+            slide_sync.borrow().broadcast(&SlideProps {
+                text: String::new(),
+                settings: (*settings).clone(),
+                is_black: false,
+                expand: true,
+            });
+            || {}
+        });
+    }
 
     use_effect_with(((*current_text).clone(), (*settings).clone(), *is_black), {
         let slide_sync = slide_sync.clone();
