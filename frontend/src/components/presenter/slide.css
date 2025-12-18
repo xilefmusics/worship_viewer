@@ -20,6 +20,18 @@
     justify-content: end;
 }
 
+:root.container-align-left {
+    align-items: flex-start;
+}
+
+:root.container-align-center {
+    align-items: center;
+}
+
+:root.container-align-right {
+    align-items: flex-end;
+}
+
 :root.background-0 {
     background: black;
 }
@@ -38,4 +50,16 @@
 :root.expand {
     aspect-ratio: auto;
     height: 100%;
+}
+
+.text-container.text-align-left .line {
+    text-align: left;
+}
+
+.text-container.text-align-center .line {
+    text-align: center;
+}
+
+.text-container.text-align-right .line {
+    text-align: right;
 }

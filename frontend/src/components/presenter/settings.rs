@@ -1,4 +1,4 @@
-use super::SlideTextOrientation;
+use super::{SlideTextOrientation, HorizontalContainerAlignment, TextAlignment};
 use stylist::Style;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
@@ -10,6 +10,8 @@ pub struct SettingsData {
     pub background: u8,
     pub text_orientation: SlideTextOrientation,
     pub font_size: u8,
+    pub horizontal_container_alignment: HorizontalContainerAlignment,
+    pub text_alignment: TextAlignment,
 }
 
 impl Default for SettingsData {
@@ -19,6 +21,8 @@ impl Default for SettingsData {
             background: 2,
             text_orientation: SlideTextOrientation::Center,
             font_size: 60,
+            horizontal_container_alignment: HorizontalContainerAlignment::Center,
+            text_alignment: TextAlignment::Center,
         }
     }
 }
@@ -75,6 +79,28 @@ pub fn settings(props: &SettingsProps) -> Html {
         })
     };
 
+    let set_horizontal_container_alignment = {
+        let settings = props.settings.clone();
+        let set_settings = props.set_settings.clone();
+
+        Callback::from(move |alignment: HorizontalContainerAlignment| {
+            let mut settings = settings.clone();
+            settings.horizontal_container_alignment = alignment;
+            set_settings.emit(settings);
+        })
+    };
+
+    let set_text_alignment = {
+        let settings = props.settings.clone();
+        let set_settings = props.set_settings.clone();
+
+        Callback::from(move |alignment: TextAlignment| {
+            let mut settings = settings.clone();
+            settings.text_alignment = alignment;
+            set_settings.emit(settings);
+        })
+    };
+
     html! {
         <div class={Style::new(include_str!("settings.css")).expect("Unwrapping CSS should work!")}>
             <div class="setting">
@@ -127,6 +153,32 @@ pub fn settings(props: &SettingsProps) -> Html {
                         set_font_size.emit(value);
                     }
                 })}/>
+            </div>
+            <div class="setting">
+                <label for="horizontal-container-alignment">{"Horizontal container alignment"}</label>
+                <select id="horizontal-container-alignment" onchange={Callback::from(move |e: Event| {
+                    let select: HtmlSelectElement = e.target_unchecked_into();
+                    if let Ok(value) = select.value().parse::<HorizontalContainerAlignment>() {
+                        set_horizontal_container_alignment.emit(value);
+                    }
+                })}>
+                    <option value="left" selected={props.settings.horizontal_container_alignment.to_select_value() == "left"}>{"Left"}</option>
+                    <option value="center" selected={props.settings.horizontal_container_alignment.to_select_value() == "center"}>{"Center"}</option>
+                    <option value="right" selected={props.settings.horizontal_container_alignment.to_select_value() == "right"}>{"Right"}</option>
+                </select>
+            </div>
+            <div class="setting">
+                <label for="text-alignment">{"Text alignment"}</label>
+                <select id="text-alignment" onchange={Callback::from(move |e: Event| {
+                    let select: HtmlSelectElement = e.target_unchecked_into();
+                    if let Ok(value) = select.value().parse::<TextAlignment>() {
+                        set_text_alignment.emit(value);
+                    }
+                })}>
+                    <option value="left" selected={props.settings.text_alignment.to_select_value() == "left"}>{"Left"}</option>
+                    <option value="center" selected={props.settings.text_alignment.to_select_value() == "center"}>{"Center"}</option>
+                    <option value="right" selected={props.settings.text_alignment.to_select_value() == "right"}>{"Right"}</option>
+                </select>
             </div>
         </div>
     }
