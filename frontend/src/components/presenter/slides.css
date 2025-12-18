@@ -2,7 +2,7 @@
     height: 100%;
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 16px;
     overflow: auto;
     padding: 16px;
@@ -14,7 +14,7 @@
 
 .slide-wrapper {
     width: 100%;
-    min-width: 384px;
+    min-width: 320px;
     aspect-ratio: 16 / 9;
     background-color: var(--bg);
     display: flex;

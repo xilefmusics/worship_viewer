@@ -1,94 +1,67 @@
-const CACHE_NAME = 'worship-viewer-static-v1';
-const CORE_ASSETS = ['/', '/index.html', '/manifest.json', '/favicon.png', '/appicon.png'];
+const CACHE_NAME = "offline-cache-v1";
+const DATA_CACHE_NAME = "offline-data-cache-v1";
 
-self.addEventListener('install', (event) => {
-    self.skipWaiting();
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(CORE_ASSETS);
-        }),
-    );
-});
+function shouldCacheApiRequest(pathname) {
+  const listPattern = /^\/api\/v1\/(setlists|collections)$/;
+  const idPattern = /^\/api\/v1\/(setlists|collections)\/[^\/]+\/(player|songs)$/;
+  return listPattern.test(pathname) || idPattern.test(pathname);
+}
 
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then((keys) => {
-            return Promise.all(
-                keys
-                    .filter((key) => key !== CACHE_NAME)
-                    .map((key) => caches.delete(key)),
-            );
-        }),
-    );
-    self.clients.claim();
-});
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
 
-const shouldHandleFetch = (request) => {
-    if (request.method !== 'GET') {
-        return false;
-    }
+  if (req.method !== "GET") return;
 
-    const url = new URL(request.url);
+  const url = new URL(req.url);
 
-    if (url.origin !== self.location.origin) {
-        return false;
-    }
-
-    if (url.pathname.startsWith('/api/')) {
-        return false;
-    }
-
-    return true;
-};
-
-self.addEventListener('fetch', (event) => {
-    if (!shouldHandleFetch(event.request)) {
-        return;
-    }
-
-    const { request } = event;
-
-    if (request.mode === 'navigate') {
-        event.respondWith(
-            fetch(request)
-                .then((response) => {
-                    const copy = response.clone();
-                    caches
-                        .open(CACHE_NAME)
-                        .then((cache) => cache.put('/index.html', copy))
-                        .catch(() => {});
-                    return response;
-                })
-                .catch(() => caches.match('/index.html')),
-        );
-        return;
-    }
-
+  if (shouldCacheApiRequest(url.pathname)) {
     event.respondWith(
-        caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-                return cachedResponse;
+      fetch(req)
+        .then((res) => {
+          if (res.ok) {
+            const resForCache = res.clone();
+            caches.open(DATA_CACHE_NAME).then((cache) => {
+              cache.put(req, resForCache).catch(() => {});
+            }).catch(() => {});
+          }
+          return res;
+        })
+        .catch(() => {
+          return caches.match(req).then((cached) => {
+            if (cached) {
+              return cached;
+            } else {
+              return new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
             }
-
-            return fetch(request)
-                .then((response) => {
-                    if (
-                        !response ||
-                        response.status !== 200 ||
-                        response.type === 'opaque'
-                    ) {
-                        return response;
-                    }
-
-                    const responseToCache = response.clone();
-                    caches
-                        .open(CACHE_NAME)
-                        .then((cache) => cache.put(request, responseToCache))
-                        .catch(() => {});
-                    return response;
-                })
-                .catch(() => caches.match('/index.html'));
-        }),
+          });
+        })
     );
-});
+    return;
+  }
 
+  if (url.pathname.startsWith("/api/")) {
+    return;
+  }
+
+  event.respondWith(
+    fetch(req)
+      .then((res) => {
+        if (res.ok) {
+          const resForCache = res.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(req, resForCache).catch(() => {});
+          }).catch(() => {});
+        }
+        return res;
+      })
+      .catch(() => {
+        return caches.match(req).then((cached) => {
+          if (cached) {
+            return cached;
+          } else {
+            return new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
+          }
+        });
+      })
+  );
+});

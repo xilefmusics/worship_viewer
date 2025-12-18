@@ -77,7 +77,7 @@ pub fn login() -> Html {
             margin: 0;
             background: var(--bg-dark);
             color: var(--text);
-            font-family: "Inter", "SF Pro Display", "Segoe UI", sans-serif;
+            font-family: "Rubik", sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;

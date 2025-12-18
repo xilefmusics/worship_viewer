@@ -1,4 +1,5 @@
 use shared::error::ErrorResponse;
+use crate::components::toast_notifications::{show_warning, show_error};
 
 #[derive(Debug)]
 pub enum ApiError {
@@ -8,6 +9,12 @@ pub enum ApiError {
     Conflict(String),
     InternalServerError(String),
     Network(String),
+}
+
+#[derive(Clone, Copy)]
+pub enum OperationType {
+    Read,
+    Write,
 }
 
 impl ApiError {
@@ -25,10 +32,35 @@ impl ApiError {
     pub fn from_error_response(status: u16, payload: ErrorResponse) -> Self {
         Self::new(status, payload.error)
     }
+
+    pub fn check_and_notify_offline(operation_type: OperationType) -> bool {
+        if let Some(window) = web_sys::window() {
+            let navigator = window.navigator();
+            // Use js_sys to access the onLine property
+            let on_line = js_sys::Reflect::get(&navigator, &"onLine".into())
+                .ok()
+                .and_then(|val| val.as_bool())
+                .unwrap_or(true);
+            
+            if !on_line {
+                match operation_type {
+                    OperationType::Read => {
+                        show_warning("Offline", "You are currently offline. Some data may not be available.");
+                    }
+                    OperationType::Write => {
+                        show_error("Offline", "Cannot modify data while offline. Please check your connection.");
+                    }
+                }
+                return true;
+            }
+        }
+        false
+    }
 }
 
 impl From<gloo_net::Error> for ApiError {
     fn from(err: gloo_net::Error) -> Self {
+        // Don't show notification here - it's already shown before the request
         Self::Network(err.to_string())
     }
 }

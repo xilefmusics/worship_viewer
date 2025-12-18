@@ -18,6 +18,7 @@ use shared::song::Song;
 use shared::user::{CreateUserRequest, Session, User};
 
 use super::ApiError;
+use super::error::OperationType;
 use crate::route::Route;
 
 #[derive(Clone, PartialEq)]
@@ -61,6 +62,7 @@ impl Api {
     where
         T: DeserializeOwned + Default,
     {
+        ApiError::check_and_notify_offline(OperationType::Read);
         let response = Request::get(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .send()
@@ -78,6 +80,7 @@ impl Api {
         T: DeserializeOwned + Default,
         B: ?Sized + Serialize,
     {
+        ApiError::check_and_notify_offline(OperationType::Write);
         let response = Request::post(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .json(body)?
@@ -95,6 +98,7 @@ impl Api {
     where
         T: DeserializeOwned + Default,
     {
+        ApiError::check_and_notify_offline(OperationType::Write);
         let response = Request::post(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .send()
@@ -111,6 +115,7 @@ impl Api {
         T: DeserializeOwned + Default,
         B: ?Sized + Serialize,
     {
+        ApiError::check_and_notify_offline(OperationType::Write);
         let response = Request::put(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .json(body)?
@@ -128,6 +133,7 @@ impl Api {
     where
         T: DeserializeOwned + Default,
     {
+        ApiError::check_and_notify_offline(OperationType::Write);
         let response = Request::delete(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .send()
@@ -144,6 +150,7 @@ impl Api {
     where
         T: DeserializeOwned,
     {
+        ApiError::check_and_notify_offline(OperationType::Read);
         let response = Request::get(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .send()
@@ -163,6 +170,7 @@ impl Api {
         T: DeserializeOwned,
         B: ?Sized + Serialize,
     {
+        ApiError::check_and_notify_offline(OperationType::Write);
         let response = Request::put(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .json(body)?
@@ -183,6 +191,7 @@ impl Api {
         T: DeserializeOwned,
         B: ?Sized + Serialize,
     {
+        ApiError::check_and_notify_offline(OperationType::Write);
         let response = Request::post(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .json(body)?
@@ -202,6 +211,7 @@ impl Api {
     where
         T: DeserializeOwned,
     {
+        ApiError::check_and_notify_offline(OperationType::Write);
         let response = Request::delete(&Self::build_path(path))
             .credentials(web_sys::RequestCredentials::Include)
             .send()

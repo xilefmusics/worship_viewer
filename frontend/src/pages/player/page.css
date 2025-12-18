@@ -1,7 +1,7 @@
 :root {
   height: 100%;
   color: black;
-  font-family: 'Rubik Mono One', monospace;
+  font-family: "Rubik", sans-serif;
   padding: 0 2rem;
   box-sizing: border-box;
 }
