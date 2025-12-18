@@ -1,4 +1,4 @@
-use super::{SlideTextOrientation, HorizontalContainerAlignment, TextAlignment};
+use super::{SlideTextOrientation, HorizontalContainerAlignment, TextAlignment, TextShadow, TextTransform};
 use stylist::Style;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
@@ -12,6 +12,8 @@ pub struct SettingsData {
     pub font_size: u8,
     pub horizontal_container_alignment: HorizontalContainerAlignment,
     pub text_alignment: TextAlignment,
+    pub text_shadow: TextShadow,
+    pub text_transform: TextTransform,
 }
 
 impl Default for SettingsData {
@@ -23,6 +25,8 @@ impl Default for SettingsData {
             font_size: 60,
             horizontal_container_alignment: HorizontalContainerAlignment::Center,
             text_alignment: TextAlignment::Center,
+            text_shadow: TextShadow::None,
+            text_transform: TextTransform::Uppercase,
         }
     }
 }
@@ -101,6 +105,28 @@ pub fn settings(props: &SettingsProps) -> Html {
         })
     };
 
+    let set_text_shadow = {
+        let settings = props.settings.clone();
+        let set_settings = props.set_settings.clone();
+
+        Callback::from(move |shadow: TextShadow| {
+            let mut settings = settings.clone();
+            settings.text_shadow = shadow;
+            set_settings.emit(settings);
+        })
+    };
+
+    let set_text_transform = {
+        let settings = props.settings.clone();
+        let set_settings = props.set_settings.clone();
+
+        Callback::from(move |transform: TextTransform| {
+            let mut settings = settings.clone();
+            settings.text_transform = transform;
+            set_settings.emit(settings);
+        })
+    };
+
     html! {
         <div class={Style::new(include_str!("settings.css")).expect("Unwrapping CSS should work!")}>
             <div class="settings-group">
@@ -151,6 +177,40 @@ pub fn settings(props: &SettingsProps) -> Html {
                         <option value="left" selected={props.settings.text_alignment.to_select_value() == "left"}>{"Left"}</option>
                         <option value="center" selected={props.settings.text_alignment.to_select_value() == "center"}>{"Center"}</option>
                         <option value="right" selected={props.settings.text_alignment.to_select_value() == "right"}>{"Right"}</option>
+                    </select>
+                </div>
+                <div class="setting">
+                    <label for="text-shadow">
+                        <span class="material-symbols-outlined">{"shadow"}</span>
+                        {"Text shadow"}
+                    </label>
+                    <select id="text-shadow" onchange={Callback::from(move |e: Event| {
+                        let select: HtmlSelectElement = e.target_unchecked_into();
+                        if let Ok(value) = select.value().parse::<TextShadow>() {
+                            set_text_shadow.emit(value);
+                        }
+                    })}>
+                        <option value="none" selected={props.settings.text_shadow.to_select_value() == "none"}>{"None"}</option>
+                        <option value="subtle" selected={props.settings.text_shadow.to_select_value() == "subtle"}>{"Subtle"}</option>
+                        <option value="medium" selected={props.settings.text_shadow.to_select_value() == "medium"}>{"Medium"}</option>
+                        <option value="strong" selected={props.settings.text_shadow.to_select_value() == "strong"}>{"Strong"}</option>
+                    </select>
+                </div>
+                <div class="setting">
+                    <label for="text-transform">
+                        <span class="material-symbols-outlined">{"text_fields"}</span>
+                        {"Text transform"}
+                    </label>
+                    <select id="text-transform" onchange={Callback::from(move |e: Event| {
+                        let select: HtmlSelectElement = e.target_unchecked_into();
+                        if let Ok(value) = select.value().parse::<TextTransform>() {
+                            set_text_transform.emit(value);
+                        }
+                    })}>
+                        <option value="none" selected={props.settings.text_transform.to_select_value() == "none"}>{"None"}</option>
+                        <option value="uppercase" selected={props.settings.text_transform.to_select_value() == "uppercase"}>{"Uppercase"}</option>
+                        <option value="lowercase" selected={props.settings.text_transform.to_select_value() == "lowercase"}>{"Lowercase"}</option>
+                        <option value="capitalize" selected={props.settings.text_transform.to_select_value() == "capitalize"}>{"Capitalize"}</option>
                     </select>
                 </div>
             </div>

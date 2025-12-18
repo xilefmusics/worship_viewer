@@ -118,6 +118,90 @@ impl FromStr for TextAlignment {
     }
 }
 
+#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy)]
+pub enum TextShadow {
+    #[default]
+    None,
+    Subtle,
+    Medium,
+    Strong,
+}
+
+impl TextShadow {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::None => "text-shadow-none",
+            Self::Subtle => "text-shadow-subtle",
+            Self::Medium => "text-shadow-medium",
+            Self::Strong => "text-shadow-strong",
+        }
+    }
+
+    pub fn to_select_value(&self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Subtle => "subtle",
+            Self::Medium => "medium",
+            Self::Strong => "strong",
+        }
+    }
+}
+
+impl FromStr for TextShadow {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "none" => Ok(Self::None),
+            "subtle" => Ok(Self::Subtle),
+            "medium" => Ok(Self::Medium),
+            "strong" => Ok(Self::Strong),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy)]
+pub enum TextTransform {
+    #[default]
+    None,
+    Uppercase,
+    Lowercase,
+    Capitalize,
+}
+
+impl TextTransform {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::None => "text-transform-none",
+            Self::Uppercase => "text-transform-uppercase",
+            Self::Lowercase => "text-transform-lowercase",
+            Self::Capitalize => "text-transform-capitalize",
+        }
+    }
+
+    pub fn to_select_value(&self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Uppercase => "uppercase",
+            Self::Lowercase => "lowercase",
+            Self::Capitalize => "capitalize",
+        }
+    }
+}
+
+impl FromStr for TextTransform {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "none" => Ok(Self::None),
+            "uppercase" => Ok(Self::Uppercase),
+            "lowercase" => Ok(Self::Lowercase),
+            "capitalize" => Ok(Self::Capitalize),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Properties, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SlideProps {
     #[prop_or_default]
@@ -146,7 +230,7 @@ pub fn slide(props: &SlideProps) -> Html {
             >
                 { for props.text.lines().map(|line| html! { 
                     <div 
-                        class="line"
+                        class={classes!("line", props.settings.text_shadow.to_str(), props.settings.text_transform.to_str())}
                         style={format!("font-size: {}cqw", props.settings.font_size as f32 / 19.2)}
                     >
                         {line}
