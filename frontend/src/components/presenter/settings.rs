@@ -16,7 +16,7 @@ impl Default for SettingsData {
     fn default() -> Self {
         Self {
             max_lines_per_slide: 2,
-            background: 1,
+            background: 2,
             text_orientation: SlideTextOrientation::Center,
             font_size: 60,
         }
@@ -95,27 +95,28 @@ pub fn settings(props: &SettingsProps) -> Html {
             </div>
             <div class="setting">
                 <label for="background">{"Background"}</label>
-                <select id="background" value={props.settings.background.to_string()} onchange={Callback::from(move |e: Event| {
+                <select id="background" onchange={Callback::from(move |e: Event| {
                     let select: HtmlSelectElement = e.target_unchecked_into();
                     if let Ok(value) = select.value().parse::<u8>() {
                         set_background.emit(value);
                     }
                 })}>
-                    <option value="0">{"Black"}</option>
-                    <option value="1">{"Red"}</option>
+                    <option value="0" selected={props.settings.background == 0}>{"Black"}</option>
+                    <option value="1" selected={props.settings.background == 1}>{"Red"}</option>
+                    <option value="2" selected={props.settings.background == 2}>{"Ray"}</option>
                 </select>
             </div>
             <div class="setting">
                 <label for="text-orientation">{"Text orientation"}</label>
-                <select id="text-orientation" value={props.settings.text_orientation.to_str()} onchange={Callback::from(move |e: Event| {
+                <select id="text-orientation" onchange={Callback::from(move |e: Event| {
                     let select: HtmlSelectElement = e.target_unchecked_into();
                     if let Ok(value) = select.value().parse::<SlideTextOrientation>() {
                         set_text_orientation.emit(value);
                     }
                 })}>
-                    <option value="top">{"Top"}</option>
-                    <option value="center">{"Center"}</option>
-                    <option value="bottom">{"Bottom"}</option>
+                    <option value="top" selected={props.settings.text_orientation.to_select_value() == "top"}>{"Top"}</option>
+                    <option value="center" selected={props.settings.text_orientation.to_select_value() == "center"}>{"Center"}</option>
+                    <option value="bottom" selected={props.settings.text_orientation.to_select_value() == "bottom"}>{"Bottom"}</option>
                 </select>
             </div>
             <div class="setting">

@@ -28,6 +28,13 @@
     background: radial-gradient(circle at center, oklch(0.55 0.21 27) 0%, oklch(0.45 0.21 27) 100%);
 }
 
+:root.background-2 {
+    background-image: url('/ray.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
 :root.expand {
     aspect-ratio: auto;
     height: 100%;

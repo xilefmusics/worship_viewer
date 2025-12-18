@@ -20,6 +20,14 @@ impl SlideTextOrientation {
             Self::Bottom => "text-orientation-bottom",
         }
     }
+
+    pub fn to_select_value(&self) -> &'static str {
+        match self {
+            Self::Top => "top",
+            Self::Center => "center",
+            Self::Bottom => "bottom",
+        }
+    }
 }
 
 impl FromStr for SlideTextOrientation {
