@@ -1,0 +1,18 @@
+[package]
+name = "worship-viewer-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "worship-viewer"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5.4", features = ["derive", "env"] }
+tokio = { version = "1.40.0", features = ["rt-multi-thread", "macros"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+toml = "0.8.19"
+dirs = "5.0.1"
+shared = { path = "../shared", features = ["cli"] }
+
