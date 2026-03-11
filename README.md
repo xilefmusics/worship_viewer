@@ -113,6 +113,124 @@ cd backend && \
   cargo run
 ```
 
+## Command-Line Interface (CLI)
+
+You can also interact with the Worship Viewer REST API from the command line using an AI-first CLI called `worship-viewer`. It speaks the same API that the frontend uses and is designed to be easy to drive from scripts and AI agents.
+
+### Installation
+
+- **Prerequisite**: a recent Rust toolchain (see the steps in **Install Prerequisites** below).
+- From the repository root, install the CLI globally:
+
+```bash
+cargo install --path cli
+```
+
+This will install a `worship-viewer` binary on your `$PATH`.
+
+### Configuration
+
+The CLI can be configured via a small config file, environment variables, or flags. Precedence is:
+
+1. CLI flags
+2. Environment variables
+3. Config file
+4. Built-in defaults
+
+- **Config file (optional)**  
+  Location: `~/.worshipviewer/config.toml`
+
+  ```toml
+  base_url = "http://127.0.0.1:8080"
+  sso_session = "admin"
+  ```
+
+- **Base URL** (backend address)
+  - Flag: `--base-url`
+  - Env: `WORSHIP_VIEWER_BASE_URL`
+  - Config: `base_url` in `~/.worshipviewer/config.toml`
+  - Default: `http://127.0.0.1:8080`
+
+- **Authentication**
+  - Cookie-based (recommended for local dev):
+    - Backend uses the `sso_session` cookie.
+    - Flag: `--sso-session`
+    - Env: `WORSHIP_VIEWER_SSO_SESSION`
+    - Config: `sso_session` in `~/.worshipviewer/config.toml`
+    - The CLI sends `Cookie: sso_session=<value>`.
+  - Bearer token:
+    - Flag: `--bearer-token`
+    - Env: `WORSHIP_VIEWER_BEARER_TOKEN`
+    - The CLI sends `Authorization: Bearer <WORSHIP_VIEWER_BEARER_TOKEN>`.
+
+- **Timeout**
+  - Env: `WORSHIP_VIEWER_TIMEOUT_SECS`
+  - Flag: `--timeout-secs`
+
+### Output & AI-friendly behavior
+
+The CLI always emits machine-readable JSON and is optimized for being called by tools or agents:
+
+- Global flag: `--output auto|json|pretty|ndjson`
+  - `auto` (default): pretty JSON when in a TTY, compact JSON when piped.
+  - `json`: compact JSON.
+  - `pretty`: human-friendly, pretty-printed JSON.
+  - `ndjson`: one JSON object per line (best for large lists and streaming).
+
+For scripting and AI agents, prefer `--output json` or `--output ndjson`.
+
+### Common commands
+
+Inspect the API schema exposed by the backend:
+
+```bash
+worship-viewer schema --output json
+worship-viewer schema --path-prefix /api/v1/songs --output json
+```
+
+List and get songs:
+
+```bash
+worship-viewer songs list --output ndjson
+worship-viewer songs get --id <song_id> --output json
+```
+
+Create or update a song using a raw JSON payload:
+
+```bash
+worship-viewer songs create \
+  --json '{"not_a_song":false,"blobs":[],"data":{...}}' \
+  --output json
+```
+
+Use dry-run to validate a mutating request without actually changing data:
+
+```bash
+worship-viewer songs update \
+  --id <song_id> \
+  --json '{...}' \
+  --dry-run \
+  --output json
+```
+
+### Auth quickstart for local development
+
+When you start the backend locally as described below, it creates an initial admin session with the ID `admin` and uses the `sso_session` cookie for authentication.
+
+For a quick local setup:
+
+```toml
+# ~/.worshipviewer/config.toml
+base_url = "http://127.0.0.1:8080"
+sso_session = "admin"
+```
+
+Then you can run:
+
+```bash
+worship-viewer songs list --output json
+```
+
 ## License
 
 [![AGPL-3.0](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)

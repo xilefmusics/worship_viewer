@@ -1,0 +1,86 @@
+use std::time::Duration;
+
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+
+use crate::error::NetworkClientError;
+
+#[derive(Clone, Debug)]
+pub struct HttpClientConfig {
+    pub base_url: String,
+    pub timeout: Option<Duration>,
+    /// Optional value for the `sso_session` cookie used by the backend.
+    /// When set, the HTTP client should send a `Cookie: sso_session=<value>` header.
+    pub session_cookie: Option<String>,
+    /// Optional bearer token used for `Authorization: Bearer <token>` authentication.
+    pub bearer_token: Option<String>,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[async_trait::async_trait(?Send)]
+pub trait HttpClient: Send + Sync {
+    async fn get<T>(&self, path: &str) -> Result<T, NetworkClientError>
+    where
+        T: DeserializeOwned + Send + 'static;
+
+    async fn post<B, T>(&self, path: &str, body: &B) -> Result<T, NetworkClientError>
+    where
+        B: Serialize + Send + Sync,
+        T: DeserializeOwned + Send + 'static;
+
+    async fn put<B, T>(&self, path: &str, body: &B) -> Result<T, NetworkClientError>
+    where
+        B: Serialize + Send + Sync,
+        T: DeserializeOwned + Send + 'static;
+
+    async fn post_no_response<B>(&self, path: &str, body: &B) -> Result<(), NetworkClientError>
+    where
+        B: Serialize + Send + Sync;
+
+    async fn delete<T>(&self, path: &str) -> Result<T, NetworkClientError>
+    where
+        T: DeserializeOwned + Send + 'static;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[async_trait::async_trait]
+pub trait HttpClient: Send + Sync {
+    async fn get<T>(&self, path: &str) -> Result<T, NetworkClientError>
+    where
+        T: DeserializeOwned + Send + 'static;
+
+    async fn post<B, T>(&self, path: &str, body: &B) -> Result<T, NetworkClientError>
+    where
+        B: Serialize + Send + Sync,
+        T: DeserializeOwned + Send + 'static;
+
+    async fn put<B, T>(&self, path: &str, body: &B) -> Result<T, NetworkClientError>
+    where
+        B: Serialize + Send + Sync,
+        T: DeserializeOwned + Send + 'static;
+
+    async fn post_no_response<B>(&self, path: &str, body: &B) -> Result<(), NetworkClientError>
+    where
+        B: Serialize + Send + Sync;
+
+    async fn delete<T>(&self, path: &str) -> Result<T, NetworkClientError>
+    where
+        T: DeserializeOwned + Send + 'static;
+}
+
+#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
+mod desktop;
+#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
+pub use desktop::DesktopHttpClient;
+
+#[cfg(all(feature = "frontend", target_arch = "wasm32"))]
+mod wasm;
+#[cfg(all(feature = "frontend", target_arch = "wasm32"))]
+pub use wasm::WasmHttpClient;
+
+#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
+pub type DefaultHttpClient = DesktopHttpClient;
+
+#[cfg(all(feature = "frontend", target_arch = "wasm32"))]
+pub type DefaultHttpClient = WasmHttpClient;
+

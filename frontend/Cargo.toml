@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-shared = { path = "../shared" }
+shared = { path = "../shared", features = ["frontend"] }
 yew = { version = "0.21.0", features = ["csr"] }
 yew-router = "0.18"
 stylist = { version = "0.13.0", features = ["yew_integration", "parser"] }

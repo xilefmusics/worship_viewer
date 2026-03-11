@@ -1,5 +1,3 @@
-use gloo_net::http::{Request, Response};
-use serde::{de::DeserializeOwned, Serialize};
 use url::Url;
 use yew_router::prelude::Navigator;
 
@@ -8,8 +6,8 @@ use shared::blob::Blob;
 use shared::blob::CreateBlob;
 use shared::collection::Collection;
 use shared::collection::CreateCollection;
-use shared::error::ErrorResponse;
-use shared::like::LikeStatus;
+use shared::error::NetworkClientError;
+use shared::net::{DefaultHttpClient, HttpClientConfig};
 use shared::player::Player;
 use shared::setlist::CreateSetlist;
 use shared::setlist::Setlist;
@@ -17,18 +15,35 @@ use shared::song::CreateSong;
 use shared::song::Song;
 use shared::user::{CreateUserRequest, Session, User};
 
-use super::ApiError;
-use super::error::OperationType;
+use shared::api::ApiClient;
+use super::error::{ApiError, OperationType};
 use crate::route::Route;
 
-#[derive(Clone, PartialEq)]
+use std::rc::Rc;
+
+#[derive(Clone)]
 pub struct Api {
+    client: Rc<ApiClient<DefaultHttpClient>>,
     navigator: Navigator,
 }
 
+impl PartialEq for Api {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.client, &other.client)
+    }
+}
+
 impl Api {
-    pub fn new(navigator: Navigator) -> Self {
-        Self { navigator }
+    pub fn new(navigator: Navigator, base_url: String) -> Self {
+        let config = HttpClientConfig {
+            base_url,
+            timeout: None,
+            session_cookie: None,
+            bearer_token: None,
+        };
+        let client = Rc::new(ApiClient::with_default(config));
+
+        Self { client, navigator }
     }
 
     fn build_path(path: &str) -> String {
@@ -39,190 +54,14 @@ impl Api {
         }
     }
 
-    async fn map_error(&self, response: Response) -> ApiError {
-        let status = response.status();
-        let error = response
-            .json::<ErrorResponse>()
-            .await
-            .map(|resp| ApiError::from_error_response(status, resp))
-            .unwrap_or_else(|err| {
-                ApiError::InternalServerError(format!("Failed to parse error response: {err}"))
-            });
-
-        match error {
+    fn handle_error(&self, err: NetworkClientError) -> ApiError {
+        let api_error: ApiError = err.into();
+        match api_error {
             ApiError::Unauthorized(msg) => {
                 self.route_logout();
                 ApiError::Unauthorized(msg)
             }
-            err => err,
-        }
-    }
-
-    async fn get<T>(&self, path: &str) -> Result<T, ApiError>
-    where
-        T: DeserializeOwned + Default,
-    {
-        ApiError::check_and_notify_offline(OperationType::Read);
-        let response = Request::get(&Self::build_path(path))
-            .credentials(web_sys::RequestCredentials::Include)
-            .send()
-            .await?;
-
-        match response.status() {
-            200 | 201 => Ok(response.json::<T>().await?),
-            204 => Ok(T::default()),
-            _ => Err(self.map_error(response).await),
-        }
-    }
-
-    async fn post<T, B>(&self, path: &str, body: &B) -> Result<T, ApiError>
-    where
-        T: DeserializeOwned + Default,
-        B: ?Sized + Serialize,
-    {
-        ApiError::check_and_notify_offline(OperationType::Write);
-        let response = Request::post(&Self::build_path(path))
-            .credentials(web_sys::RequestCredentials::Include)
-            .json(body)?
-            .send()
-            .await?;
-
-        match response.status() {
-            200 | 201 => Ok(response.json::<T>().await?),
-            204 => Ok(T::default()),
-            _ => Err(self.map_error(response).await),
-        }
-    }
-
-    async fn post_empty<T>(&self, path: &str) -> Result<T, ApiError>
-    where
-        T: DeserializeOwned + Default,
-    {
-        ApiError::check_and_notify_offline(OperationType::Write);
-        let response = Request::post(&Self::build_path(path))
-            .credentials(web_sys::RequestCredentials::Include)
-            .send()
-            .await?;
-
-        match response.status() {
-            200 | 201 => Ok(response.json::<T>().await?),
-            204 => Ok(T::default()),
-            _ => Err(self.map_error(response).await),
-        }
-    }
-    async fn put<T, B>(&self, path: &str, body: &B) -> Result<T, ApiError>
-    where
-        T: DeserializeOwned + Default,
-        B: ?Sized + Serialize,
-    {
-        ApiError::check_and_notify_offline(OperationType::Write);
-        let response = Request::put(&Self::build_path(path))
-            .credentials(web_sys::RequestCredentials::Include)
-            .json(body)?
-            .send()
-            .await?;
-
-        match response.status() {
-            200 | 201 => Ok(response.json::<T>().await?),
-            204 => Ok(T::default()),
-            _ => Err(self.map_error(response).await),
-        }
-    }
-
-    async fn delete<T>(&self, path: &str) -> Result<T, ApiError>
-    where
-        T: DeserializeOwned + Default,
-    {
-        ApiError::check_and_notify_offline(OperationType::Write);
-        let response = Request::delete(&Self::build_path(path))
-            .credentials(web_sys::RequestCredentials::Include)
-            .send()
-            .await?;
-
-        match response.status() {
-            200 | 201 => Ok(response.json::<T>().await?),
-            204 => Ok(T::default()),
-            _ => Err(self.map_error(response).await),
-        }
-    }
-
-    async fn get_entity<T>(&self, path: &str) -> Result<T, ApiError>
-    where
-        T: DeserializeOwned,
-    {
-        ApiError::check_and_notify_offline(OperationType::Read);
-        let response = Request::get(&Self::build_path(path))
-            .credentials(web_sys::RequestCredentials::Include)
-            .send()
-            .await?;
-
-        match response.status() {
-            200 | 201 => Ok(response.json::<T>().await?),
-            204 => Err(ApiError::InternalServerError(
-                "Unexpected 204 response for entity retrieval".into(),
-            )),
-            _ => Err(self.map_error(response).await),
-        }
-    }
-
-    async fn put_entity<T, B>(&self, path: &str, body: &B) -> Result<T, ApiError>
-    where
-        T: DeserializeOwned,
-        B: ?Sized + Serialize,
-    {
-        ApiError::check_and_notify_offline(OperationType::Write);
-        let response = Request::put(&Self::build_path(path))
-            .credentials(web_sys::RequestCredentials::Include)
-            .json(body)?
-            .send()
-            .await?;
-
-        match response.status() {
-            200 | 201 => Ok(response.json::<T>().await?),
-            204 => Err(ApiError::InternalServerError(
-                "Unexpected 204 response for entity update".into(),
-            )),
-            _ => Err(self.map_error(response).await),
-        }
-    }
-
-    async fn post_entity<T, B>(&self, path: &str, body: &B) -> Result<T, ApiError>
-    where
-        T: DeserializeOwned,
-        B: ?Sized + Serialize,
-    {
-        ApiError::check_and_notify_offline(OperationType::Write);
-        let response = Request::post(&Self::build_path(path))
-            .credentials(web_sys::RequestCredentials::Include)
-            .json(body)?
-            .send()
-            .await?;
-
-        match response.status() {
-            200 | 201 => Ok(response.json::<T>().await?),
-            204 => Err(ApiError::InternalServerError(
-                "Unexpected 204 response for entity creation".into(),
-            )),
-            _ => Err(self.map_error(response).await),
-        }
-    }
-
-    async fn delete_entity<T>(&self, path: &str) -> Result<T, ApiError>
-    where
-        T: DeserializeOwned,
-    {
-        ApiError::check_and_notify_offline(OperationType::Write);
-        let response = Request::delete(&Self::build_path(path))
-            .credentials(web_sys::RequestCredentials::Include)
-            .send()
-            .await?;
-
-        match response.status() {
-            200 | 201 => Ok(response.json::<T>().await?),
-            204 => Err(ApiError::InternalServerError(
-                "Unexpected 204 response for entity deletion".into(),
-            )),
-            _ => Err(self.map_error(response).await),
+            other => other,
         }
     }
 
@@ -240,13 +79,20 @@ impl Api {
 
     #[allow(dead_code)]
     pub async fn request_otp(&self, email: String) -> Result<(), ApiError> {
-        self.post("/auth/otp/request", &OtpRequest { email }).await
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .request_otp(OtpRequest { email })
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn verify_otp(&self, email: String, code: String) -> Result<Session, ApiError> {
-        self.post("/auth/otp/verify", &OtpVerify { email, code })
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .verify_otp(OtpVerify { email, code })
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
@@ -260,66 +106,110 @@ impl Api {
     }
 
     pub async fn logout(&self) -> Result<(), ApiError> {
-        self.post_empty("/auth/logout").await
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .logout()
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_users(&self) -> Result<Vec<User>, ApiError> {
-        self.get("/api/v1/users").await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .list_users()
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_user(&self, id: &str) -> Result<User, ApiError> {
-        self.get(&format!("/api/v1/users/{}", id)).await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_user(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn create_user(&self, payload: &CreateUserRequest) -> Result<User, ApiError> {
-        self.post("/api/v1/users", payload).await
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .create_user(payload.clone())
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn delete_user(&self, id: &str) -> Result<User, ApiError> {
-        self.delete(&format!("/api/v1/users/{}", id)).await
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .delete_user(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_users_me(&self) -> Result<User, ApiError> {
-        self.get("/api/v1/users/me").await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_current_user()
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_sessions_for_current_user(&self) -> Result<Vec<Session>, ApiError> {
-        self.get("/api/v1/users/me/sessions").await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .list_my_sessions()
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_session_for_current_user(&self, id: &str) -> Result<Session, ApiError> {
-        self.get(&format!("/api/v1/users/me/sessions/{}", id)).await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_my_session(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn delete_session_for_current_user(&self, id: &str) -> Result<Session, ApiError> {
-        self.delete(&format!("/api/v1/users/me/sessions/{}", id))
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .delete_my_session(id)
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_sessions_for_user(&self, user_id: &str) -> Result<Vec<Session>, ApiError> {
-        self.get(&format!("/api/v1/users/{}/sessions", user_id))
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .list_sessions_for_user(user_id)
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_session_for_user(&self, user_id: &str, id: &str) -> Result<Session, ApiError> {
-        self.get(&format!("/api/v1/users/{}/sessions/{}", user_id, id))
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_session_for_user(user_id, id)
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn create_session_for_user(&self, user_id: &str) -> Result<Session, ApiError> {
-        self.post_empty(&format!("/api/v1/users/{}/sessions", user_id))
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .create_session_for_user(user_id)
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
@@ -328,23 +218,38 @@ impl Api {
         user_id: &str,
         id: &str,
     ) -> Result<Session, ApiError> {
-        self.delete(&format!("/api/v1/users/{}/sessions/{}", user_id, id))
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .delete_session_for_user(user_id, id)
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_songs(&self) -> Result<Vec<Song>, ApiError> {
-        self.get("/api/v1/songs").await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_songs()
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_song(&self, id: &str) -> Result<Song, ApiError> {
-        self.get(&format!("/api/v1/songs/{}", id)).await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_song(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_song_player(&self, id: &str) -> Result<Player, ApiError> {
-        self.get(&format!("/api/v1/songs/{}/player", id)).await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_song_player(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
@@ -355,56 +260,83 @@ impl Api {
     #[allow(dead_code)]
     #[allow(dead_code)]
     pub async fn create_song(&self, payload: &CreateSong) -> Result<Song, ApiError> {
-        self.post_entity("/api/v1/songs", payload).await
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .create_song(payload.clone())
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn update_song(&self, id: &str, payload: &CreateSong) -> Result<Song, ApiError> {
-        self.put_entity(&format!("/api/v1/songs/{}", id), payload)
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .update_song(id, payload.clone())
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn delete_song(&self, id: &str) -> Result<Song, ApiError> {
-        self.delete_entity(&format!("/api/v1/songs/{}", id)).await
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .delete_song(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_song_like_status(&self, id: &str) -> Result<bool, ApiError> {
-        self.get(&format!("/api/v1/songs/{}/likes", id))
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_song_like_status(id)
             .await
-            .map(|like: LikeStatus| like.liked)
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn update_song_like_status(&self, id: &str, liked: bool) -> Result<bool, ApiError> {
-        self.put(
-            &format!("/api/v1/songs/{}/likes", id),
-            &LikeStatus { liked },
-        )
-        .await
-        .map(|like: LikeStatus| like.liked)
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .update_song_like_status(id, liked)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_collections(&self) -> Result<Vec<Collection>, ApiError> {
-        self.get("/api/v1/collections").await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .list_collections()
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_collection(&self, id: &str) -> Result<Collection, ApiError> {
-        self.get(&format!("/api/v1/collections/{}", id)).await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_collection(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_collection_songs(&self, id: &str) -> Result<Vec<Song>, ApiError> {
-        self.get(&format!("/api/v1/collections/{}/songs", id)).await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_collection_songs(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_collection_player(&self, id: &str) -> Result<Player, ApiError> {
-        self.get(&format!("/api/v1/collections/{}/player", id))
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_collection_player(id)
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
@@ -421,7 +353,11 @@ impl Api {
         &self,
         payload: &CreateCollection,
     ) -> Result<Collection, ApiError> {
-        self.post_entity("/api/v1/collections", payload).await
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .create_collection(payload.clone())
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
@@ -430,34 +366,56 @@ impl Api {
         id: &str,
         payload: &CreateCollection,
     ) -> Result<Collection, ApiError> {
-        self.put_entity(&format!("/api/v1/collections/{}", id), payload)
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .update_collection(id, payload.clone())
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn delete_collection(&self, id: &str) -> Result<Collection, ApiError> {
-        self.delete_entity(&format!("/api/v1/collections/{}", id))
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .delete_collection(id)
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_setlists(&self) -> Result<Vec<Setlist>, ApiError> {
-        self.get("/api/v1/setlists").await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .list_setlists()
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_setlist(&self, id: &str) -> Result<Setlist, ApiError> {
-        self.get(&format!("/api/v1/setlists/{}", id)).await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_setlist(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_setlist_songs(&self, id: &str) -> Result<Vec<Song>, ApiError> {
-        self.get(&format!("/api/v1/setlists/{}/songs", id)).await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_setlist_songs(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_setlist_player(&self, id: &str) -> Result<Player, ApiError> {
-        self.get(&format!("/api/v1/setlists/{}/player", id)).await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_setlist_player(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
@@ -468,7 +426,11 @@ impl Api {
     #[allow(dead_code)]
     #[allow(dead_code)]
     pub async fn create_setlist(&self, payload: &CreateSetlist) -> Result<Setlist, ApiError> {
-        self.post_entity("/api/v1/setlists", payload).await
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .create_setlist(payload.clone())
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
@@ -477,50 +439,79 @@ impl Api {
         id: &str,
         payload: &CreateSetlist,
     ) -> Result<Setlist, ApiError> {
-        self.put_entity(&format!("/api/v1/setlists/{}", id), payload)
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .update_setlist(id, payload.clone())
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn delete_setlist(&self, id: &str) -> Result<Setlist, ApiError> {
-        self.delete_entity(&format!("/api/v1/setlists/{}", id))
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .delete_setlist(id)
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_blobs(&self) -> Result<Vec<Blob>, ApiError> {
-        self.get("/api/v1/blobs").await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .list_blobs()
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn get_blob(&self, id: &str) -> Result<Blob, ApiError> {
-        self.get_entity(&format!("/api/v1/blobs/{}", id)).await
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_blob(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn create_blob(&self, payload: &CreateBlob) -> Result<Blob, ApiError> {
-        self.post_entity("/api/v1/blobs", payload).await
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .create_blob(payload.clone())
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn update_blob(&self, id: &str, payload: &CreateBlob) -> Result<Blob, ApiError> {
-        self.put_entity(&format!("/api/v1/blobs/{}", id), payload)
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .update_blob(id, payload.clone())
             .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn delete_blob(&self, id: &str) -> Result<Blob, ApiError> {
-        self.delete_entity(&format!("/api/v1/blobs/{}", id)).await
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .delete_blob(id)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
     pub async fn import_song_ultimate_guitar(&self, url: &str) -> Result<Song, ApiError> {
+        ApiError::check_and_notify_offline(OperationType::Read);
         let url = Url::parse(&url).unwrap();
-        self.get(&format!(
-            "/api/v1/songs/import/{}{}",
-            url.host_str().unwrap_or("unknown").replace(".", "/"),
+        let identifier = format!(
+            "{}{}",
+            url.host_str().unwrap_or("unknown").replace('.', "/"),
             url.path()
-        ))
-        .await
+        );
+        self.client
+            .import_song(&identifier)
+            .await
+            .map_err(|e| self.handle_error(e))
     }
 }

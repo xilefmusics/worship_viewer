@@ -14,7 +14,12 @@ pub fn api_provider(props: &ApiProviderProps) -> Html {
     let navigator = use_navigator().unwrap();
     let api = {
         let navigator = navigator.clone();
-        use_memo((), move |_| Api::new(navigator))
+        use_memo((), move |_| {
+            let base_url = web_sys::window()
+                .and_then(|w| w.location().origin().ok())
+                .unwrap_or_default();
+            Api::new(navigator, base_url)
+        })
     };
 
     html! {

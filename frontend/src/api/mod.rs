@@ -12,4 +12,3 @@ pub use shared::error::ErrorResponse;
 pub use shared::user::{CreateUserRequest, Session, User};
 
 mod error;
-pub use error::ApiError;

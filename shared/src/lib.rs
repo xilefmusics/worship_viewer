@@ -1,8 +1,10 @@
 pub mod auth;
+pub mod api;
 pub mod blob;
 pub mod collection;
 pub mod error;
 pub mod like;
+pub mod net;
 pub mod player;
 pub mod setlist;
 pub mod song;
