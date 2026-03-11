@@ -1,4 +1,4 @@
-use shared::error::ErrorResponse;
+use shared::error::NetworkClientError;
 use crate::components::toast_notifications::{show_warning, show_error};
 
 #[derive(Debug)]
@@ -27,10 +27,6 @@ impl ApiError {
             500 => Self::InternalServerError(msg),
             _ => Self::Network(msg),
         }
-    }
-
-    pub fn from_error_response(status: u16, payload: ErrorResponse) -> Self {
-        Self::new(status, payload.error)
     }
 
     pub fn check_and_notify_offline(operation_type: OperationType) -> bool {
@@ -62,6 +58,28 @@ impl From<gloo_net::Error> for ApiError {
     fn from(err: gloo_net::Error) -> Self {
         // Don't show notification here - it's already shown before the request
         Self::Network(err.to_string())
+    }
+}
+
+impl From<NetworkClientError> for ApiError {
+    fn from(err: NetworkClientError) -> Self {
+        match err {
+            NetworkClientError::RequestFailed { status, message } => {
+                ApiError::new(status.unwrap_or(0), message)
+            }
+            NetworkClientError::Connection => {
+                ApiError::Network("connection error".to_string())
+            }
+            NetworkClientError::Serialization { message } => {
+                ApiError::InternalServerError(format!("serialization error: {message}"))
+            }
+            NetworkClientError::InvalidRequest { message } => {
+                ApiError::BadRequest(message)
+            }
+            NetworkClientError::Unexpected { message } => {
+                ApiError::InternalServerError(message)
+            }
+        }
     }
 }
 
