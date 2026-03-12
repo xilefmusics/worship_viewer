@@ -3,16 +3,11 @@ use std::io::{self, IsTerminal};
 use clap::ValueEnum;
 use serde::Serialize;
 
-/// Output format for JSON printed by the CLI.
 #[derive(Debug, Clone, ValueEnum)]
 pub enum OutputFormat {
-    /// Automatically choose a format based on whether stdout is a TTY.
     Auto,
-    /// Compact JSON, one document per command.
     Json,
-    /// Pretty-printed JSON.
     Pretty,
-    /// Newline-delimited JSON (only meaningful for list commands).
     Ndjson,
 }
 
@@ -20,7 +15,6 @@ pub fn is_stdout_tty() -> bool {
     io::stdout().is_terminal()
 }
 
-/// Resolve Auto to Json or Pretty based on TTY; other variants unchanged.
 pub fn effective_output_format(format: &OutputFormat) -> OutputFormat {
     match format {
         OutputFormat::Auto => {

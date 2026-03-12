@@ -13,8 +13,6 @@ use shared::net::HttpClientConfig;
 
 const DEFAULT_BASE_URL: &str = "http://127.0.0.1:8080";
 
-/// Options passed from the CLI (or other caller) to build HTTP client config.
-/// Precedence for base_url and sso_session: CLI/arg > env > file > default.
 #[derive(Debug, Clone, Default)]
 pub struct BuildConfigOptions {
     pub base_url: Option<String>,
@@ -24,7 +22,6 @@ pub struct BuildConfigOptions {
 }
 
 impl BuildConfigOptions {
-    /// Build from a Cli instance (avoids config depending on commands at type level in callers).
     pub fn from_cli(cli: &crate::commands::Cli) -> Self {
         Self {
             base_url: cli.base_url.clone(),
@@ -41,7 +38,6 @@ pub struct FileConfig {
     pub sso_session: Option<String>,
 }
 
-/// Load config from `~/.worshipviewer/config.toml`. Returns default if file is missing.
 pub fn load_file_config() -> Result<FileConfig, Box<dyn std::error::Error>> {
     let home: PathBuf = home_dir().ok_or_else(|| {
         io::Error::new(io::ErrorKind::Other, "failed to determine home directory")
@@ -70,7 +66,6 @@ pub fn load_file_config() -> Result<FileConfig, Box<dyn std::error::Error>> {
     Ok(cfg)
 }
 
-/// Resolve effective base URL: cli/arg > env > file > default.
 fn resolve_base_url(cli_base: Option<String>, file_cfg: &FileConfig) -> String {
     let env_base = env::var("WORSHIP_VIEWER_BASE_URL").ok();
     cli_base
@@ -79,14 +74,11 @@ fn resolve_base_url(cli_base: Option<String>, file_cfg: &FileConfig) -> String {
         .unwrap_or_else(|| DEFAULT_BASE_URL.to_string())
 }
 
-/// Resolve effective SSO session: cli/arg > env > file.
 fn resolve_sso_session(cli_sso: Option<String>, file_cfg: &FileConfig) -> Option<String> {
     let env_sso = env::var("WORSHIP_VIEWER_SSO_SESSION").ok();
     cli_sso.or(env_sso).or(file_cfg.sso_session.clone())
 }
 
-/// Build HTTP client config and effective base URL from CLI options and file config.
-/// The returned base URL string should be used for constructing full URLs (e.g. export/download).
 pub fn build_http_client_config(
     options: &BuildConfigOptions,
 ) -> Result<(HttpClientConfig, String), Box<dyn std::error::Error>> {
