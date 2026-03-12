@@ -1,4 +1,4 @@
-use shared::api::ApiClient;
+use shared::api::{ApiClient, ListQuery};
 use shared::blob::CreateBlob;
 use shared::net::DefaultHttpClient;
 
@@ -14,8 +14,15 @@ pub async fn handle_blobs(
     cmd: &BlobsCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
-        BlobsCommand::List => {
-            let blobs = client.list_blobs().await?;
+        BlobsCommand::List { page, page_size } => {
+            let mut query = ListQuery::new();
+            if let Some(p) = *page {
+                query = query.with_page(p);
+            }
+            if let Some(ps) = *page_size {
+                query = query.with_page_size(ps);
+            }
+            let blobs = client.list_blobs(query).await?;
             match output::effective_output_format(&output) {
                 OutputFormat::Ndjson => output::print_ndjson_list(&blobs),
                 _ => output::print_json(&blobs, &output),

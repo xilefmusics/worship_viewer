@@ -1,4 +1,4 @@
-use shared::api::ApiClient;
+use shared::api::{ApiClient, ListQuery};
 use shared::net::DefaultHttpClient;
 use shared::setlist::CreateSetlist;
 
@@ -14,8 +14,15 @@ pub async fn handle_setlists(
     cmd: &SetlistsCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
-        SetlistsCommand::List => {
-            let setlists = client.list_setlists().await?;
+        SetlistsCommand::List { page, page_size } => {
+            let mut query = ListQuery::new();
+            if let Some(p) = *page {
+                query = query.with_page(p);
+            }
+            if let Some(ps) = *page_size {
+                query = query.with_page_size(ps);
+            }
+            let setlists = client.list_setlists(query).await?;
             match output::effective_output_format(&output) {
                 OutputFormat::Ndjson => output::print_ndjson_list(&setlists),
                 _ => output::print_json(&setlists, &output),

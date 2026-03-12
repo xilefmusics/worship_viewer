@@ -15,7 +15,7 @@ use shared::song::CreateSong;
 use shared::song::Song;
 use shared::user::{CreateUserRequest, Session, User};
 
-use shared::api::ApiClient;
+use shared::api::{ApiClient, ListQuery};
 use super::error::{ApiError, OperationType};
 use crate::route::Route;
 
@@ -117,7 +117,7 @@ impl Api {
     pub async fn get_users(&self) -> Result<Vec<User>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
-            .list_users()
+            .list_users(ListQuery::default())
             .await
             .map_err(|e| self.handle_error(e))
     }
@@ -229,7 +229,7 @@ impl Api {
     pub async fn get_songs(&self) -> Result<Vec<Song>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
-            .get_songs()
+            .get_songs(ListQuery::default())
             .await
             .map_err(|e| self.handle_error(e))
     }
@@ -307,7 +307,7 @@ impl Api {
     pub async fn get_collections(&self) -> Result<Vec<Collection>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
-            .list_collections()
+            .list_collections(ListQuery::default())
             .await
             .map_err(|e| self.handle_error(e))
     }
@@ -386,7 +386,7 @@ impl Api {
     pub async fn get_setlists(&self) -> Result<Vec<Setlist>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
-            .list_setlists()
+            .list_setlists(ListQuery::default())
             .await
             .map_err(|e| self.handle_error(e))
     }
@@ -459,7 +459,7 @@ impl Api {
     pub async fn get_blobs(&self) -> Result<Vec<Blob>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
-            .list_blobs()
+            .list_blobs(ListQuery::default())
             .await
             .map_err(|e| self.handle_error(e))
     }

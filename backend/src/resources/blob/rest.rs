@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use actix_files::NamedFile;
 use actix_web::{
     HttpResponse, Scope, delete, get, post, put,
-    web::{self, Data, Json, Path as PathParam, ReqData},
+    web::{self, Data, Json, Path as PathParam, Query, ReqData},
 };
 
 use super::Model;
@@ -17,6 +17,7 @@ use crate::resources::User;
 use crate::resources::blob::Blob;
 use crate::resources::blob::CreateBlob;
 use crate::settings::Settings;
+use shared::api::ListQuery;
 
 pub fn scope() -> Scope {
     web::scope("/blobs")
@@ -31,6 +32,10 @@ pub fn scope() -> Scope {
 #[utoipa::path(
     get,
     path = "/api/v1/blobs",
+    params(
+        ("page" = Option<u32>, Query, description = "Optional page index (zero-based)"),
+        ("page_size" = Option<u32>, Query, description = "Optional page size (number of items per page)")
+    ),
     responses(
         (status = 200, description = "Return all blobs", body = [Blob]),
         (status = 401, description = "Authentication required", body = ErrorResponse),
@@ -43,8 +48,13 @@ pub fn scope() -> Scope {
     )
 )]
 #[get("")]
-async fn get_blobs(db: Data<Database>, user: ReqData<User>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_blobs(user.read()).await?))
+async fn get_blobs(
+    db: Data<Database>,
+    user: ReqData<User>,
+    query: Query<ListQuery>,
+) -> Result<HttpResponse, AppError> {
+    let list_query = query.into_inner();
+    Ok(HttpResponse::Ok().json(db.get_blobs(user.read(), list_query).await?))
 }
 
 #[utoipa::path(

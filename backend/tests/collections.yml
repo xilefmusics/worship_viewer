@@ -356,6 +356,17 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 3
 
+  - name: get-collections-owner-paginated
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections?page=0&page_size=1"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
   - name: get-collections-read-user
     steps:
       - type: http
@@ -395,6 +406,70 @@ testcases:
           Authorization: "Bearer invalid"
         assertions:
           - result.statuscode ShouldEqual 401
+
+  - name: get-collections-invalid-page-parameter
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections?page=invalid&page_size=1"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-collections-invalid-page-size-parameter
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections?page=0&page_size=invalid"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-collections-owner-page-size-zero
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections?page=0&page_size=0"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 3
+
+  - name: get-collections-owner-page-only
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections?page=1"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 3
+
+  - name: get-collections-owner-page-size-only
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections?page_size=1"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 3
+
+  - name: get-collections-owner-page-beyond-range
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/collections?page=10&page_size=10"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 0
 
   # GET /api/v1/collections/{id}
   - name: get-collection-owner

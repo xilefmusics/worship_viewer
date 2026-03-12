@@ -116,7 +116,12 @@ pub enum AuthCommand {
 #[derive(Debug, Subcommand)]
 pub enum UsersCommand {
     /// List all users.
-    List,
+    List {
+        #[arg(long)]
+        page: Option<u32>,
+        #[arg(long)]
+        page_size: Option<u32>,
+    },
     /// Get a single user by id.
     Get {
         id: String,
@@ -168,7 +173,12 @@ pub enum SessionsCommand {
 #[derive(Debug, Subcommand)]
 pub enum SongsCommand {
     /// List all songs.
-    List,
+    List {
+        #[arg(long)]
+        page: Option<u32>,
+        #[arg(long)]
+        page_size: Option<u32>,
+    },
     /// Get a song by id.
     Get {
         id: String,
@@ -217,7 +227,12 @@ pub enum SongsCommand {
 #[derive(Debug, Subcommand)]
 pub enum CollectionsCommand {
     /// List all collections.
-    List,
+    List {
+        #[arg(long)]
+        page: Option<u32>,
+        #[arg(long)]
+        page_size: Option<u32>,
+    },
     /// Get a collection by id.
     Get {
         id: String,
@@ -257,7 +272,12 @@ pub enum CollectionsCommand {
 #[derive(Debug, Subcommand)]
 pub enum SetlistsCommand {
     /// List all setlists.
-    List,
+    List {
+        #[arg(long)]
+        page: Option<u32>,
+        #[arg(long)]
+        page_size: Option<u32>,
+    },
     /// Get a setlist by id.
     Get {
         id: String,
@@ -297,7 +317,12 @@ pub enum SetlistsCommand {
 #[derive(Debug, Subcommand)]
 pub enum BlobsCommand {
     /// List all blobs.
-    List,
+    List {
+        #[arg(long)]
+        page: Option<u32>,
+        #[arg(long)]
+        page_size: Option<u32>,
+    },
     /// Get a blob by id.
     Get {
         id: String,

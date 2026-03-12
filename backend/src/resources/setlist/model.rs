@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 
 use shared::{
+    api::ListQuery,
     setlist::{CreateSetlist, Setlist},
     song::{Link as SongLink, LinkOwned as SongLinkOwned, SimpleChord},
 };
@@ -11,7 +12,11 @@ use crate::error::AppError;
 use crate::resources::song::SongRecord;
 
 pub trait Model {
-    async fn get_setlists(&self, owners: Vec<String>) -> Result<Vec<Setlist>, AppError>;
+    async fn get_setlists(
+        &self,
+        owners: Vec<String>,
+        pagination: ListQuery,
+    ) -> Result<Vec<Setlist>, AppError>;
     async fn get_setlist(&self, owners: Vec<String>, id: &str) -> Result<Setlist, AppError>;
     async fn get_setlist_songs(
         &self,
@@ -33,17 +38,27 @@ pub trait Model {
 }
 
 impl Model for Database {
-    async fn get_setlists(&self, owners: Vec<String>) -> Result<Vec<Setlist>, AppError> {
+    async fn get_setlists(
+        &self,
+        owners: Vec<String>,
+        pagination: ListQuery,
+    ) -> Result<Vec<Setlist>, AppError> {
         let owners = owners
             .into_iter()
             .map(|owner_id| owner_thing(&owner_id))
             .collect::<Vec<_>>();
 
-        let mut response = self
-            .db
-            .query("SELECT * FROM setlist WHERE owner IN $owners")
-            .bind(("owners", owners))
-            .await?;
+        let mut query = String::from("SELECT * FROM setlist WHERE owner IN $owners");
+        if pagination.to_offset_limit().is_some() {
+            query.push_str(" LIMIT $limit START $start");
+        }
+
+        let mut request = self.db.query(query).bind(("owners", owners));
+        if let Some((offset, limit)) = pagination.to_offset_limit() {
+            request = request.bind(("limit", limit)).bind(("start", offset));
+        }
+
+        let mut response = request.await?;
         Ok(response
             .take::<Vec<SetlistRecord>>(0)?
             .into_iter()

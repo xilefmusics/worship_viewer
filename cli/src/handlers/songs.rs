@@ -1,4 +1,4 @@
-use shared::api::ApiClient;
+use shared::api::{ApiClient, ListQuery};
 use shared::net::DefaultHttpClient;
 use shared::song::CreateSong;
 
@@ -14,8 +14,15 @@ pub async fn handle_songs(
     cmd: &SongsCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
-        SongsCommand::List => {
-            let songs = client.get_songs().await?;
+        SongsCommand::List { page, page_size } => {
+            let mut query = ListQuery::new();
+            if let Some(p) = *page {
+                query = query.with_page(p);
+            }
+            if let Some(ps) = *page_size {
+                query = query.with_page_size(ps);
+            }
+            let songs = client.get_songs(query).await?;
             match output::effective_output_format(&output) {
                 OutputFormat::Ndjson => output::print_ndjson_list(&songs),
                 _ => output::print_json(&songs, &output),

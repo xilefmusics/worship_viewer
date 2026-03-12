@@ -265,6 +265,17 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  - name: get-blobs-success-owner-paginated
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs?page=0&page_size=1"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
   - name: get-blobs-success-read
     steps:
       - type: http
@@ -292,6 +303,67 @@ testcases:
           Authorization: "Bearer invalid"
         assertions:
           - result.statuscode ShouldEqual 401
+
+  - name: get-blobs-invalid-page-parameter
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs?page=invalid&page_size=1"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-blobs-invalid-page-size-parameter
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs?page=0&page_size=invalid"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-blobs-owner-page-size-zero
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs?page=0&page_size=0"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-blobs-owner-page-only
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs?page=1"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-blobs-owner-page-size-only
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs?page_size=1"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-blobs-owner-page-beyond-range
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs?page=10&page_size=10"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 0
 
   # GET /api/v1/blobs/{id} tests
   - name: get-blob-success-owner
