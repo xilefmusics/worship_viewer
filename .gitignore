@@ -5,3 +5,4 @@ Cargo.lock
 backend/blobs
 backend/static
 .cursor
+venom*.log

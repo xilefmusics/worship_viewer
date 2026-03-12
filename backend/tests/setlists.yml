@@ -254,6 +254,17 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 1
 
+  - name: get-setlists-owner-paginated
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists?page=0&page_size=1"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
   - name: get-setlists-read-user
     steps:
       - type: http
@@ -283,6 +294,70 @@ testcases:
         url: "{{.base_url}}/api/v1/setlists"
         assertions:
           - result.statuscode ShouldEqual 401
+
+  - name: get-setlists-invalid-page-parameter
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists?page=invalid&page_size=1"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-setlists-invalid-page-size-parameter
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists?page=0&page_size=invalid"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-setlists-owner-page-size-zero
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists?page=0&page_size=0"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  - name: get-setlists-owner-page-only
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists?page=1"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  - name: get-setlists-owner-page-size-only
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists?page_size=1"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  - name: get-setlists-owner-page-beyond-range
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists?page=10&page_size=10"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 0
 
   # GET /setlists/{id}
   - name: get-setlist-owner

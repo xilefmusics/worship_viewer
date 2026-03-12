@@ -12,7 +12,7 @@ use shared::blob::FileType;
 pub use shared::error::ErrorResponse;
 use shared::like::LikeStatus;
 use shared::player::{Orientation, Player, PlayerItem, ScrollType, TocItem};
-use shared::song::Link as SongLink;
+use shared::song::{Link as SongLink, SongUserSpecificAddons};
 
 pub mod rest {
     use super::{ApiDoc, OpenApi};
@@ -87,6 +87,7 @@ pub mod rest {
             ErrorResponse,
             Song,
             CreateSong,
+            SongUserSpecificAddons,
             Collection,
             CreateCollection,
             Setlist,

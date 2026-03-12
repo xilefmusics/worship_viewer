@@ -3,11 +3,12 @@ use surrealdb::sql::Datetime;
 use surrealdb::sql::Thing;
 
 use super::{Role, User};
+use shared::api::ListQuery;
 use crate::database::Database;
 use crate::error::AppError;
 
 pub trait Model {
-    async fn get_users(&self) -> Result<Vec<User>, AppError>;
+    async fn get_users(&self, pagination: ListQuery) -> Result<Vec<User>, AppError>;
     async fn get_user(&self, id: &str) -> Result<User, AppError>;
     async fn get_user_by_email(&self, email: &str) -> Result<Option<User>, AppError>;
     async fn create_user(&self, user: User) -> Result<User, AppError>;
@@ -21,14 +22,29 @@ pub trait Model {
 }
 
 impl Model for Database {
-    async fn get_users(&self) -> Result<Vec<User>, AppError> {
-        Ok(self
-            .db
-            .select("user")
-            .await?
-            .into_iter()
-            .map(UserRecord::into_user)
-            .collect())
+    async fn get_users(&self, pagination: ListQuery) -> Result<Vec<User>, AppError> {
+        if let Some((offset, limit)) = pagination.to_offset_limit() {
+            let mut response = self
+                .db
+                .query("SELECT * FROM user LIMIT $limit START $start")
+                .bind(("limit", limit))
+                .bind(("start", offset))
+                .await?;
+
+            Ok(response
+                .take::<Vec<UserRecord>>(0)?
+                .into_iter()
+                .map(UserRecord::into_user)
+                .collect())
+        } else {
+            Ok(self
+                .db
+                .select("user")
+                .await?
+                .into_iter()
+                .map(UserRecord::into_user)
+                .collect())
+        }
     }
 
     async fn get_user(&self, id: &str) -> Result<User, AppError> {

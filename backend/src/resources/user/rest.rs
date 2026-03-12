@@ -6,8 +6,9 @@ use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use actix_web::{
     HttpResponse, Scope, delete, get, post,
-    web::{self, Data, Json, Path, ReqData},
+    web::{self, Data, Json, Path, Query, ReqData},
 };
+use shared::api::ListQuery;
 
 pub fn scope() -> Scope {
     web::scope("/users")
@@ -75,6 +76,10 @@ async fn get_user(db: Data<Database>, id: Path<String>) -> Result<HttpResponse, 
 #[utoipa::path(
     get,
     path = "/api/v1/users",
+    params(
+        ("page" = Option<u32>, Query, description = "Optional page index (zero-based)"),
+        ("page_size" = Option<u32>, Query, description = "Optional page size (number of items per page)")
+    ),
     responses(
         (status = 200, description = "Returns list of all users", body = [User]),
         (status = 401, description = "Authentication required", body = ErrorResponse),
@@ -88,8 +93,12 @@ async fn get_user(db: Data<Database>, id: Path<String>) -> Result<HttpResponse, 
     )
 )]
 #[get("")]
-async fn get_users(db: Data<Database>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_users().await?))
+async fn get_users(
+    db: Data<Database>,
+    query: Query<ListQuery>,
+) -> Result<HttpResponse, AppError> {
+    let list_query = query.into_inner();
+    Ok(HttpResponse::Ok().json(db.get_users(list_query).await?))
 }
 
 #[utoipa::path(

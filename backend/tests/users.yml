@@ -127,6 +127,17 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 2
 
+  - name: get-users-admin-paginated
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?page=0&page_size=1"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
   - name: get-users-invalid-token
     steps:
       - type: http
@@ -144,6 +155,70 @@ testcases:
         url: "{{.base_url}}/api/v1/users"
         assertions:
           - result.statuscode ShouldEqual 401
+  
+  - name: get-users-invalid-page-parameter
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?page=invalid&page_size=1"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+  
+  - name: get-users-invalid-page-size-parameter
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?page=0&page_size=invalid"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-users-admin-page-size-zero
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?page=0&page_size=0"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
+
+  - name: get-users-admin-page-only
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?page=1"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
+
+  - name: get-users-admin-page-size-only
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?page_size=1"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
+
+  - name: get-users-admin-page-beyond-range
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?page=10&page_size=10"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 0
   
   - name: get-user
     steps:

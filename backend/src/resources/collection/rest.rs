@@ -16,6 +16,7 @@ use crate::resources::collection::CreateCollection;
 use crate::resources::song::Model as SongModel;
 #[allow(unused_imports)]
 use crate::resources::song::{QueryParams, Song, export};
+use shared::api::ListQuery;
 use shared::player::Player;
 use shared::song::LinkOwned as SongLinkOwned;
 
@@ -34,6 +35,10 @@ pub fn scope() -> Scope {
 #[utoipa::path(
     get,
     path = "/api/v1/collections",
+    params(
+        ("page" = Option<u32>, Query, description = "Optional page index (zero-based)"),
+        ("page_size" = Option<u32>, Query, description = "Optional page size (number of items per page)")
+    ),
     responses(
         (status = 200, description = "Return all collections", body = [Collection]),
         (status = 401, description = "Authentication required", body = ErrorResponse),
@@ -49,8 +54,10 @@ pub fn scope() -> Scope {
 async fn get_collections(
     db: Data<Database>,
     user: ReqData<User>,
+    query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_collections(user.read()).await?))
+    let list_query = query.into_inner();
+    Ok(HttpResponse::Ok().json(db.get_collections(user.read(), list_query).await?))
 }
 
 #[utoipa::path(

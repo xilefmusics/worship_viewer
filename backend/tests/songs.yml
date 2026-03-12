@@ -335,6 +335,17 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  - name: get-songs-success-admin-paginated
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs?page=0&page_size=1"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
   - name: get-songs-success-default
     steps:
       - type: http
@@ -355,6 +366,17 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  - name: get-songs-success-with-read-permission-paginated
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs?page=0&page_size=1"
+        headers:
+          Authorization: "Bearer {{.create-read-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
   - name: get-songs-missing-token
     steps:
       - type: http
@@ -372,6 +394,67 @@ testcases:
           Authorization: "Bearer invalid"
         assertions:
           - result.statuscode ShouldEqual 401
+
+  - name: get-songs-invalid-page-parameter
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs?page=invalid&page_size=1"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-songs-invalid-page-size-parameter
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs?page=0&page_size=invalid"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: get-songs-page-size-zero-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs?page=0&page_size=0"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-songs-page-only-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs?page=1"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-songs-page-size-only-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs?page_size=1"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  - name: get-songs-page-beyond-range-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/songs?page=100&page_size=10"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 0
 
   # GET /api/v1/songs/{id} tests
   - name: get-song-success

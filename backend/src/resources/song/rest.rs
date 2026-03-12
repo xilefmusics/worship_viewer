@@ -16,6 +16,7 @@ use crate::resources::song::CreateSong;
 #[allow(unused_imports)]
 use crate::resources::song::Song;
 use crate::resources::user::Model as UserModel;
+use shared::api::ListQuery;
 use shared::like::LikeStatus;
 use shared::player::Player;
 use shared::song::Link as SongLink;
@@ -38,6 +39,10 @@ pub fn scope() -> Scope {
 #[utoipa::path(
     get,
     path = "/api/v1/songs",
+    params(
+        ("page" = Option<u32>, Query, description = "Optional page index (zero-based)"),
+        ("page_size" = Option<u32>, Query, description = "Optional page size (number of items per page)")
+    ),
     responses(
         (status = 200, description = "Return all songs", body = [Song]),
         (status = 401, description = "Authentication required", body = ErrorResponse),
@@ -50,9 +55,14 @@ pub fn scope() -> Scope {
     )
 )]
 #[get("")]
-async fn get_songs(db: Data<Database>, user: ReqData<User>) -> Result<HttpResponse, AppError> {
+async fn get_songs(
+    db: Data<Database>,
+    user: ReqData<User>,
+    query: Query<ListQuery>,
+) -> Result<HttpResponse, AppError> {
     let liked_set = db.get_liked_set(&user.id).await?;
-    let songs = db.get_songs(user.read()).await?.into_iter().map(|song| {
+    let list_query = query.into_inner();
+    let songs = db.get_songs(user.read(), list_query).await?.into_iter().map(|song| {
         let mut song = song;
         song.user_specific_addons.liked = liked_set.contains(&song.id);
         song

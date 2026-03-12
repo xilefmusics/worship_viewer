@@ -1,4 +1,4 @@
-use shared::api::ApiClient;
+use shared::api::{ApiClient, ListQuery};
 use shared::net::DefaultHttpClient;
 use shared::user::CreateUserRequest;
 
@@ -13,8 +13,15 @@ pub async fn handle_users(
     cmd: &UsersCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
-        UsersCommand::List => {
-            let users = client.list_users().await?;
+        UsersCommand::List { page, page_size } => {
+            let mut query = ListQuery::new();
+            if let Some(p) = *page {
+                query = query.with_page(p);
+            }
+            if let Some(ps) = *page_size {
+                query = query.with_page_size(ps);
+            }
+            let users = client.list_users(query).await?;
             match output::effective_output_format(&output) {
                 OutputFormat::Ndjson => output::print_ndjson_list(&users),
                 _ => output::print_json(&users, &output),

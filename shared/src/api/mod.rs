@@ -14,6 +14,9 @@ use crate::setlist::{CreateSetlist, Setlist};
 use crate::song::{CreateSong, Song};
 use crate::user::{CreateUserRequest, Session, User};
 use std::vec::Vec;
+
+mod list_query;
+pub use list_query::ListQuery;
 pub struct ApiClient<C: HttpClient> {
     client: C,
 }
@@ -67,8 +70,12 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.get(&format!("api/v1/users/{id}")).await
     }
 
-    pub async fn list_users(&self) -> Result<Vec<User>, NetworkClientError> {
-        self.client.get("api/v1/users").await
+    pub async fn list_users(
+        &self,
+        query: ListQuery,
+    ) -> Result<Vec<User>, NetworkClientError> {
+        let path = format!("api/v1/users{}", query.to_query_string());
+        self.client.get(&path).await
     }
 
     pub async fn create_user(
@@ -139,8 +146,12 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn get_songs(&self) -> Result<Vec<Song>, NetworkClientError> {
-        self.client.get("api/v1/songs").await
+    pub async fn get_songs(
+        &self,
+        query: ListQuery,
+    ) -> Result<Vec<Song>, NetworkClientError> {
+        let path = format!("api/v1/songs{}", query.to_query_string());
+        self.client.get(&path).await
     }
 
     pub async fn get_song(&self, id: &str) -> Result<Song, NetworkClientError> {
@@ -197,8 +208,12 @@ impl<C: HttpClient> ApiClient<C> {
             .map(|like: LikeStatus| like.liked)
     }
 
-    pub async fn list_collections(&self) -> Result<Vec<Collection>, NetworkClientError> {
-        self.client.get("api/v1/collections").await
+    pub async fn list_collections(
+        &self,
+        query: ListQuery,
+    ) -> Result<Vec<Collection>, NetworkClientError> {
+        let path = format!("api/v1/collections{}", query.to_query_string());
+        self.client.get(&path).await
     }
 
     pub async fn get_collection(&self, id: &str) -> Result<Collection, NetworkClientError> {
@@ -244,8 +259,12 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn list_setlists(&self) -> Result<Vec<Setlist>, NetworkClientError> {
-        self.client.get("api/v1/setlists").await
+    pub async fn list_setlists(
+        &self,
+        query: ListQuery,
+    ) -> Result<Vec<Setlist>, NetworkClientError> {
+        let path = format!("api/v1/setlists{}", query.to_query_string());
+        self.client.get(&path).await
     }
 
     pub async fn get_setlist(&self, id: &str) -> Result<Setlist, NetworkClientError> {
@@ -289,8 +308,12 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.delete(&format!("api/v1/setlists/{id}")).await
     }
 
-    pub async fn list_blobs(&self) -> Result<Vec<Blob>, NetworkClientError> {
-        self.client.get("api/v1/blobs").await
+    pub async fn list_blobs(
+        &self,
+        query: ListQuery,
+    ) -> Result<Vec<Blob>, NetworkClientError> {
+        let path = format!("api/v1/blobs{}", query.to_query_string());
+        self.client.get(&path).await
     }
 
     pub async fn get_blob(&self, id: &str) -> Result<Blob, NetworkClientError> {

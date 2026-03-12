@@ -2,13 +2,18 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
 
+use shared::api::ListQuery;
 use shared::blob::{Blob, CreateBlob};
 
 use crate::database::Database;
 use crate::error::AppError;
 
 pub trait Model {
-    async fn get_blobs(&self, owners: Vec<String>) -> Result<Vec<Blob>, AppError>;
+    async fn get_blobs(
+        &self,
+        owners: Vec<String>,
+        pagination: ListQuery,
+    ) -> Result<Vec<Blob>, AppError>;
     async fn get_blob(&self, owners: Vec<String>, id: &str) -> Result<Blob, AppError>;
     async fn create_blob(&self, owner: &str, blob: CreateBlob) -> Result<Blob, AppError>;
     async fn update_blob(
@@ -21,18 +26,27 @@ pub trait Model {
 }
 
 impl Model for Database {
-    async fn get_blobs(&self, owners: Vec<String>) -> Result<Vec<Blob>, AppError> {
+    async fn get_blobs(
+        &self,
+        owners: Vec<String>,
+        pagination: ListQuery,
+    ) -> Result<Vec<Blob>, AppError> {
         let owners = owners
             .into_iter()
             .map(|owner_id| owner_thing(&owner_id))
             .collect::<Vec<_>>();
 
-        let mut response = self
-            .db
-            .query("SELECT * FROM blob WHERE owner IN $owners")
-            .bind(("owners", owners))
-            .await
-            .map_err(AppError::database)?;
+        let mut query = String::from("SELECT * FROM blob WHERE owner IN $owners");
+        if pagination.to_offset_limit().is_some() {
+            query.push_str(" LIMIT $limit START $start");
+        }
+
+        let mut request = self.db.query(query).bind(("owners", owners));
+        if let Some((offset, limit)) = pagination.to_offset_limit() {
+            request = request.bind(("limit", limit)).bind(("start", offset));
+        }
+
+        let mut response = request.await.map_err(AppError::database)?;
 
         Ok(response
             .take::<Vec<BlobRecord>>(0)?
