@@ -1,0 +1,46 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "shared/**"
+      - "rust-toolchain.toml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "shared/**"
+      - "rust-toolchain.toml"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@v1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend
+
+      - name: Build
+        working-directory: backend
+        run: cargo build
+
+      - name: Test
+        working-directory: backend
+        run: cargo test
+
+      - name: Clippy
+        working-directory: backend
+        run: cargo clippy -- -D warnings
+
+      - name: Format check
+        run: |
+          cargo fmt --manifest-path backend/Cargo.toml --check
+          cargo fmt --manifest-path shared/Cargo.toml --check
