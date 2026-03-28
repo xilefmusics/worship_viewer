@@ -69,7 +69,7 @@ impl Default for Settings {
             db_database: "app".into(),
             db_username: None,
             db_password: None,
-            db_migration_path: "surrealdb".into(),
+            db_migration_path: "db-migrations".into(),
             oidc_issuer_url: "https://accounts.google.com".into(),
             oidc_client_id: String::new(),
             oidc_client_secret: None,
