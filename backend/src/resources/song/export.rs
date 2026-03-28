@@ -103,7 +103,8 @@ fn export_chord_pro(
 }
 
 async fn export_pdf(songs: Vec<Song>) -> Result<HttpResponse, AppError> {
-    let css = songs.first()
+    let css = songs
+        .first()
         .map(|song| song.format_html(None, None, None, None).1)
         .unwrap_or_default();
     let pages = songs

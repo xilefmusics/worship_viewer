@@ -37,12 +37,7 @@ impl<'a> Mail<'a> {
             .build()
             .send(
                 &Message::builder()
-                    .from(
-                        settings
-                            .gmail_from
-                            .parse()
-                            .map_err(AppError::mail)?,
-                    )
+                    .from(settings.gmail_from.parse().map_err(AppError::mail)?)
                     .to(self.to.parse().map_err(AppError::mail)?)
                     .subject(self.subject)
                     .body(self.body.to_owned())

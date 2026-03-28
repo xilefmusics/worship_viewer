@@ -3,9 +3,9 @@ use surrealdb::sql::Datetime;
 use surrealdb::sql::Thing;
 
 use super::{Role, User};
-use shared::api::ListQuery;
 use crate::database::Database;
 use crate::error::AppError;
+use shared::api::ListQuery;
 
 pub trait Model {
     async fn get_users(&self, pagination: ListQuery) -> Result<Vec<User>, AppError>;

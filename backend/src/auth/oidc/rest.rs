@@ -43,10 +43,7 @@ async fn login(
     query: web::Query<LoginQuery>,
 ) -> Result<HttpResponse, AppError> {
     db.cleanup_expired_oidc_states().await?;
-    let redirect_hint = query
-        .redirect_to
-        .as_deref()
-        .and_then(sanitize_redirect);
+    let redirect_hint = query.redirect_to.as_deref().and_then(sanitize_redirect);
 
     let oidc_clients = oidc_clients.get_ref();
     let provider = query

@@ -65,9 +65,10 @@ impl Model for Database {
 
         let mut request = self.db.query(query).bind(("owners", owners));
         if let Some(ref q) = pagination.q
-            && !q.trim().is_empty() {
-                request = request.bind(("q", q.trim().to_string()));
-            }
+            && !q.trim().is_empty()
+        {
+            request = request.bind(("q", q.trim().to_string()));
+        }
         if let Some((offset, limit)) = pagination.to_offset_limit() {
             request = request.bind(("limit", limit)).bind(("start", offset));
         }
@@ -329,9 +330,10 @@ fn setlist_belongs_to(record: &SetlistRecord, owners: Vec<String>) -> bool {
 
 fn song_thing(id: &str) -> Thing {
     if let Ok(thing) = id.parse::<Thing>()
-        && thing.tb == "song" {
-            return thing;
-        }
+        && thing.tb == "song"
+    {
+        return thing;
+    }
 
     Thing::from(("song".to_owned(), id.to_owned()))
 }

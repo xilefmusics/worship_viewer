@@ -83,4 +83,3 @@ pub type DefaultHttpClient = DesktopHttpClient;
 
 #[cfg(all(feature = "frontend", target_arch = "wasm32"))]
 pub type DefaultHttpClient = WasmHttpClient;
-

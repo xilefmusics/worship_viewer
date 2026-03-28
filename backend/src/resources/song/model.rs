@@ -72,9 +72,10 @@ impl Model for Database {
 
         let mut request = self.db.query(query).bind(("owners", owners));
         if let Some(ref q) = pagination.q
-            && !q.trim().is_empty() {
-                request = request.bind(("q", q.trim().to_string()));
-            }
+            && !q.trim().is_empty()
+        {
+            request = request.bind(("q", q.trim().to_string()));
+        }
         if let Some((offset, limit)) = pagination.to_offset_limit() {
             request = request.bind(("limit", limit)).bind(("start", offset));
         }
@@ -338,9 +339,10 @@ fn owner_thing(user_id: &str) -> Thing {
 
 fn blob_thing(blob_id: &str) -> Thing {
     if let Ok(thing) = blob_id.parse::<Thing>()
-        && thing.tb == "blob" {
-            return thing;
-        }
+        && thing.tb == "blob"
+    {
+        return thing;
+    }
 
     Thing::from(("blob".to_owned(), blob_id.to_owned()))
 }

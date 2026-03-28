@@ -1,8 +1,8 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::error::NetworkClientError;
 use super::{HttpClient, HttpClientConfig};
+use crate::error::NetworkClientError;
 use web_sys::RequestCredentials;
 
 #[derive(Clone)]
@@ -156,4 +156,3 @@ impl HttpClient for WasmHttpClient {
         Ok(value)
     }
 }
-

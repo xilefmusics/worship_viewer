@@ -93,10 +93,7 @@ async fn get_user(db: Data<Database>, id: Path<String>) -> Result<HttpResponse, 
     )
 )]
 #[get("")]
-async fn get_users(
-    db: Data<Database>,
-    query: Query<ListQuery>,
-) -> Result<HttpResponse, AppError> {
+async fn get_users(db: Data<Database>, query: Query<ListQuery>) -> Result<HttpResponse, AppError> {
     let list_query = query.into_inner();
     Ok(HttpResponse::Ok().json(db.get_users(list_query).await?))
 }

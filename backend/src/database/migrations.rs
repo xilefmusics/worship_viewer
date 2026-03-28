@@ -26,9 +26,8 @@ pub async fn run(db: &Surreal<Any>, migration_root: &str) -> AnyResult<()> {
 
     for path in files {
         let script_name = file_name(&path)?;
-        let script = fs::read_to_string(&path).with_context(|| {
-            format!("failed to read migration script '{}'", path.display())
-        })?;
+        let script = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read migration script '{}'", path.display()))?;
         let checksum = script_checksum(&script);
 
         if let Some(existing_checksum) = applied.get(&script_name) {
@@ -120,9 +119,7 @@ COMMIT TRANSACTION;",
         .with_context(|| format!("migration body returned errors '{}'", script_name))?;
 
     let record_response = db
-        .query(
-            "CREATE migration_script SET script_name = $script_name, checksum = $checksum;",
-        )
+        .query("CREATE migration_script SET script_name = $script_name, checksum = $checksum;")
         .bind(("script_name", script_name.to_owned()))
         .bind(("checksum", checksum.to_owned()))
         .await

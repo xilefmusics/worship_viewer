@@ -2,8 +2,8 @@ use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::error::NetworkClientError;
 use super::{HttpClient, HttpClientConfig};
+use crate::error::NetworkClientError;
 
 #[derive(Clone)]
 pub struct DesktopHttpClient {
@@ -139,4 +139,3 @@ impl HttpClient for DesktopHttpClient {
         Ok(value)
     }
 }
-

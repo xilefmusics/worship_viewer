@@ -40,12 +40,11 @@ async fn logout(db: Data<Database>, req: HttpRequest) -> HttpResponse {
         .cookie(&settings.cookie_name)
         .map(|cookie| cookie.value().to_owned());
 
-    if let Some(session_id) = bearer_session
-        .as_deref()
-        .or(cookie_session.as_deref())
-        && let Err(err) = db.delete_session(session_id).await {
-            warn!(session = session_id, "failed to drop session: {}", err);
-        }
+    if let Some(session_id) = bearer_session.as_deref().or(cookie_session.as_deref())
+        && let Err(err) = db.delete_session(session_id).await
+    {
+        warn!(session = session_id, "failed to drop session: {}", err);
+    }
 
     let mut response = HttpResponse::NoContent();
     if cookie_session.is_some() {
