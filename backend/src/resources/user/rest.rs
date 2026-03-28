@@ -18,7 +18,7 @@ pub fn scope() -> Scope {
         .service(session::rest::delete_session_for_current_user)
         .service(
             web::scope("")
-                .wrap(RequireAdmin::default())
+                .wrap(RequireAdmin)
                 .service(create_user)
                 .service(delete_user)
                 .service(get_user)

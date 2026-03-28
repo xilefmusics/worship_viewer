@@ -64,11 +64,10 @@ impl Model for Database {
         }
 
         let mut request = self.db.query(query).bind(("owners", owners));
-        if let Some(ref q) = pagination.q {
-            if !q.trim().is_empty() {
+        if let Some(ref q) = pagination.q
+            && !q.trim().is_empty() {
                 request = request.bind(("q", q.trim().to_string()));
             }
-        }
         if let Some((offset, limit)) = pagination.to_offset_limit() {
             request = request.bind(("limit", limit)).bind(("start", offset));
         }
@@ -233,7 +232,7 @@ impl SetlistRecord {
     fn from_payload(id: Option<Thing>, owner: Option<Thing>, setlist: CreateSetlist) -> Self {
         Self {
             id,
-            owner: owner,
+            owner,
             title: setlist.title,
             songs: setlist.songs.into_iter().map(Into::into).collect(),
         }
@@ -329,11 +328,10 @@ fn setlist_belongs_to(record: &SetlistRecord, owners: Vec<String>) -> bool {
 }
 
 fn song_thing(id: &str) -> Thing {
-    if let Ok(thing) = id.parse::<Thing>() {
-        if thing.tb == "song" {
+    if let Ok(thing) = id.parse::<Thing>()
+        && thing.tb == "song" {
             return thing;
         }
-    }
 
     Thing::from(("song".to_owned(), id.to_owned()))
 }

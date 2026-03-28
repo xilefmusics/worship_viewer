@@ -4,7 +4,7 @@ use actix_web::{dev::HttpServiceFactory, web};
 
 pub fn scope() -> impl HttpServiceFactory {
     web::scope("/api/v1")
-        .wrap(RequireUser::default())
+        .wrap(RequireUser)
         .service(blob::rest::scope())
         .service(collection::rest::scope())
         .service(setlist::rest::scope())

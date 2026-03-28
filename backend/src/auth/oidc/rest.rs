@@ -46,7 +46,7 @@ async fn login(
     let redirect_hint = query
         .redirect_to
         .as_deref()
-        .and_then(|value| sanitize_redirect(value));
+        .and_then(sanitize_redirect);
 
     let oidc_clients = oidc_clients.get_ref();
     let provider = query
@@ -179,9 +179,11 @@ fn session_cookie(session_id: &str) -> Cookie<'static> {
 
 fn sanitize_redirect(path: &str) -> Option<String> {
     let trimmed = path.trim();
-    if trimmed.is_empty() || !trimmed.starts_with('/') || trimmed.starts_with("//") {
-        None
-    } else if trimmed.starts_with("/http") {
+    if trimmed.is_empty()
+        || !trimmed.starts_with('/')
+        || trimmed.starts_with("//")
+        || trimmed.starts_with("/http")
+    {
         None
     } else {
         Some(trimmed.to_string())
