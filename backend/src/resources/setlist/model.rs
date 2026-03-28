@@ -48,12 +48,27 @@ impl Model for Database {
             .map(|owner_id| owner_thing(&owner_id))
             .collect::<Vec<_>>();
 
-        let mut query = String::from("SELECT * FROM setlist WHERE owner IN $owners");
+        let q_nonempty = pagination.q.as_ref().is_some_and(|q| !q.trim().is_empty());
+        let mut query = if q_nonempty {
+            String::from(
+                "SELECT *, (search::score(0) ?? 0) AS score FROM setlist WHERE owner IN $owners",
+            )
+        } else {
+            String::from("SELECT * FROM setlist WHERE owner IN $owners")
+        };
+        if q_nonempty {
+            query.push_str(" AND title @0@ $q ORDER BY score DESC");
+        }
         if pagination.to_offset_limit().is_some() {
             query.push_str(" LIMIT $limit START $start");
         }
 
         let mut request = self.db.query(query).bind(("owners", owners));
+        if let Some(ref q) = pagination.q {
+            if !q.trim().is_empty() {
+                request = request.bind(("q", q.trim().to_string()));
+            }
+        }
         if let Some((offset, limit)) = pagination.to_offset_limit() {
             request = request.bind(("limit", limit)).bind(("start", offset));
         }

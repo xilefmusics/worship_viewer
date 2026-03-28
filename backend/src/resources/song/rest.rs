@@ -41,7 +41,8 @@ pub fn scope() -> Scope {
     path = "/api/v1/songs",
     params(
         ("page" = Option<u32>, Query, description = "Optional page index (zero-based)"),
-        ("page_size" = Option<u32>, Query, description = "Optional page size (number of items per page)")
+        ("page_size" = Option<u32>, Query, description = "Optional page size (number of items per page)"),
+        ("q" = Option<String>, Query, description = "Full-text search query (title, artist, line lyrics); uses text_search analyzer (stemming)")
     ),
     responses(
         (status = 200, description = "Return all songs", body = [Song]),
