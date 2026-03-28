@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
@@ -7,6 +9,7 @@ use shared::blob::{Blob, CreateBlob};
 
 use crate::database::Database;
 use crate::error::AppError;
+use crate::settings::Settings;
 
 pub trait Model {
     async fn get_blobs(
@@ -63,7 +66,8 @@ impl Model for Database {
     }
 
     async fn create_blob(&self, owner: &str, blob: CreateBlob) -> Result<Blob, AppError> {
-        self.db
+        let created = self
+            .db
             .create("blob")
             .content(BlobRecord::from_payload(
                 None,
@@ -73,7 +77,9 @@ impl Model for Database {
             ))
             .await?
             .map(BlobRecord::into_blob)
-            .ok_or_else(|| AppError::database("failed to create blob"))
+            .ok_or_else(|| AppError::database("failed to create blob"))?;
+        write_blob_file(&created)?;
+        Ok(created)
     }
 
     async fn update_blob(
@@ -101,12 +107,15 @@ impl Model for Database {
             blob,
         );
 
-        self.db
+        let updated = self
+            .db
             .update(resource)
             .content(record)
             .await?
             .map(BlobRecord::into_blob)
-            .ok_or_else(|| AppError::database("failed to update blob"))
+            .ok_or_else(|| AppError::database("failed to update blob"))?;
+        write_blob_file(&updated)?;
+        Ok(updated)
     }
 
     async fn delete_blob(&self, owner: Vec<String>, id: &str) -> Result<Blob, AppError> {
@@ -119,12 +128,29 @@ impl Model for Database {
             return Err(AppError::NotFound("blob not found".into()));
         }
 
-        self.db
+        let deleted = self
+            .db
             .delete(resource)
             .await?
             .map(BlobRecord::into_blob)
-            .ok_or_else(|| AppError::NotFound("blob not found".into()))
+            .ok_or_else(|| AppError::NotFound("blob not found".into()))?;
+        if let Some(name) = deleted.file_name() {
+            let path = Path::new(&Settings::global().blob_dir).join(name);
+            let _ = std::fs::remove_file(path);
+        }
+        Ok(deleted)
     }
+}
+
+fn write_blob_file(blob: &Blob) -> Result<(), AppError> {
+    let file_name = blob
+        .file_name()
+        .ok_or_else(|| AppError::Internal("blob has no id".into()))?;
+    let path = Path::new(&Settings::global().blob_dir).join(file_name);
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| AppError::Internal(e.to_string()))?;
+    }
+    std::fs::write(&path, []).map_err(|e| AppError::Internal(e.to_string()))
 }
 
 fn blob_resource(id: &str) -> Result<(String, String), AppError> {

@@ -1,6 +1,6 @@
 name: Sessions endpoints
 vars:
-  base_url: http://localhost:8080
+  base_url: http://127.0.0.1:8080
   token_admin: admin
 
 testcases:
@@ -57,6 +57,16 @@ testcases:
       - type: http
         method: GET
         url: "{{.base_url}}/api/v1/users/me/sessions"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-me-sessions-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/sessions"
+        headers:
+          Authorization: "Bearer invalid"
         assertions:
           - result.statuscode ShouldEqual 401
 
@@ -125,11 +135,31 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  - name: get-me-session-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/sessions/{{.create-session-primary.sessionid_primary}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
   - name: delete-me-session-missing-token
     steps:
       - type: http
         method: DELETE
         url: "{{.base_url}}/api/v1/users/me/sessions/{{.create-session-secondary.sessionid_secondary}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-me-session-invalid-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/me/sessions/{{.create-session-secondary.sessionid_secondary}}"
+        headers:
+          Authorization: "Bearer invalid"
         assertions:
           - result.statuscode ShouldEqual 401
 
@@ -193,6 +223,16 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  - name: post-session-admin-invalid-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
   - name: get-sessions-for-user-missing-token
     steps:
       - type: http
@@ -221,6 +261,16 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 1
+
+  - name: get-sessions-for-user-admin-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
 
   - name: get-session-for-user-missing-token
     steps:
@@ -262,6 +312,16 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  - name: get-session-for-user-admin-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
   - name: delete-session-for-user-missing-token
     steps:
       - type: http
@@ -290,6 +350,16 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.create-session-primary.sessionid_primary}}"
+
+  - name: delete-session-for-user-admin-invalid-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-secondary.sessionid_secondary}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
 
   - name: delete-session-for-user-admin-notfound
     steps:

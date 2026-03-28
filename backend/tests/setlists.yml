@@ -1,6 +1,6 @@
 name: Setlists endpoints
 vars:
-  base_url: http://localhost:8080
+  base_url: http://127.0.0.1:8080
   token_admin: admin
 
 testcases:
@@ -217,6 +217,59 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  - name: post-setlist-invalid-token
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer invalid"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Invalid Token Setlist",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: post-setlist-missing-title
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-setlist-empty-title-rejected
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "",
+            "songs": [
+              { "id": "{{.create-setlist-song-two.songid}}", "nr": "1" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
   - name: post-setlist-success
     steps:
       - type: http
@@ -242,6 +295,27 @@ testcases:
           setlistid:
             from: result.bodyjson.id
 
+  - name: post-setlist-for-delete-by-write
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Setlist Delete By Write User",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}", "nr": "1" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          setlistid:
+            from: result.bodyjson.id
+
   # GET /setlists
   - name: get-setlists-owner
     steps:
@@ -252,7 +326,7 @@ testcases:
           Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson ShouldHaveLength 2
 
   - name: get-setlists-owner-paginated
     steps:
@@ -274,7 +348,7 @@ testcases:
           Authorization: "Bearer {{.create-setlist-read-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson ShouldHaveLength 2
 
   - name: get-setlists-noperm-user
     steps:
@@ -292,6 +366,16 @@ testcases:
       - type: http
         method: GET
         url: "{{.base_url}}/api/v1/setlists"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-setlists-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists"
+        headers:
+          Authorization: "Bearer invalid"
         assertions:
           - result.statuscode ShouldEqual 401
 
@@ -324,7 +408,7 @@ testcases:
           Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson ShouldHaveLength 2
 
   - name: get-setlists-owner-page-only
     steps:
@@ -335,7 +419,7 @@ testcases:
           Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson ShouldHaveLength 2
 
   - name: get-setlists-owner-page-size-only
     steps:
@@ -346,7 +430,7 @@ testcases:
           Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson ShouldHaveLength 2
 
   - name: get-setlists-owner-page-beyond-range
     steps:
@@ -358,6 +442,52 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 0
+
+  - name: get-setlists-q-match
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists?q=Sunday"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-setlist-success.setlistid}}"
+
+  - name: get-setlists-q-with-pagination
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists?q=Sunday&page=0&page_size=1"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-setlist-success.setlistid}}"
+
+  - name: get-setlists-q-no-matches-empty-array
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists?q=SetlistNoSuchTokenEver999zz"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 0
+
+  - name: get-setlists-q-blank-ignored-full-list
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists?q=%20"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
 
   # GET /setlists/{id}
   - name: get-setlist-owner
@@ -401,6 +531,24 @@ testcases:
           Authorization: "Bearer invalid"
         assertions:
           - result.statuscode ShouldEqual 401
+
+  - name: get-setlist-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-setlist-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/never-created-setlist"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
 
   - name: get-setlist-invalid-id
     steps:
@@ -463,6 +611,26 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  - name: get-setlist-songs-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/songs"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-setlist-songs-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/never-created-setlist/songs"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
   # GET /setlists/{id}/player
   - name: get-setlist-player-owner
     steps:
@@ -506,6 +674,34 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  - name: get-setlist-player-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/player"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-setlist-player-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/player"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-setlist-player-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/never-created-setlist/player"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
   # GET /setlists/{id}/export
   - name: get-setlist-export-owner
     steps:
@@ -546,6 +742,34 @@ testcases:
           Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 400
+
+  - name: get-setlist-export-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/export"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-setlist-export-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}/export"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-setlist-export-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/setlists/never-created-setlist/export"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
 
   # PUT /setlists/{id}
   - name: put-setlist-success-owner
@@ -622,6 +846,25 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  - name: put-setlist-read-user
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-read-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Read User Put",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}", "nr": "1" },
+              { "id": "{{.create-setlist-song-two.songid}}", "nr": "2" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 404
+
   - name: put-setlist-missing-token
     steps:
       - type: http
@@ -657,6 +900,42 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  - name: put-setlist-invalid-token
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer invalid"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Invalid Token Put",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: put-setlist-unknown-id
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/setlists/never-created-setlist"
+        headers:
+          Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Unknown Setlist",
+            "songs": [
+              { "id": "{{.create-setlist-song-one.songid}}" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 404
+
   # DELETE /setlists/{id}
   - name: delete-setlist-noperm-user
     steps:
@@ -685,6 +964,27 @@ testcases:
           Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 400
+
+  - name: delete-setlist-invalid-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-success.setlistid}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: delete-setlist-success-write-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/setlists/{{.post-setlist-for-delete-by-write.setlistid}}"
+        headers:
+          Authorization: "Bearer {{.create-setlist-write-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.post-setlist-for-delete-by-write.setlistid}}"
 
   - name: delete-setlist-success
     steps:

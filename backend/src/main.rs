@@ -35,34 +35,57 @@ async fn main() -> AnyResult<()> {
     db.migrate().await.context("database migration failed")?;
 
     if let Some(email) = settings.initial_admin_user_email.as_ref() {
-        let admin = db
-            .create_user(User {
-                id: String::new(),
-                email: email.to_owned(),
-                role: UserRole::Admin,
-                read: vec![],
-                write: vec![],
-                default_collection: None,
-                created_at: Utc::now(),
-                last_login_at: None,
-                request_count: 0,
-            })
-            .await
-            .context("failed to create admin user")?;
-        info!(
-            "Created admin user {} with email: {}",
-            admin.id, admin.email
-        );
+        let (admin, created_initial_admin) =
+            if let Some(user) = db
+                .get_user_by_email(email)
+                .await
+                .context("failed to look up initial admin user by email")?
+            {
+                info!(
+                    "Initial admin user already exists ({}), not creating: {}",
+                    user.id, user.email
+                );
+                (user, false)
+            } else {
+                let admin = db
+                    .create_user(User {
+                        id: String::new(),
+                        email: email.to_owned(),
+                        role: UserRole::Admin,
+                        read: vec![],
+                        write: vec![],
+                        default_collection: None,
+                        created_at: Utc::now(),
+                        last_login_at: None,
+                        request_count: 0,
+                    })
+                    .await
+                    .context("failed to create admin user")?;
+                info!(
+                    "Created admin user {} with email: {}",
+                    admin.id, admin.email
+                );
+                (admin, true)
+            };
 
         if settings.initial_admin_user_test_session {
-            let session = db
-                .create_session(Session::admin(admin, settings.session_ttl_seconds as i64))
-                .await
-                .context("failed to create a test session for the admin user")?;
-            info!(
-                "Created a test session {} for the admin user. DO NOT USE THIS IN PRODUCTION",
-                session.id,
-            );
+            if created_initial_admin {
+                let session = db
+                    .create_session(Session::admin(
+                        admin,
+                        settings.session_ttl_seconds as i64,
+                    ))
+                    .await
+                    .context("failed to create a test session for the admin user")?;
+                info!(
+                    "Created a test session {} for the admin user. DO NOT USE THIS IN PRODUCTION",
+                    session.id,
+                );
+            } else {
+                info!(
+                    "Initial admin user was not created on this run, not creating test session"
+                );
+            }
         }
     }
 

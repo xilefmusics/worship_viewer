@@ -1,6 +1,6 @@
 name: Users me endpoint
 vars:
-  base_url: http://localhost:8080
+  base_url: http://127.0.0.1:8080
   token_admin: admin
 
 testcases:
@@ -14,6 +14,16 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  - name: get-users-me-raw-authorization-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me"
+        headers:
+          Authorization: "{{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
   - name: get-users-me-invalid-token
     steps:
       - type: http
@@ -21,6 +31,14 @@ testcases:
         url: "{{.base_url}}/api/v1/users/me"
         headers:
           Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-users-me-missing-auth
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me"
         assertions:
           - result.statuscode ShouldEqual 401
 
@@ -310,6 +328,16 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  - name: get-user-read-grant-on-target-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}"
+        headers:
+          Authorization: "Bearer {{.create-cascade-verifier-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 403
+
   - name: create-default-user-blob
     steps:
       - type: http
@@ -569,3 +597,136 @@ testcases:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
           - result.statuscode ShouldEqual 404
+
+  - name: post-users-admin-role
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "secondadmin@test.com",
+            "role": "admin"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "secondadmin@test.com"
+          - result.bodyjson.role ShouldEqual "admin"
+
+  - name: zzz-gap-default-collection-owner-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "gapcolowner@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          userid:
+            from: result.bodyjson.id
+
+  - name: zzz-gap-default-collection-owner-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.zzz-gap-default-collection-owner-user.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid:
+            from: result.bodyjson.id
+
+  - name: zzz-gap-default-collection-cover-blob
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.zzz-gap-default-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 100,
+            "height": 100,
+            "ocr": "gap"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          blobid:
+            from: result.bodyjson.id
+
+  - name: zzz-gap-default-collection-create
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/collections"
+        headers:
+          Authorization: "Bearer {{.zzz-gap-default-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "title": "Gap Default Collection",
+            "cover": "{{.zzz-gap-default-collection-cover-blob.blobid}}",
+            "songs": []
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          collectionid:
+            from: result.bodyjson.id
+
+  - name: post-users-with-default-collection
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "defaultcoluser@test.com",
+            "default_collection": "{{.zzz-gap-default-collection-create.collectionid}}"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.email ShouldEqual "defaultcoluser@test.com"
+          - result.bodyjson.default_collection ShouldContainSubstring "{{.zzz-gap-default-collection-create.collectionid}}"
+
+  - name: post-users-with-nonexistent-default-collection
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "orphancoluser@test.com",
+            "default_collection": "nonexistent-collection-xyz"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.default_collection ShouldContainSubstring nonexistent-collection-xyz
+
+  - name: get-openapi-json-unauthenticated
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/docs/openapi.json"
+        assertions:
+          - result.statuscode ShouldEqual 200
