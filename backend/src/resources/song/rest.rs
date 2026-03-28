@@ -62,11 +62,16 @@ async fn get_songs(
 ) -> Result<HttpResponse, AppError> {
     let liked_set = db.get_liked_set(&user.id).await?;
     let list_query = query.into_inner();
-    let songs = db.get_songs(user.read(), list_query).await?.into_iter().map(|song| {
-        let mut song = song;
-        song.user_specific_addons.liked = liked_set.contains(&song.id);
-        song
-    }).collect::<Vec<Song>>();
+    let songs = db
+        .get_songs(user.read(), list_query)
+        .await?
+        .into_iter()
+        .map(|song| {
+            let mut song = song;
+            song.user_specific_addons.liked = liked_set.contains(&song.id);
+            song
+        })
+        .collect::<Vec<Song>>();
     Ok(HttpResponse::Ok().json(songs))
 }
 

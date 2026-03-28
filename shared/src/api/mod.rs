@@ -3,12 +3,12 @@ use crate::blob::{Blob, CreateBlob};
 use crate::collection::{Collection, CreateCollection};
 use crate::error::NetworkClientError;
 use crate::like::LikeStatus;
+use crate::net::HttpClient;
 #[cfg(any(
     all(feature = "cli", not(target_arch = "wasm32")),
     all(feature = "frontend", target_arch = "wasm32")
 ))]
 use crate::net::{DefaultHttpClient, HttpClientConfig};
-use crate::net::HttpClient;
 use crate::player::Player;
 use crate::setlist::{CreateSetlist, Setlist};
 use crate::song::{CreateSong, Song};
@@ -50,9 +50,7 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.post("auth/otp/verify", &payload).await
     }
 
-    pub async fn get_openapi_docs(
-        &self,
-    ) -> Result<serde_json::Value, NetworkClientError> {
+    pub async fn get_openapi_docs(&self) -> Result<serde_json::Value, NetworkClientError> {
         self.client.get("api/docs/openapi.json").await
     }
 
@@ -70,10 +68,7 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.get(&format!("api/v1/users/{id}")).await
     }
 
-    pub async fn list_users(
-        &self,
-        query: ListQuery,
-    ) -> Result<Vec<User>, NetworkClientError> {
+    pub async fn list_users(&self, query: ListQuery) -> Result<Vec<User>, NetworkClientError> {
         let path = format!("api/v1/users{}", query.to_query_string());
         self.client.get(&path).await
     }
@@ -146,10 +141,7 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn get_songs(
-        &self,
-        query: ListQuery,
-    ) -> Result<Vec<Song>, NetworkClientError> {
+    pub async fn get_songs(&self, query: ListQuery) -> Result<Vec<Song>, NetworkClientError> {
         let path = format!("api/v1/songs{}", query.to_query_string());
         self.client.get(&path).await
     }
@@ -308,10 +300,7 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.delete(&format!("api/v1/setlists/{id}")).await
     }
 
-    pub async fn list_blobs(
-        &self,
-        query: ListQuery,
-    ) -> Result<Vec<Blob>, NetworkClientError> {
+    pub async fn list_blobs(&self, query: ListQuery) -> Result<Vec<Blob>, NetworkClientError> {
         let path = format!("api/v1/blobs{}", query.to_query_string());
         self.client.get(&path).await
     }

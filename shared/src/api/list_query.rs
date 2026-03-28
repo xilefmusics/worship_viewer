@@ -70,4 +70,3 @@ fn encode_query_value(s: &str) -> String {
     }
     out
 }
-
