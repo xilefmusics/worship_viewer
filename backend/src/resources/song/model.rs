@@ -53,12 +53,29 @@ impl Model for Database {
             .map(|owner| owner_thing(&owner))
             .collect::<Vec<_>>();
 
-        let mut query = String::from("SELECT * FROM song WHERE owner IN $owners");
+        let q_nonempty = pagination.q.as_ref().is_some_and(|q| !q.trim().is_empty());
+        let mut query = if q_nonempty {
+            String::from(
+                "SELECT *, ((search::score(0) ?? 0) * 100 + (search::score(1) ?? 0) * 10 + (search::score(2) ?? 0) * 1) AS score FROM song WHERE owner IN $owners",
+            )
+        } else {
+            String::from("SELECT * FROM song WHERE owner IN $owners")
+        };
+        if q_nonempty {
+            query.push_str(
+                " AND (data.title @0@ $q OR data.artist @1@ $q OR search_content @2@ $q) ORDER BY score DESC",
+            );
+        }
         if pagination.to_offset_limit().is_some() {
             query.push_str(" LIMIT $limit START $start");
         }
 
         let mut request = self.db.query(query).bind(("owners", owners));
+        if let Some(ref q) = pagination.q {
+            if !q.trim().is_empty() {
+                request = request.bind(("q", q.trim().to_string()));
+            }
+        }
         if let Some((offset, limit)) = pagination.to_offset_limit() {
             request = request.bind(("limit", limit)).bind(("start", offset));
         }
@@ -245,6 +262,22 @@ impl Model for Database {
     }
 }
 
+fn search_content_from_song_data(data: &SongData) -> String {
+    let mut pieces: Vec<String> = Vec::new();
+    for section in &data.sections {
+        for line in &section.lines {
+            for part in &line.parts {
+                for text in &part.languages {
+                    if !text.is_empty() {
+                        pieces.push(text.clone());
+                    }
+                }
+            }
+        }
+    }
+    pieces.join(" ")
+}
+
 fn song_resource(id: &str) -> Result<(String, String), AppError> {
     if let Ok(thing) = id.parse::<Thing>() {
         if thing.tb == "song" {
@@ -267,6 +300,8 @@ pub struct SongRecord {
     #[serde(default)]
     blobs: Vec<Thing>,
     data: SongData,
+    #[serde(default)]
+    search_content: String,
 }
 
 impl SongRecord {
@@ -282,6 +317,7 @@ impl SongRecord {
     }
 
     fn from_payload(id: Option<Thing>, owner: Option<Thing>, song: CreateSong) -> Self {
+        let search_content = search_content_from_song_data(&song.data);
         Self {
             id,
             owner: owner,
@@ -292,6 +328,7 @@ impl SongRecord {
                 .map(|blob_id| blob_thing(&blob_id))
                 .collect(),
             data: song.data,
+            search_content,
         }
     }
 }
