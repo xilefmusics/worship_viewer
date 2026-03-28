@@ -6,7 +6,6 @@ use actix_web::{
 use super::{Model, QueryParams, export};
 use crate::database::Database;
 #[allow(unused_imports)]
-#[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
@@ -354,8 +353,8 @@ async fn update_song_like_status(
 }
 
 async fn import(identifier: &str) -> Result<Song, AppError> {
-    if identifier.starts_with("tabs/ultimate-guitar/com/tab/") {
-        let url = format!("https://tabs.ultimate-guitar.com/tab/{}", &identifier[29..]);
+    if let Some(suffix) = identifier.strip_prefix("tabs/ultimate-guitar/com/tab/") {
+        let url = format!("https://tabs.ultimate-guitar.com/tab/{}", suffix);
         let html = reqwest::Client::default()
             .get(&url)
             .send()

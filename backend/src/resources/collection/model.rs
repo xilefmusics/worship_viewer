@@ -74,11 +74,10 @@ impl Model for Database {
         }
 
         let mut request = self.db.query(query).bind(("owners", owners));
-        if let Some(ref q) = pagination.q {
-            if !q.trim().is_empty() {
+        if let Some(ref q) = pagination.q
+            && !q.trim().is_empty() {
                 request = request.bind(("q", q.trim().to_string()));
             }
-        }
         if let Some((offset, limit)) = pagination.to_offset_limit() {
             request = request.bind(("limit", limit)).bind(("start", offset));
         }
@@ -274,7 +273,7 @@ impl CollectionRecord {
     fn from_payload(id: Option<Thing>, owner: Option<Thing>, collection: CreateCollection) -> Self {
         Self {
             id,
-            owner: owner,
+            owner,
             title: collection.title,
             cover: Some(blob_thing(&collection.cover)),
             songs: collection.songs.into_iter().map(Into::into).collect(),
@@ -283,11 +282,10 @@ impl CollectionRecord {
 }
 
 fn blob_thing(blob_id: &str) -> Thing {
-    if let Ok(thing) = blob_id.parse::<Thing>() {
-        if thing.tb == "blob" {
+    if let Ok(thing) = blob_id.parse::<Thing>()
+        && thing.tb == "blob" {
             return thing;
         }
-    }
 
     Thing::from(("blob".to_owned(), blob_id.to_owned()))
 }
@@ -326,11 +324,10 @@ fn owner_thing(user_id: &str) -> Thing {
 }
 
 fn song_thing(song_id: &str) -> Thing {
-    if let Ok(thing) = song_id.parse::<Thing>() {
-        if thing.tb == "song" {
+    if let Ok(thing) = song_id.parse::<Thing>()
+        && thing.tb == "song" {
             return thing;
         }
-    }
 
     Thing::from(("song".to_owned(), song_id.to_owned()))
 }

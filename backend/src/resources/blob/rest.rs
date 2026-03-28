@@ -9,7 +9,6 @@ use actix_web::{
 use super::Model;
 use crate::database::Database;
 #[allow(unused_imports)]
-#[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
@@ -196,7 +195,7 @@ async fn download_blob_image(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<NamedFile, AppError> {
-    Ok(NamedFile::open(
+    NamedFile::open(
         Path::new(&Settings::global().blob_dir).join(PathBuf::from(
             db.get_blob(user.read(), &id.into_inner())
                 .await?
@@ -204,5 +203,5 @@ async fn download_blob_image(
                 .ok_or(AppError::NotFound("blob has no id".into()))?,
         )),
     )
-    .map_err(|err| AppError::Internal(format!("{}", err)))?)
+    .map_err(|err| AppError::Internal(format!("{}", err)))
 }

@@ -78,7 +78,7 @@ fn export_chord_pro(
 
     for song in &songs {
         zip.start_file(
-            &format!("{}.{}", sanitize_filename(&song.data.title), ending),
+            format!("{}.{}", sanitize_filename(&song.data.title), ending),
             options,
         )
         .map_err(|err| AppError::Internal(err.to_string()))?;
@@ -97,14 +97,13 @@ fn export_chord_pro(
         .insert_header((header::CONTENT_TYPE, "application/zip"))
         .insert_header((
             header::CONTENT_DISPOSITION,
-            format!("attachment; filename=\"songs.zip\""),
+            "attachment; filename=\"songs.zip\"".to_string(),
         ))
         .body(bytes))
 }
 
 async fn export_pdf(songs: Vec<Song>) -> Result<HttpResponse, AppError> {
-    let css = songs
-        .get(0)
+    let css = songs.first()
         .map(|song| song.format_html(None, None, None, None).1)
         .unwrap_or_default();
     let pages = songs

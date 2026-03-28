@@ -156,7 +156,7 @@ impl UserRecord {
 
     pub fn from_user(user: User) -> Self {
         Self {
-            id: if user.id.len() > 0 {
+            id: if !user.id.is_empty() {
                 Some(Thing::from(("user".to_owned(), user.id)))
             } else {
                 None

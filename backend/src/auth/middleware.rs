@@ -69,7 +69,7 @@ where
                     req.cookie(&cookie_name)
                         .map(|cookie| cookie.value().to_owned())
                 })
-                .ok_or_else(|| AppError::unauthorized())?;
+                .ok_or_else(AppError::unauthorized)?;
 
             let user = match db
                 .get_session_and_update_user_metrics_or_delete_if_exipired(&session_id)

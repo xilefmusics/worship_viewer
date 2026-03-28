@@ -29,7 +29,7 @@ impl<'a> Mail<'a> {
         let settings = Settings::global();
 
         let response = SmtpTransport::relay("smtp.gmail.com")
-            .map_err(|err| AppError::mail(err))?
+            .map_err(AppError::mail)?
             .credentials(Credentials::new(
                 settings.gmail_from.to_owned(),
                 settings.gmail_app_password.to_owned(),
@@ -41,14 +41,14 @@ impl<'a> Mail<'a> {
                         settings
                             .gmail_from
                             .parse()
-                            .map_err(|err| AppError::mail(err))?,
+                            .map_err(AppError::mail)?,
                     )
-                    .to(self.to.parse().map_err(|err| AppError::mail(err))?)
+                    .to(self.to.parse().map_err(AppError::mail)?)
                     .subject(self.subject)
                     .body(self.body.to_owned())
-                    .map_err(|err| AppError::mail(err))?,
+                    .map_err(AppError::mail)?,
             )
-            .map_err(|err| AppError::mail(err))?;
+            .map_err(AppError::mail)?;
 
         if !response.is_positive() {
             return Err(AppError::mail("sending the mail was not positive"));
