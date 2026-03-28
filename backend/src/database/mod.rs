@@ -1,11 +1,9 @@
+mod migrations;
+
 use anyhow::{Context, Result as AnyResult, anyhow};
 use surrealdb::Surreal;
 use surrealdb::engine::any::{Any, connect};
 use surrealdb::opt::auth::Database as DbAuth;
-use surrealdb_migrations::MigrationRunner;
-
-use std::env;
-use std::path::Path;
 
 use crate::settings::Settings;
 
@@ -55,34 +53,6 @@ impl Database {
 
     pub async fn migrate(&self) -> AnyResult<()> {
         let settings = Settings::global();
-
-        let migration_path = resolve_migration_path(&settings.db_migration_path)?;
-        unsafe {
-            env::set_var("SURREAL_MIG_PATH", &migration_path);
-        }
-
-        MigrationRunner::new(&self.db)
-            .up()
-            .await
-            .map_err(|err| anyhow!(err))
-            .context("failed to apply SurrealDB migrations")?;
-        Ok(())
+        migrations::run(&self.db, &settings.db_migration_path).await
     }
-}
-
-fn resolve_migration_path(path: &str) -> AnyResult<String> {
-    let candidate = Path::new(path);
-    let absolute = if candidate.is_absolute() {
-        candidate.to_path_buf()
-    } else {
-        env::current_dir()
-            .context("failed to resolve current working directory")?
-            .join(candidate)
-    };
-
-    let absolute_str = absolute
-        .to_str()
-        .ok_or_else(|| anyhow!("migration path is not valid UTF-8"))?;
-
-    Ok(absolute_str.to_owned())
 }
