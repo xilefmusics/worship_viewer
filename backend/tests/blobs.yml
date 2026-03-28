@@ -1,6 +1,6 @@
 name: Blobs endpoints
 vars:
-  base_url: http://localhost:8080
+  base_url: http://127.0.0.1:8080
   token_admin: admin
 
 testcases:
@@ -215,6 +215,75 @@ testcases:
             "file_type": "image/png",
             "height": 1080,
             "ocr": "Missing width"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-blob-invalid-payload-missing-file-type
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "width": 100,
+            "height": 100,
+            "ocr": "No file type"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-blob-invalid-payload-missing-height
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 100,
+            "ocr": "No height"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-blob-invalid-payload-missing-ocr
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/png",
+            "width": 100,
+            "height": 100
+          }
+        assertions:
+          - result.statuscode ShouldEqual 400
+
+  - name: post-blob-invalid-payload-invalid-file-type
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/blobs"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "file_type": "image/gif",
+            "width": 100,
+            "height": 100,
+            "ocr": "Bad type"
           }
         assertions:
           - result.statuscode ShouldEqual 400
@@ -436,6 +505,76 @@ testcases:
           Authorization: "Bearer {{.create-blob-noperm-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 404
+
+  - name: get-blob-data-success-owner
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}/data"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.headers.Content-Type ShouldContainSubstring image/png
+
+  - name: get-blob-data-success-read-user
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success-for-read.blobid}}/data"
+        headers:
+          Authorization: "Bearer {{.create-blob-read-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.headers.Content-Type ShouldContainSubstring image/jpeg
+
+  - name: get-blob-data-missing-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}/data"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-blob-data-invalid-token
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}/data"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: get-blob-data-no-permission
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}/data"
+        headers:
+          Authorization: "Bearer {{.create-blob-noperm-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-blob-data-notfound
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/nonexistent-blob/data"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: get-blob-data-invalid-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/user:invalid/data"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 400
 
   # PUT /api/v1/blobs/{id} tests
   - name: put-blob-success-owner
