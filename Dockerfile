@@ -49,7 +49,7 @@ SHELL ["/bin/sh", "-c"]
 COPY --from=builder /usr/local/bin/venom /usr/local/bin/venom
 COPY --from=builder /wrk/backend/tests /app/tests
 COPY --from=builder /wrk/backend/target/release/backend /app/worship_viewer
-COPY --from=builder /wrk/backend/surrealdb /app/surrealdb
+COPY --from=builder /wrk/backend/db-migrations /app/db-migrations
 COPY --from=builder /wrk/frontend/dist/ /app/static
 
 WORKDIR /app
@@ -83,7 +83,7 @@ COPY --from=builder /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /usr/lib/x86_64-lin
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 COPY --from=tester /app/worship_viewer /app/worship_viewer
-COPY --from=builder /wrk/backend/surrealdb/ /app/surrealdb
+COPY --from=builder /wrk/backend/db-migrations/ /app/db-migrations
 COPY --from=builder /wrk/frontend/dist/ /app/static
 
 EXPOSE 8080
