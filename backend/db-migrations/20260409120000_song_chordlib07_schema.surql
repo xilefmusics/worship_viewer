@@ -17,7 +17,7 @@ DEFINE FUNCTION OVERWRITE fn::chordlib07_time_ok($data: object) -> bool {
     IF $t IS NONE OR $t IS NULL {
         RETURN true;
     };
-    IF $t IS ARRAY AND array::len($t) = 2 {
+    IF type::is::array($t) AND array::len($t) = 2 {
         LET $d = $t[1];
         RETURN $d = 4 OR $d = 8;
     };
@@ -29,7 +29,10 @@ DEFINE FUNCTION OVERWRITE fn::chordlib07_denom($data: object) -> int {
     IF $t IS NONE OR $t IS NULL {
         RETURN 4;
     };
-    RETURN <int>$t[1];
+    IF type::is::array($t) AND array::len($t) = 2 {
+        RETURN <int>$t[1];
+    };
+    RETURN 4;
 };
 
 DEFINE FUNCTION OVERWRITE fn::chordlib07_scale_duration($dur: int, $den: int) -> int {
