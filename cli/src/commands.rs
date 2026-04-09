@@ -169,9 +169,6 @@ pub enum SongsCommand {
     Delete {
         id: String,
     },
-    Import {
-        identifier: String,
-    },
     LikeStatus {
         id: String,
     },

@@ -27,7 +27,7 @@ pub fn toc(props: &TocProps) -> Html {
                         move |_: MouseEvent| select.emit(idx)
                     };
                     html! {
-                        <li 
+                        <li
                             {onclick}
                             class={if item.idx == props.current_idx { "selected" } else { "" }}
                         >

@@ -1,23 +1,25 @@
 mod data;
 mod outline;
 mod presenter;
+mod query;
+mod settings;
 mod sidebar;
 mod slide;
 mod slide_sync;
 mod slides;
 mod toc;
-mod settings;
-mod query;
 
 use data::{OutlineData, SongData};
 use outline::Outline;
 pub use presenter::Presenter;
+pub use query::Query;
+use settings::Settings;
+pub use settings::SettingsData;
 use sidebar::{Sidebar, SidebarPanel};
-use slide::{SlideTextOrientation, HorizontalContainerAlignment, TextAlignment, TextShadow, TextTransform};
+use slide::{
+    HorizontalContainerAlignment, SlideTextOrientation, TextAlignment, TextShadow, TextTransform,
+};
+pub use slide::{Slide, SlideProps};
+pub use slide_sync::SlideSync;
 use slides::Slides;
 use toc::{Toc, TocItem};
-use settings::Settings;
-pub use query::Query;
-pub use slide_sync::SlideSync;
-pub use slide::{Slide, SlideProps};
-pub use settings::SettingsData;

@@ -1,8 +1,8 @@
-use wasm_bindgen::prelude::*;
-use std::rc::Rc;
-use std::cell::RefCell;
-use web_sys::window;
 use super::SlideProps;
+use std::cell::RefCell;
+use std::rc::Rc;
+use wasm_bindgen::prelude::*;
+use web_sys::window;
 
 const STORAGE_KEY: &str = "worship_viewer_slide_data";
 
@@ -35,7 +35,7 @@ impl SlideSync {
     {
         let callback_rc = Rc::new(RefCell::new(callback));
         let callback_clone = callback_rc.clone();
-        
+
         // Check initial value
         if let Some(window) = window() {
             if let Ok(Some(storage)) = window.local_storage() {
@@ -61,7 +61,7 @@ impl SlideSync {
         if let Some(window) = window() {
             window.set_onstorage(Some(closure.as_ref().unchecked_ref()));
         }
-        
+
         *self._closure.borrow_mut() = Some(closure);
     }
 }
@@ -71,4 +71,3 @@ impl Default for SlideSync {
         Self::new()
     }
 }
-

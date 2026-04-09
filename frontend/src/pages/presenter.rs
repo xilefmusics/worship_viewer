@@ -4,7 +4,6 @@ use shared::song::Song;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-
 #[function_component(PresenterPage)]
 pub fn presenter_page() -> Html {
     let query = use_location()
@@ -25,7 +24,11 @@ pub fn presenter_page() -> Html {
                 if let Some(setlist) = query.setlist.as_ref() {
                     songs.set(api.get_setlist_songs(&setlist.to_owned()).await.unwrap());
                 } else if let Some(collection) = query.collection.as_ref() {
-                    songs.set(api.get_collection_songs(&collection.to_owned()).await.unwrap());
+                    songs.set(
+                        api.get_collection_songs(&collection.to_owned())
+                            .await
+                            .unwrap(),
+                    );
                 } else if let Some(id) = query.id.as_ref() {
                     songs.set(vec![api.get_song(&id.to_owned()).await.unwrap()]);
                 } else {

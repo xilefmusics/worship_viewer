@@ -107,29 +107,12 @@ pub fn editor_page() -> Html {
         })
     };
 
-    let onimport = {
+    let oncreate_blank = Callback::from({
         let song_handle = song.clone();
-        let api = api.clone();
-        Callback::from(move |url: String| {
-            if url.is_empty() {
-                song_handle.set(Some(EditorState::new()));
-                return;
-            }
-
-            let song_handle = song_handle.clone();
-            let url = url.clone();
-            let api = api.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                song_handle.set(Some(EditorState {
-                    id: song_handle
-                        .as_ref()
-                        .map(|s| s.id.clone())
-                        .unwrap_or_default(),
-                    data: api.import_song_ultimate_guitar(&url).await.unwrap().into(),
-                }));
-            });
-        })
-    };
+        move |_| {
+            song_handle.set(Some(EditorState::new()));
+        }
+    });
 
     let ondelete = {
         let song_handle = song.clone();
@@ -167,7 +150,7 @@ pub fn editor_page() -> Html {
                 onsave={onsave}
                 ondelete={ondelete}
                 onback={onback}
-                onimport={onimport}
+                oncreate_blank={oncreate_blank}
             />
         </div>
     }

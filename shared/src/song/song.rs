@@ -1,4 +1,4 @@
-use chordlib::inputs::{chord_pro, ultimate_guitar};
+use chordlib::inputs::chord_pro;
 use chordlib::outputs::{FormatChordPro, FormatHTML};
 use chordlib::types::{ChordRepresentation, SimpleChord, Song as SongData};
 use serde::{Deserialize, Serialize};
@@ -55,14 +55,6 @@ impl TryFrom<&str> for Song {
 }
 
 impl CreateSong {
-    pub fn import_ultimate_guitar(s: &str) -> Result<Self, chordlib::Error> {
-        Ok(Self {
-            not_a_song: false,
-            blobs: vec![],
-            data: ultimate_guitar::load_html(s)?,
-        })
-    }
-
     pub fn format_chord_pro(
         &self,
         representation: Option<&ChordRepresentation>,
@@ -85,10 +77,6 @@ impl CreateSong {
 }
 
 impl Song {
-    pub fn import_ultimate_guitar(s: &str) -> Result<Self, chordlib::Error> {
-        CreateSong::import_ultimate_guitar(s).map(Into::into)
-    }
-
     pub fn format_chord_pro(
         &self,
         representation: Option<&ChordRepresentation>,

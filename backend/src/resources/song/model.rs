@@ -262,22 +262,6 @@ impl Model for Database {
     }
 }
 
-fn search_content_from_song_data(data: &SongData) -> String {
-    let mut pieces: Vec<String> = Vec::new();
-    for section in &data.sections {
-        for line in &section.lines {
-            for part in &line.parts {
-                for text in &part.languages {
-                    if !text.is_empty() {
-                        pieces.push(text.clone());
-                    }
-                }
-            }
-        }
-    }
-    pieces.join(" ")
-}
-
 fn song_resource(id: &str) -> Result<(String, String), AppError> {
     if let Ok(thing) = id.parse::<Thing>() {
         if thing.tb == "song" {
@@ -331,6 +315,22 @@ impl SongRecord {
             search_content,
         }
     }
+}
+
+fn search_content_from_song_data(data: &SongData) -> String {
+    let mut pieces: Vec<String> = Vec::new();
+    for section in &data.sections {
+        for line in &section.lines {
+            for part in &line.parts {
+                for text in &part.languages {
+                    if !text.is_empty() {
+                        pieces.push(text.clone());
+                    }
+                }
+            }
+        }
+    }
+    pieces.join(" ")
 }
 
 fn owner_thing(user_id: &str) -> Thing {

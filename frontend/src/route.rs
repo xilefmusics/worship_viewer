@@ -1,6 +1,6 @@
 use super::pages::{
-    CollectionsPage, EditorPage, IndexPage, LoginPage, LogoutPage, PlayerPage, SetlistEditorPage,
-    SetlistsPage, SongsPage, PresenterPage, PresenterSlidesPage,
+    CollectionsPage, EditorPage, IndexPage, LoginPage, LogoutPage, PlayerPage, PresenterPage,
+    PresenterSlidesPage, SetlistEditorPage, SetlistsPage, SongsPage,
 };
 use crate::components::layouts::{NavItemBuilder, Navable, VerticalLayout as Layout};
 use yew::prelude::*;

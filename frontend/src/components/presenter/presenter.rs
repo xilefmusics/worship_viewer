@@ -1,17 +1,17 @@
 use super::{
-    Outline, Query, Settings, SettingsData, Sidebar, SidebarPanel, Slide, SlideProps, SlideSync, Slides, SongData, Toc,
-    TocItem,
+    Outline, Query, Settings, SettingsData, Sidebar, SidebarPanel, Slide, SlideProps, SlideSync,
+    Slides, SongData, Toc, TocItem,
 };
-use crate::components::{Topbar, TopbarButton, TopbarSpacer, TopbarSelect, TopbarSelectOption};
+use crate::api::use_api;
+use crate::components::{Topbar, TopbarButton, TopbarSelect, TopbarSelectOption, TopbarSpacer};
 use crate::route::Route;
 use shared::song::Song;
+use std::collections::HashMap;
 use stylist::Style;
+use web_sys::window;
 use yew::prelude::*;
 use yew_hooks::use_event_with_window;
 use yew_router::prelude::*;
-use std::collections::HashMap;
-use web_sys::window;
-use crate::api::use_api;
 
 #[derive(Properties, PartialEq)]
 pub struct PresenterProps {
@@ -32,7 +32,7 @@ pub fn presenter(props: &PresenterProps) -> Html {
     let current_song_idx = use_state(|| 0);
     let current_song = use_state(|| None::<Song>);
     let slide_sync = use_mut_ref(|| SlideSync::new());
-    
+
     // Broadcast default settings on mount to overwrite any old localStorage values
     {
         let settings = settings.clone();
@@ -304,16 +304,29 @@ pub fn presenter(props: &PresenterProps) -> Html {
                 }
             }
             "o" => {
-                let _ = window().unwrap().open_with_url_and_target("/presenter/slides", "_blank").unwrap();
+                let _ = window()
+                    .unwrap()
+                    .open_with_url_and_target("/presenter/slides", "_blank")
+                    .unwrap();
             }
             "e" => {
                 if let Some(id) = current_song_id.clone() {
-                    navigator.push_with_query(&Route::Editor, &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>())).unwrap();
+                    navigator
+                        .push_with_query(
+                            &Route::Editor,
+                            &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>()),
+                        )
+                        .unwrap();
                 }
             }
             "E" => {
                 if let Some(id) = query.setlist.as_ref() {
-                    navigator.push_with_query(&Route::SetlistEditor, &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>())).unwrap();
+                    navigator
+                        .push_with_query(
+                            &Route::SetlistEditor,
+                            &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>()),
+                        )
+                        .unwrap();
                 }
             }
             "Escape" => {
@@ -359,15 +372,15 @@ pub fn presenter(props: &PresenterProps) -> Html {
                 <TopbarButton icon="arrow_back" onclick={let navigator = navigator.clone(); let back_route = props.query.back_route(); move |_: MouseEvent| navigator.push(&back_route)} />
                 <TopbarSpacer />
                 <TopbarSelect>
-                    <TopbarSelectOption 
-                        icon="news" 
-                        text="Player" 
-                        onclick={let navigator = navigator.clone(); let query = props.query.to_map(); move |_: MouseEvent| navigator.push_with_query(&Route::Player, &query).unwrap()} 
+                    <TopbarSelectOption
+                        icon="news"
+                        text="Player"
+                        onclick={let navigator = navigator.clone(); let query = props.query.to_map(); move |_: MouseEvent| navigator.push_with_query(&Route::Player, &query).unwrap()}
                     />
-                    <TopbarSelectOption 
-                        icon="monitor" 
+                    <TopbarSelectOption
+                        icon="monitor"
                         text="Presenter"
-                        selected={true} 
+                        selected={true}
                     />
                 </TopbarSelect>
                 <TopbarSpacer />
@@ -376,9 +389,9 @@ pub fn presenter(props: &PresenterProps) -> Html {
                     let navigator = navigator.clone();
                     let id = id.clone();
                     html! {
-                        <TopbarButton 
-                            icon="contract_edit" 
-                            onclick={move |_: MouseEvent| navigator.push_with_query(&Route::SetlistEditor, &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>())).unwrap()} 
+                        <TopbarButton
+                            icon="contract_edit"
+                            onclick={move |_: MouseEvent| navigator.push_with_query(&Route::SetlistEditor, &([("id", &id)].iter().cloned().collect::<HashMap<_, _>>())).unwrap()}
                         />
                     }
                 } else {
@@ -388,9 +401,9 @@ pub fn presenter(props: &PresenterProps) -> Html {
                     let navigator = navigator.clone();
                     let id = song.id.to_owned();
                     html! {
-                        <TopbarButton 
-                            icon="edit" 
-                            onclick={move |_: MouseEvent| navigator.push_with_query(&Route::Editor, &[("id", &id)].iter().cloned().collect::<HashMap<_, _>>()).unwrap()} 
+                        <TopbarButton
+                            icon="edit"
+                            onclick={move |_: MouseEvent| navigator.push_with_query(&Route::Editor, &[("id", &id)].iter().cloned().collect::<HashMap<_, _>>()).unwrap()}
                         />
                     }
                 } else {

@@ -1,4 +1,4 @@
-use super::{Slide, SongData, SettingsData};
+use super::{SettingsData, Slide, SongData};
 use stylist::Style;
 use yew::prelude::*;
 
