@@ -1,7 +1,7 @@
-use crate::components::presenter::{Slide, SlideProps, SlideSync, SettingsData};
-use yew::prelude::*;
-use web_sys::{window, HtmlElement};
+use crate::components::presenter::{SettingsData, Slide, SlideProps, SlideSync};
 use wasm_bindgen::JsCast;
+use web_sys::{window, HtmlElement};
+use yew::prelude::*;
 
 #[function_component(PresenterSlidesPage)]
 pub fn presenter_page() -> Html {
@@ -11,16 +11,18 @@ pub fn presenter_page() -> Html {
         is_black: false,
         expand: true,
     });
-    
+
     let slide_sync_ref = use_mut_ref(|| SlideSync::new());
 
     use_effect_with((), {
         let slide_sync_ref = slide_sync_ref.clone();
         let slide_props = slide_props.clone();
         move |_| {
-            slide_sync_ref.borrow_mut().setup_listener(move |props: SlideProps| {
-                slide_props.set(props);
-            });
+            slide_sync_ref
+                .borrow_mut()
+                .setup_listener(move |props: SlideProps| {
+                    slide_props.set(props);
+                });
             || {}
         }
     });
@@ -38,7 +40,7 @@ pub fn presenter_page() -> Html {
     });
 
     html! {
-        <div 
+        <div
             style="width: 100vw; height: 100vh; overflow: hidden;"
             ondblclick={ondblclick}
         >

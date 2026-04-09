@@ -88,7 +88,6 @@ fn map_cli_command_to_openapi_operation(
         ("songs", "create") => ("post", "/api/v1/songs"),
         ("songs", "update") => ("put", "/api/v1/songs/{id}"),
         ("songs", "delete") => ("delete", "/api/v1/songs/{id}"),
-        ("songs", "import") => ("get", "/api/v1/songs/import/{identifier:.*}"),
         ("songs", "like-status") => ("get", "/api/v1/songs/{id}/likes"),
         ("songs", "update-like-status") => ("put", "/api/v1/songs/{id}/likes"),
         ("collections", "list") => ("get", "/api/v1/collections"),

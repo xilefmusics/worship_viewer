@@ -176,12 +176,6 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.delete(&format!("api/v1/songs/{id}")).await
     }
 
-    pub async fn import_song(&self, identifier: &str) -> Result<Song, NetworkClientError> {
-        self.client
-            .get(&format!("api/v1/songs/import/{identifier}"))
-            .await
-    }
-
     pub async fn get_song_like_status(&self, id: &str) -> Result<bool, NetworkClientError> {
         self.client
             .get(&format!("api/v1/songs/{id}/likes"))

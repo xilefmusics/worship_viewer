@@ -1,6 +1,6 @@
 use super::route::Route;
-use crate::components::layouts::Navable;
 use crate::api::ApiProvider;
+use crate::components::layouts::Navable;
 use yew::prelude::*;
 use yew_router::prelude::*;
 

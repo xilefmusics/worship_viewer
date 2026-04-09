@@ -1,5 +1,5 @@
+use crate::components::toast_notifications::{show_error, show_warning};
 use shared::error::NetworkClientError;
-use crate::components::toast_notifications::{show_warning, show_error};
 
 #[derive(Debug)]
 pub enum ApiError {
@@ -37,14 +37,20 @@ impl ApiError {
                 .ok()
                 .and_then(|val| val.as_bool())
                 .unwrap_or(true);
-            
+
             if !on_line {
                 match operation_type {
                     OperationType::Read => {
-                        show_warning("Offline", "You are currently offline. Some data may not be available.");
+                        show_warning(
+                            "Offline",
+                            "You are currently offline. Some data may not be available.",
+                        );
                     }
                     OperationType::Write => {
-                        show_error("Offline", "Cannot modify data while offline. Please check your connection.");
+                        show_error(
+                            "Offline",
+                            "Cannot modify data while offline. Please check your connection.",
+                        );
                     }
                 }
                 return true;
@@ -67,18 +73,12 @@ impl From<NetworkClientError> for ApiError {
             NetworkClientError::RequestFailed { status, message } => {
                 ApiError::new(status.unwrap_or(0), message)
             }
-            NetworkClientError::Connection => {
-                ApiError::Network("connection error".to_string())
-            }
+            NetworkClientError::Connection => ApiError::Network("connection error".to_string()),
             NetworkClientError::Serialization { message } => {
                 ApiError::InternalServerError(format!("serialization error: {message}"))
             }
-            NetworkClientError::InvalidRequest { message } => {
-                ApiError::BadRequest(message)
-            }
-            NetworkClientError::Unexpected { message } => {
-                ApiError::InternalServerError(message)
-            }
+            NetworkClientError::InvalidRequest { message } => ApiError::BadRequest(message),
+            NetworkClientError::Unexpected { message } => ApiError::InternalServerError(message),
         }
     }
 }

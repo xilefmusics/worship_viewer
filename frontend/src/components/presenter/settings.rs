@@ -1,8 +1,10 @@
-use super::{SlideTextOrientation, HorizontalContainerAlignment, TextAlignment, TextShadow, TextTransform};
+use super::{
+    HorizontalContainerAlignment, SlideTextOrientation, TextAlignment, TextShadow, TextTransform,
+};
+use serde::{Deserialize, Serialize};
 use stylist::Style;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
-use serde::{Deserialize, Serialize};
 
 #[derive(Properties, Serialize, Deserialize, PartialEq, Clone)]
 pub struct SettingsData {

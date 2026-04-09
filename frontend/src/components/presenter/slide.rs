@@ -1,8 +1,8 @@
-use stylist::Style;
-use yew::prelude::*;
-use std::str::FromStr;
 use super::SettingsData;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use stylist::Style;
+use yew::prelude::*;
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum SlideTextOrientation {
@@ -224,12 +224,12 @@ pub fn slide(props: &SlideProps) -> Html {
             props.settings.horizontal_container_alignment.to_str(),
             if props.expand { "expand" } else { "" },
         }}>
-            <div 
+            <div
                 class={classes!("text-container", props.settings.text_alignment.to_str())}
                 style={format!("padding: {}cqw", props.settings.font_size as f32 / 19.2 * 2.0)}
             >
-                { for props.text.lines().map(|line| html! { 
-                    <div 
+                { for props.text.lines().map(|line| html! {
+                    <div
                         class={classes!("line", props.settings.text_shadow.to_str(), props.settings.text_transform.to_str())}
                         style={format!("font-size: {}cqw", props.settings.font_size as f32 / 19.2)}
                     >

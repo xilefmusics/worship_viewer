@@ -81,7 +81,7 @@ pub fn topbar_select(props: &TopbarSelectProps) -> Html {
             .collect::<Html>();
 
         html! {
-            <ul 
+            <ul
                 class="active"
                 onclick={let active = active.clone(); move |_| { active.set(false)}}
             >

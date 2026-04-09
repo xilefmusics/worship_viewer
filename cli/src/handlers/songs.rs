@@ -90,19 +90,6 @@ pub async fn handle_songs(
             let song = client.delete_song(&id).await?;
             output::print_json(&song, &output)
         }
-        SongsCommand::Import { identifier } => {
-            validate_resource_id(&identifier)?;
-            if dry_run {
-                let planned = serde_json::json!({
-                    "method": "GET",
-                    "path": format!("api/v1/songs/import/{identifier}"),
-                });
-                output::print_json(&planned, &output)?;
-                return Ok(());
-            }
-            let song = client.import_song(&identifier).await?;
-            output::print_json(&song, &output)
-        }
         SongsCommand::LikeStatus { id } => {
             validate_resource_id(&id)?;
             let liked = client.get_song_like_status(&id).await?;

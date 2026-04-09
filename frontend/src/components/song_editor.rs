@@ -1,7 +1,6 @@
 use super::{AspectRatio, SongViewer};
 use crate::components::editor::{Editor, SyntaxParser};
 use crate::components::toast_notifications::show_error;
-use crate::components::StringInput;
 use shared::song::{CreateSong, Song};
 use std::f64::consts::SQRT_2;
 use stylist::Style;
@@ -21,7 +20,7 @@ pub struct Props {
     pub onsave: Callback<SongSavePayload>,
     pub ondelete: Callback<String>,
     pub onback: Callback<MouseEvent>,
-    pub onimport: Callback<String>,
+    pub oncreate_blank: Callback<()>,
 }
 
 #[function_component(SongEditor)]
@@ -43,7 +42,6 @@ pub fn song_editor(props: &Props) -> Html {
             new.set(!*new);
         })
     };
-    let import_url = use_state(|| String::default());
     let can_delete = props.song_id.is_some();
     let delete_song = {
         let show_delete_dialog = show_delete_dialog.clone();
@@ -99,14 +97,13 @@ pub fn song_editor(props: &Props) -> Html {
             },
         );
 
-    let onimport = {
-        let import_url = import_url.clone();
+    let onstart_blank = {
         let new = new.clone();
-        let onimport = props.onimport.clone();
-        move |_: MouseEvent| {
-            onimport.emit((*import_url).clone());
+        let oncreate_blank = props.oncreate_blank.clone();
+        Callback::from(move |_: MouseEvent| {
             new.set(false);
-        }
+            oncreate_blank.emit(());
+        })
     };
 
     let syntax_parser = SyntaxParser::builder()
@@ -148,13 +145,8 @@ pub fn song_editor(props: &Props) -> Html {
     let editor_html = html! {
         { if *new {html!{
             <div class="editor-new">
-                <StringInput
-                    bind_handle={import_url}
-                    placeholder={"Enter a URL to https://tabs.ultimate-guitar.com/ or leave empty".to_string()}
-
-                />
-                <button class="editor-new-button" onclick={onimport}>
-                    {"Import or Create"}
+                <button class="editor-new-button" onclick={onstart_blank}>
+                    {"Start blank song"}
                 </button>
             </div>
         }} else {html!{

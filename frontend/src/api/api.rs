@@ -1,4 +1,3 @@
-use url::Url;
 use yew_router::prelude::Navigator;
 
 use shared::auth::otp::{OtpRequest, OtpVerify};
@@ -15,9 +14,9 @@ use shared::song::CreateSong;
 use shared::song::Song;
 use shared::user::{CreateUserRequest, Session, User};
 
-use shared::api::{ApiClient, ListQuery};
 use super::error::{ApiError, OperationType};
 use crate::route::Route;
+use shared::api::{ApiClient, ListQuery};
 
 use std::rc::Rc;
 
@@ -107,10 +106,7 @@ impl Api {
 
     pub async fn logout(&self) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
-        self.client
-            .logout()
-            .await
-            .map_err(|e| self.handle_error(e))
+        self.client.logout().await.map_err(|e| self.handle_error(e))
     }
 
     #[allow(dead_code)]
@@ -496,21 +492,6 @@ impl Api {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .delete_blob(id)
-            .await
-            .map_err(|e| self.handle_error(e))
-    }
-
-    #[allow(dead_code)]
-    pub async fn import_song_ultimate_guitar(&self, url: &str) -> Result<Song, ApiError> {
-        ApiError::check_and_notify_offline(OperationType::Read);
-        let url = Url::parse(&url).unwrap();
-        let identifier = format!(
-            "{}{}",
-            url.host_str().unwrap_or("unknown").replace('.', "/"),
-            url.path()
-        );
-        self.client
-            .import_song(&identifier)
             .await
             .map_err(|e| self.handle_error(e))
     }
