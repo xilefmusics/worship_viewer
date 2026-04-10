@@ -149,7 +149,7 @@ testcases:
             "not_a_song": false,
             "blobs": [],
             "data": {
-              "title": "Setlist Song One",
+              "titles": ["Setlist Song One"],
               "sections": []
             }
           }
@@ -174,7 +174,7 @@ testcases:
             "not_a_song": false,
             "blobs": [],
             "data": {
-              "title": "Setlist Song Two",
+              "titles": ["Setlist Song Two"],
               "sections": []
             }
           }

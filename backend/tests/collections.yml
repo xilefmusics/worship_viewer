@@ -169,7 +169,7 @@ testcases:
             "not_a_song": false,
             "blobs": [],
             "data": {
-              "title": "No Perm User Private Song",
+              "titles": ["No Perm User Private Song"],
               "sections": []
             }
           }
@@ -193,7 +193,7 @@ testcases:
             "not_a_song": false,
             "blobs": [],
             "data": {
-              "title": "Collection Song One",
+              "titles": ["Collection Song One"],
               "sections": []
             }
           }
@@ -218,7 +218,7 @@ testcases:
             "not_a_song": false,
             "blobs": [],
             "data": {
-              "title": "Collection Song Two",
+              "titles": ["Collection Song Two"],
               "sections": []
             }
           }
