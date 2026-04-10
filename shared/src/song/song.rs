@@ -120,3 +120,17 @@ impl From<Song> for CreateSong {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_song_json_uses_metadata_vectors() {
+        let json = r#"{"not_a_song":false,"blobs":[],"data":{"titles":["Hello"],"artists":["A"],"languages":["en"],"sections":[]}}"#;
+        let s: CreateSong = serde_json::from_str(json).unwrap();
+        assert_eq!(s.data.title(), "Hello");
+        assert_eq!(s.data.artist(), "A");
+        assert_eq!(s.data.language(), "en");
+    }
+}

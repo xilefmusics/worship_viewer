@@ -373,7 +373,7 @@ testcases:
             "not_a_song": false,
             "blobs": [],
             "data": {
-              "title": "Cascade Song",
+              "titles": ["Cascade Song"],
               "sections": []
             }
           }

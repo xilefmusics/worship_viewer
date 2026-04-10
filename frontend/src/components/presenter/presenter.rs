@@ -418,7 +418,7 @@ pub fn presenter(props: &PresenterProps) -> Html {
                                 .songs
                                 .iter()
                                 .enumerate()
-                                .map(|(idx, song)| TocItem { idx, text: format!("{}. {}", idx + 1, song.data.title) })
+                                .map(|(idx, song)| TocItem { idx, text: format!("{}. {}", idx + 1, song.data.title()) })
                                 .collect::<Vec<TocItem>>()
                             }
                             select={set_current_song.clone()}
@@ -432,7 +432,7 @@ pub fn presenter(props: &PresenterProps) -> Html {
                                     .songs
                                     .iter()
                                     .enumerate()
-                                    .map(|(idx, song)| TocItem { idx, text: song.data.title.clone() })
+                                    .map(|(idx, song)| TocItem { idx, text: song.data.title().to_string() })
                                     .collect::<Vec<TocItem>>();
                                 items.sort_by_key(|item| item.text.clone());
                                 items
@@ -449,7 +449,7 @@ pub fn presenter(props: &PresenterProps) -> Html {
                                 .iter()
                                 .enumerate()
                                 .filter(|(_, song)| song.user_specific_addons.liked)
-                                .map(|(idx, song)| TocItem { idx, text: song.data.title.clone() })
+                                .map(|(idx, song)| TocItem { idx, text: song.data.title().to_string() })
                                 .collect::<Vec<TocItem>>();
                             items.sort_by_key(|item| item.text.clone());
                             items

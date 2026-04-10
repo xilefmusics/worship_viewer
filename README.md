@@ -64,6 +64,8 @@ cd frontend && \
     trunk serve --port 8081
 ```
 
+The in-app song editor expects **ChordPro** text (via **chordlib**). **Ultimate Guitar is not fetched over HTTP** by chordlib anymore: paste ChordPro you already have, or download UG/tab HTML yourself and convert outside the app.
+
 ### Serve Backend & Frontend on the Same Port (Caddy Reverse Proxy)
 
 ```bash

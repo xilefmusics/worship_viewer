@@ -91,7 +91,7 @@ pub fn setlist_editor(props: &Props) -> Html {
             let api = api.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let mut fetched_songs = api.get_songs().await.unwrap();
-                fetched_songs.sort_by_key(|song| song.data.title.clone());
+                fetched_songs.sort_by_key(|song| song.data.title().to_string());
                 let fetched_songs: Vec<Song> = fetched_songs
                     .into_iter()
                     .filter(|song| !song.not_a_song)
@@ -102,7 +102,7 @@ pub fn setlist_editor(props: &Props) -> Html {
                         (
                             song.id.clone(),
                             (
-                                song.data.title.clone(),
+                                song.data.title().to_string(),
                                 song.data.key.as_ref().map(|key| format_key_label(key)),
                             ),
                         )
@@ -194,7 +194,7 @@ pub fn setlist_editor(props: &Props) -> Html {
         .iter()
         .filter(|song| {
             if has_filter {
-                song.data.title.to_lowercase().contains(&search_term)
+                song.data.title().to_lowercase().contains(&search_term)
             } else {
                 true
             }
@@ -664,7 +664,7 @@ pub fn setlist_editor(props: &Props) -> Html {
                                     {
                                         for filtered_songs.iter().map(|song| {
                                             let id = song.id.clone();
-                                            let song_title = song.data.title.clone();
+                                            let song_title = song.data.title().to_string();
                                             let song_key_label = song
                                                 .data
                                                 .key

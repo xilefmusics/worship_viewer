@@ -169,7 +169,7 @@ testcases:
             "not_a_song": false,
             "blobs": [],
             "data": {
-              "title": "No Perm User Private Song",
+              "titles": ["No Perm User Private Song"],
               "sections": []
             }
           }
@@ -193,13 +193,14 @@ testcases:
             "not_a_song": false,
             "blobs": [],
             "data": {
-              "title": "Collection Song One",
+              "titles": ["Collection Song One"],
               "sections": []
             }
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.data.title ShouldEqual "Collection Song One"
+          - result.bodyjson.data.titles ShouldHaveLength 1
+          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Collection Song One"
         vars:
           songid:
             from: result.bodyjson.id
@@ -217,13 +218,14 @@ testcases:
             "not_a_song": false,
             "blobs": [],
             "data": {
-              "title": "Collection Song Two",
+              "titles": ["Collection Song Two"],
               "sections": []
             }
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.data.title ShouldEqual "Collection Song Two"
+          - result.bodyjson.data.titles ShouldHaveLength 1
+          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Collection Song Two"
         vars:
           songid:
             from: result.bodyjson.id

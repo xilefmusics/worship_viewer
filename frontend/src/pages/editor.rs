@@ -86,7 +86,7 @@ pub fn editor_page() -> Html {
                     song_handle.set(Some(updated.into()));
                 });
             } else {
-                if data.data.title.is_empty() {
+                if data.data.title().is_empty() {
                     return;
                 }
                 let api = api.clone();

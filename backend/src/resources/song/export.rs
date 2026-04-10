@@ -63,7 +63,7 @@ fn export_chord_pro(
                 header::CONTENT_DISPOSITION,
                 format!(
                     "attachment; filename=\"{0}.{ending}\"",
-                    sanitize_filename(&songs[0].data.title),
+                    sanitize_filename(songs[0].data.title()),
                 ),
             ))
             .body(songs[0].format_chord_pro(None, None, None, worship_pro_features)));
@@ -78,7 +78,7 @@ fn export_chord_pro(
 
     for song in &songs {
         zip.start_file(
-            format!("{}.{}", sanitize_filename(&song.data.title), ending),
+            format!("{}.{}", sanitize_filename(song.data.title()), ending),
             options,
         )
         .map_err(|err| AppError::Internal(err.to_string()))?;

@@ -336,7 +336,7 @@ impl From<SongLinkOwned> for Player {
             } else {
                 vec![TocItem {
                     idx: 0,
-                    title: link.song.data.title,
+                    title: link.song.data.title().to_string(),
                     id: Some(link.song.id.clone()),
                     nr: link.nr.clone().unwrap_or_default(),
                     liked: link.liked,

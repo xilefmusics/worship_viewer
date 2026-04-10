@@ -149,13 +149,14 @@ testcases:
             "not_a_song": false,
             "blobs": [],
             "data": {
-              "title": "Setlist Song One",
+              "titles": ["Setlist Song One"],
               "sections": []
             }
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.data.title ShouldEqual "Setlist Song One"
+          - result.bodyjson.data.titles ShouldHaveLength 1
+          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Setlist Song One"
         vars:
           songid:
             from: result.bodyjson.id
@@ -173,13 +174,14 @@ testcases:
             "not_a_song": false,
             "blobs": [],
             "data": {
-              "title": "Setlist Song Two",
+              "titles": ["Setlist Song Two"],
               "sections": []
             }
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.data.title ShouldEqual "Setlist Song Two"
+          - result.bodyjson.data.titles ShouldHaveLength 1
+          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Setlist Song Two"
         vars:
           songid:
             from: result.bodyjson.id
