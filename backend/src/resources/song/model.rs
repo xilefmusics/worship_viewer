@@ -63,7 +63,7 @@ impl Model for Database {
         };
         if q_nonempty {
             query.push_str(
-                " AND (data.title @0@ $q OR data.artist @1@ $q OR search_content @2@ $q) ORDER BY score DESC",
+                " AND (data.titles @0@ $q OR data.artists @1@ $q OR search_content @2@ $q) ORDER BY score DESC",
             );
         }
         if pagination.to_offset_limit().is_some() {

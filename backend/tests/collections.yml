@@ -199,7 +199,8 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.data.title ShouldEqual "Collection Song One"
+          - result.bodyjson.data.titles ShouldHaveLength 1
+          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Collection Song One"
         vars:
           songid:
             from: result.bodyjson.id
@@ -223,7 +224,8 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.data.title ShouldEqual "Collection Song Two"
+          - result.bodyjson.data.titles ShouldHaveLength 1
+          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Collection Song Two"
         vars:
           songid:
             from: result.bodyjson.id

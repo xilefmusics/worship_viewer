@@ -19,7 +19,7 @@ pub fn songs_page() -> Html {
             let api = api.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let mut fetched_songs = api.get_songs().await.unwrap();
-                fetched_songs.sort_by_key(|song| song.data.title.clone());
+                fetched_songs.sort_by_key(|song| song.data.title().to_string());
                 let fetched_songs: Vec<Song> = fetched_songs
                     .into_iter()
                     .filter(|song| !song.not_a_song)
@@ -35,7 +35,7 @@ pub fn songs_page() -> Html {
     let song_cards = songs
         .iter()
         .map(|song| {
-            let title = song.data.title.clone();
+            let title = song.data.title().to_string();
             let key = song
                 .data
                 .key
