@@ -9,7 +9,7 @@ use yew_hooks::use_size;
 
 /// ChordPro highlighting for [chordlib](https://crates.io/crates/chordlib) 0.8+ directives:
 /// indexed `title`/`artist`/`language`, `{meta: …}`, `{repeat: N}`, `subtitle`, `copyright`,
-/// plus Nashville-style `[1]`… chords (see `code_mirror_wrapper.js`).
+/// Nashville-style `[1]`… chords, and translation lines starting with `&` (see `code_mirror_wrapper.js`).
 fn chordpro_syntax_parser() -> SyntaxParser {
     const TITLE_N: &[&str] = &[
         "title2:", "title3:", "title4:", "title5:", "title6:", "title7:", "title8:", "title9:",
@@ -63,7 +63,10 @@ fn chordpro_syntax_parser() -> SyntaxParser {
         .transition("meta-middle", ":", "meta-middle", None, 0)
         .transition("meta-middle", "}", "meta-end", None, 1)
         .transition("meta-middle", "", "meta-value", Some("meta-surround"), 1)
+        // Per-character styling for directive values (`{title: …}` etc.); `}` must match before `""`.
+        // `back` must be 0 here: `back > 0` would back up after match and violate CodeMirror’s “stream must advance” rule.
         .transition("meta-value", "}", "meta-end", Some("meta-value"), 1)
+        .transition("meta-value", "", "meta-value", Some("meta-value"), 0)
         .transition("meta-end", "}", "default", Some("meta-surround"), 0)
         .transition("default", "[", "chord", Some("default"), 1)
         .transition("chord", "[", "chord", None, 0)
@@ -73,11 +76,12 @@ fn chordpro_syntax_parser() -> SyntaxParser {
         .label_style("meta-key-error", "text-decoration", "underline")
         .label_style("meta-key-error", "text-decoration-color", "#cc241d")
         .label_style("meta-value", "color", "#98971a")
-        .label_style("meta-tag-key", "color", "#458588")
-        .label_style("meta-tag-key", "font-weight", "600")
+        .label_style("meta-keypair-value", "color", "#928374")
+        .label_style("meta-tag-key", "color", "#98971a")
         .label_style("chord", "color", "#d79921")
         .label_style("nashville", "color", "#fe8019")
         .label_style("nashville", "font-weight", "600")
+        .label_style("translation-lyric", "color", "#928374")
         .build()
         .expect("static parser should build")
 }

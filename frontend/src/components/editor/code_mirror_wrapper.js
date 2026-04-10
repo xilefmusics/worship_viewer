@@ -77,11 +77,17 @@ export class CodeMirrorWrapper {
                         metaSplitPhase: null,
                         /** True once a non-whitespace key character was emitted (leading spaces after `:` are skipped). */
                         metaKeySeenNonWs: false,
+                        /** Line begins with optional spaces then `&` (chordlib translation line). */
+                        translationLine: false,
+                        /** The next `&` on this translation line is the marker (green), not lyric text. */
+                        translationPendingAmp: false,
+                        /** Chord span was opened from a `&…` translation line (darker chord yellow). */
+                        chordOnTranslationLine: false,
                     };
                 },
                 token: (stream, state) => {
                     while (true) {
-                        // {meta: tag value} — tag blue (meta-tag-key), value green (meta-value)
+                        // {meta: tag value} — tag same green as directives (meta-tag-key), value gray like translation lines (meta-keypair-value)
                         if (state.state === "meta-value" && state.metaSplitPhase === "key") {
                             const ch = stream.next();
                             if (ch === undefined) return null;
@@ -115,7 +121,36 @@ export class CodeMirrorWrapper {
                                 continue;
                             }
                             state.parsed = "";
-                            return "meta-value";
+                            return "meta-keypair-value";
+                        }
+
+                        // Lines like `&[E]Du hast…` — marker `&` green, lyrics gray; `[…]` chords use darker yellow.
+                        if (state.state === "default") {
+                            if (stream.sol()) {
+                                const isTrans = stream.match(/^[ \t]*&/, false) != null;
+                                state.translationLine = isTrans;
+                                state.translationPendingAmp = isTrans;
+                            }
+                        }
+                        if (state.state === "default" && state.translationLine) {
+                            const p = stream.peek();
+                            if (p === "\n") {
+                                stream.next();
+                                state.translationLine = false;
+                                state.translationPendingAmp = false;
+                                state.parsed = "";
+                                return null;
+                            }
+                            if (p !== "[" && p !== "{") {
+                                const chT = stream.next();
+                                state.parsed = "";
+                                if (chT === "&" && state.translationPendingAmp) {
+                                    state.translationPendingAmp = false;
+                                    state.translationLine = true;
+                                    return "meta-value";
+                                }
+                                return "translation-lyric";
+                            }
                         }
 
                         const ch = stream.next();
@@ -154,6 +189,13 @@ export class CodeMirrorWrapper {
                                     if (transition.new_state === "chord" && prevState !== "chord") {
                                         state.chordAcc = "";
                                     }
+                                    if (transition.state === "default" && transition.new_state === "meta-begin") {
+                                        state.metaSplitPhase = null;
+                                        state.metaKeySeenNonWs = false;
+                                    }
+                                    if (transition.state === "default" && transition.new_state === "chord") {
+                                        state.chordOnTranslationLine = state.translationLine;
+                                    }
                                 }
                                 if (transition.label !== null) {
                                     if (
@@ -174,8 +216,25 @@ export class CodeMirrorWrapper {
                                     ) {
                                         label = "nashville";
                                     }
+                                    if (state.chordOnTranslationLine) {
+                                        if (
+                                            label === "default" &&
+                                            transition.state === "default" &&
+                                            transition.new_state === "chord" &&
+                                            transition.suffix === "["
+                                        ) {
+                                            label = "chord-translation";
+                                        } else if (label === "chord") {
+                                            label = "chord-translation";
+                                        } else if (label === "nashville") {
+                                            label = "nashville-translation";
+                                        }
+                                    }
                                     if (transition.suffix === "]") {
                                         state.chordAcc = "";
+                                    }
+                                    if (transition.state === "chord" && transition.new_state === "default") {
+                                        state.chordOnTranslationLine = false;
                                     }
                                     state.parsed = "";
                                     return label;
