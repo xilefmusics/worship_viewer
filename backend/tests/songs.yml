@@ -559,7 +559,7 @@ testcases:
           - result.statuscode ShouldEqual 201
           - result.bodyjson.owner ShouldEqual "{{.create-song-owner-user.userid}}"
           - result.bodyjson.data.titles ShouldHaveLength 1
-          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Test Song"
+          - result.bodyjson.data.titles.titles0 ShouldEqual "Test Song"
         vars:
           songid:
             from: result.bodyjson.id
@@ -584,7 +584,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 201
           - result.bodyjson.data.titles ShouldHaveLength 1
-          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Song For Read Permission"
+          - result.bodyjson.data.titles.titles0 ShouldEqual "Song For Read Permission"
         vars:
           songid:
             from: result.bodyjson.id
@@ -609,7 +609,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 201
           - result.bodyjson.data.titles ShouldHaveLength 1
-          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Song For Write Permission"
+          - result.bodyjson.data.titles.titles0 ShouldEqual "Song For Write Permission"
         vars:
           songid:
             from: result.bodyjson.id
@@ -894,7 +894,7 @@ testcases:
           - result.bodyjson.id ShouldEqual "{{.post-song-success.songid}}"
           - result.bodyjson.owner ShouldEqual "{{.create-song-owner-user.userid}}"
           - result.bodyjson.data.titles ShouldHaveLength 1
-          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Test Song"
+          - result.bodyjson.data.titles.titles0 ShouldEqual "Test Song"
   - name: get-song-success-with-read-permission
     steps:
       - type: http
@@ -906,7 +906,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.post-song-success-for-read-permission.songid}}"
           - result.bodyjson.data.titles ShouldHaveLength 1
-          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Song For Read Permission"
+          - result.bodyjson.data.titles.titles0 ShouldEqual "Song For Read Permission"
   - name: get-song-invalid-id
     steps:
       - type: http
@@ -1126,7 +1126,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.post-song-success.songid}}"
           - result.bodyjson.data.titles ShouldHaveLength 1
-          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Updated Test Song"
+          - result.bodyjson.data.titles.titles0 ShouldEqual "Updated Test Song"
   - name: put-song-success-with-write-permission
     steps:
       - type: http
@@ -1147,7 +1147,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.data.titles ShouldHaveLength 1
-          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Updated By Write User"
+          - result.bodyjson.data.titles.titles0 ShouldEqual "Updated By Write User"
   - name: put-song-invalid-id
     steps:
       - type: http
@@ -1327,7 +1327,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "new-song-id"
           - result.bodyjson.data.titles ShouldHaveLength 1
-          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Created By PUT"
+          - result.bodyjson.data.titles.titles0 ShouldEqual "Created By PUT"
           - result.bodyjson.owner ShouldEqual "{{.create-song-owner-user.userid}}"
 
   - name: put-song-create-with-write-permission
@@ -1351,7 +1351,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "new-song-by-write-user"
           - result.bodyjson.data.titles ShouldHaveLength 1
-          - result.bodyjson.data.titles.bodyjson0 ShouldEqual "Created By Write User Via PUT"
+          - result.bodyjson.data.titles.titles0 ShouldEqual "Created By Write User Via PUT"
           - result.bodyjson.owner ShouldEqual "{{.create-write-user.userid}}"
 
   - name: put-song-create-no-permission
