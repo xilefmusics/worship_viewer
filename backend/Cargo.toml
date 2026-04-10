@@ -32,17 +32,17 @@ envy = "0.4.2"
 futures-util = "0.3"
 utoipa = { version = "4", features = ["chrono"] }
 utoipa-swagger-ui = { version = "5", features = ["actix-web"] }
-surrealdb = { version = "2.4.0", default-features = false, features = [
+surrealdb = { version = "2.6.5", default-features = false, features = [
     "kv-mem",
     "protocol-http",
     "protocol-ws",
     "rustls",
 ] }
 async-trait = "0.1.89"
-lettre = "0.11.19"
+lettre = "0.11.21"
 ring = "0.17.14"
 hex = "0.4.3"
-actix-files = "0.6.8"
+actix-files = "0.6.10"
 shared = { path = "../shared", features = ["backend"] }
 chordlib = { version = "0.8.0", features = ["html"] }
 zip = "6.0.0"

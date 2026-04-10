@@ -1,4 +1,4 @@
-FROM rust:1.91.1-slim AS builder
+FROM rust:1.94.1-slim AS builder
 
 RUN export CARGO_BUILD_JOBS=$(nproc) && \
     cargo install cargo-binstall && \
