@@ -7,6 +7,81 @@ use stylist::Style;
 use yew::prelude::*;
 use yew_hooks::use_size;
 
+/// ChordPro highlighting for [chordlib](https://crates.io/crates/chordlib) 0.8+ directives:
+/// indexed `title`/`artist`/`language`, `{meta: …}`, `{repeat: N}`, `subtitle`, `copyright`,
+/// plus Nashville-style `[1]`… chords (see `code_mirror_wrapper.js`).
+fn chordpro_syntax_parser() -> SyntaxParser {
+    const TITLE_N: &[&str] = &[
+        "title2:", "title3:", "title4:", "title5:", "title6:", "title7:", "title8:", "title9:",
+    ];
+    const ARTIST_N: &[&str] = &[
+        "artist2:", "artist3:", "artist4:", "artist5:", "artist6:", "artist7:", "artist8:",
+        "artist9:",
+    ];
+    const LANGUAGE_N: &[&str] = &[
+        "language2:",
+        "language3:",
+        "language4:",
+        "language5:",
+        "language6:",
+        "language7:",
+        "language8:",
+        "language9:",
+    ];
+
+    let mut b = SyntaxParser::builder()
+        .transition("default", "{", "meta-begin", Some("default"), 1)
+        .transition("meta-begin", "{", "meta-begin", None, 0)
+        .transition("meta-begin", ":", "meta-middle", None, 1)
+        .transition("meta-begin", "}", "meta-end", None, 1)
+        .transition("meta-begin", "", "meta-key", Some("meta-surround"), 1)
+        .transition("meta-key", "title:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "artist:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "key:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "section:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "language:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "tempo:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "time:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "comment:", "meta-middle", Some("meta-key"), 1);
+
+    for k in TITLE_N {
+        b = b.transition("meta-key", k, "meta-middle", Some("meta-key"), 1);
+    }
+    for k in ARTIST_N {
+        b = b.transition("meta-key", k, "meta-middle", Some("meta-key"), 1);
+    }
+    for k in LANGUAGE_N {
+        b = b.transition("meta-key", k, "meta-middle", Some("meta-key"), 1);
+    }
+
+    b.transition("meta-key", "repeat:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "meta:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "subtitle:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", "copyright:", "meta-middle", Some("meta-key"), 1)
+        .transition("meta-key", ":", "meta-middle", Some("meta-key-error"), 1)
+        .transition("meta-key", "}", "meta-end", Some("meta-key"), 1)
+        .transition("meta-middle", ":", "meta-middle", None, 0)
+        .transition("meta-middle", "}", "meta-end", None, 1)
+        .transition("meta-middle", "", "meta-value", Some("meta-surround"), 1)
+        .transition("meta-value", "}", "meta-end", Some("meta-value"), 1)
+        .transition("meta-end", "}", "default", Some("meta-surround"), 0)
+        .transition("default", "[", "chord", Some("default"), 1)
+        .transition("chord", "[", "chord", None, 0)
+        .transition("chord", "]", "default", Some("chord"), 0)
+        .label_style("meta-surround", "font-weight", "bold")
+        .label_style("meta-key", "color", "#cc241d")
+        .label_style("meta-key-error", "text-decoration", "underline")
+        .label_style("meta-key-error", "text-decoration-color", "#cc241d")
+        .label_style("meta-value", "color", "#98971a")
+        .label_style("meta-tag-key", "color", "#458588")
+        .label_style("meta-tag-key", "font-weight", "600")
+        .label_style("chord", "color", "#d79921")
+        .label_style("nashville", "color", "#fe8019")
+        .label_style("nashville", "font-weight", "600")
+        .build()
+        .expect("static parser should build")
+}
+
 #[derive(Clone, PartialEq)]
 pub struct SongSavePayload {
     pub id: Option<String>,
@@ -106,38 +181,7 @@ pub fn song_editor(props: &Props) -> Html {
         })
     };
 
-    let syntax_parser = SyntaxParser::builder()
-        .transition("default", "{", "meta-begin", Some("default"), 1)
-        .transition("meta-begin", "{", "meta-begin", None, 0)
-        .transition("meta-begin", ":", "meta-middle", None, 1)
-        .transition("meta-begin", "}", "meta-end", None, 1)
-        .transition("meta-begin", "", "meta-key", Some("meta-surround"), 1)
-        .transition("meta-key", "title:", "meta-middle", Some("meta-key"), 1)
-        .transition("meta-key", "artist:", "meta-middle", Some("meta-key"), 1)
-        .transition("meta-key", "key:", "meta-middle", Some("meta-key"), 1)
-        .transition("meta-key", "section:", "meta-middle", Some("meta-key"), 1)
-        .transition("meta-key", "language:", "meta-middle", Some("meta-key"), 1)
-        .transition("meta-key", "tempo:", "meta-middle", Some("meta-key"), 1)
-        .transition("meta-key", "time:", "meta-middle", Some("meta-key"), 1)
-        .transition("meta-key", "comment:", "meta-middle", Some("meta-key"), 1)
-        .transition("meta-key", ":", "meta-middle", Some("meta-key-error"), 1)
-        .transition("meta-key", "}", "meta-end", Some("meta-key"), 1)
-        .transition("meta-middle", ":", "meta-middle", None, 0)
-        .transition("meta-middle", "}", "meta-end", None, 1)
-        .transition("meta-middle", "", "meta-value", Some("meta-surround"), 1)
-        .transition("meta-value", "}", "meta-end", Some("meta-value"), 1)
-        .transition("meta-end", "}", "default", Some("meta-surround"), 0)
-        .transition("default", "[", "chord", Some("default"), 1)
-        .transition("chord", "[", "chord", None, 0)
-        .transition("chord", "]", "default", Some("chord"), 0)
-        .label_style("meta-surround", "font-weight", "bold")
-        .label_style("meta-key", "color", "#cc241d")
-        .label_style("meta-key-error", "text-decoration", "underline")
-        .label_style("meta-key-error", "text-decoration-color", "#cc241d")
-        .label_style("meta-value", "color", "#98971a")
-        .label_style("chord", "color", "#d79921")
-        .build()
-        .expect("static parser should build");
+    let syntax_parser = chordpro_syntax_parser();
 
     let mut viewer_song = Song::from(props.song.clone());
     viewer_song.id = props.song_id.clone().unwrap_or_default();

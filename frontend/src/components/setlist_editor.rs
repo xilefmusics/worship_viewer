@@ -194,11 +194,7 @@ pub fn setlist_editor(props: &Props) -> Html {
         .iter()
         .filter(|song| {
             if has_filter {
-                song
-                    .data
-                    .title()
-                    .to_lowercase()
-                    .contains(&search_term)
+                song.data.title().to_lowercase().contains(&search_term)
             } else {
                 true
             }
