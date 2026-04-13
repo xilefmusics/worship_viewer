@@ -255,6 +255,39 @@ impl TeamModel for Database {
     }
 }
 
+impl Database {
+    pub async fn list_teams_for_user(&self, user: &User) -> Result<Vec<Team>, AppError> {
+        let app_admin = user.role == UserRole::Admin;
+        self.get_teams(&user.id, app_admin).await
+    }
+
+    pub async fn get_team_for_user(&self, user: &User, id: &str) -> Result<Team, AppError> {
+        let app_admin = user.role == UserRole::Admin;
+        self.get_team(&user.id, id, app_admin).await
+    }
+
+    pub async fn create_shared_team_for_user(
+        &self,
+        user: &User,
+        payload: CreateTeam,
+    ) -> Result<Team, AppError> {
+        self.create_shared_team(&user.id, payload).await
+    }
+
+    pub async fn update_team_for_user(
+        &self,
+        user: &User,
+        id: &str,
+        payload: UpdateTeam,
+    ) -> Result<Team, AppError> {
+        self.update_team(&user.id, id, payload).await
+    }
+
+    pub async fn delete_team_for_user(&self, user: &User, id: &str) -> Result<Team, AppError> {
+        self.delete_team(&user.id, id).await
+    }
+}
+
 /// Teams whose content the user may list/read (GET), including `team:public` for catalog.
 pub async fn content_read_team_things(db: &Database, user: &User) -> Result<Vec<Thing>, AppError> {
     let app_admin = user.role == UserRole::Admin;

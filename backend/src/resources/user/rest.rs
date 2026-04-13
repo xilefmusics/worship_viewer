@@ -121,7 +121,7 @@ async fn create_user(
     db: Data<Database>,
     payload: Json<CreateUserRequest>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(db.create_user(payload.into_inner().into_user()).await?))
+    Ok(HttpResponse::Created().json(db.create_user_from_request(payload.into_inner()).await?))
 }
 
 #[utoipa::path(

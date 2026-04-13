@@ -3,7 +3,6 @@ use actix_web::{
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
-use super::Model;
 use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
@@ -12,13 +11,11 @@ use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::collection::Collection;
 use crate::resources::collection::CreateCollection;
-use crate::resources::song::Model as SongModel;
 #[allow(unused_imports)]
-use crate::resources::song::{Format, QueryParams, Song, export};
-use crate::resources::team::{content_read_team_things, content_write_team_things};
+use crate::resources::song::{Format, QueryParams, Song};
 use shared::api::ListQuery;
+#[allow(unused_imports)]
 use shared::player::Player;
-use shared::song::LinkOwned as SongLinkOwned;
 
 pub fn scope() -> Scope {
     web::scope("/collections")
@@ -57,9 +54,10 @@ async fn get_collections(
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    let list_query = query.into_inner();
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(db.get_collections(read_teams, list_query).await?))
+    Ok(HttpResponse::Ok().json(
+        db.list_collections_for_user(&user, query.into_inner())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -87,8 +85,7 @@ async fn get_collection(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(db.get_collection(read_teams, &id).await?))
+    Ok(HttpResponse::Ok().json(db.get_collection_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -116,25 +113,7 @@ async fn get_collection_player(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let liked_set = db.get_liked_set(&user.id).await?;
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(
-        db.get_collection_songs(read_teams, &id)
-            .await?
-            .into_iter()
-            .enumerate()
-            .map(|(idx, link)| {
-                Player::from(SongLinkOwned {
-                    liked: liked_set.contains(&link.song.id),
-                    song: link.song,
-                    nr: Some(link.nr.unwrap_or_else(|| (idx + 1).to_string())),
-                    key: link.key,
-                })
-            })
-            .try_fold(Player::default(), |acc, player| {
-                Ok::<Player, AppError>(acc + player)
-            })?,
-    ))
+    Ok(HttpResponse::Ok().json(db.collection_player_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -169,16 +148,8 @@ async fn get_collection_export(
     id: Path<String>,
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    export(
-        db.get_collection_songs(read_teams, &id)
-            .await?
-            .into_iter()
-            .map(|song_link_owned| song_link_owned.song)
-            .collect::<Vec<Song>>(),
-        query.into_inner().format,
-    )
-    .await
+    db.export_collection_for_user(&user, &id, query.into_inner().format)
+        .await
 }
 
 #[utoipa::path(
@@ -206,19 +177,7 @@ async fn get_collection_songs(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let liked_set = db.get_liked_set(&user.id).await?;
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(
-        db.get_collection_songs(read_teams, &id)
-            .await?
-            .into_iter()
-            .map(|song_link_owned| {
-                let mut song = song_link_owned.song;
-                song.user_specific_addons.liked = liked_set.contains(&song.id);
-                song
-            })
-            .collect::<Vec<Song>>(),
-    ))
+    Ok(HttpResponse::Ok().json(db.collection_songs_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -243,7 +202,10 @@ async fn create_collection(
     user: ReqData<User>,
     payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(db.create_collection(&user.id, payload.into_inner()).await?))
+    Ok(HttpResponse::Created().json(
+        db.create_collection_for_user(&user, payload.into_inner())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -273,9 +235,8 @@ async fn update_collection(
     id: Path<String>,
     payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
-    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
     Ok(HttpResponse::Ok().json(
-        db.update_collection(write_teams, &id, payload.into_inner())
+        db.update_collection_for_user(&user, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -305,6 +266,5 @@ async fn delete_collection(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(db.delete_collection(write_teams, &id).await?))
+    Ok(HttpResponse::Ok().json(db.delete_collection_for_user(&user, &id).await?))
 }

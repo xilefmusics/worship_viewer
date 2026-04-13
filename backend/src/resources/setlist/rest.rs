@@ -3,7 +3,6 @@ use actix_web::{
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
-use super::Model;
 use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
@@ -12,13 +11,11 @@ use crate::resources::User;
 use crate::resources::setlist::CreateSetlist;
 #[allow(unused_imports)]
 use crate::resources::setlist::Setlist;
-use crate::resources::song::Model as SongModel;
 #[allow(unused_imports)]
-use crate::resources::song::{Format, QueryParams, Song, export};
-use crate::resources::team::{content_read_team_things, content_write_team_things};
+use crate::resources::song::{Format, QueryParams, Song};
 use shared::api::ListQuery;
+#[allow(unused_imports)]
 use shared::player::Player;
-use shared::song::LinkOwned as SongLinkOwned;
 
 pub fn scope() -> Scope {
     web::scope("/setlists")
@@ -57,9 +54,7 @@ async fn get_setlists(
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    let list_query = query.into_inner();
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(db.get_setlists(read_teams, list_query).await?))
+    Ok(HttpResponse::Ok().json(db.list_setlists_for_user(&user, query.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -87,8 +82,7 @@ async fn get_setlist(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(db.get_setlist(read_teams, &id).await?))
+    Ok(HttpResponse::Ok().json(db.get_setlist_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -116,25 +110,7 @@ async fn get_setlist_player(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let liked_set = db.get_liked_set(&user.id).await?;
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(
-        db.get_setlist_songs(read_teams, &id)
-            .await?
-            .into_iter()
-            .enumerate()
-            .map(|(idx, link)| {
-                Player::from(SongLinkOwned {
-                    liked: liked_set.contains(&link.song.id),
-                    song: link.song,
-                    nr: Some(link.nr.unwrap_or_else(|| (idx + 1).to_string())),
-                    key: link.key,
-                })
-            })
-            .try_fold(Player::default(), |acc, player| {
-                Ok::<Player, AppError>(acc + player)
-            })?,
-    ))
+    Ok(HttpResponse::Ok().json(db.setlist_player_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -169,15 +145,8 @@ async fn get_setlist_export(
     id: Path<String>,
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
-    let query = query.into_inner();
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    let songs = db
-        .get_setlist_songs(read_teams, &id)
-        .await?
-        .into_iter()
-        .map(|song_link_owned| song_link_owned.song)
-        .collect::<Vec<Song>>();
-    export(songs, query.format).await
+    db.export_setlist_for_user(&user, &id, query.into_inner().format)
+        .await
 }
 
 #[utoipa::path(
@@ -205,19 +174,7 @@ async fn get_setlist_songs(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let liked_set = db.get_liked_set(&user.id).await?;
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(
-        db.get_setlist_songs(read_teams, &id)
-            .await?
-            .into_iter()
-            .map(|song_link_owned| {
-                let mut song = song_link_owned.song;
-                song.user_specific_addons.liked = liked_set.contains(&song.id);
-                song
-            })
-            .collect::<Vec<Song>>(),
-    ))
+    Ok(HttpResponse::Ok().json(db.setlist_songs_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -242,7 +199,10 @@ async fn create_setlist(
     user: ReqData<User>,
     payload: Json<CreateSetlist>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(db.create_setlist(&user.id, payload.into_inner()).await?))
+    Ok(HttpResponse::Created().json(
+        db.create_setlist_for_user(&user, payload.into_inner())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -271,9 +231,8 @@ async fn update_setlist(
     id: Path<String>,
     payload: Json<CreateSetlist>,
 ) -> Result<HttpResponse, AppError> {
-    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
     Ok(HttpResponse::Ok().json(
-        db.update_setlist(write_teams, &id, payload.into_inner())
+        db.update_setlist_for_user(&user, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -303,6 +262,5 @@ async fn delete_setlist(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(db.delete_setlist(write_teams, &id).await?))
+    Ok(HttpResponse::Ok().json(db.delete_setlist_for_user(&user, &id).await?))
 }

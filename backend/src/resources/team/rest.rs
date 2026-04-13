@@ -1,10 +1,8 @@
-use super::invitation_model::TeamInvitationModel;
-use super::model::TeamModel;
 use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
-use crate::resources::{User, UserRole};
+use crate::resources::User;
 use actix_web::{
     HttpResponse, Scope, delete, get, post, put,
     web::{self, Data, Json, Path, ReqData},
@@ -63,10 +61,10 @@ async fn create_team_invitation(
     user: ReqData<User>,
     team_id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let inv = db
-        .create_team_invitation(&user.id, team_id.as_str())
-        .await?;
-    Ok(HttpResponse::Created().json(inv))
+    Ok(HttpResponse::Created().json(
+        db.create_team_invitation_for_user(&user, team_id.as_str())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -94,7 +92,10 @@ async fn list_team_invitations(
     user: ReqData<User>,
     team_id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.list_team_invitations(&user.id, team_id.as_str()).await?))
+    Ok(HttpResponse::Ok().json(
+        db.list_team_invitations_for_user(&user, team_id.as_str())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -125,7 +126,7 @@ async fn get_team_invitation(
 ) -> Result<HttpResponse, AppError> {
     let (team_id, invitation_id) = path.into_inner();
     Ok(HttpResponse::Ok().json(
-        db.get_team_invitation(&user.id, &team_id, &invitation_id)
+        db.get_team_invitation_for_user(&user, &team_id, &invitation_id)
             .await?,
     ))
 }
@@ -157,7 +158,7 @@ async fn delete_team_invitation(
     path: Path<(String, String)>,
 ) -> Result<HttpResponse, AppError> {
     let (team_id, invitation_id) = path.into_inner();
-    db.delete_team_invitation(&user.id, &team_id, &invitation_id)
+    db.delete_team_invitation_for_user(&user, &team_id, &invitation_id)
         .await?;
     Ok(HttpResponse::NoContent().finish())
 }
@@ -187,7 +188,7 @@ async fn accept_team_invitation(
     invitation_id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.accept_team_invitation(&user.id, invitation_id.as_str())
+        db.accept_team_invitation_for_user(&user, invitation_id.as_str())
             .await?,
     ))
 }
@@ -208,8 +209,7 @@ async fn accept_team_invitation(
 )]
 #[get("")]
 async fn get_teams(db: Data<Database>, user: ReqData<User>) -> Result<HttpResponse, AppError> {
-    let app_admin = user.role == UserRole::Admin;
-    Ok(HttpResponse::Ok().json(db.get_teams(&user.id, app_admin).await?))
+    Ok(HttpResponse::Ok().json(db.list_teams_for_user(&user).await?))
 }
 
 #[utoipa::path(
@@ -236,8 +236,7 @@ async fn get_team(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let app_admin = user.role == UserRole::Admin;
-    Ok(HttpResponse::Ok().json(db.get_team(&user.id, &id, app_admin).await?))
+    Ok(HttpResponse::Ok().json(db.get_team_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -262,10 +261,10 @@ async fn create_team(
     user: ReqData<User>,
     payload: Json<CreateTeam>,
 ) -> Result<HttpResponse, AppError> {
-    let team = db
-        .create_shared_team(&user.id, payload.into_inner())
-        .await?;
-    Ok(HttpResponse::Created().json(team))
+    Ok(HttpResponse::Created().json(
+        db.create_shared_team_for_user(&user, payload.into_inner())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -297,7 +296,10 @@ async fn update_team(
     id: Path<String>,
     payload: Json<UpdateTeam>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.update_team(&user.id, &id, payload.into_inner()).await?))
+    Ok(HttpResponse::Ok().json(
+        db.update_team_for_user(&user, &id, payload.into_inner())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -325,5 +327,5 @@ async fn delete_team(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_team(&user.id, &id).await?))
+    Ok(HttpResponse::Ok().json(db.delete_team_for_user(&user, &id).await?))
 }
