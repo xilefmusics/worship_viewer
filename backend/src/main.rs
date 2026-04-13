@@ -1,15 +1,3 @@
-mod auth;
-mod database;
-mod docs;
-mod error;
-mod frontend;
-mod mail;
-mod resources;
-mod settings;
-
-#[cfg(test)]
-mod test_helpers;
-
 use std::sync::Arc;
 
 use actix_web::{App, HttpServer, middleware::Logger, web::Data};
@@ -18,9 +6,14 @@ use chrono::Utc;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
-use crate::auth::oidc;
-use crate::resources::{Session, SessionModel, User, UserModel, UserRole};
-use crate::settings::Settings;
+use backend::auth;
+use backend::auth::oidc;
+use backend::database;
+use backend::docs;
+use backend::frontend;
+use backend::resources;
+use backend::resources::{Session, SessionModel, User, UserModel, UserRole};
+use backend::settings::Settings;
 
 #[actix_web::main]
 async fn main() -> AnyResult<()> {

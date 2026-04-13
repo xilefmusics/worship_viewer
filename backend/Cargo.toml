@@ -46,3 +46,7 @@ actix-files = "0.6.10"
 shared = { path = "../shared", features = ["backend"] }
 chordlib = { version = "0.8.1", features = ["html"] }
 zip = "6.0.0"
+
+[dev-dependencies]
+anyhow = "1"
+tempfile = "3"
