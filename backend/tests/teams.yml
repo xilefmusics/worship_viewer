@@ -4,6 +4,7 @@ vars:
   token_admin: admin
 
 testcases:
+  # BLC: BLC-TEAM-001, BLC-TEAM-005, BLC-TEAM-007
   - name: team-admin-initial-list
     steps:
       - type: http
@@ -21,6 +22,7 @@ testcases:
           admin_personal_team_id:
             from: result.bodyjson.bodyjson0.id
 
+  # BLC: BLC-TEAM-007
   - name: team-get-public-not-exposed
     steps:
       - type: http
@@ -31,6 +33,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-TEAM-007
   - name: team-list-excludes-public
     steps:
       - type: http
@@ -42,6 +45,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.body ShouldNotContainSubstring '"id":"public"'
 
+  # BLC: BLC-USER-003
   - name: team-create-solo-user
     steps:
       - type: http
@@ -60,6 +64,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: team-create-solo-session
     steps:
       - type: http
@@ -73,6 +78,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-001, BLC-TEAM-007, BLC-TEAM-010
   - name: team-solo-sees-personal-only
     steps:
       - type: http
@@ -90,6 +96,7 @@ testcases:
           solo_personal_team_id:
             from: result.bodyjson.bodyjson0.id
 
+  # BLC: BLC-TEAM-003, BLC-TEAM-012
   - name: team-solo-rename-personal
     steps:
       - type: http
@@ -106,6 +113,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.name ShouldEqual "Renamed Personal"
 
+  # BLC: BLC-TEAM-006
   - name: team-solo-cannot-delete-personal
     steps:
       - type: http
@@ -116,6 +124,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-USER-003
   - name: team-create-lead-user
     steps:
       - type: http
@@ -134,6 +143,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: team-create-lead-session
     steps:
       - type: http
@@ -147,6 +157,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-008, BLC-TEAM-002, BLC-TEAM-004
   - name: team-lead-create-shared-a
     steps:
       - type: http
@@ -167,6 +178,7 @@ testcases:
           shared_team_a_id:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-008, BLC-TEAM-002, BLC-TEAM-004
   - name: team-lead-create-shared-b-same-name
     steps:
       - type: http
@@ -186,6 +198,7 @@ testcases:
           shared_team_b_id:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-007, BLC-TEAM-010
   - name: team-lead-list-personal-and-shared
     steps:
       - type: http
@@ -197,6 +210,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 3
 
+  # BLC: BLC-TEAM-007
   - name: team-platform-admin-lists-all-teams
     steps:
       - type: http
@@ -211,6 +225,7 @@ testcases:
           - result.body ShouldContainSubstring "{{.team-lead-create-shared-b-same-name.shared_team_b_id}}"
           - result.body ShouldContainSubstring "{{.team-solo-sees-personal-only.solo_personal_team_id}}"
 
+  # BLC: BLC-TEAM-007
   - name: team-platform-admin-gets-shared-without-membership
     steps:
       - type: http
@@ -222,6 +237,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.name ShouldEqual "Shared Duplicate Name"
 
+  # BLC: BLC-USER-003
   - name: team-create-guest-user
     steps:
       - type: http
@@ -240,6 +256,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003, BLC-USER-011
   - name: team-create-guest-session
     steps:
       - type: http
@@ -253,6 +270,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-011, BLC-TEAM-012
   - name: team-lead-add-guest
     steps:
       - type: http
@@ -272,6 +290,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-TEAM-010, BLC-TEAM-013
   - name: team-guest-can-read-shared
     steps:
       - type: http
@@ -282,6 +301,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-TEAM-010, BLC-TEAM-013
   - name: team-guest-cannot-update-shared
     steps:
       - type: http
@@ -297,6 +317,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-USER-003
   - name: team-create-maintainer-user
     steps:
       - type: http
@@ -315,6 +336,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003, BLC-USER-011
   - name: team-create-maintainer-session
     steps:
       - type: http
@@ -328,6 +350,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-011, BLC-TEAM-012
   - name: team-lead-add-content-maintainer
     steps:
       - type: http
@@ -348,6 +371,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-TEAM-010, BLC-TEAM-013
   - name: team-maintainer-cannot-update-shared
     steps:
       - type: http
@@ -363,6 +387,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-TEAM-011, BLC-TEAM-012
   - name: team-lead-updates-shared
     steps:
       - type: http
@@ -379,6 +404,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.name ShouldEqual "Updated Shared Title"
 
+  # BLC: BLC-TEAM-013
   - name: team-guest-put-forbidden-wrong-name-self-shaped
     steps:
       - type: http
@@ -398,6 +424,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-TEAM-013
   - name: team-guest-put-forbidden-bad-members-self-leave
     steps:
       - type: http
@@ -416,6 +443,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-TEAM-013
   - name: team-guest-leaves-via-put
     steps:
       - type: http
@@ -435,6 +463,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-TEAM-007
   - name: team-guest-get-after-self-leave-not-found
     steps:
       - type: http
@@ -445,6 +474,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-TEAM-013
   - name: team-maintainer-leaves-via-put
     steps:
       - type: http
@@ -463,6 +493,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-TEAM-007
   - name: team-maintainer-get-after-self-leave-not-found
     steps:
       - type: http
@@ -473,6 +504,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-TEAM-003, BLC-TEAM-012
   - name: team-admin-updates-personal
     steps:
       - type: http
@@ -489,6 +521,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.name ShouldEqual "Admin Personal Renamed"
 
+  # BLC: BLC-TEAM-007, BLC-USER-003
   - name: team-catalog-user-create
     steps:
       - type: http
@@ -507,6 +540,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-007
   - name: team-catalog-user-session
     steps:
       - type: http
@@ -520,6 +554,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-007
   - name: team-catalog-read-songs-without-public-membership
     steps:
       - type: http
@@ -530,6 +565,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-003
   - name: team-create-sole-leave-user
     steps:
       - type: http
@@ -548,6 +584,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003, BLC-USER-011
   - name: team-create-sole-leave-session
     steps:
       - type: http
@@ -561,6 +598,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-008, BLC-TEAM-002, BLC-TEAM-004
   - name: team-sole-create-shared
     steps:
       - type: http
@@ -579,6 +617,7 @@ testcases:
           sole_team_id:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-013, BLC-TEAM-014, BLC-TEAM-015
   - name: team-sole-cannot-leave
     steps:
       - type: http
@@ -595,6 +634,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 409
 
+  # BLC: BLC-USER-003
   - name: team-create-second-admin-user
     steps:
       - type: http
@@ -613,6 +653,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003, BLC-USER-011
   - name: team-create-second-admin-session
     steps:
       - type: http
@@ -626,6 +667,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-011, BLC-TEAM-012
   - name: team-sole-add-second-admin
     steps:
       - type: http
@@ -645,6 +687,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-TEAM-013
   - name: team-first-admin-can-leave
     steps:
       - type: http
@@ -663,6 +706,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-TEAM-016
   - name: team-guest-cannot-delete-shared
     steps:
       - type: http
@@ -673,6 +717,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-TEAM-016, BLC-TEAM-018
   - name: team-lead-delete-shared-b
     steps:
       - type: http
@@ -683,6 +728,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-TEAM-007, BLC-TEAM-018
   - name: team-lead-get-deleted-shared-not-found
     steps:
       - type: http
@@ -693,6 +739,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-TEAM-007
   - name: team-delete-public-not-exposed
     steps:
       - type: http

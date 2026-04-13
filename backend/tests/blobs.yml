@@ -5,6 +5,7 @@ vars:
 
 testcases:
   # Setup: Users and sessions
+  # BLC: BLC-USER-003
   - name: create-blob-owner-user
     steps:
       - type: http
@@ -24,6 +25,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-blob-owner-session
     steps:
       - type: http
@@ -37,6 +39,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-001
   - name: get-blob-owner-personal-team
     steps:
       - type: http
@@ -51,6 +54,7 @@ testcases:
           owner_personal_team_id:
             from: result.bodyjson.bodyjson0.id
 
+  # BLC: BLC-USER-003
   - name: create-blob-read-user
     steps:
       - type: http
@@ -70,6 +74,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-blob-read-session
     steps:
       - type: http
@@ -83,6 +88,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: create-blob-write-user
     steps:
       - type: http
@@ -102,6 +108,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-blob-write-session
     steps:
       - type: http
@@ -115,6 +122,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: create-blob-noperm-user
     steps:
       - type: http
@@ -134,6 +142,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-blob-noperm-session
     steps:
       - type: http
@@ -147,6 +156,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-011, BLC-BLOB-002
   - name: configure-blob-owner-team-acl
     steps:
       - type: http
@@ -167,6 +177,7 @@ testcases:
           - result.statuscode ShouldEqual 200
 
   # POST /api/v1/blobs tests
+  # BLC: BLC-BLOB-009, BLC-BLOB-005
   - name: post-blob-success
     steps:
       - type: http
@@ -190,6 +201,7 @@ testcases:
           blobid:
             from: result.bodyjson.id
 
+  # BLC: BLC-BLOB-009, BLC-BLOB-002
   - name: post-blob-success-for-read
     steps:
       - type: http
@@ -212,6 +224,7 @@ testcases:
           blobid:
             from: result.bodyjson.id
 
+  # BLC: BLC-BLOB-009, BLC-BLOB-002
   - name: post-blob-success-for-write
     steps:
       - type: http
@@ -233,6 +246,7 @@ testcases:
           blobid:
             from: result.bodyjson.id
 
+  # BLC: BLC-BLOB-005
   - name: post-blob-invalid-payload-missing-width
     steps:
       - type: http
@@ -250,6 +264,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-BLOB-005
   - name: post-blob-invalid-payload-missing-file-type
     steps:
       - type: http
@@ -267,6 +282,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-BLOB-005
   - name: post-blob-invalid-payload-missing-height
     steps:
       - type: http
@@ -284,6 +300,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-BLOB-005
   - name: post-blob-invalid-payload-missing-ocr
     steps:
       - type: http
@@ -301,6 +318,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-BLOB-005
   - name: post-blob-invalid-payload-invalid-file-type
     steps:
       - type: http
@@ -319,6 +337,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: post-blob-missing-token
     steps:
       - type: http
@@ -336,6 +355,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: post-blob-invalid-token
     steps:
       - type: http
@@ -355,6 +375,7 @@ testcases:
           - result.statuscode ShouldEqual 401
 
   # GET /api/v1/blobs tests
+  # BLC: BLC-BLOB-010, BLC-LP-001, BLC-LP-002
   - name: get-blobs-success-owner
     steps:
       - type: http
@@ -365,6 +386,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-BLOB-010, BLC-LP-001, BLC-LP-002
   - name: get-blobs-success-owner-paginated
     steps:
       - type: http
@@ -376,6 +398,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 1
 
+  # BLC: BLC-BLOB-010, BLC-LP-001, BLC-LP-002
   - name: get-blobs-success-read
     steps:
       - type: http
@@ -386,6 +409,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-AUTH-001
   - name: get-blobs-missing-token
     steps:
       - type: http
@@ -394,6 +418,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: get-blobs-invalid-token
     steps:
       - type: http
@@ -404,6 +429,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-LP-004
   - name: get-blobs-invalid-page-parameter
     steps:
       - type: http
@@ -414,6 +440,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-LP-004
   - name: get-blobs-invalid-page-size-parameter
     steps:
       - type: http
@@ -424,6 +451,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-LP-006
   - name: get-blobs-owner-page-size-zero
     steps:
       - type: http
@@ -434,6 +462,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-LP-007
   - name: get-blobs-owner-page-only
     steps:
       - type: http
@@ -444,6 +473,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-LP-007
   - name: get-blobs-owner-page-size-only
     steps:
       - type: http
@@ -454,6 +484,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-LP-008
   - name: get-blobs-owner-page-beyond-range
     steps:
       - type: http
@@ -466,6 +497,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 0
 
   # GET /api/v1/blobs/{id} tests
+  # BLC: BLC-BLOB-010
   - name: get-blob-success-owner
     steps:
       - type: http
@@ -478,6 +510,7 @@ testcases:
           - result.bodyjson.id ShouldEqual "{{.post-blob-success.blobid}}"
           - result.bodyjson.ocr ShouldEqual "Owner blob"
 
+  # BLC: BLC-BLOB-010
   - name: get-blob-success-read
     steps:
       - type: http
@@ -489,6 +522,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.file_type ShouldEqual "image/jpeg"
 
+  # BLC: BLC-HTTP-001
   - name: get-blob-invalid-id
     steps:
       - type: http
@@ -499,6 +533,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: get-blob-missing-token
     steps:
       - type: http
@@ -507,6 +542,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: get-blob-invalid-token
     steps:
       - type: http
@@ -517,6 +553,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-BLOB-006, BLC-BLOB-010
   - name: get-blob-notfound
     steps:
       - type: http
@@ -527,6 +564,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-BLOB-006, BLC-BLOB-007
   - name: get-blob-no-permission
     steps:
       - type: http
@@ -537,6 +575,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-BLOB-010, BLC-BLOB-011
   - name: get-blob-data-success-owner
     steps:
       - type: http
@@ -548,6 +587,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.headers.Content-Type ShouldContainSubstring image/png
 
+  # BLC: BLC-BLOB-010, BLC-BLOB-011
   - name: get-blob-data-success-read-user
     steps:
       - type: http
@@ -559,6 +599,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.headers.Content-Type ShouldContainSubstring image/jpeg
 
+  # BLC: BLC-AUTH-001
   - name: get-blob-data-missing-token
     steps:
       - type: http
@@ -567,6 +608,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: get-blob-data-invalid-token
     steps:
       - type: http
@@ -577,6 +619,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-BLOB-006, BLC-BLOB-007
   - name: get-blob-data-no-permission
     steps:
       - type: http
@@ -587,6 +630,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-BLOB-006, BLC-BLOB-010
   - name: get-blob-data-notfound
     steps:
       - type: http
@@ -597,6 +641,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-HTTP-001
   - name: get-blob-data-invalid-id
     steps:
       - type: http
@@ -608,6 +653,7 @@ testcases:
           - result.statuscode ShouldEqual 400
 
   # PUT /api/v1/blobs/{id} tests
+  # BLC: BLC-BLOB-008, BLC-BLOB-012
   - name: put-blob-success-owner
     steps:
       - type: http
@@ -628,6 +674,7 @@ testcases:
           - result.bodyjson.width ShouldEqual 2560
           - result.bodyjson.ocr ShouldEqual "Updated owner blob"
 
+  # BLC: BLC-BLOB-008, BLC-BLOB-012
   - name: put-blob-success-write
     steps:
       - type: http
@@ -647,6 +694,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.ocr ShouldEqual "Updated by write user"
 
+  # BLC: BLC-HTTP-001
   - name: put-blob-invalid-id
     steps:
       - type: http
@@ -665,6 +713,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-BLOB-005, BLC-BLOB-012
   - name: put-blob-invalid-payload
     steps:
       - type: http
@@ -682,6 +731,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: put-blob-missing-token
     steps:
       - type: http
@@ -699,6 +749,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: put-blob-invalid-token
     steps:
       - type: http
@@ -717,6 +768,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-BLOB-006, BLC-BLOB-007
   - name: put-blob-no-permission
     steps:
       - type: http
@@ -735,6 +787,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-BLOB-006, BLC-BLOB-007
   - name: put-blob-read-only
     steps:
       - type: http
@@ -754,6 +807,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # DELETE /api/v1/blobs/{id} tests
+  # BLC: BLC-BLOB-009
   - name: post-blob-for-delete
     steps:
       - type: http
@@ -775,6 +829,7 @@ testcases:
           blobid:
             from: result.bodyjson.id
 
+  # BLC: BLC-BLOB-009
   - name: post-blob-for-delete-write
     steps:
       - type: http
@@ -796,6 +851,7 @@ testcases:
           blobid:
             from: result.bodyjson.id
 
+  # BLC: BLC-BLOB-008, BLC-BLOB-013
   - name: delete-blob-success-owner
     steps:
       - type: http
@@ -807,6 +863,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.post-blob-for-delete.blobid}}"
 
+  # BLC: BLC-BLOB-008, BLC-BLOB-013
   - name: delete-blob-success-write
     steps:
       - type: http
@@ -818,6 +875,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.post-blob-for-delete-write.blobid}}"
 
+  # BLC: BLC-HTTP-001
   - name: delete-blob-invalid-id
     steps:
       - type: http
@@ -828,6 +886,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: delete-blob-missing-token
     steps:
       - type: http
@@ -836,6 +895,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: delete-blob-invalid-token
     steps:
       - type: http
@@ -846,6 +906,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-BLOB-006, BLC-BLOB-010
   - name: delete-blob-notfound
     steps:
       - type: http
@@ -856,6 +917,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-BLOB-006, BLC-BLOB-007
   - name: delete-blob-no-permission
     steps:
       - type: http
@@ -866,6 +928,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-BLOB-006, BLC-BLOB-007
   - name: delete-blob-read-only
     steps:
       - type: http
@@ -876,6 +939,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-BLOB-013
   - name: delete-blob-again
     steps:
       - type: http
@@ -887,6 +951,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # Cleanup: remove users
+  # BLC: BLC-USER-011
   - name: delete-blob-owner-user
     steps:
       - type: http
@@ -897,6 +962,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-011
   - name: delete-blob-read-user
     steps:
       - type: http
@@ -907,6 +973,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-011
   - name: delete-blob-write-user
     steps:
       - type: http
@@ -917,6 +984,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-011
   - name: delete-blob-noperm-user
     steps:
       - type: http
