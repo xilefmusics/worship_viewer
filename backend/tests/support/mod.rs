@@ -1,31 +1,44 @@
 //! Shared helpers for integration tests (`tests/*.rs` crates cannot see `#[cfg(test)]` modules in `src/`).
 #![allow(dead_code)]
 
-use std::sync::Once;
+use std::sync::{Arc, Once};
 
+use actix_web::web::Data;
 use anyhow::Result;
 use chordlib::types::Song as SongData;
 
 use backend::database::Database;
+use backend::resources::setlist::{SetlistService, SetlistServiceHandle, SurrealSetlistRepo};
+use backend::resources::team::SurrealTeamResolver;
 use backend::resources::{User, UserModel};
 use backend::settings::Settings;
 use shared::setlist::CreateSetlist;
 use shared::song::CreateSong;
 use shared::team::{TeamMemberInput, TeamRole, TeamUserRef, UpdateTeam};
 
-pub async fn test_db() -> Result<Database> {
+pub async fn test_db() -> Result<Arc<Database>> {
     let db = Database::connect("mem://", "test", "test", None, None).await?;
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/db-migrations");
     db.migrate(path).await?;
-    Ok(db)
+    Ok(Arc::new(db))
 }
 
-pub async fn create_user(db: &Database, email: &str) -> Result<User> {
+/// Setlist application service (same wiring as HTTP `main`).
+pub fn setlist_service(db: &Arc<Database>) -> SetlistServiceHandle {
+    let data = Data::from(db.clone());
+    SetlistService::new(
+        SurrealSetlistRepo::new(data.clone()),
+        SurrealTeamResolver::new(data.clone()),
+        data.clone(),
+    )
+}
+
+pub async fn create_user(db: &Arc<Database>, email: &str) -> Result<User> {
     Ok(db.create_user(User::new(email)).await?)
 }
 
 /// Personal team id for the user (matches API `team.id` — record id string only).
-pub async fn personal_team_id(db: &Database, user: &User) -> Result<String> {
+pub async fn personal_team_id(db: &Arc<Database>, user: &User) -> Result<String> {
     let teams = db.list_teams_for_user(user).await?;
     let personal = teams
         .into_iter()
@@ -39,7 +52,7 @@ pub fn minimal_song_data() -> SongData {
 }
 
 pub async fn create_song_with_title(
-    db: &Database,
+    db: &Arc<Database>,
     user: &User,
     title: &str,
 ) -> Result<shared::song::Song> {
@@ -55,7 +68,7 @@ pub async fn create_song_with_title(
 
 /// Adds non-owner members to the owner's personal team (guest + content_maintainer pattern from Venom).
 pub async fn configure_personal_team_members(
-    db: &Database,
+    db: &Arc<Database>,
     owner: &User,
     team_id: &str,
     members: Vec<(String, TeamRole)>,

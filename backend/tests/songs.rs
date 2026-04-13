@@ -6,7 +6,8 @@ use shared::api::ListQuery;
 use shared::team::TeamRole;
 
 use support::{
-    configure_personal_team_members, create_song_with_title, create_user, personal_team_id, test_db,
+    configure_personal_team_members, create_song_with_title, create_user, personal_team_id,
+    setlist_service, test_db,
 };
 
 #[tokio::test]
@@ -74,7 +75,7 @@ async fn blc_song_delete_after_setlist_link() {
     let song = create_song_with_title(&db, &u, "ToDelete")
         .await
         .expect("song");
-    let sl = db
+    let sl = setlist_service(&db)
         .create_setlist_for_user(
             &u,
             support::setlist_with_songs("L", &[(song.id.as_str(), Some("1"))]),
@@ -84,7 +85,7 @@ async fn blc_song_delete_after_setlist_link() {
     db.delete_song_for_user(&u, &song.id)
         .await
         .expect("del song");
-    let g = db
+    let g = setlist_service(&db)
         .get_setlist_for_user(&u, &sl.id)
         .await
         .expect("get setlist");

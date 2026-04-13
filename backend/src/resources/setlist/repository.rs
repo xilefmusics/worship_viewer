@@ -1,0 +1,41 @@
+use async_trait::async_trait;
+use surrealdb::sql::Thing;
+
+use shared::api::ListQuery;
+use shared::setlist::{CreateSetlist, Setlist};
+use shared::song::LinkOwned as SongLinkOwned;
+
+use crate::error::AppError;
+
+/// Pure setlist data access (no user ACL — callers pass pre-resolved team [`Thing`]s).
+#[async_trait]
+pub trait SetlistRepository: Send + Sync {
+    async fn get_setlists(
+        &self,
+        read_teams: Vec<Thing>,
+        pagination: ListQuery,
+    ) -> Result<Vec<Setlist>, AppError>;
+
+    async fn get_setlist(&self, read_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError>;
+
+    async fn get_setlist_songs(
+        &self,
+        read_teams: Vec<Thing>,
+        id: &str,
+    ) -> Result<Vec<SongLinkOwned>, AppError>;
+
+    async fn create_setlist(
+        &self,
+        owner: &str,
+        setlist: CreateSetlist,
+    ) -> Result<Setlist, AppError>;
+
+    async fn update_setlist(
+        &self,
+        write_teams: Vec<Thing>,
+        id: &str,
+        setlist: CreateSetlist,
+    ) -> Result<Setlist, AppError>;
+
+    async fn delete_setlist(&self, write_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError>;
+}

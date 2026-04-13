@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use surrealdb::sql::Thing;
 
 use shared::team::{
@@ -288,70 +288,11 @@ impl Database {
     }
 }
 
-/// Teams whose content the user may list/read (GET), including `team:public` for catalog.
-pub async fn content_read_team_things(db: &Database, user: &User) -> Result<Vec<Thing>, AppError> {
-    let app_admin = user.role == UserRole::Admin;
-    let public_thing = public_team_thing();
-    let rows = db
-        .db
-        .query("SELECT * FROM team WHERE id != $public FETCH owner, members.user")
-        .bind(("public", public_thing.clone()))
-        .await?
-        .take::<Vec<TeamFetched>>(0)?;
-
-    let mut out: Vec<Thing> = Vec::new();
-    let mut seen: BTreeSet<String> = BTreeSet::new();
-
-    let mut push = |t: Thing| {
-        let key = thing_record_key(&t);
-        if seen.insert(key) {
-            out.push(t);
-        }
-    };
-
-    push(public_thing);
-
-    for row in rows {
-        let stored = team_fetched_to_stored(&row)?;
-        if can_read_team(&user.id, &stored, app_admin) {
-            push(row.id.clone());
-        }
-    }
-
-    Ok(out)
-}
-
-/// Teams whose content the user may create/update/delete. Platform admin does not imply global write.
-pub async fn content_write_team_things(db: &Database, user: &User) -> Result<Vec<Thing>, AppError> {
-    let public_thing = public_team_thing();
-    let rows = db
-        .db
-        .query("SELECT * FROM team WHERE id != $public FETCH owner, members.user")
-        .bind(("public", public_thing))
-        .await?
-        .take::<Vec<TeamFetched>>(0)?;
-
-    let mut out: Vec<Thing> = Vec::new();
-    let mut seen: BTreeSet<String> = BTreeSet::new();
-
-    for row in rows {
-        let stored = team_fetched_to_stored(&row)?;
-        if team_content_writable(&user.id, &stored) {
-            let key = thing_record_key(&row.id);
-            if seen.insert(key) {
-                out.push(row.id.clone());
-            }
-        }
-    }
-
-    Ok(out)
-}
-
-fn thing_record_key(t: &Thing) -> String {
+pub(crate) fn thing_record_key(t: &Thing) -> String {
     format!("{}:{}", t.tb, record_id_string(t))
 }
 
-fn team_content_writable(user_id: &str, stored: &TeamStored) -> bool {
+pub(crate) fn team_content_writable(user_id: &str, stored: &TeamStored) -> bool {
     if let Some(ref o) = stored.owner
         && thing_user_id(o) == user_id
     {
@@ -632,7 +573,7 @@ pub(crate) fn member_or_owner_readable(user_id: &str, stored: &TeamStored) -> bo
 }
 
 /// List/get team: members, personal owner, or platform (`User.role` admin) for read-only API access.
-fn can_read_team(user_id: &str, stored: &TeamStored, app_admin: bool) -> bool {
+pub(crate) fn can_read_team(user_id: &str, stored: &TeamStored, app_admin: bool) -> bool {
     app_admin || member_or_owner_readable(user_id, stored)
 }
 
