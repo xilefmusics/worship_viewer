@@ -55,7 +55,8 @@ async fn get_collections(
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.list_collections_for_user(&user, query.into_inner()).await?,
+        db.list_collections_for_user(&user, query.into_inner())
+            .await?,
     ))
 }
 
@@ -202,7 +203,8 @@ async fn create_collection(
     payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Created().json(
-        db.create_collection_for_user(&user, payload.into_inner()).await?,
+        db.create_collection_for_user(&user, payload.into_inner())
+            .await?,
     ))
 }
 

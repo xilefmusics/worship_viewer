@@ -11,9 +11,9 @@ use shared::{
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::song::{Model as SongDbModel, SongRecord, export, Format};
-use crate::resources::team::{content_read_team_things, content_write_team_things};
 use crate::resources::User;
+use crate::resources::song::{Format, Model as SongDbModel, SongRecord, export};
+use crate::resources::team::{content_read_team_things, content_write_team_things};
 
 pub trait Model {
     async fn get_collections(
@@ -344,7 +344,9 @@ fn collection_player_from_links(
                 key: link.key,
             })
         })
-        .try_fold(Player::default(), |acc, player| Ok::<Player, AppError>(acc + player))
+        .try_fold(Player::default(), |acc, player| {
+            Ok::<Player, AppError>(acc + player)
+        })
 }
 
 fn collection_resource(id: &str) -> Result<(String, String), AppError> {

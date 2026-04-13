@@ -14,12 +14,12 @@ use shared::song::{
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::collection::{CreateCollection, Model as CollectionDbModel};
-use crate::resources::user::Model as UserDbModel;
-use crate::resources::team::{content_read_team_things, content_write_team_things};
 use crate::resources::User;
+use crate::resources::collection::{CreateCollection, Model as CollectionDbModel};
+use crate::resources::team::{content_read_team_things, content_write_team_things};
+use crate::resources::user::Model as UserDbModel;
 
-use super::{export, Format};
+use super::{Format, export};
 
 pub trait Model {
     async fn get_songs(

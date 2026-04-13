@@ -99,7 +99,7 @@ impl Database {
             UserDbModel::get_user(self, user_id).await?,
             ttl_seconds,
         ))
-            .await
+        .await
     }
 }
 

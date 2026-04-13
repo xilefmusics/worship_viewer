@@ -11,9 +11,9 @@ use shared::{
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::song::{Model as SongDbModel, SongRecord, export, Format};
-use crate::resources::team::{content_read_team_things, content_write_team_things};
 use crate::resources::User;
+use crate::resources::song::{Format, Model as SongDbModel, SongRecord, export};
+use crate::resources::team::{content_read_team_things, content_write_team_things};
 
 pub trait Model {
     async fn get_setlists(
@@ -206,11 +206,7 @@ impl Database {
         self.get_setlist(read_teams, id).await
     }
 
-    pub async fn setlist_player_for_user(
-        &self,
-        user: &User,
-        id: &str,
-    ) -> Result<Player, AppError> {
+    pub async fn setlist_player_for_user(&self, user: &User, id: &str) -> Result<Player, AppError> {
         let liked_set = SongDbModel::get_liked_set(self, &user.id).await?;
         let read_teams = content_read_team_things(self, user).await?;
         let links = self.get_setlist_songs(read_teams, id).await?;
@@ -295,7 +291,9 @@ fn player_from_song_links(
                 key: link.key,
             })
         })
-        .try_fold(Player::default(), |acc, player| Ok::<Player, AppError>(acc + player))
+        .try_fold(Player::default(), |acc, player| {
+            Ok::<Player, AppError>(acc + player)
+        })
 }
 
 fn setlist_resource(id: &str) -> Result<(String, String), AppError> {

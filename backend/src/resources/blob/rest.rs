@@ -48,9 +48,7 @@ async fn get_blobs(
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(
-        db.list_blobs_for_user(&user, query.into_inner()).await?,
-    ))
+    Ok(HttpResponse::Ok().json(db.list_blobs_for_user(&user, query.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -103,9 +101,7 @@ async fn create_blob(
     user: ReqData<User>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(
-        db.create_blob_for_user(&user, payload.into_inner()).await?,
-    ))
+    Ok(HttpResponse::Created().json(db.create_blob_for_user(&user, payload.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -136,7 +132,8 @@ async fn update_blob(
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.update_blob_for_user(&user, &id, payload.into_inner()).await?,
+        db.update_blob_for_user(&user, &id, payload.into_inner())
+            .await?,
     ))
 }
 
@@ -193,5 +190,6 @@ async fn download_blob_image(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<NamedFile, AppError> {
-    db.open_blob_data_file_for_user(&user, &id.into_inner()).await
+    db.open_blob_data_file_for_user(&user, &id.into_inner())
+        .await
 }

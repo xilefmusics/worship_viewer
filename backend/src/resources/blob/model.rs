@@ -10,8 +10,8 @@ use shared::blob::{Blob, CreateBlob};
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::team::{content_read_team_things, content_write_team_things};
 use crate::resources::User;
+use crate::resources::team::{content_read_team_things, content_write_team_things};
 use crate::settings::Settings;
 
 pub trait Model {
@@ -193,10 +193,8 @@ impl Database {
         let file_name = blob
             .file_name()
             .ok_or_else(|| AppError::NotFound("blob has no id".into()))?;
-        NamedFile::open(
-            Path::new(&Settings::global().blob_dir).join(PathBuf::from(file_name)),
-        )
-        .map_err(|err| AppError::Internal(format!("{}", err)))
+        NamedFile::open(Path::new(&Settings::global().blob_dir).join(PathBuf::from(file_name)))
+            .map_err(|err| AppError::Internal(format!("{}", err)))
     }
 }
 

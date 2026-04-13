@@ -262,7 +262,8 @@ async fn create_team(
     payload: Json<CreateTeam>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Created().json(
-        db.create_shared_team_for_user(&user, payload.into_inner()).await?,
+        db.create_shared_team_for_user(&user, payload.into_inner())
+            .await?,
     ))
 }
 
@@ -296,7 +297,8 @@ async fn update_team(
     payload: Json<UpdateTeam>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.update_team_for_user(&user, &id, payload.into_inner()).await?,
+        db.update_team_for_user(&user, &id, payload.into_inner())
+            .await?,
     ))
 }
 

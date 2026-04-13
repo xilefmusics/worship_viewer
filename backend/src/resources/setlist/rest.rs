@@ -54,9 +54,7 @@ async fn get_setlists(
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(
-        db.list_setlists_for_user(&user, query.into_inner()).await?,
-    ))
+    Ok(HttpResponse::Ok().json(db.list_setlists_for_user(&user, query.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -202,7 +200,8 @@ async fn create_setlist(
     payload: Json<CreateSetlist>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Created().json(
-        db.create_setlist_for_user(&user, payload.into_inner()).await?,
+        db.create_setlist_for_user(&user, payload.into_inner())
+            .await?,
     ))
 }
 
