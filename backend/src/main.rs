@@ -7,6 +7,9 @@ mod mail;
 mod resources;
 mod settings;
 
+#[cfg(test)]
+mod test_helpers;
+
 use std::sync::Arc;
 
 use actix_web::{App, HttpServer, middleware::Logger, web::Data};
@@ -32,7 +35,9 @@ async fn main() -> AnyResult<()> {
     let settings = Settings::init()?;
 
     let db = Data::new(database::Database::new().await?);
-    db.migrate().await.context("database migration failed")?;
+    db.migrate(settings.db_migration_path.as_str())
+        .await
+        .context("database migration failed")?;
 
     if let Some(email) = settings.initial_admin_user_email.as_ref() {
         let (admin, created_initial_admin) = if let Some(user) =

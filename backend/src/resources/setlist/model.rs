@@ -437,3 +437,32 @@ fn song_thing(id: &str) -> Thing {
 
     Thing::from(("song".to_owned(), id.to_owned()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::{seed_user, test_db};
+
+    #[tokio::test]
+    async fn smoke_create_and_read_setlist() {
+        let db = test_db().await.expect("test db");
+        let user = seed_user(&db).await.expect("seed user");
+        let created = db
+            .create_setlist_for_user(
+                &user,
+                CreateSetlist {
+                    title: "Smoke".to_string(),
+                    songs: vec![],
+                },
+            )
+            .await
+            .expect("create setlist");
+        let fetched = db
+            .get_setlist_for_user(&user, &created.id)
+            .await
+            .expect("get setlist");
+        assert_eq!(fetched.title, "Smoke");
+        assert_eq!(fetched.id, created.id);
+        assert!(fetched.songs.is_empty());
+    }
+}
