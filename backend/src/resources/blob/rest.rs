@@ -1,12 +1,9 @@
-use std::path::{Path, PathBuf};
-
 use actix_files::NamedFile;
 use actix_web::{
     HttpResponse, Scope, delete, get, post, put,
     web::{self, Data, Json, Path as PathParam, Query, ReqData},
 };
 
-use super::Model;
 use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
@@ -15,8 +12,6 @@ use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::blob::Blob;
 use crate::resources::blob::CreateBlob;
-use crate::resources::team::{content_read_team_things, content_write_team_things};
-use crate::settings::Settings;
 use shared::api::ListQuery;
 
 pub fn scope() -> Scope {
@@ -53,9 +48,9 @@ async fn get_blobs(
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    let list_query = query.into_inner();
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(db.get_blobs(read_teams, list_query).await?))
+    Ok(HttpResponse::Ok().json(
+        db.list_blobs_for_user(&user, query.into_inner()).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -83,8 +78,7 @@ async fn get_blob(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(db.get_blob(read_teams, &id).await?))
+    Ok(HttpResponse::Ok().json(db.get_blob_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -109,7 +103,9 @@ async fn create_blob(
     user: ReqData<User>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(db.create_blob(&user.id, payload.into_inner()).await?))
+    Ok(HttpResponse::Created().json(
+        db.create_blob_for_user(&user, payload.into_inner()).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -139,10 +135,8 @@ async fn update_blob(
     id: PathParam<String>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
-    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
     Ok(HttpResponse::Ok().json(
-        db.update_blob(write_teams, &id, payload.into_inner())
-            .await?,
+        db.update_blob_for_user(&user, &id, payload.into_inner()).await?,
     ))
 }
 
@@ -171,8 +165,7 @@ async fn delete_blob(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
-    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
-    Ok(HttpResponse::Ok().json(db.delete_blob(write_teams, &id).await?))
+    Ok(HttpResponse::Ok().json(db.delete_blob_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -200,14 +193,5 @@ async fn download_blob_image(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<NamedFile, AppError> {
-    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
-    NamedFile::open(
-        Path::new(&Settings::global().blob_dir).join(PathBuf::from(
-            db.get_blob(read_teams, &id.into_inner())
-                .await?
-                .file_name()
-                .ok_or(AppError::NotFound("blob has no id".into()))?,
-        )),
-    )
-    .map_err(|err| AppError::Internal(format!("{}", err)))
+    db.open_blob_data_file_for_user(&user, &id.into_inner()).await
 }

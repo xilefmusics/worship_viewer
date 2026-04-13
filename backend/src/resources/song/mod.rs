@@ -1,7 +1,9 @@
 pub use shared::song::{CreateSong, Song};
 
 mod model;
-pub use model::{Model, SongRecord};
+#[allow(unused_imports)]
+pub use model::Model;
+pub use model::SongRecord;
 
 pub mod rest;
 

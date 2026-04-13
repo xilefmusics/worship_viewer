@@ -1,14 +1,25 @@
 use std::collections::HashSet;
 
+use actix_web::HttpResponse;
 use chordlib::types::Song as SongData;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Id, Thing};
 
 use shared::api::ListQuery;
-use shared::song::{CreateSong, Song, SongUserSpecificAddons};
+use shared::like::LikeStatus;
+use shared::player::Player;
+use shared::song::{
+    CreateSong, Link as SongLink, LinkOwned as SongLinkOwned, Song, SongUserSpecificAddons,
+};
 
 use crate::database::Database;
 use crate::error::AppError;
+use crate::resources::collection::{CreateCollection, Model as CollectionDbModel};
+use crate::resources::user::Model as UserDbModel;
+use crate::resources::team::{content_read_team_things, content_write_team_things};
+use crate::resources::User;
+
+use super::{export, Format};
 
 pub trait Model {
     async fn get_songs(
@@ -254,6 +265,132 @@ impl Model for Database {
             .into_iter()
             .map(|like| like.song.id.to_string())
             .collect())
+    }
+}
+
+impl Database {
+    pub async fn list_songs_for_user(
+        &self,
+        user: &User,
+        pagination: ListQuery,
+    ) -> Result<Vec<Song>, AppError> {
+        let liked_set = self.get_liked_set(&user.id).await?;
+        let read_teams = content_read_team_things(self, user).await?;
+        Ok(self
+            .get_songs(read_teams, pagination)
+            .await?
+            .into_iter()
+            .map(|mut song| {
+                song.user_specific_addons.liked = liked_set.contains(&song.id);
+                song
+            })
+            .collect())
+    }
+
+    pub async fn get_song_for_user(&self, user: &User, id: &str) -> Result<Song, AppError> {
+        let liked_set = self.get_liked_set(&user.id).await?;
+        let read_teams = content_read_team_things(self, user).await?;
+        let mut song = self.get_song(read_teams, id).await?;
+        song.user_specific_addons.liked = liked_set.contains(&song.id);
+        Ok(song)
+    }
+
+    pub async fn song_player_for_user(&self, user: &User, id: &str) -> Result<Player, AppError> {
+        let read_teams = content_read_team_things(self, user).await?;
+        Ok(Player::from(SongLinkOwned {
+            song: self.get_song(read_teams.clone(), id).await?,
+            nr: None,
+            key: None,
+            liked: self.get_song_like(read_teams, &user.id, id).await?,
+        }))
+    }
+
+    pub async fn export_song_for_user(
+        &self,
+        user: &User,
+        id: &str,
+        format: Format,
+    ) -> Result<HttpResponse, AppError> {
+        let read_teams = content_read_team_things(self, user).await?;
+        let song = self.get_song(read_teams, id).await?;
+        export(vec![song], format).await
+    }
+
+    pub async fn create_song_for_user(
+        &self,
+        user: &User,
+        song: CreateSong,
+    ) -> Result<Song, AppError> {
+        let created = self.create_song(&user.id, song).await?;
+
+        if let Some(collection_id) = user.default_collection.as_ref() {
+            let write_teams = content_write_team_things(self, user).await?;
+            CollectionDbModel::add_song_to_collection(
+                self,
+                write_teams,
+                collection_id,
+                SongLink {
+                    id: created.id.clone(),
+                    nr: None,
+                    key: None,
+                },
+            )
+            .await?;
+        } else {
+            let collection = CollectionDbModel::create_collection(
+                self,
+                &user.id,
+                CreateCollection {
+                    title: "Default".to_string(),
+                    cover: "mysongs".to_string(),
+                    songs: vec![SongLink {
+                        id: created.id.clone(),
+                        nr: None,
+                        key: None,
+                    }],
+                },
+            )
+            .await?;
+            UserDbModel::set_default_collection_to_user(self, &user.id, &collection.id).await?;
+        }
+
+        Ok(created)
+    }
+
+    pub async fn update_song_for_user(
+        &self,
+        user: &User,
+        id: &str,
+        song: CreateSong,
+    ) -> Result<Song, AppError> {
+        let write_teams = content_write_team_things(self, user).await?;
+        self.update_song(write_teams, &user.id, id, song).await
+    }
+
+    pub async fn delete_song_for_user(&self, user: &User, id: &str) -> Result<Song, AppError> {
+        let write_teams = content_write_team_things(self, user).await?;
+        self.delete_song(write_teams, id).await
+    }
+
+    pub async fn song_like_status_for_user(
+        &self,
+        user: &User,
+        id: &str,
+    ) -> Result<LikeStatus, AppError> {
+        let read_teams = content_read_team_things(self, user).await?;
+        let liked = self.get_song_like(read_teams, &user.id, id).await?;
+        Ok(LikeStatus { liked })
+    }
+
+    pub async fn set_song_like_status_for_user(
+        &self,
+        user: &User,
+        id: &str,
+        liked: bool,
+    ) -> Result<LikeStatus, AppError> {
+        let read_teams = content_read_team_things(self, user).await?;
+        let liked = self.set_song_like(read_teams, &user.id, id, liked).await?;
+        Ok(LikeStatus { liked })
     }
 }
 

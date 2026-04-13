@@ -4,7 +4,7 @@ use surrealdb::sql::{Datetime, Thing};
 use super::Session;
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::user::UserRecord;
+use crate::resources::user::{Model as UserDbModel, UserRecord};
 
 pub trait Model {
     async fn get_sessions_by_user_id(&self, user_id: &str) -> Result<Vec<Session>, AppError>;
@@ -86,6 +86,20 @@ impl Model for Database {
             .into_iter()
             .map(|record| record.into_session())
             .collect())
+    }
+}
+
+impl Database {
+    pub async fn create_session_for_user_by_id(
+        &self,
+        user_id: &str,
+        ttl_seconds: i64,
+    ) -> Result<Session, AppError> {
+        self.create_session(Session::new(
+            UserDbModel::get_user(self, user_id).await?,
+            ttl_seconds,
+        ))
+            .await
     }
 }
 

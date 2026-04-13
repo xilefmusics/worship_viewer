@@ -6,6 +6,7 @@ use shared::team::{Team, TeamInvitation, TeamUser};
 
 use crate::database::{Database, record_id_string};
 use crate::error::AppError;
+use crate::resources::User;
 use crate::resources::user::UserRecord;
 
 use super::model::{
@@ -307,5 +308,51 @@ impl TeamInvitationModel for Database {
             .map_err(AppError::database)?;
 
         load_team_display(self, &team_id_str).await
+    }
+}
+
+impl Database {
+    pub async fn create_team_invitation_for_user(
+        &self,
+        user: &User,
+        team_id: &str,
+    ) -> Result<TeamInvitation, AppError> {
+        self.create_team_invitation(&user.id, team_id).await
+    }
+
+    pub async fn list_team_invitations_for_user(
+        &self,
+        user: &User,
+        team_id: &str,
+    ) -> Result<Vec<TeamInvitation>, AppError> {
+        self.list_team_invitations(&user.id, team_id).await
+    }
+
+    pub async fn get_team_invitation_for_user(
+        &self,
+        user: &User,
+        team_id: &str,
+        invitation_id: &str,
+    ) -> Result<TeamInvitation, AppError> {
+        self.get_team_invitation(&user.id, team_id, invitation_id)
+            .await
+    }
+
+    pub async fn delete_team_invitation_for_user(
+        &self,
+        user: &User,
+        team_id: &str,
+        invitation_id: &str,
+    ) -> Result<(), AppError> {
+        self.delete_team_invitation(&user.id, team_id, invitation_id)
+            .await
+    }
+
+    pub async fn accept_team_invitation_for_user(
+        &self,
+        user: &User,
+        invitation_id: &str,
+    ) -> Result<Team, AppError> {
+        self.accept_team_invitation(&user.id, invitation_id).await
     }
 }

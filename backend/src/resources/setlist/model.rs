@@ -1,15 +1,19 @@
+use actix_web::HttpResponse;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 
 use shared::{
     api::ListQuery,
+    player::Player,
     setlist::{CreateSetlist, Setlist},
-    song::{Link as SongLink, LinkOwned as SongLinkOwned, SimpleChord},
+    song::{Link as SongLink, LinkOwned as SongLinkOwned, SimpleChord, Song},
 };
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::song::SongRecord;
+use crate::resources::song::{Model as SongDbModel, SongRecord, export, Format};
+use crate::resources::team::{content_read_team_things, content_write_team_things};
+use crate::resources::User;
 
 pub trait Model {
     async fn get_setlists(
@@ -185,6 +189,113 @@ impl Model for Database {
             .map(SetlistRecord::into_setlist)
             .ok_or_else(|| AppError::NotFound("setlist not found".into()))
     }
+}
+
+impl Database {
+    pub async fn list_setlists_for_user(
+        &self,
+        user: &User,
+        pagination: ListQuery,
+    ) -> Result<Vec<Setlist>, AppError> {
+        let read_teams = content_read_team_things(self, user).await?;
+        self.get_setlists(read_teams, pagination).await
+    }
+
+    pub async fn get_setlist_for_user(&self, user: &User, id: &str) -> Result<Setlist, AppError> {
+        let read_teams = content_read_team_things(self, user).await?;
+        self.get_setlist(read_teams, id).await
+    }
+
+    pub async fn setlist_player_for_user(
+        &self,
+        user: &User,
+        id: &str,
+    ) -> Result<Player, AppError> {
+        let liked_set = SongDbModel::get_liked_set(self, &user.id).await?;
+        let read_teams = content_read_team_things(self, user).await?;
+        let links = self.get_setlist_songs(read_teams, id).await?;
+        player_from_song_links(liked_set, links)
+    }
+
+    pub async fn export_setlist_for_user(
+        &self,
+        user: &User,
+        id: &str,
+        format: Format,
+    ) -> Result<HttpResponse, AppError> {
+        let read_teams = content_read_team_things(self, user).await?;
+        let songs: Vec<Song> = self
+            .get_setlist_songs(read_teams, id)
+            .await?
+            .into_iter()
+            .map(|l| l.song)
+            .collect();
+        export(songs, format).await
+    }
+
+    pub async fn setlist_songs_for_user(
+        &self,
+        user: &User,
+        id: &str,
+    ) -> Result<Vec<Song>, AppError> {
+        let liked_set = SongDbModel::get_liked_set(self, &user.id).await?;
+        let read_teams = content_read_team_things(self, user).await?;
+        Ok(self
+            .get_setlist_songs(read_teams, id)
+            .await?
+            .into_iter()
+            .map(|song_link_owned| {
+                let mut song = song_link_owned.song;
+                song.user_specific_addons.liked = liked_set.contains(&song.id);
+                song
+            })
+            .collect())
+    }
+
+    pub async fn create_setlist_for_user(
+        &self,
+        user: &User,
+        setlist: CreateSetlist,
+    ) -> Result<Setlist, AppError> {
+        self.create_setlist(&user.id, setlist).await
+    }
+
+    pub async fn update_setlist_for_user(
+        &self,
+        user: &User,
+        id: &str,
+        setlist: CreateSetlist,
+    ) -> Result<Setlist, AppError> {
+        let write_teams = content_write_team_things(self, user).await?;
+        self.update_setlist(write_teams, id, setlist).await
+    }
+
+    pub async fn delete_setlist_for_user(
+        &self,
+        user: &User,
+        id: &str,
+    ) -> Result<Setlist, AppError> {
+        let write_teams = content_write_team_things(self, user).await?;
+        self.delete_setlist(write_teams, id).await
+    }
+}
+
+fn player_from_song_links(
+    liked_set: std::collections::HashSet<String>,
+    links: Vec<SongLinkOwned>,
+) -> Result<Player, AppError> {
+    links
+        .into_iter()
+        .enumerate()
+        .map(|(idx, link)| {
+            Player::from(SongLinkOwned {
+                liked: liked_set.contains(&link.song.id),
+                song: link.song,
+                nr: Some(link.nr.unwrap_or_else(|| (idx + 1).to_string())),
+                key: link.key,
+            })
+        })
+        .try_fold(Player::default(), |acc, player| Ok::<Player, AppError>(acc + player))
 }
 
 fn setlist_resource(id: &str) -> Result<(String, String), AppError> {

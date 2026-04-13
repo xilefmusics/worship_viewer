@@ -9,7 +9,7 @@ use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
-use crate::resources::{Session, User, UserModel};
+use crate::resources::User;
 use crate::settings::Settings;
 
 #[utoipa::path(
@@ -111,8 +111,7 @@ async fn create_session_for_user(
 ) -> Result<HttpResponse, AppError> {
     let ttl = Settings::global().session_ttl_seconds as i64;
     Ok(HttpResponse::Created().json(
-        db.create_session(Session::new(db.get_user(&path.user_id).await?, ttl))
-            .await?,
+        db.create_session_for_user_by_id(&path.user_id, ttl).await?,
     ))
 }
 

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use surrealdb::sql::Datetime;
 use surrealdb::sql::Thing;
 
-use super::{Role, User};
+use super::{CreateUserRequest, Role, User};
 use crate::database::Database;
 use crate::error::AppError;
 use crate::resources::team::TeamModel;
@@ -108,6 +108,15 @@ impl Model for Database {
             ))
             .await?;
         Ok(())
+    }
+}
+
+impl Database {
+    pub async fn create_user_from_request(
+        &self,
+        request: CreateUserRequest,
+    ) -> Result<User, AppError> {
+        self.create_user(request.into_user()).await
     }
 }
 

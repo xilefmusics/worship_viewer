@@ -1,5 +1,6 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use actix_files::NamedFile;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
@@ -9,6 +10,8 @@ use shared::blob::{Blob, CreateBlob};
 
 use crate::database::Database;
 use crate::error::AppError;
+use crate::resources::team::{content_read_team_things, content_write_team_things};
+use crate::resources::User;
 use crate::settings::Settings;
 
 pub trait Model {
@@ -139,6 +142,61 @@ impl Model for Database {
             let _ = std::fs::remove_file(path);
         }
         Ok(deleted)
+    }
+}
+
+impl Database {
+    pub async fn list_blobs_for_user(
+        &self,
+        user: &User,
+        pagination: ListQuery,
+    ) -> Result<Vec<Blob>, AppError> {
+        let read_teams = content_read_team_things(self, user).await?;
+        self.get_blobs(read_teams, pagination).await
+    }
+
+    pub async fn get_blob_for_user(&self, user: &User, id: &str) -> Result<Blob, AppError> {
+        let read_teams = content_read_team_things(self, user).await?;
+        self.get_blob(read_teams, id).await
+    }
+
+    pub async fn create_blob_for_user(
+        &self,
+        user: &User,
+        blob: CreateBlob,
+    ) -> Result<Blob, AppError> {
+        self.create_blob(&user.id, blob).await
+    }
+
+    pub async fn update_blob_for_user(
+        &self,
+        user: &User,
+        id: &str,
+        blob: CreateBlob,
+    ) -> Result<Blob, AppError> {
+        let write_teams = content_write_team_things(self, user).await?;
+        self.update_blob(write_teams, id, blob).await
+    }
+
+    pub async fn delete_blob_for_user(&self, user: &User, id: &str) -> Result<Blob, AppError> {
+        let write_teams = content_write_team_things(self, user).await?;
+        self.delete_blob(write_teams, id).await
+    }
+
+    pub async fn open_blob_data_file_for_user(
+        &self,
+        user: &User,
+        id: &str,
+    ) -> Result<NamedFile, AppError> {
+        let read_teams = content_read_team_things(self, user).await?;
+        let blob = self.get_blob(read_teams, id).await?;
+        let file_name = blob
+            .file_name()
+            .ok_or_else(|| AppError::NotFound("blob has no id".into()))?;
+        NamedFile::open(
+            Path::new(&Settings::global().blob_dir).join(PathBuf::from(file_name)),
+        )
+        .map_err(|err| AppError::Internal(format!("{}", err)))
     }
 }
 
