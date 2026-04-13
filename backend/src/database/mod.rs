@@ -51,9 +51,9 @@ impl Database {
         username: Option<&str>,
         password: Option<&str>,
     ) -> AnyResult<Self> {
-        let db = connect(address).await.with_context(|| {
-            format!("failed to connect to SurrealDB at {address}")
-        })?;
+        let db = connect(address)
+            .await
+            .with_context(|| format!("failed to connect to SurrealDB at {address}"))?;
 
         match (username, password) {
             (Some(username), Some(password)) => {

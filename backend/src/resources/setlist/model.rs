@@ -440,8 +440,136 @@ fn song_thing(id: &str) -> Thing {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
     use crate::test_helpers::{seed_user, test_db};
+
+    #[test]
+    fn setlist_resource_plain_id() {
+        assert_eq!(
+            setlist_resource("abc").unwrap(),
+            ("setlist".to_owned(), "abc".to_owned())
+        );
+    }
+
+    #[test]
+    fn setlist_resource_thing_string() {
+        let id = "setlist:myid";
+        assert_eq!(
+            setlist_resource(id).unwrap(),
+            ("setlist".to_owned(), "myid".to_owned())
+        );
+    }
+
+    #[test]
+    fn setlist_resource_wrong_table_is_invalid() {
+        let err = setlist_resource("song:foo").unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+
+    #[test]
+    fn setlist_belongs_to_when_owner_in_teams() {
+        let owner = Thing::from(("team".to_owned(), "t1".to_owned()));
+        let record = SetlistRecord {
+            id: None,
+            owner: Some(owner.clone()),
+            title: "x".into(),
+            songs: vec![],
+        };
+        assert!(setlist_belongs_to(
+            &record,
+            &[owner, Thing::from(("team".to_owned(), "t2".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn setlist_belongs_to_false_when_owner_missing() {
+        let record = SetlistRecord {
+            id: None,
+            owner: None,
+            title: "x".into(),
+            songs: vec![],
+        };
+        assert!(!setlist_belongs_to(
+            &record,
+            &[Thing::from(("team".to_owned(), "t1".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn setlist_belongs_to_false_when_not_in_teams() {
+        let owner = Thing::from(("team".to_owned(), "mine".to_owned()));
+        let record = SetlistRecord {
+            id: None,
+            owner: Some(owner),
+            title: "x".into(),
+            songs: vec![],
+        };
+        assert!(!setlist_belongs_to(
+            &record,
+            &[Thing::from(("team".to_owned(), "other".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn setlist_record_from_payload_into_setlist() {
+        let id = Thing::from(("setlist".to_owned(), "sl1".to_owned()));
+        let owner = Thing::from(("team".to_owned(), "tm".to_owned()));
+        let record = SetlistRecord::from_payload(
+            Some(id.clone()),
+            Some(owner.clone()),
+            CreateSetlist {
+                title: "Sunday".into(),
+                songs: vec![SongLink {
+                    id: "s1".into(),
+                    nr: Some("1".into()),
+                    key: None,
+                }],
+            },
+        );
+        let setlist = record.into_setlist();
+        assert_eq!(setlist.id, "sl1");
+        assert_eq!(setlist.owner, "tm");
+        assert_eq!(setlist.title, "Sunday");
+        assert_eq!(setlist.songs.len(), 1);
+        assert_eq!(setlist.songs[0].id, "s1");
+    }
+
+    #[test]
+    fn player_from_song_links_sets_liked_and_default_nr() {
+        let mut liked = HashSet::new();
+        liked.insert("a".into());
+        let s1 = Song {
+            id: "a".into(),
+            ..Default::default()
+        };
+        let s2 = Song {
+            id: "b".into(),
+            ..Default::default()
+        };
+        let links = vec![
+            SongLinkOwned {
+                song: s1,
+                nr: None,
+                key: None,
+                liked: false,
+            },
+            SongLinkOwned {
+                song: s2,
+                nr: Some("x".into()),
+                key: None,
+                liked: false,
+            },
+        ];
+        let player = player_from_song_links(liked, links).unwrap();
+        assert!(player.is_liked("a"));
+        assert!(!player.is_liked("b"));
+        let toc = player.toc();
+        assert_eq!(toc.len(), 2);
+        assert_eq!(toc[0].nr, "1");
+        assert_eq!(toc[1].nr, "x");
+    }
 
     #[tokio::test]
     async fn smoke_create_and_read_setlist() {

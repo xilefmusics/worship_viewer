@@ -278,3 +278,109 @@ fn blob_belongs_to(record: &BlobRecord, teams: &[Thing]) -> bool {
         .map(|t| teams.contains(t))
         .unwrap_or(false)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::AppError;
+    use shared::blob::FileType;
+
+    #[test]
+    fn blob_resource_plain_id() {
+        assert_eq!(
+            blob_resource("bid").unwrap(),
+            ("blob".to_owned(), "bid".to_owned())
+        );
+    }
+
+    #[test]
+    fn blob_resource_thing_string() {
+        assert_eq!(
+            blob_resource("blob:abc").unwrap(),
+            ("blob".to_owned(), "abc".to_owned())
+        );
+    }
+
+    #[test]
+    fn blob_resource_wrong_table_is_invalid() {
+        let err = blob_resource("song:x").unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+
+    #[test]
+    fn blob_belongs_to_when_owner_in_teams() {
+        let owner = Thing::from(("team".to_owned(), "t1".to_owned()));
+        let record = BlobRecord {
+            id: None,
+            owner: Some(owner.clone()),
+            file_type: FileType::PNG,
+            width: 10,
+            height: 20,
+            ocr: "x".into(),
+            created_at: None,
+        };
+        assert!(blob_belongs_to(
+            &record,
+            &[owner, Thing::from(("team".to_owned(), "t2".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn blob_belongs_to_false_when_owner_missing() {
+        let record = BlobRecord {
+            id: None,
+            owner: None,
+            file_type: FileType::PNG,
+            width: 1,
+            height: 1,
+            ocr: String::new(),
+            created_at: None,
+        };
+        assert!(!blob_belongs_to(
+            &record,
+            &[Thing::from(("team".to_owned(), "t1".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn blob_belongs_to_false_when_not_in_teams() {
+        let owner = Thing::from(("team".to_owned(), "mine".to_owned()));
+        let record = BlobRecord {
+            id: None,
+            owner: Some(owner),
+            file_type: FileType::JPEG,
+            width: 1,
+            height: 1,
+            ocr: String::new(),
+            created_at: None,
+        };
+        assert!(!blob_belongs_to(
+            &record,
+            &[Thing::from(("team".to_owned(), "other".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn blob_record_from_payload_into_blob() {
+        let id = Thing::from(("blob".to_owned(), "b99".to_owned()));
+        let owner = Thing::from(("team".to_owned(), "tm".to_owned()));
+        let record = BlobRecord::from_payload(
+            Some(id.clone()),
+            Some(owner.clone()),
+            None,
+            CreateBlob {
+                file_type: FileType::SVG,
+                width: 640,
+                height: 480,
+                ocr: "text".into(),
+            },
+        );
+        let b = record.into_blob();
+        assert_eq!(b.id, "b99");
+        assert_eq!(b.owner, "tm");
+        assert_eq!(b.file_type, FileType::SVG);
+        assert_eq!(b.width, 640);
+        assert_eq!(b.height, 480);
+        assert_eq!(b.ocr, "text");
+    }
+}

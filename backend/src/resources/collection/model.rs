@@ -504,3 +504,132 @@ impl FetchedSongRecord {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::*;
+    use crate::error::AppError;
+
+    #[test]
+    fn collection_resource_plain_id() {
+        assert_eq!(
+            collection_resource("cid").unwrap(),
+            ("collection".to_owned(), "cid".to_owned())
+        );
+    }
+
+    #[test]
+    fn collection_resource_thing_string() {
+        assert_eq!(
+            collection_resource("collection:abc").unwrap(),
+            ("collection".to_owned(), "abc".to_owned())
+        );
+    }
+
+    #[test]
+    fn collection_resource_wrong_table_is_invalid() {
+        let err = collection_resource("song:x").unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+
+    #[test]
+    fn collection_belongs_to_when_owner_in_teams() {
+        let owner = Thing::from(("team".to_owned(), "t1".to_owned()));
+        let record = CollectionRecord {
+            owner: Some(owner.clone()),
+            ..Default::default()
+        };
+        assert!(collection_belongs_to(
+            &record,
+            &[owner, Thing::from(("team".to_owned(), "t2".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn collection_belongs_to_false_when_owner_missing() {
+        let record = CollectionRecord {
+            owner: None,
+            ..Default::default()
+        };
+        assert!(!collection_belongs_to(
+            &record,
+            &[Thing::from(("team".to_owned(), "t1".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn collection_belongs_to_false_when_not_in_teams() {
+        let owner = Thing::from(("team".to_owned(), "mine".to_owned()));
+        let record = CollectionRecord {
+            owner: Some(owner),
+            ..Default::default()
+        };
+        assert!(!collection_belongs_to(
+            &record,
+            &[Thing::from(("team".to_owned(), "other".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn collection_record_from_payload_into_collection() {
+        let id = Thing::from(("collection".to_owned(), "c1".to_owned()));
+        let owner = Thing::from(("team".to_owned(), "tm".to_owned()));
+        let record = CollectionRecord::from_payload(
+            Some(id.clone()),
+            Some(owner.clone()),
+            CreateCollection {
+                title: "Hits".into(),
+                cover: "blob:cover1".into(),
+                songs: vec![SongLink {
+                    id: "s1".into(),
+                    nr: None,
+                    key: None,
+                }],
+            },
+        );
+        let c = record.into_collection();
+        assert_eq!(c.id, "c1");
+        assert_eq!(c.owner, "tm");
+        assert_eq!(c.title, "Hits");
+        assert_eq!(c.cover, "cover1");
+        assert_eq!(c.songs.len(), 1);
+        assert_eq!(c.songs[0].id, "s1");
+    }
+
+    #[test]
+    fn collection_player_from_links_sets_liked_and_default_nr() {
+        let mut liked = HashSet::new();
+        liked.insert("a".into());
+        let s1 = Song {
+            id: "a".into(),
+            ..Default::default()
+        };
+        let s2 = Song {
+            id: "b".into(),
+            ..Default::default()
+        };
+        let links = vec![
+            SongLinkOwned {
+                song: s1,
+                nr: None,
+                key: None,
+                liked: false,
+            },
+            SongLinkOwned {
+                song: s2,
+                nr: Some("z".into()),
+                key: None,
+                liked: false,
+            },
+        ];
+        let player = collection_player_from_links(liked, links).unwrap();
+        assert!(player.is_liked("a"));
+        assert!(!player.is_liked("b"));
+        let toc = player.toc();
+        assert_eq!(toc.len(), 2);
+        assert_eq!(toc[0].nr, "1");
+        assert_eq!(toc[1].nr, "z");
+    }
+}

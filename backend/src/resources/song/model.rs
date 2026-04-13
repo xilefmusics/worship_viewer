@@ -517,3 +517,140 @@ impl LikeRecord {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::AppError;
+
+    #[test]
+    fn song_resource_plain_id() {
+        assert_eq!(
+            song_resource("sid").unwrap(),
+            ("song".to_owned(), "sid".to_owned())
+        );
+    }
+
+    #[test]
+    fn song_resource_thing_string() {
+        assert_eq!(
+            song_resource("song:abc").unwrap(),
+            ("song".to_owned(), "abc".to_owned())
+        );
+    }
+
+    #[test]
+    fn song_resource_wrong_table_is_invalid() {
+        let err = song_resource("setlist:x").unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+
+    #[test]
+    fn song_belongs_to_when_owner_in_teams() {
+        let owner = Thing::from(("team".to_owned(), "t1".to_owned()));
+        let record = SongRecord {
+            owner: Some(owner.clone()),
+            ..Default::default()
+        };
+        assert!(song_belongs_to(
+            &record,
+            &[owner, Thing::from(("team".to_owned(), "t2".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn song_belongs_to_false_when_owner_missing() {
+        let record = SongRecord {
+            owner: None,
+            ..Default::default()
+        };
+        assert!(!song_belongs_to(
+            &record,
+            &[Thing::from(("team".to_owned(), "t1".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn song_belongs_to_false_when_not_in_teams() {
+        let owner = Thing::from(("team".to_owned(), "mine".to_owned()));
+        let record = SongRecord {
+            owner: Some(owner),
+            ..Default::default()
+        };
+        assert!(!song_belongs_to(
+            &record,
+            &[Thing::from(("team".to_owned(), "other".to_owned()))]
+        ));
+    }
+
+    #[test]
+    fn song_record_into_song_maps_string_ids() {
+        let record = SongRecord {
+            id: Some(Thing::from(("song".to_owned(), "s1".to_owned()))),
+            owner: Some(Thing::from(("team".to_owned(), "t9".to_owned()))),
+            not_a_song: true,
+            blobs: vec![Thing::from(("blob".to_owned(), "b1".to_owned()))],
+            data: SongData::default(),
+            search_content: String::new(),
+        };
+        let song = record.into_song();
+        assert_eq!(song.id, "s1");
+        assert_eq!(song.owner, "t9");
+        assert!(song.not_a_song);
+        assert_eq!(song.blobs, vec!["b1".to_string()]);
+    }
+
+    #[test]
+    fn song_record_from_payload_sets_search_content_and_blob_things() {
+        let data: SongData = serde_json::from_str(
+            r#"{
+                "titles": ["T"],
+                "sections": [{
+                    "title": "V",
+                    "lines": [{
+                        "parts": [{
+                            "languages": ["Hello", "world"],
+                            "comment": false
+                        }]
+                    }]
+                }]
+            }"#,
+        )
+        .expect("song data json");
+        let create = CreateSong {
+            not_a_song: false,
+            blobs: vec!["blob:bb".into(), "rawblob".into()],
+            data,
+        };
+        let record = SongRecord::from_payload(None, None, create);
+        assert_eq!(record.blobs.len(), 2);
+        assert_eq!(record.blobs[0].tb, "blob");
+        assert_eq!(record.blobs[1].tb, "blob");
+        assert_eq!(record.search_content, "Hello world");
+    }
+
+    #[test]
+    fn search_content_from_song_data_empty() {
+        assert_eq!(search_content_from_song_data(&SongData::default()), "");
+    }
+
+    #[test]
+    fn search_content_from_song_data_joins_non_empty_languages() {
+        let data: SongData = serde_json::from_str(
+            r#"{
+                "titles": ["T"],
+                "sections": [{
+                    "title": "V",
+                    "lines": [{
+                        "parts": [{
+                            "languages": ["one", "two"],
+                            "comment": false
+                        }]
+                    }]
+                }]
+            }"#,
+        )
+        .expect("song data json");
+        assert_eq!(search_content_from_song_data(&data), "one two");
+    }
+}
