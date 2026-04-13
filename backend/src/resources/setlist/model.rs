@@ -14,13 +14,13 @@ use crate::resources::song::SongRecord;
 pub trait Model {
     async fn get_setlists(
         &self,
-        owners: Vec<String>,
+        read_teams: Vec<Thing>,
         pagination: ListQuery,
     ) -> Result<Vec<Setlist>, AppError>;
-    async fn get_setlist(&self, owners: Vec<String>, id: &str) -> Result<Setlist, AppError>;
+    async fn get_setlist(&self, read_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError>;
     async fn get_setlist_songs(
         &self,
-        owners: Vec<String>,
+        read_teams: Vec<Thing>,
         id: &str,
     ) -> Result<Vec<SongLinkOwned>, AppError>;
     async fn create_setlist(
@@ -30,31 +30,26 @@ pub trait Model {
     ) -> Result<Setlist, AppError>;
     async fn update_setlist(
         &self,
-        owners: Vec<String>,
+        write_teams: Vec<Thing>,
         id: &str,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError>;
-    async fn delete_setlist(&self, owners: Vec<String>, id: &str) -> Result<Setlist, AppError>;
+    async fn delete_setlist(&self, write_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError>;
 }
 
 impl Model for Database {
     async fn get_setlists(
         &self,
-        owners: Vec<String>,
+        read_teams: Vec<Thing>,
         pagination: ListQuery,
     ) -> Result<Vec<Setlist>, AppError> {
-        let owners = owners
-            .into_iter()
-            .map(|owner_id| owner_thing(&owner_id))
-            .collect::<Vec<_>>();
-
         let q_nonempty = pagination.q.as_ref().is_some_and(|q| !q.trim().is_empty());
         let mut query = if q_nonempty {
             String::from(
-                "SELECT *, (search::score(0) ?? 0) AS score FROM setlist WHERE owner IN $owners",
+                "SELECT *, (search::score(0) ?? 0) AS score FROM setlist WHERE owner IN $teams",
             )
         } else {
-            String::from("SELECT * FROM setlist WHERE owner IN $owners")
+            String::from("SELECT * FROM setlist WHERE owner IN $teams")
         };
         if q_nonempty {
             query.push_str(" AND title @0@ $q ORDER BY score DESC");
@@ -63,7 +58,7 @@ impl Model for Database {
             query.push_str(" LIMIT $limit START $start");
         }
 
-        let mut request = self.db.query(query).bind(("owners", owners));
+        let mut request = self.db.query(query).bind(("teams", read_teams));
         if let Some(ref q) = pagination.q
             && !q.trim().is_empty()
         {
@@ -81,10 +76,10 @@ impl Model for Database {
             .collect())
     }
 
-    async fn get_setlist(&self, owners: Vec<String>, id: &str) -> Result<Setlist, AppError> {
+    async fn get_setlist(&self, read_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError> {
         match self.db.select(setlist_resource(id)?).await? {
             Some(record) => {
-                if setlist_belongs_to(&record, owners) {
+                if setlist_belongs_to(&record, &read_teams) {
                     Ok(record.into_setlist())
                 } else {
                     Err(AppError::NotFound("setlist not found".into()))
@@ -96,13 +91,13 @@ impl Model for Database {
 
     async fn get_setlist_songs(
         &self,
-        owners: Vec<String>,
+        read_teams: Vec<Thing>,
         id: &str,
     ) -> Result<Vec<SongLinkOwned>, AppError> {
         let resource = setlist_resource(id)?;
         let mut response = self
             .db
-            .query("SELECT owner, songs FROM setlist WHERE id = $id FETCH songs.id")
+            .query("SELECT owner, songs FROM setlist WHERE id = $id FETCH songs.*.id")
             .bind(("id", Thing::from(resource.clone())))
             .await?;
 
@@ -110,7 +105,7 @@ impl Model for Database {
             .take::<Option<SetlistSongsRecord>>(0)?
             .ok_or_else(|| AppError::NotFound("setlist not found".into()))?;
 
-        if !record.belongs_to(&owners) {
+        if !record.belongs_to(&read_teams) {
             return Err(AppError::NotFound("setlist not found".into()));
         }
 
@@ -122,13 +117,10 @@ impl Model for Database {
         owner: &str,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
+        let owner_team = self.personal_team_thing_for_user(owner).await?;
         self.db
             .create("setlist")
-            .content(SetlistRecord::from_payload(
-                None,
-                Some(owner_thing(owner)),
-                setlist,
-            ))
+            .content(SetlistRecord::from_payload(None, Some(owner_team), setlist))
             .await?
             .map(SetlistRecord::into_setlist)
             .ok_or_else(|| AppError::database("failed to create setlist"))
@@ -136,17 +128,20 @@ impl Model for Database {
 
     async fn update_setlist(
         &self,
-        owners: Vec<String>,
+        write_teams: Vec<Thing>,
         id: &str,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
         let resource = setlist_resource(id)?;
-        let owner = match self.db.select(resource.clone()).await? {
+        let owner_team = match self.db.select(resource.clone()).await? {
             Some(existing) => {
-                if !setlist_belongs_to(&existing, owners.clone()) {
+                if !setlist_belongs_to(&existing, &write_teams) {
                     return Err(AppError::NotFound("setlist not found".into()));
                 }
-                existing.owner
+                existing
+                    .owner
+                    .clone()
+                    .ok_or_else(|| AppError::database("setlist missing owner"))?
             }
             None => {
                 return Err(AppError::NotFound("setlist not found".into()));
@@ -154,7 +149,7 @@ impl Model for Database {
         };
 
         let record_id = Thing::from(resource.clone());
-        let record = SetlistRecord::from_payload(Some(record_id), owner.clone(), setlist);
+        let record = SetlistRecord::from_payload(Some(record_id), Some(owner_team), setlist);
 
         if let Some(updated) = self
             .db
@@ -174,10 +169,10 @@ impl Model for Database {
             .ok_or_else(|| AppError::database("failed to upsert setlist"))
     }
 
-    async fn delete_setlist(&self, owners: Vec<String>, id: &str) -> Result<Setlist, AppError> {
+    async fn delete_setlist(&self, write_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError> {
         let resource = setlist_resource(id)?;
         if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !setlist_belongs_to(&existing, owners) {
+            if !setlist_belongs_to(&existing, &write_teams) {
                 return Err(AppError::NotFound("setlist not found".into()));
             }
         } else {
@@ -249,10 +244,10 @@ struct SetlistSongsRecord {
 }
 
 impl SetlistSongsRecord {
-    fn belongs_to(&self, owners: &[String]) -> bool {
+    fn belongs_to(&self, teams: &[Thing]) -> bool {
         self.owner
             .as_ref()
-            .map(|owner| owners.contains(&owner.id.to_string()))
+            .map(|t| teams.contains(t))
             .unwrap_or(false)
     }
 
@@ -316,15 +311,11 @@ impl From<SongLink> for SongLinkRecord {
     }
 }
 
-fn owner_thing(user_id: &str) -> Thing {
-    Thing::from(("user".to_owned(), user_id.to_owned()))
-}
-
-fn setlist_belongs_to(record: &SetlistRecord, owners: Vec<String>) -> bool {
+fn setlist_belongs_to(record: &SetlistRecord, teams: &[Thing]) -> bool {
     record
         .owner
         .as_ref()
-        .map(|owner| owners.contains(&owner.id.to_string()))
+        .map(|t| teams.contains(t))
         .unwrap_or(false)
 }
 

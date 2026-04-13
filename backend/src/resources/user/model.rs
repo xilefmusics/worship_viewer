@@ -5,6 +5,7 @@ use surrealdb::sql::Thing;
 use super::{Role, User};
 use crate::database::Database;
 use crate::error::AppError;
+use crate::resources::team::TeamModel;
 use shared::api::ListQuery;
 
 pub trait Model {
@@ -66,12 +67,15 @@ impl Model for Database {
     }
 
     async fn create_user(&self, user: User) -> Result<User, AppError> {
-        self.db
+        let created = self
+            .db
             .create("user")
             .content(UserRecord::from_user(user))
             .await?
             .map(UserRecord::into_user)
-            .ok_or(AppError::database("failed to create user"))
+            .ok_or_else(|| AppError::database("failed to create user"))?;
+        TeamModel::create_personal_team(self, &created).await?;
+        Ok(created)
     }
 
     async fn delete_user(&self, id: &str) -> Result<User, AppError> {
@@ -127,10 +131,6 @@ pub struct UserRecord {
     #[serde(default)]
     role: Role,
     #[serde(default)]
-    read: Vec<Thing>,
-    #[serde(default)]
-    write: Vec<Thing>,
-    #[serde(default)]
     default_collection: Option<Thing>,
     created_at: Datetime,
     #[serde(default)]
@@ -145,8 +145,6 @@ impl UserRecord {
             id: self.id.unwrap().id.to_string(),
             email: self.email,
             role: self.role,
-            read: self.read.into_iter().map(|id| id.id.to_string()).collect(),
-            write: self.write.into_iter().map(|id| id.id.to_string()).collect(),
             default_collection: self.default_collection.map(|id| id.id.to_string()),
             created_at: self.created_at.into(),
             last_login_at: self.last_login_at.map(Into::into),
@@ -163,16 +161,6 @@ impl UserRecord {
             },
             email: user.email,
             role: user.role,
-            read: user
-                .read
-                .into_iter()
-                .map(|id| Thing::from(("user".to_owned(), id)))
-                .collect(),
-            write: user
-                .write
-                .into_iter()
-                .map(|id| Thing::from(("user".to_owned(), id)))
-                .collect(),
             default_collection: user
                 .default_collection
                 .map(|id| Thing::from(("collection".to_owned(), id))),

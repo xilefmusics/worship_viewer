@@ -51,8 +51,6 @@ async fn main() -> AnyResult<()> {
                     id: String::new(),
                     email: email.to_owned(),
                     role: UserRole::Admin,
-                    read: vec![],
-                    write: vec![],
                     default_collection: None,
                     created_at: Utc::now(),
                     last_login_at: None,

@@ -38,6 +38,20 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  - name: get-song-owner-personal-team
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+        vars:
+          owner_personal_team_id:
+            from: result.bodyjson.bodyjson0.id
+
   - name: create-read-user
     steps:
       - type: http
@@ -48,8 +62,7 @@ testcases:
           Content-Type: application/json
         body: |
           {
-            "email": "readuser@test.com",
-            "read": ["{{.create-song-owner-user.userid}}"]
+            "email": "readuser@test.com"
           }
         assertions:
           - result.statuscode ShouldEqual 201
@@ -81,8 +94,7 @@ testcases:
           Content-Type: application/json
         body: |
           {
-            "email": "writeuser@test.com",
-            "write": ["{{.create-song-owner-user.userid}}"]
+            "email": "writeuser@test.com"
           }
         assertions:
           - result.statuscode ShouldEqual 201
@@ -103,6 +115,20 @@ testcases:
         vars:
           sessionid:
             from: result.bodyjson.id
+
+  - name: get-write-user-personal-team
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams"
+        headers:
+          Authorization: "Bearer {{.create-write-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+        vars:
+          write_user_personal_team_id:
+            from: result.bodyjson.bodyjson0.id
 
   - name: create-no-permission-user
     steps:
@@ -135,6 +161,39 @@ testcases:
         vars:
           sessionid:
             from: result.bodyjson.id
+
+  - name: get-no-permission-personal-team
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams"
+        headers:
+          Authorization: "Bearer {{.create-no-permission-user-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+        vars:
+          noperm_personal_team_id:
+            from: result.bodyjson.bodyjson0.id
+
+  - name: configure-song-owner-team-acl
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/teams/{{.get-song-owner-personal-team.owner_personal_team_id}}"
+        headers:
+          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "name": "Personal",
+            "members": [
+              { "user": { "id": "{{.create-read-user.userid}}" }, "role": "guest" },
+              { "user": { "id": "{{.create-write-user.userid}}" }, "role": "content_maintainer" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
 
   - name: post-search-fixture-by-title
     steps:
@@ -557,7 +616,7 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.owner ShouldEqual "{{.create-song-owner-user.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-song-owner-personal-team.owner_personal_team_id}}"
           - result.bodyjson.data.titles ShouldHaveLength 1
           - result.bodyjson.data.titles.titles0 ShouldEqual "Test Song"
         vars:
@@ -764,7 +823,7 @@ testcases:
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/songs?page=0&page_size=1"
+        url: "{{.base_url}}/api/v1/songs?page=50000&page_size=1"
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
@@ -892,7 +951,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.post-song-success.songid}}"
-          - result.bodyjson.owner ShouldEqual "{{.create-song-owner-user.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-song-owner-personal-team.owner_personal_team_id}}"
           - result.bodyjson.data.titles ShouldHaveLength 1
           - result.bodyjson.data.titles.titles0 ShouldEqual "Test Song"
   - name: get-song-success-with-read-permission
@@ -1328,7 +1387,7 @@ testcases:
           - result.bodyjson.id ShouldEqual "new-song-id"
           - result.bodyjson.data.titles ShouldHaveLength 1
           - result.bodyjson.data.titles.titles0 ShouldEqual "Created By PUT"
-          - result.bodyjson.owner ShouldEqual "{{.create-song-owner-user.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-song-owner-personal-team.owner_personal_team_id}}"
 
   - name: put-song-create-with-write-permission
     steps:
@@ -1352,7 +1411,7 @@ testcases:
           - result.bodyjson.id ShouldEqual "new-song-by-write-user"
           - result.bodyjson.data.titles ShouldHaveLength 1
           - result.bodyjson.data.titles.titles0 ShouldEqual "Created By Write User Via PUT"
-          - result.bodyjson.owner ShouldEqual "{{.create-write-user.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-write-user-personal-team.write_user_personal_team_id}}"
 
   - name: put-song-create-no-permission
     steps:
@@ -1373,7 +1432,7 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson.owner ShouldEqual "{{.create-no-permission-user.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-no-permission-personal-team.noperm_personal_team_id}}"
 
   # DELETE /api/v1/songs/{id} tests
   - name: post-song-for-delete
@@ -1955,6 +2014,20 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  - name: get-default-collection-personal-team
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams"
+        headers:
+          Authorization: "Bearer {{.create-default-collection-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+        vars:
+          default_collection_personal_team_id:
+            from: result.bodyjson.bodyjson0.id
+
   - name: post-default-collection-song-one
     steps:
       - type: http
@@ -1974,7 +2047,7 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.owner ShouldEqual "{{.create-default-collection-user.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-default-collection-personal-team.default_collection_personal_team_id}}"
         vars:
           songid:
             from: result.bodyjson.id
@@ -1998,7 +2071,7 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.owner ShouldEqual "{{.create-default-collection-user.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-default-collection-personal-team.default_collection_personal_team_id}}"
         vars:
           songid:
             from: result.bodyjson.id
@@ -2026,7 +2099,7 @@ testcases:
           Authorization: "Bearer {{.create-default-collection-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson.owner ShouldEqual "{{.create-default-collection-user.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-default-collection-personal-team.default_collection_personal_team_id}}"
           - result.bodyjson.songs ShouldHaveLength 2
 
   # Cleanup: Delete test users

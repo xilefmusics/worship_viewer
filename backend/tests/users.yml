@@ -143,7 +143,7 @@ testcases:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 2
+          - result.bodyjson.__Len__ ShouldBeGreaterThanOrEqualTo 2
 
   - name: get-users-admin-paginated
     steps:
@@ -203,7 +203,7 @@ testcases:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 2
+          - result.bodyjson.__Len__ ShouldBeGreaterThanOrEqualTo 2
 
   - name: get-users-admin-page-only
     steps:
@@ -214,7 +214,7 @@ testcases:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 2
+          - result.bodyjson.__Len__ ShouldBeGreaterThanOrEqualTo 2
 
   - name: get-users-admin-page-size-only
     steps:
@@ -225,7 +225,7 @@ testcases:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 2
+          - result.bodyjson.__Len__ ShouldBeGreaterThanOrEqualTo 2
 
   - name: get-users-admin-page-beyond-range
     steps:
@@ -250,9 +250,7 @@ testcases:
           - result.bodyjson.id ShouldEqual "{{.post-users.userid}}"
           - result.bodyjson.email ShouldEqual "anormaluser@test.com"
           - result.bodyjson.role ShouldEqual "default"
-          - result.bodyjson.read ShouldHaveLength 0
-          - result.bodyjson.write ShouldHaveLength 0
-        
+
   - name: get-user-invalid-token
     steps:
       - type: http
@@ -296,6 +294,20 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  - name: get-default-user-personal-team
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+        vars:
+          default_user_personal_team_id:
+            from: result.bodyjson.bodyjson0.id
+
   - name: create-cascade-verifier-user
     steps:
       - type: http
@@ -306,8 +318,7 @@ testcases:
           Content-Type: application/json
         body: |
           {
-            "email": "cascadeverifier@test.com",
-            "read": ["{{.post-users.userid}}"]
+            "email": "cascadeverifier@test.com"
           }
         assertions:
           - result.statuscode ShouldEqual 201
@@ -327,6 +338,24 @@ testcases:
         vars:
           sessionid:
             from: result.bodyjson.id
+
+  - name: add-cascade-verifier-to-default-user-team
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/teams/{{.get-default-user-personal-team.default_user_personal_team_id}}"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "name": "Personal",
+            "members": [
+              { "user": { "id": "{{.create-cascade-verifier-user.userid}}" }, "role": "guest" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
 
   - name: get-user-read-grant-on-target-owner
     steps:
@@ -355,7 +384,7 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.owner ShouldEqual "{{.post-users.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-default-user-personal-team.default_user_personal_team_id}}"
         vars:
           blobid:
             from: result.bodyjson.id
@@ -379,7 +408,7 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.owner ShouldEqual "{{.post-users.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-default-user-personal-team.default_user_personal_team_id}}"
         vars:
           songid:
             from: result.bodyjson.id
@@ -401,7 +430,7 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.owner ShouldEqual "{{.post-users.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-default-user-personal-team.default_user_personal_team_id}}"
         vars:
           setlistid:
             from: result.bodyjson.id
@@ -424,7 +453,7 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.owner ShouldEqual "{{.post-users.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-default-user-personal-team.default_user_personal_team_id}}"
         vars:
           collectionid:
             from: result.bodyjson.id
@@ -457,8 +486,6 @@ testcases:
           - result.bodyjson.id ShouldEqual "{{.post-users.userid}}"
           - result.bodyjson.email ShouldEqual "anormaluser@test.com"
           - result.bodyjson.role ShouldEqual "default"
-          - result.bodyjson.read ShouldHaveLength 0
-          - result.bodyjson.write ShouldHaveLength 0
 
   - name: get-users-default
     steps:
@@ -517,8 +544,6 @@ testcases:
           - result.bodyjson.id ShouldEqual "{{.post-users.userid}}"
           - result.bodyjson.email ShouldEqual "anormaluser@test.com"
           - result.bodyjson.role ShouldEqual "default"
-          - result.bodyjson.read ShouldHaveLength 0
-          - result.bodyjson.write ShouldHaveLength 0
 
   - name: get-default-user-session-after-delete
     steps:

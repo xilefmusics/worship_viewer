@@ -9,7 +9,7 @@ use ring::digest::{SHA256, digest};
 use serde::Deserialize;
 use surrealdb::Surreal;
 use surrealdb::engine::any::Any;
-use tracing::info;
+use tracing::{error, info};
 
 #[derive(Debug, Deserialize)]
 struct AppliedMigration {
@@ -95,6 +95,46 @@ async fn load_applied_migrations(db: &Surreal<Any>) -> AnyResult<HashMap<String,
     Ok(out)
 }
 
+fn log_surreal_error_chain(migration: &str, statement_index: usize, err: &surrealdb::Error) {
+    let mut sources: Vec<String> = Vec::new();
+    sources.push(err.to_string());
+    let mut cursor = std::error::Error::source(err);
+    while let Some(inner) = cursor {
+        sources.push(inner.to_string());
+        cursor = inner.source();
+    }
+    error!(
+        migration = %migration,
+        statement_index = statement_index,
+        error = %err,
+        error_source_chain = %sources.join(" <- "),
+        error_debug = ?err,
+        "SurrealDB query statement failed"
+    );
+}
+
+fn ensure_no_statement_errors(
+    migration: &str,
+    context: &str,
+    response: &mut surrealdb::Response,
+) -> AnyResult<()> {
+    let errors = response.take_errors();
+    if errors.is_empty() {
+        return Ok(());
+    }
+
+    let mut pairs: Vec<(usize, surrealdb::Error)> = errors.into_iter().collect();
+    pairs.sort_by_key(|(idx, _)| *idx);
+
+    let mut summary = Vec::with_capacity(pairs.len());
+    for (idx, err) in &pairs {
+        log_surreal_error_chain(migration, *idx, err);
+        summary.push(format!("[statement {idx}] {err}"));
+    }
+
+    Err(anyhow!("{}", summary.join("; "))).context(format!("{context} '{}'", migration))
+}
+
 async fn apply_migration(
     db: &Surreal<Any>,
     script_name: &str,
@@ -108,23 +148,33 @@ COMMIT TRANSACTION;",
         script
     );
 
-    let body_response = db
+    let mut body_response = db
         .query(tx)
         .await
         .map_err(|err| anyhow!(err))
         .with_context(|| format!("failed to apply migration body '{}'", script_name))?;
+    ensure_no_statement_errors(
+        script_name,
+        "migration body returned errors",
+        &mut body_response,
+    )?;
     body_response
         .check()
         .map_err(|err| anyhow!(err))
         .with_context(|| format!("migration body returned errors '{}'", script_name))?;
 
-    let record_response = db
+    let mut record_response = db
         .query("CREATE migration_script SET script_name = $script_name, checksum = $checksum;")
         .bind(("script_name", script_name.to_owned()))
         .bind(("checksum", checksum.to_owned()))
         .await
         .map_err(|err| anyhow!(err))
         .with_context(|| format!("failed to record migration '{}'", script_name))?;
+    ensure_no_statement_errors(
+        script_name,
+        "record migration returned errors",
+        &mut record_response,
+    )?;
     record_response
         .check()
         .map_err(|err| anyhow!(err))

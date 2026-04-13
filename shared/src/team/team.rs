@@ -1,0 +1,73 @@
+use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "backend")]
+use utoipa::ToSchema;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub enum TeamRole {
+    Guest,
+    ContentMaintainer,
+    Admin,
+}
+
+/// User slice returned on team **GET** (`id` + `email` only, same naming as `User`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct TeamUser {
+    pub id: String,
+    pub email: String,
+}
+
+/// User reference in **POST/PUT** team payloads (`id` only).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct TeamUserRef {
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct TeamMember {
+    pub user: TeamUser,
+    pub role: TeamRole,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct Team {
+    pub id: String,
+    /// When set, this team is that user's personal team (1:1, not deletable). Not listed in `members`.
+    pub owner: Option<TeamUser>,
+    pub name: String,
+    /// Everyone except the personal-team owner (if any).
+    pub members: Vec<TeamMember>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct CreateTeam {
+    pub name: String,
+    /// Additional members (besides the creating user, who is always `admin`).
+    #[serde(default)]
+    pub members: Vec<TeamMemberInput>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct UpdateTeam {
+    pub name: String,
+    /// When set, replaces the entire `members` list (shared teams must keep at least one `admin`).
+    #[serde(default)]
+    pub members: Option<Vec<TeamMemberInput>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct TeamMemberInput {
+    pub user: TeamUserRef,
+    pub role: TeamRole,
+}
