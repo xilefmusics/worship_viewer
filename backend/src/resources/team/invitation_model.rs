@@ -79,6 +79,13 @@ struct InvitationIdRow {
     id: Thing,
 }
 
+/// Return shape of `DELETE team_invitation:…` — raw links are not expanded like `SELECT … FETCH`.
+#[derive(Debug, Deserialize)]
+struct InvitationDeleteRow {
+    #[allow(dead_code)]
+    id: Thing,
+}
+
 impl InvitationRow {
     fn into_invitation(self) -> Result<TeamInvitation, AppError> {
         let u = self.created_by.into_user();
@@ -229,7 +236,7 @@ impl TeamInvitationModel for Database {
         }
 
         let key = record_id_string(&inv_thing);
-        let deleted: Option<InvitationRow> =
+        let deleted: Option<InvitationDeleteRow> =
             self.db.delete(("team_invitation", key.as_str())).await?;
         if deleted.is_none() {
             return Err(AppError::NotFound("invitation not found".into()));
@@ -243,9 +250,11 @@ impl TeamInvitationModel for Database {
         invitation_id: &str,
     ) -> Result<Team, AppError> {
         let inv_thing = invitation_thing(invitation_id)?;
+        // `FETCH team` alone leaves `members[].user` as bare ids; mirror `SELECT … FETCH members.user`
+        // on the team table via `team.members.user`.
         let row = self
             .db
-            .query("SELECT * FROM $iid FETCH team, created_by")
+            .query("SELECT * FROM $iid FETCH created_by, team, team.members.user")
             .bind(("iid", inv_thing))
             .await?
             .take::<Option<InvitationAcceptRow>>(0)?
