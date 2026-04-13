@@ -13,10 +13,6 @@ pub struct CreateUserRequest {
     #[serde(default)]
     pub role: Role,
     #[serde(default)]
-    pub read: Vec<String>,
-    #[serde(default)]
-    pub write: Vec<String>,
-    #[serde(default)]
     pub default_collection: Option<String>,
 }
 
@@ -27,8 +23,6 @@ impl CreateUserRequest {
             id: String::new(),
             email: self.email,
             role: self.role,
-            read: self.read,
-            write: self.write,
             default_collection: self.default_collection,
             created_at: Utc::now(),
             last_login_at: None,

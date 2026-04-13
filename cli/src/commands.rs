@@ -58,6 +58,10 @@ pub enum Command {
         #[command(subcommand)]
         command: BlobsCommand,
     },
+    Teams {
+        #[command(subcommand)]
+        command: TeamsCommand,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -237,6 +241,28 @@ pub enum SetlistsCommand {
     ExportUrl {
         id: String,
         format: String,
+    },
+    Create {
+        #[arg(long)]
+        json: String,
+    },
+    Update {
+        id: String,
+        #[arg(long)]
+        json: String,
+    },
+    Delete {
+        id: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum TeamsCommand {
+    /// List teams visible to the current user.
+    List,
+    /// Get a team by id.
+    Get {
+        id: String,
     },
     Create {
         #[arg(long)]

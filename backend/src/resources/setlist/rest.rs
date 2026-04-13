@@ -14,7 +14,8 @@ use crate::resources::setlist::CreateSetlist;
 use crate::resources::setlist::Setlist;
 use crate::resources::song::Model as SongModel;
 #[allow(unused_imports)]
-use crate::resources::song::{QueryParams, Song, export};
+use crate::resources::song::{Format, QueryParams, Song, export};
+use crate::resources::team::{content_read_team_things, content_write_team_things};
 use shared::api::ListQuery;
 use shared::player::Player;
 use shared::song::LinkOwned as SongLinkOwned;
@@ -57,7 +58,8 @@ async fn get_setlists(
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
     let list_query = query.into_inner();
-    Ok(HttpResponse::Ok().json(db.get_setlists(user.read(), list_query).await?))
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
+    Ok(HttpResponse::Ok().json(db.get_setlists(read_teams, list_query).await?))
 }
 
 #[utoipa::path(
@@ -85,7 +87,8 @@ async fn get_setlist(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_setlist(user.read(), &id).await?))
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
+    Ok(HttpResponse::Ok().json(db.get_setlist(read_teams, &id).await?))
 }
 
 #[utoipa::path(
@@ -114,8 +117,9 @@ async fn get_setlist_player(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     let liked_set = db.get_liked_set(&user.id).await?;
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
     Ok(HttpResponse::Ok().json(
-        db.get_setlist_songs(user.read(), &id)
+        db.get_setlist_songs(read_teams, &id)
             .await?
             .into_iter()
             .enumerate()
@@ -138,7 +142,7 @@ async fn get_setlist_player(
     path = "/api/v1/setlists/{id}/export",
     params(
         ("id" = String, Path, description = "Setlist identifier"),
-        ("format" = crate::resources::song::Format, Query, description = "Optional export format: zip, wp, cp, pdf (defaults to wp)")
+        ("format" = Format, Query, description = "Optional export format: zip, wp, cp, pdf (defaults to wp)")
     ),
     responses(
         (
@@ -166,8 +170,9 @@ async fn get_setlist_export(
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
     let query = query.into_inner();
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
     let songs = db
-        .get_setlist_songs(user.read(), &id)
+        .get_setlist_songs(read_teams, &id)
         .await?
         .into_iter()
         .map(|song_link_owned| song_link_owned.song)
@@ -201,8 +206,9 @@ async fn get_setlist_songs(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     let liked_set = db.get_liked_set(&user.id).await?;
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
     Ok(HttpResponse::Ok().json(
-        db.get_setlist_songs(user.read(), &id)
+        db.get_setlist_songs(read_teams, &id)
             .await?
             .into_iter()
             .map(|song_link_owned| {
@@ -265,8 +271,9 @@ async fn update_setlist(
     id: Path<String>,
     payload: Json<CreateSetlist>,
 ) -> Result<HttpResponse, AppError> {
+    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
     Ok(HttpResponse::Ok().json(
-        db.update_setlist(user.write(), &id, payload.into_inner())
+        db.update_setlist(write_teams, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -296,5 +303,6 @@ async fn delete_setlist(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_setlist(user.write(), &id).await?))
+    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
+    Ok(HttpResponse::Ok().json(db.delete_setlist(write_teams, &id).await?))
 }

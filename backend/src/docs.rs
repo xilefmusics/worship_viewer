@@ -13,6 +13,9 @@ pub use shared::error::ErrorResponse;
 use shared::like::LikeStatus;
 use shared::player::{Orientation, Player, PlayerItem, ScrollType, TocItem};
 use shared::song::{Link as SongLink, SongUserSpecificAddons};
+use shared::team::{
+    CreateTeam, Team, TeamMember, TeamMemberInput, TeamRole, TeamUser, TeamUserRef, UpdateTeam,
+};
 
 pub mod rest {
     use super::{ApiDoc, OpenApi};
@@ -73,7 +76,12 @@ pub mod rest {
         crate::resources::setlist::rest::get_setlist_songs,
         crate::resources::setlist::rest::create_setlist,
         crate::resources::setlist::rest::update_setlist,
-        crate::resources::setlist::rest::delete_setlist
+        crate::resources::setlist::rest::delete_setlist,
+        crate::resources::team::rest::get_teams,
+        crate::resources::team::rest::get_team,
+        crate::resources::team::rest::create_team,
+        crate::resources::team::rest::update_team,
+        crate::resources::team::rest::delete_team
     ),
     components(
         schemas(
@@ -101,7 +109,15 @@ pub mod rest {
             TocItem,
             ScrollType,
             Orientation,
-            Format
+            Format,
+            Team,
+            TeamMember,
+            TeamRole,
+            TeamUser,
+            TeamUserRef,
+            CreateTeam,
+            UpdateTeam,
+            TeamMemberInput
         )
     ),
     tags(
@@ -110,7 +126,8 @@ pub mod rest {
         (name = "Songs", description = "Song resources"),
         (name = "Collections", description = "Collection resources"),
         (name = "Blobs", description = "Blob resources"),
-        (name = "Setlists", description = "Setlist resources")
+        (name = "Setlists", description = "Setlist resources"),
+        (name = "Teams", description = "Team resources")
     ),
     modifiers(&SessionSecurity)
 )]

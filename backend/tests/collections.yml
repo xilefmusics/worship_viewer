@@ -37,6 +37,20 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  - name: get-collection-owner-personal-team
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+        vars:
+          owner_personal_team_id:
+            from: result.bodyjson.bodyjson0.id
+
   - name: post-collection-cover-blob
     steps:
       - type: http
@@ -68,8 +82,7 @@ testcases:
           Content-Type: application/json
         body: |
           {
-            "email": "collectionread@test.com",
-            "read": ["{{.create-collection-owner-user.userid}}"]
+            "email": "collectionread@test.com"
           }
         assertions:
           - result.statuscode ShouldEqual 201
@@ -101,8 +114,7 @@ testcases:
           Content-Type: application/json
         body: |
           {
-            "email": "collectionwrite@test.com",
-            "write": ["{{.create-collection-owner-user.userid}}"]
+            "email": "collectionwrite@test.com"
           }
         assertions:
           - result.statuscode ShouldEqual 201
@@ -155,6 +167,25 @@ testcases:
         vars:
           sessionid:
             from: result.bodyjson.id
+
+  - name: configure-collection-owner-team-acl
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/teams/{{.get-collection-owner-personal-team.owner_personal_team_id}}"
+        headers:
+          Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "name": "Personal",
+            "members": [
+              { "user": { "id": "{{.create-collection-read-user.userid}}" }, "role": "guest" },
+              { "user": { "id": "{{.create-collection-write-user.userid}}" }, "role": "content_maintainer" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
 
   - name: create-noperm-user-song
     steps:
@@ -250,7 +281,7 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.owner ShouldEqual "{{.create-collection-owner-user.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-collection-owner-personal-team.owner_personal_team_id}}"
           - result.bodyjson.title ShouldEqual "Favorite Collection"
           - result.bodyjson.songs ShouldHaveLength 2
         vars:
@@ -553,7 +584,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.post-collection-success.collectionid}}"
-          - result.bodyjson.owner ShouldEqual "{{.create-collection-owner-user.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-collection-owner-personal-team.owner_personal_team_id}}"
           - result.bodyjson.title ShouldEqual "Favorite Collection"
 
   - name: get-collection-read-user

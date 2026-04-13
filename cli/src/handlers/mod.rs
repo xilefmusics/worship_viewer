@@ -10,6 +10,7 @@ mod schema;
 mod sessions;
 mod setlists;
 mod songs;
+mod teams;
 mod users;
 
 pub async fn dispatch(
@@ -78,6 +79,9 @@ pub async fn dispatch(
                 command,
             )
             .await
+        }
+        Command::Teams { command } => {
+            teams::handle_teams(client, cli.output.clone(), cli.dry_run, command).await
         }
     }
 }

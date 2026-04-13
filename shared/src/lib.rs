@@ -8,5 +8,6 @@ pub mod net;
 pub mod player;
 pub mod setlist;
 pub mod song;
+pub mod team;
 pub mod user;
 pub use chordlib::Error as ChordlibError;

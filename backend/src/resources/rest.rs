@@ -1,4 +1,4 @@
-use super::{blob, collection, setlist, song, user};
+use super::{blob, collection, setlist, song, team, user};
 use crate::auth::middleware::RequireUser;
 use actix_web::{dev::HttpServiceFactory, web};
 
@@ -9,5 +9,6 @@ pub fn scope() -> impl HttpServiceFactory {
         .service(collection::rest::scope())
         .service(setlist::rest::scope())
         .service(song::rest::scope())
+        .service(team::rest::scope())
         .service(user::rest::scope())
 }

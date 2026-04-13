@@ -37,6 +37,20 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  - name: get-blob-owner-personal-team
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+        vars:
+          owner_personal_team_id:
+            from: result.bodyjson.bodyjson0.id
+
   - name: create-blob-read-user
     steps:
       - type: http
@@ -47,8 +61,7 @@ testcases:
           Content-Type: application/json
         body: |
           {
-            "email": "blobread@test.com",
-            "read": ["{{.create-blob-owner-user.userid}}"]
+            "email": "blobread@test.com"
           }
         assertions:
           - result.statuscode ShouldEqual 201
@@ -80,8 +93,7 @@ testcases:
           Content-Type: application/json
         body: |
           {
-            "email": "blobwrite@test.com",
-            "write": ["{{.create-blob-owner-user.userid}}"]
+            "email": "blobwrite@test.com"
           }
         assertions:
           - result.statuscode ShouldEqual 201
@@ -135,6 +147,25 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  - name: configure-blob-owner-team-acl
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/teams/{{.get-blob-owner-personal-team.owner_personal_team_id}}"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/json
+        body: |
+          {
+            "name": "Personal",
+            "members": [
+              { "user": { "id": "{{.create-blob-read-user.userid}}" }, "role": "guest" },
+              { "user": { "id": "{{.create-blob-write-user.userid}}" }, "role": "content_maintainer" }
+            ]
+          }
+        assertions:
+          - result.statuscode ShouldEqual 200
+
   # POST /api/v1/blobs tests
   - name: post-blob-success
     steps:
@@ -153,7 +184,7 @@ testcases:
           }
         assertions:
           - result.statuscode ShouldEqual 201
-          - result.bodyjson.owner ShouldEqual "{{.create-blob-owner-user.userid}}"
+          - result.bodyjson.owner ShouldEqual "{{.get-blob-owner-personal-team.owner_personal_team_id}}"
           - result.bodyjson.file_type ShouldEqual "image/png"
         vars:
           blobid:

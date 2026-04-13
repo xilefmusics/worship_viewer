@@ -15,6 +15,7 @@ use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::blob::Blob;
 use crate::resources::blob::CreateBlob;
+use crate::resources::team::{content_read_team_things, content_write_team_things};
 use crate::settings::Settings;
 use shared::api::ListQuery;
 
@@ -53,7 +54,8 @@ async fn get_blobs(
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
     let list_query = query.into_inner();
-    Ok(HttpResponse::Ok().json(db.get_blobs(user.read(), list_query).await?))
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
+    Ok(HttpResponse::Ok().json(db.get_blobs(read_teams, list_query).await?))
 }
 
 #[utoipa::path(
@@ -81,7 +83,8 @@ async fn get_blob(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_blob(user.read(), &id).await?))
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
+    Ok(HttpResponse::Ok().json(db.get_blob(read_teams, &id).await?))
 }
 
 #[utoipa::path(
@@ -136,8 +139,9 @@ async fn update_blob(
     id: PathParam<String>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
+    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
     Ok(HttpResponse::Ok().json(
-        db.update_blob(user.write(), &id, payload.into_inner())
+        db.update_blob(write_teams, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -167,7 +171,8 @@ async fn delete_blob(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_blob(user.write(), &id).await?))
+    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
+    Ok(HttpResponse::Ok().json(db.delete_blob(write_teams, &id).await?))
 }
 
 #[utoipa::path(
@@ -195,9 +200,10 @@ async fn download_blob_image(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<NamedFile, AppError> {
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
     NamedFile::open(
         Path::new(&Settings::global().blob_dir).join(PathBuf::from(
-            db.get_blob(user.read(), &id.into_inner())
+            db.get_blob(read_teams, &id.into_inner())
                 .await?
                 .file_name()
                 .ok_or(AppError::NotFound("blob has no id".into()))?,

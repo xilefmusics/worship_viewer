@@ -12,6 +12,8 @@ pub use setlist::{CreateSetlist, Setlist};
 pub mod song;
 pub use song::{CreateSong, Song};
 
+pub mod team;
+
 pub mod user;
 pub use user::CreateUserRequest;
 pub use user::Model as UserModel;

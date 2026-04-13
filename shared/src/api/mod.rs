@@ -12,6 +12,7 @@ use crate::net::{DefaultHttpClient, HttpClientConfig};
 use crate::player::Player;
 use crate::setlist::{CreateSetlist, Setlist};
 use crate::song::{CreateSong, Song};
+use crate::team::{CreateTeam, Team, UpdateTeam};
 use crate::user::{CreateUserRequest, Session, User};
 use std::vec::Vec;
 
@@ -139,6 +140,32 @@ impl<C: HttpClient> ApiClient<C> {
         self.client
             .delete(&format!("api/v1/users/{user_id}/sessions/{id}"))
             .await
+    }
+
+    pub async fn list_teams(&self) -> Result<Vec<Team>, NetworkClientError> {
+        self.client.get("api/v1/teams").await
+    }
+
+    pub async fn get_team(&self, id: &str) -> Result<Team, NetworkClientError> {
+        self.client.get(&format!("api/v1/teams/{id}")).await
+    }
+
+    pub async fn create_team(&self, payload: CreateTeam) -> Result<Team, NetworkClientError> {
+        self.client.post("api/v1/teams", &payload).await
+    }
+
+    pub async fn update_team(
+        &self,
+        id: &str,
+        payload: UpdateTeam,
+    ) -> Result<Team, NetworkClientError> {
+        self.client
+            .put(&format!("api/v1/teams/{id}"), &payload)
+            .await
+    }
+
+    pub async fn delete_team(&self, id: &str) -> Result<Team, NetworkClientError> {
+        self.client.delete(&format!("api/v1/teams/{id}")).await
     }
 
     pub async fn get_songs(&self, query: ListQuery) -> Result<Vec<Song>, NetworkClientError> {

@@ -14,6 +14,7 @@ use crate::resources::collection::Model as CollectionModel;
 use crate::resources::song::CreateSong;
 #[allow(unused_imports)]
 use crate::resources::song::Song;
+use crate::resources::team::{content_read_team_things, content_write_team_things};
 use crate::resources::user::Model as UserModel;
 use shared::api::ListQuery;
 use shared::like::LikeStatus;
@@ -61,8 +62,9 @@ async fn get_songs(
 ) -> Result<HttpResponse, AppError> {
     let liked_set = db.get_liked_set(&user.id).await?;
     let list_query = query.into_inner();
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
     let songs = db
-        .get_songs(user.read(), list_query)
+        .get_songs(read_teams, list_query)
         .await?
         .into_iter()
         .map(|song| {
@@ -100,7 +102,8 @@ async fn get_song(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     let liked_set = db.get_liked_set(&user.id).await?;
-    let mut song = db.get_song(user.read(), &id).await?;
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
+    let mut song = db.get_song(read_teams, &id).await?;
     song.user_specific_addons.liked = liked_set.contains(&song.id);
     Ok(HttpResponse::Ok().json(song))
 }
@@ -130,11 +133,12 @@ async fn get_song_player(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
     Ok(HttpResponse::Ok().json(Player::from(SongLinkOwned {
-        song: db.get_song(user.read(), &id).await?,
+        song: db.get_song(read_teams.clone(), &id).await?,
         nr: None,
         key: None,
-        liked: db.get_song_like(user.read(), &user.id, &id).await?,
+        liked: db.get_song_like(read_teams, &user.id, &id).await?,
     })))
 }
 
@@ -171,7 +175,8 @@ async fn get_song_export(
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
     let query = query.into_inner();
-    let song = db.get_song(user.read(), &id).await?;
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
+    let song = db.get_song(read_teams, &id).await?;
     export(vec![song], query.format).await
 }
 
@@ -200,8 +205,9 @@ async fn create_song(
     let song = db.create_song(&user.id, payload.into_inner()).await?;
 
     if let Some(collection_id) = user.default_collection.as_ref() {
+        let write_teams = content_write_team_things(db.get_ref(), &user).await?;
         db.add_song_to_collection(
-            user.read(),
+            write_teams,
             collection_id,
             SongLink {
                 id: song.id.clone(),
@@ -259,8 +265,9 @@ async fn update_song(
     id: Path<String>,
     payload: Json<CreateSong>,
 ) -> Result<HttpResponse, AppError> {
+    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
     Ok(HttpResponse::Ok().json(
-        db.update_song(user.write(), &user.id, &id, payload.into_inner())
+        db.update_song(write_teams, &user.id, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -290,7 +297,8 @@ async fn delete_song(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_song(user.write(), &id).await?))
+    let write_teams = content_write_team_things(db.get_ref(), &user).await?;
+    Ok(HttpResponse::Ok().json(db.delete_song(write_teams, &id).await?))
 }
 
 #[utoipa::path(
@@ -318,7 +326,8 @@ async fn get_song_like_status(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let liked = db.get_song_like(user.read(), &user.id, &id).await?;
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
+    let liked = db.get_song_like(read_teams, &user.id, &id).await?;
 
     Ok(HttpResponse::Ok().json(LikeStatus { liked }))
 }
@@ -351,7 +360,8 @@ async fn update_song_like_status(
     payload: Json<LikeStatus>,
 ) -> Result<HttpResponse, AppError> {
     let LikeStatus { liked } = payload.into_inner();
-    let liked = db.set_song_like(user.read(), &user.id, &id, liked).await?;
+    let read_teams = content_read_team_things(db.get_ref(), &user).await?;
+    let liked = db.set_song_like(read_teams, &user.id, &id, liked).await?;
 
     Ok(HttpResponse::Ok().json(LikeStatus { liked }))
 }

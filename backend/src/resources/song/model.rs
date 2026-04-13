@@ -13,28 +13,28 @@ use crate::error::AppError;
 pub trait Model {
     async fn get_songs(
         &self,
-        owners: Vec<String>,
+        read_teams: Vec<Thing>,
         pagination: ListQuery,
     ) -> Result<Vec<Song>, AppError>;
-    async fn get_song(&self, owners: Vec<String>, id: &str) -> Result<Song, AppError>;
+    async fn get_song(&self, read_teams: Vec<Thing>, id: &str) -> Result<Song, AppError>;
     async fn create_song(&self, owner: &str, song: CreateSong) -> Result<Song, AppError>;
     async fn update_song(
         &self,
-        owners: Vec<String>,
-        owner: &str,
+        write_teams: Vec<Thing>,
+        actor_user_id: &str,
         id: &str,
         song: CreateSong,
     ) -> Result<Song, AppError>;
-    async fn delete_song(&self, owners: Vec<String>, id: &str) -> Result<Song, AppError>;
+    async fn delete_song(&self, write_teams: Vec<Thing>, id: &str) -> Result<Song, AppError>;
     async fn get_song_like(
         &self,
-        owners: Vec<String>,
+        read_teams: Vec<Thing>,
         user_id: &str,
         id: &str,
     ) -> Result<bool, AppError>;
     async fn set_song_like(
         &self,
-        owners: Vec<String>,
+        read_teams: Vec<Thing>,
         user_id: &str,
         id: &str,
         liked: bool,
@@ -45,21 +45,16 @@ pub trait Model {
 impl Model for Database {
     async fn get_songs(
         &self,
-        owners: Vec<String>,
+        read_teams: Vec<Thing>,
         pagination: ListQuery,
     ) -> Result<Vec<Song>, AppError> {
-        let owners = owners
-            .into_iter()
-            .map(|owner| owner_thing(&owner))
-            .collect::<Vec<_>>();
-
         let q_nonempty = pagination.q.as_ref().is_some_and(|q| !q.trim().is_empty());
         let mut query = if q_nonempty {
             String::from(
-                "SELECT *, ((search::score(0) ?? 0) * 100 + (search::score(1) ?? 0) * 10 + (search::score(2) ?? 0) * 1) AS score FROM song WHERE owner IN $owners",
+                "SELECT *, ((search::score(0) ?? 0) * 100 + (search::score(1) ?? 0) * 10 + (search::score(2) ?? 0) * 1) AS score FROM song WHERE owner IN $teams",
             )
         } else {
-            String::from("SELECT * FROM song WHERE owner IN $owners")
+            String::from("SELECT * FROM song WHERE owner IN $teams")
         };
         if q_nonempty {
             query.push_str(
@@ -70,7 +65,7 @@ impl Model for Database {
             query.push_str(" LIMIT $limit START $start");
         }
 
-        let mut request = self.db.query(query).bind(("owners", owners));
+        let mut request = self.db.query(query).bind(("teams", read_teams));
         if let Some(ref q) = pagination.q
             && !q.trim().is_empty()
         {
@@ -89,21 +84,18 @@ impl Model for Database {
             .collect())
     }
 
-    async fn get_song(&self, owners: Vec<String>, id: &str) -> Result<Song, AppError> {
+    async fn get_song(&self, read_teams: Vec<Thing>, id: &str) -> Result<Song, AppError> {
         match self.db.select(song_resource(id)?).await? {
-            Some(record) if song_belongs_to(&record, owners) => Ok(record.into_song()),
+            Some(record) if song_belongs_to(&record, &read_teams) => Ok(record.into_song()),
             _ => Err(AppError::NotFound("song not found".into())),
         }
     }
 
     async fn create_song(&self, owner: &str, song: CreateSong) -> Result<Song, AppError> {
+        let owner_team = self.personal_team_thing_for_user(owner).await?;
         self.db
             .create("song")
-            .content(SongRecord::from_payload(
-                None,
-                Some(owner_thing(owner)),
-                song,
-            ))
+            .content(SongRecord::from_payload(None, Some(owner_team), song))
             .await?
             .map(SongRecord::into_song)
             .ok_or_else(|| AppError::database("failed to create song"))
@@ -111,27 +103,30 @@ impl Model for Database {
 
     async fn update_song(
         &self,
-        owners: Vec<String>,
-        owner: &str,
+        write_teams: Vec<Thing>,
+        actor_user_id: &str,
         id: &str,
         song: CreateSong,
     ) -> Result<Song, AppError> {
         let resource = song_resource(id)?;
-        let owner = if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !song_belongs_to(&existing, owners) {
+        let owner_team = if let Some(existing) = self.db.select(resource.clone()).await? {
+            if !song_belongs_to(&existing, &write_teams) {
                 return Err(AppError::NotFound("song not found".into()));
             }
-            existing.owner
+            existing
+                .owner
+                .clone()
+                .ok_or_else(|| AppError::database("song missing owner"))?
         } else {
-            // Check write permission before creating new song
-            if !owners.contains(&owner.to_string()) {
+            let personal = self.personal_team_thing_for_user(actor_user_id).await?;
+            if !write_teams.contains(&personal) {
                 return Err(AppError::NotFound("song not found".into()));
             }
-            Some(owner_thing(owner))
+            personal
         };
 
         let record_id = Thing::from(resource.clone());
-        let record = SongRecord::from_payload(Some(record_id), owner.clone(), song);
+        let record = SongRecord::from_payload(Some(record_id), Some(owner_team), song);
 
         if let Some(updated) = self
             .db
@@ -151,10 +146,10 @@ impl Model for Database {
             .ok_or_else(|| AppError::database("failed to upsert song"))
     }
 
-    async fn delete_song(&self, owners: Vec<String>, id: &str) -> Result<Song, AppError> {
+    async fn delete_song(&self, write_teams: Vec<Thing>, id: &str) -> Result<Song, AppError> {
         let resource = song_resource(id)?;
         if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !song_belongs_to(&existing, owners) {
+            if !song_belongs_to(&existing, &write_teams) {
                 return Err(AppError::NotFound("song not found".into()));
             }
         } else {
@@ -170,7 +165,7 @@ impl Model for Database {
 
     async fn get_song_like(
         &self,
-        owners: Vec<String>,
+        read_teams: Vec<Thing>,
         user_id: &str,
         id: &str,
     ) -> Result<bool, AppError> {
@@ -181,7 +176,7 @@ impl Model for Database {
             .await?
             .ok_or_else(|| AppError::NotFound("song not found".into()))?;
 
-        if !song_belongs_to(&existing, owners) {
+        if !song_belongs_to(&existing, &read_teams) {
             return Err(AppError::NotFound("song not found".into()));
         }
 
@@ -201,7 +196,7 @@ impl Model for Database {
 
     async fn set_song_like(
         &self,
-        owners: Vec<String>,
+        read_teams: Vec<Thing>,
         user_id: &str,
         id: &str,
         liked: bool,
@@ -213,7 +208,7 @@ impl Model for Database {
             .await?
             .ok_or_else(|| AppError::NotFound("song not found".into()))?;
 
-        if !song_belongs_to(&existing, owners) {
+        if !song_belongs_to(&existing, &read_teams) {
             return Err(AppError::NotFound("song not found".into()));
         }
 
@@ -347,11 +342,11 @@ fn blob_thing(blob_id: &str) -> Thing {
     Thing::from(("blob".to_owned(), blob_id.to_owned()))
 }
 
-fn song_belongs_to(record: &SongRecord, owners: Vec<String>) -> bool {
+fn song_belongs_to(record: &SongRecord, teams: &[Thing]) -> bool {
     record
         .owner
         .as_ref()
-        .map(|owner| owners.contains(&owner.id.to_string()))
+        .map(|t| teams.contains(t))
         .unwrap_or(false)
 }
 
