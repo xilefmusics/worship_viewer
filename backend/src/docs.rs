@@ -14,7 +14,8 @@ use shared::like::LikeStatus;
 use shared::player::{Orientation, Player, PlayerItem, ScrollType, TocItem};
 use shared::song::{Link as SongLink, SongUserSpecificAddons};
 use shared::team::{
-    CreateTeam, Team, TeamMember, TeamMemberInput, TeamRole, TeamUser, TeamUserRef, UpdateTeam,
+    CreateTeam, Team, TeamInvitation, TeamMember, TeamMemberInput, TeamRole, TeamUser, TeamUserRef,
+    UpdateTeam,
 };
 
 pub mod rest {
@@ -81,7 +82,12 @@ pub mod rest {
         crate::resources::team::rest::get_team,
         crate::resources::team::rest::create_team,
         crate::resources::team::rest::update_team,
-        crate::resources::team::rest::delete_team
+        crate::resources::team::rest::delete_team,
+        crate::resources::team::rest::create_team_invitation,
+        crate::resources::team::rest::list_team_invitations,
+        crate::resources::team::rest::get_team_invitation,
+        crate::resources::team::rest::delete_team_invitation,
+        crate::resources::team::rest::accept_team_invitation
     ),
     components(
         schemas(
@@ -117,7 +123,8 @@ pub mod rest {
             TeamUserRef,
             CreateTeam,
             UpdateTeam,
-            TeamMemberInput
+            TeamMemberInput,
+            TeamInvitation
         )
     ),
     tags(

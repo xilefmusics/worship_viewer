@@ -10,5 +10,6 @@ pub fn scope() -> impl HttpServiceFactory {
         .service(setlist::rest::scope())
         .service(song::rest::scope())
         .service(team::rest::scope())
+        .service(team::invitations_accept_scope())
         .service(user::rest::scope())
 }

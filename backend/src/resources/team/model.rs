@@ -461,14 +461,14 @@ struct TeamCreatePayload {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct DbTeamMember {
-    user: Thing,
-    role: String,
+pub(crate) struct DbTeamMember {
+    pub(crate) user: Thing,
+    pub(crate) role: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-struct TeamFetched {
-    id: Thing,
+pub(crate) struct TeamFetched {
+    pub(crate) id: Thing,
     name: String,
     #[serde(default)]
     owner: Option<UserRecord>,
@@ -483,7 +483,7 @@ struct TeamMemberFetched {
 }
 
 impl TeamFetched {
-    fn into_team(self) -> Result<Team, AppError> {
+    pub(crate) fn into_team(self) -> Result<Team, AppError> {
         let id = self.id.id.to_string();
         let owner = self.owner.map(user_record_to_team_user).transpose()?;
         let mut members = Vec::with_capacity(self.members.len());
@@ -516,12 +516,12 @@ struct TeamIdRow {
 }
 
 #[derive(Clone, Debug)]
-struct TeamStored {
-    owner: Option<Thing>,
-    members: Vec<DbTeamMember>,
+pub(crate) struct TeamStored {
+    pub(crate) owner: Option<Thing>,
+    pub(crate) members: Vec<DbTeamMember>,
 }
 
-fn team_fetched_to_stored(row: &TeamFetched) -> Result<TeamStored, AppError> {
+pub(crate) fn team_fetched_to_stored(row: &TeamFetched) -> Result<TeamStored, AppError> {
     let owner = row
         .owner
         .as_ref()
@@ -537,7 +537,7 @@ fn team_fetched_to_stored(row: &TeamFetched) -> Result<TeamStored, AppError> {
     Ok(TeamStored { owner, members })
 }
 
-async fn load_team_display(db: &Database, id: &str) -> Result<Team, AppError> {
+pub(crate) async fn load_team_display(db: &Database, id: &str) -> Result<Team, AppError> {
     let resource = team_resource_or_reject_public(id)?;
     let row = db
         .db
@@ -549,20 +549,20 @@ async fn load_team_display(db: &Database, id: &str) -> Result<Team, AppError> {
     row.into_team()
 }
 
-fn user_thing(user_id: &str) -> Thing {
+pub(crate) fn user_thing(user_id: &str) -> Thing {
     Thing::from(("user".to_owned(), user_id.to_owned()))
 }
 
-fn public_team_thing() -> Thing {
+pub(crate) fn public_team_thing() -> Thing {
     Thing::from(("team".to_owned(), "public".to_owned()))
 }
 
-fn is_public_resource(resource: &(String, String)) -> bool {
+pub(crate) fn is_public_resource(resource: &(String, String)) -> bool {
     resource.0 == "team" && resource.1 == "public"
 }
 
 /// `team:public` is seeded for internal use only (see migration). It is not exposed through the REST API.
-fn team_resource_or_reject_public(id: &str) -> Result<(String, String), AppError> {
+pub(crate) fn team_resource_or_reject_public(id: &str) -> Result<(String, String), AppError> {
     let resource = team_resource(id)?;
     if is_public_resource(&resource) {
         return Err(AppError::NotFound("team not found".into()));
@@ -582,11 +582,11 @@ fn team_resource(id: &str) -> Result<(String, String), AppError> {
     Ok(("team".to_owned(), id.to_owned()))
 }
 
-fn thing_user_id(t: &Thing) -> String {
+pub(crate) fn thing_user_id(t: &Thing) -> String {
     t.id.to_string()
 }
 
-fn member_or_owner_readable(user_id: &str, stored: &TeamStored) -> bool {
+pub(crate) fn member_or_owner_readable(user_id: &str, stored: &TeamStored) -> bool {
     if let Some(ref o) = stored.owner
         && thing_user_id(o) == user_id
     {
@@ -603,7 +603,7 @@ fn can_read_team(user_id: &str, stored: &TeamStored, app_admin: bool) -> bool {
     app_admin || member_or_owner_readable(user_id, stored)
 }
 
-fn effective_admin(user_id: &str, stored: &TeamStored) -> bool {
+pub(crate) fn effective_admin(user_id: &str, stored: &TeamStored) -> bool {
     if let Some(ref o) = stored.owner
         && thing_user_id(o) == user_id
     {
