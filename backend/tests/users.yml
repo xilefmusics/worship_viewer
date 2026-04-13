@@ -4,6 +4,7 @@ vars:
   token_admin: admin
 
 testcases:
+  # BLC: BLC-USER-005
   - name: get-users-me-admin
     steps:
       - type: http
@@ -14,6 +15,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-005, BLC-USER-006
   - name: get-users-me-raw-authorization-token
     steps:
       - type: http
@@ -24,6 +26,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-AUTH-002
   - name: get-users-me-invalid-token
     steps:
       - type: http
@@ -34,6 +37,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-001
   - name: get-users-me-missing-auth
     steps:
       - type: http
@@ -42,6 +46,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-USER-003, BLC-USER-001, BLC-USER-002
   - name: post-users
     steps:
       - type: http
@@ -62,6 +67,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-008
   - name: post-users-mail-conflict
     steps:
       - type: http
@@ -77,6 +83,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 409
 
+  # BLC: BLC-USER-008
   - name: post-users-invalid-mail
     steps:
       - type: http
@@ -92,6 +99,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
   
+  # BLC: BLC-USER-008
   - name: post-users-missing-mail
     steps:
       - type: http
@@ -105,6 +113,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-002
   - name: post-users-invalid-token
     steps:
       - type: http
@@ -120,6 +129,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-001
   - name: post-users-missing-token
     steps:
       - type: http
@@ -134,6 +144,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-USER-007
   - name: get-users-admin
     steps:
       - type: http
@@ -145,6 +156,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.__Len__ ShouldBeGreaterThanOrEqualTo 2
 
+  # BLC: BLC-USER-007
   - name: get-users-admin-paginated
     steps:
       - type: http
@@ -156,6 +168,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 1
 
+  # BLC: BLC-AUTH-002
   - name: get-users-invalid-token
     steps:
       - type: http
@@ -166,6 +179,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-001
   - name: get-users-missing-token
     steps:
       - type: http
@@ -174,6 +188,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
   
+  # BLC: BLC-LP-004
   - name: get-users-invalid-page-parameter
     steps:
       - type: http
@@ -184,6 +199,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
   
+  # BLC: BLC-LP-004
   - name: get-users-invalid-page-size-parameter
     steps:
       - type: http
@@ -194,6 +210,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-LP-006
   - name: get-users-admin-page-size-zero
     steps:
       - type: http
@@ -205,6 +222,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.__Len__ ShouldBeGreaterThanOrEqualTo 2
 
+  # BLC: BLC-LP-007
   - name: get-users-admin-page-only
     steps:
       - type: http
@@ -216,6 +234,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.__Len__ ShouldBeGreaterThanOrEqualTo 2
 
+  # BLC: BLC-LP-007
   - name: get-users-admin-page-size-only
     steps:
       - type: http
@@ -227,6 +246,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.__Len__ ShouldBeGreaterThanOrEqualTo 2
 
+  # BLC: BLC-LP-008
   - name: get-users-admin-page-beyond-range
     steps:
       - type: http
@@ -238,6 +258,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 0
   
+  # BLC: BLC-USER-007, BLC-USER-009
   - name: get-user
     steps:
       - type: http
@@ -251,6 +272,7 @@ testcases:
           - result.bodyjson.email ShouldEqual "anormaluser@test.com"
           - result.bodyjson.role ShouldEqual "default"
 
+  # BLC: BLC-AUTH-002
   - name: get-user-invalid-token
     steps:
       - type: http
@@ -261,6 +283,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-001
   - name: get-user-no-token
     steps:
       - type: http
@@ -269,6 +292,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-USER-007
   - name: get-invalid-user
     steps:
       - type: http
@@ -279,6 +303,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-USER-011
   - name: create-session-for-default-user
     steps:
       - type: http
@@ -294,6 +319,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-001
   - name: get-default-user-personal-team
     steps:
       - type: http
@@ -308,6 +334,7 @@ testcases:
           default_user_personal_team_id:
             from: result.bodyjson.bodyjson0.id
 
+  # BLC: BLC-USER-003
   - name: create-cascade-verifier-user
     steps:
       - type: http
@@ -326,6 +353,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-cascade-verifier-session
     steps:
       - type: http
@@ -339,6 +367,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-011
   - name: add-cascade-verifier-to-default-user-team
     steps:
       - type: http
@@ -357,6 +386,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-009
   - name: get-user-read-grant-on-target-owner
     steps:
       - type: http
@@ -367,6 +397,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-USER-003
   - name: create-default-user-blob
     steps:
       - type: http
@@ -389,6 +420,7 @@ testcases:
           blobid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: create-default-user-song
     steps:
       - type: http
@@ -413,6 +445,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: create-default-user-setlist
     steps:
       - type: http
@@ -435,6 +468,7 @@ testcases:
           setlistid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: create-default-user-collection
     steps:
       - type: http
@@ -458,6 +492,7 @@ testcases:
           collectionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-004
   - name: like-default-user-song
     steps:
       - type: http
@@ -474,6 +509,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.liked ShouldEqual true
 
+  # BLC: BLC-USER-005
   - name: get-users-me-default
     steps:
       - type: http
@@ -487,6 +523,7 @@ testcases:
           - result.bodyjson.email ShouldEqual "anormaluser@test.com"
           - result.bodyjson.role ShouldEqual "default"
 
+  # BLC: BLC-USER-007, BLC-USER-009
   - name: get-users-default
     steps:
       - type: http
@@ -497,6 +534,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-USER-007
   - name: post-users-default
     steps:
       - type: http
@@ -512,6 +550,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-USER-007, BLC-USER-009
   - name: get-user-default
     steps:
       - type: http
@@ -522,6 +561,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-USER-007, BLC-USER-009
   - name: delete-user-default
     steps:
       - type: http
@@ -532,6 +572,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-USER-007, BLC-USER-013, BLC-TEAM-017, BLC-SONG-016, BLC-BLOB-015, BLC-COLL-018, BLC-SETL-013
   - name: delete-user
     steps:
       - type: http
@@ -545,6 +586,7 @@ testcases:
           - result.bodyjson.email ShouldEqual "anormaluser@test.com"
           - result.bodyjson.role ShouldEqual "default"
 
+  # BLC: BLC-USER-013
   - name: get-default-user-session-after-delete
     steps:
       - type: http
@@ -555,6 +597,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-USER-013
   - name: get-default-user-song-after-delete
     steps:
       - type: http
@@ -565,6 +608,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-USER-013
   - name: get-default-user-setlist-after-delete
     steps:
       - type: http
@@ -575,6 +619,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-USER-013
   - name: get-default-user-collection-after-delete
     steps:
       - type: http
@@ -585,6 +630,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-USER-013
   - name: get-default-user-blob-after-delete
     steps:
       - type: http
@@ -595,6 +641,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-USER-014
   - name: delete-user-again
     steps:
       - type: http
@@ -605,6 +652,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-USER-007
   - name: delete-user-no-token
     steps:
       - type: http
@@ -613,6 +661,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-USER-007
   - name: delete-invalid-user
     steps:
       - type: http
@@ -623,6 +672,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-USER-007, BLC-USER-002
   - name: post-users-admin-role
     steps:
       - type: http
@@ -641,6 +691,7 @@ testcases:
           - result.bodyjson.email ShouldEqual "secondadmin@test.com"
           - result.bodyjson.role ShouldEqual "admin"
 
+  # BLC: BLC-USER-003, BLC-BLOB-009, BLC-COLL-009
   - name: zzz-gap-default-collection-owner-user
     steps:
       - type: http
@@ -659,6 +710,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003, BLC-BLOB-009, BLC-COLL-009
   - name: zzz-gap-default-collection-owner-session
     steps:
       - type: http
@@ -672,6 +724,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003, BLC-BLOB-009, BLC-COLL-009
   - name: zzz-gap-default-collection-cover-blob
     steps:
       - type: http
@@ -693,6 +746,7 @@ testcases:
           blobid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003, BLC-BLOB-009, BLC-COLL-009
   - name: zzz-gap-default-collection-create
     steps:
       - type: http
@@ -713,6 +767,7 @@ testcases:
           collectionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-004, BLC-USER-003, BLC-BLOB-009, BLC-COLL-009
   - name: post-users-with-default-collection
     steps:
       - type: http
@@ -731,6 +786,7 @@ testcases:
           - result.bodyjson.email ShouldEqual "defaultcoluser@test.com"
           - result.bodyjson.default_collection ShouldContainSubstring "{{.zzz-gap-default-collection-create.collectionid}}"
 
+  # BLC: BLC-USER-004, BLC-USER-003, BLC-BLOB-009, BLC-COLL-009
   - name: post-users-with-nonexistent-default-collection
     steps:
       - type: http
@@ -748,6 +804,7 @@ testcases:
           - result.statuscode ShouldEqual 201
           - result.bodyjson.default_collection ShouldContainSubstring nonexistent-collection-xyz
 
+  # BLC: BLC-DOCS-001
   - name: get-openapi-json-unauthenticated
     steps:
       - type: http

@@ -4,6 +4,7 @@ vars:
   token_admin: admin
 
 testcases:
+  # BLC: BLC-USER-003
   - name: ti-create-lead-user
     steps:
       - type: http
@@ -22,6 +23,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: ti-create-lead-session
     steps:
       - type: http
@@ -35,6 +37,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-008, BLC-TINV-001
   - name: ti-lead-create-shared
     steps:
       - type: http
@@ -53,6 +56,7 @@ testcases:
           shared_team_id:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: ti-create-guest-user
     steps:
       - type: http
@@ -71,6 +75,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: ti-create-guest-session
     steps:
       - type: http
@@ -84,6 +89,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TINV-007, BLC-TINV-002, BLC-TINV-006
   - name: ti-admin-create-invitation
     steps:
       - type: http
@@ -99,6 +105,7 @@ testcases:
           invitation_id:
             from: result.bodyjson.id
 
+  # BLC: BLC-TINV-008, BLC-TINV-002
   - name: ti-admin-list-invitations
     steps:
       - type: http
@@ -110,6 +117,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 1
 
+  # BLC: BLC-TINV-008, BLC-TINV-002
   - name: ti-admin-get-invitation
     steps:
       - type: http
@@ -121,6 +129,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.ti-admin-create-invitation.invitation_id}}"
 
+  # BLC: BLC-TINV-010, BLC-TINV-013, BLC-TINV-012
   - name: ti-guest-accept-invitation
     steps:
       - type: http
@@ -132,6 +141,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.ti-lead-create-shared.shared_team_id}}"
 
+  # BLC: BLC-TINV-008, BLC-TINV-002
   - name: ti-guest-list-invitations-forbidden
     steps:
       - type: http
@@ -142,6 +152,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
+  # BLC: BLC-TINV-010, BLC-TINV-013, BLC-TINV-012
   - name: ti-guest-accept-idempotent
     steps:
       - type: http
@@ -152,6 +163,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-003
   - name: ti-create-maintainer-user
     steps:
       - type: http
@@ -170,6 +182,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: ti-create-maintainer-session
     steps:
       - type: http
@@ -183,6 +196,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-011, BLC-TINV-002
   - name: ti-lead-add-maintainer
     steps:
       - type: http
@@ -203,6 +217,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-TINV-011
   - name: ti-maintainer-accept-no-downgrade
     steps:
       - type: http
@@ -213,6 +228,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-TINV-011
   - name: ti-maintainer-still-content-maintainer
     steps:
       - type: http
@@ -225,6 +241,7 @@ testcases:
           - result.body ShouldContainSubstring "ti-maintainer@test.com"
           - result.body ShouldContainSubstring "content_maintainer"
 
+  # BLC: BLC-TINV-014, BLC-TINV-004
   - name: ti-accept-unknown-invitation-404
     steps:
       - type: http
@@ -235,6 +252,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-TEAM-001, BLC-TINV-001
   - name: ti-lead-personal-team-id
     steps:
       - type: http
@@ -249,6 +267,7 @@ testcases:
           lead_personal_team_id:
             from: result.bodyjson.bodyjson0.id
 
+  # BLC: BLC-TINV-001, BLC-TINV-007
   - name: ti-personal-team-invite-bad-request
     steps:
       - type: http
@@ -259,6 +278,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-TINV-002
   - name: ti-platform-admin-cannot-invite-without-team-admin
     steps:
       - type: http
@@ -269,6 +289,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-TINV-009, BLC-TINV-004
   - name: ti-admin-delete-invitation
     steps:
       - type: http
@@ -279,6 +300,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 204
 
+  # BLC: BLC-TINV-014, BLC-TINV-004
   - name: ti-accept-after-delete-404
     steps:
       - type: http

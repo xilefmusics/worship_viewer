@@ -5,6 +5,7 @@ vars:
 
 testcases:
   # Setup: Create test users
+  # BLC: BLC-USER-003
   - name: create-song-owner-user
     steps:
       - type: http
@@ -25,6 +26,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-song-owner-session
     steps:
       - type: http
@@ -38,6 +40,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-001
   - name: get-song-owner-personal-team
     steps:
       - type: http
@@ -52,6 +55,7 @@ testcases:
           owner_personal_team_id:
             from: result.bodyjson.bodyjson0.id
 
+  # BLC: BLC-USER-003
   - name: create-read-user
     steps:
       - type: http
@@ -71,6 +75,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-read-user-session
     steps:
       - type: http
@@ -84,6 +89,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: create-write-user
     steps:
       - type: http
@@ -103,6 +109,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-write-user-session
     steps:
       - type: http
@@ -116,6 +123,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-001
   - name: get-write-user-personal-team
     steps:
       - type: http
@@ -130,6 +138,7 @@ testcases:
           write_user_personal_team_id:
             from: result.bodyjson.bodyjson0.id
 
+  # BLC: BLC-USER-003
   - name: create-no-permission-user
     steps:
       - type: http
@@ -149,6 +158,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-no-permission-user-session
     steps:
       - type: http
@@ -162,6 +172,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-001
   - name: get-no-permission-personal-team
     steps:
       - type: http
@@ -176,6 +187,7 @@ testcases:
           noperm_personal_team_id:
             from: result.bodyjson.bodyjson0.id
 
+  # BLC: BLC-TEAM-011, BLC-SONG-002
   - name: configure-song-owner-team-acl
     steps:
       - type: http
@@ -195,6 +207,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: post-search-fixture-by-title
     steps:
       - type: http
@@ -230,6 +243,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: post-search-fixture-by-artist
     steps:
       - type: http
@@ -265,6 +279,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: post-search-fixture-by-lyrics
     steps:
       - type: http
@@ -300,6 +315,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: post-search-fixture-rank-title
     steps:
       - type: http
@@ -335,6 +351,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: post-search-fixture-rank-artist
     steps:
       - type: http
@@ -370,6 +387,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: post-search-fixture-rank-lyrics
     steps:
       - type: http
@@ -405,6 +423,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: post-search-fixture-stem-plural-stored
     steps:
       - type: http
@@ -440,6 +459,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: post-search-fixture-stem-singular-stored
     steps:
       - type: http
@@ -475,6 +495,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: get-songs-q-matches-title
     steps:
       - type: http
@@ -487,6 +508,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 1
           - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-search-fixture-by-title.songid}}"
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: get-songs-q-matches-artist
     steps:
       - type: http
@@ -499,6 +521,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 1
           - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-search-fixture-by-artist.songid}}"
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: get-songs-q-matches-lyrics-phrase
     steps:
       - type: http
@@ -511,6 +534,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 1
           - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-search-fixture-by-lyrics.songid}}"
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: get-songs-q-ranking-title-before-artist-before-lyrics
     steps:
       - type: http
@@ -525,6 +549,7 @@ testcases:
           - result.bodyjson.bodyjson1.id ShouldEqual "{{.post-search-fixture-rank-artist.songid}}"
           - result.bodyjson.bodyjson2.id ShouldEqual "{{.post-search-fixture-rank-lyrics.songid}}"
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: get-songs-q-stem-singular-query-finds-plural-lyrics
     steps:
       - type: http
@@ -537,6 +562,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 1
           - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-search-fixture-stem-plural-stored.songid}}"
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: get-songs-q-stem-plural-query-finds-singular-lyrics
     steps:
       - type: http
@@ -549,6 +575,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 1
           - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-search-fixture-stem-singular-stored.songid}}"
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: get-songs-q-read-user-finds-owner-lyrics
     steps:
       - type: http
@@ -561,6 +588,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 1
           - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-search-fixture-by-lyrics.songid}}"
 
+  # BLC: BLC-LP-009, BLC-LP-003, BLC-SONG-011
   - name: get-songs-q-with-pagination
     steps:
       - type: http
@@ -574,6 +602,7 @@ testcases:
           - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-search-fixture-rank-title.songid}}"
           - result.bodyjson.bodyjson1.id ShouldEqual "{{.post-search-fixture-rank-artist.songid}}"
 
+  # BLC: BLC-SONG-011, BLC-LP-003
   - name: get-songs-q-no-matches-empty-array
     steps:
       - type: http
@@ -585,6 +614,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 0
 
+  # BLC: BLC-LP-005, BLC-SONG-011, BLC-LP-003
   - name: get-songs-q-blank-ignored-full-list
     steps:
       - type: http
@@ -597,6 +627,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 8
 
   # POST /api/v1/songs tests
+  # BLC: BLC-SONG-009
   - name: post-song-success
     steps:
       - type: http
@@ -623,6 +654,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-009
   - name: post-song-success-for-read-permission
     steps:
       - type: http
@@ -648,6 +680,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-009
   - name: post-song-success-for-write-permission
     steps:
       - type: http
@@ -673,6 +706,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-009
   - name: post-song-invalid-payload-missing-data
     steps:
       - type: http
@@ -689,6 +723,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-SONG-009
   - name: post-song-invalid-payload-empty-data
     steps:
       - type: http
@@ -706,6 +741,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-SONG-009
   - name: post-song-invalid-payload-invalid-tempo
     steps:
       - type: http
@@ -727,6 +763,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-SONG-009
   - name: post-song-invalid-payload-invalid-time
     steps:
       - type: http
@@ -748,6 +785,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: post-song-missing-token
     steps:
       - type: http
@@ -767,6 +805,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: post-song-invalid-token
     steps:
       - type: http
@@ -787,6 +826,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SONG-009
   - name: post-song-invalid-payload-tempo-wrong-type
     steps:
       - type: http
@@ -809,6 +849,7 @@ testcases:
           - result.statuscode ShouldEqual 400
 
   # GET /api/v1/songs tests
+  # BLC: BLC-SONG-011, BLC-LP-001, BLC-LP-002
   - name: get-songs-success-admin
     steps:
       - type: http
@@ -819,6 +860,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-SONG-011, BLC-LP-001, BLC-LP-002
   - name: get-songs-success-admin-paginated
     steps:
       - type: http
@@ -830,6 +872,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 0
 
+  # BLC: BLC-SONG-011, BLC-LP-001, BLC-LP-002
   - name: get-songs-success-default
     steps:
       - type: http
@@ -840,6 +883,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-SONG-011, BLC-LP-001, BLC-LP-002
   - name: get-songs-success-with-read-permission
     steps:
       - type: http
@@ -850,6 +894,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-SONG-011, BLC-LP-001, BLC-LP-002
   - name: get-songs-success-with-read-permission-paginated
     steps:
       - type: http
@@ -861,6 +906,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 1
 
+  # BLC: BLC-AUTH-001
   - name: get-songs-missing-token
     steps:
       - type: http
@@ -869,6 +915,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: get-songs-invalid-token
     steps:
       - type: http
@@ -879,6 +926,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-LP-004
   - name: get-songs-invalid-page-parameter
     steps:
       - type: http
@@ -889,6 +937,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-LP-004
   - name: get-songs-invalid-page-size-parameter
     steps:
       - type: http
@@ -899,6 +948,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-LP-006
   - name: get-songs-page-size-zero-admin
     steps:
       - type: http
@@ -909,6 +959,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-LP-007
   - name: get-songs-page-only-admin
     steps:
       - type: http
@@ -919,6 +970,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-LP-007
   - name: get-songs-page-size-only-admin
     steps:
       - type: http
@@ -929,6 +981,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-LP-008
   - name: get-songs-page-beyond-range-admin
     steps:
       - type: http
@@ -941,6 +994,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 0
 
   # GET /api/v1/songs/{id} tests
+  # BLC: BLC-SONG-012
   - name: get-song-success
     steps:
       - type: http
@@ -954,6 +1008,7 @@ testcases:
           - result.bodyjson.owner ShouldEqual "{{.get-song-owner-personal-team.owner_personal_team_id}}"
           - result.bodyjson.data.titles ShouldHaveLength 1
           - result.bodyjson.data.titles.titles0 ShouldEqual "Test Song"
+  # BLC: BLC-SONG-012
   - name: get-song-success-with-read-permission
     steps:
       - type: http
@@ -966,6 +1021,7 @@ testcases:
           - result.bodyjson.id ShouldEqual "{{.post-song-success-for-read-permission.songid}}"
           - result.bodyjson.data.titles ShouldHaveLength 1
           - result.bodyjson.data.titles.titles0 ShouldEqual "Song For Read Permission"
+  # BLC: BLC-HTTP-001
   - name: get-song-invalid-id
     steps:
       - type: http
@@ -976,6 +1032,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: get-song-missing-token
     steps:
       - type: http
@@ -984,6 +1041,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: get-song-invalid-token
     steps:
       - type: http
@@ -994,6 +1052,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SONG-006, BLC-SONG-012, BLC-SONG-013
   - name: get-song-notfound
     steps:
       - type: http
@@ -1004,6 +1063,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-SONG-006
   - name: get-song-no-permission
     steps:
       - type: http
@@ -1015,6 +1075,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # GET /api/v1/songs/{id}/player tests
+  # BLC: BLC-SONG-013
   - name: get-song-player-success
     steps:
       - type: http
@@ -1025,6 +1086,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-SONG-013
   - name: get-song-player-success-with-read-permission
     steps:
       - type: http
@@ -1035,6 +1097,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-HTTP-001
   - name: get-song-player-invalid-id
     steps:
       - type: http
@@ -1045,6 +1108,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: get-song-player-missing-token
     steps:
       - type: http
@@ -1053,6 +1117,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: get-song-player-invalid-token
     steps:
       - type: http
@@ -1063,6 +1128,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SONG-006, BLC-SONG-012, BLC-SONG-013
   - name: get-song-player-notfound
     steps:
       - type: http
@@ -1073,6 +1139,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-SONG-006, BLC-SONG-013
   - name: get-song-player-no-permission
     steps:
       - type: http
@@ -1084,6 +1151,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # GET /api/v1/songs/{id}/export tests
+  # BLC: BLC-SONG-013
   - name: get-song-export-success
     steps:
       - type: http
@@ -1094,6 +1162,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-SONG-013
   - name: get-song-export-default-format-content-type
     steps:
       - type: http
@@ -1105,6 +1174,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.headers.Content-Type ShouldContainSubstring text/x-worshippro
 
+  # BLC: BLC-SONG-013
   - name: get-song-export-success-with-read-permission
     steps:
       - type: http
@@ -1115,6 +1185,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-HTTP-001
   - name: get-song-export-invalid-id
     steps:
       - type: http
@@ -1125,6 +1196,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: get-song-export-missing-token
     steps:
       - type: http
@@ -1133,6 +1205,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: get-song-export-invalid-token
     steps:
       - type: http
@@ -1143,6 +1216,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SONG-006, BLC-SONG-012, BLC-SONG-013
   - name: get-song-export-notfound
     steps:
       - type: http
@@ -1153,6 +1227,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-SONG-006, BLC-SONG-013
   - name: get-song-export-no-permission
     steps:
       - type: http
@@ -1164,6 +1239,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # PUT /api/v1/songs/{id} tests
+  # BLC: BLC-SONG-008, BLC-SONG-003
   - name: put-song-success
     steps:
       - type: http
@@ -1186,6 +1262,7 @@ testcases:
           - result.bodyjson.id ShouldEqual "{{.post-song-success.songid}}"
           - result.bodyjson.data.titles ShouldHaveLength 1
           - result.bodyjson.data.titles.titles0 ShouldEqual "Updated Test Song"
+  # BLC: BLC-SONG-008, BLC-SONG-003
   - name: put-song-success-with-write-permission
     steps:
       - type: http
@@ -1207,6 +1284,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.data.titles ShouldHaveLength 1
           - result.bodyjson.data.titles.titles0 ShouldEqual "Updated By Write User"
+  # BLC: BLC-HTTP-001
   - name: put-song-invalid-id
     steps:
       - type: http
@@ -1227,6 +1305,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-SONG-017
   - name: put-song-invalid-payload
     steps:
       - type: http
@@ -1244,6 +1323,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-SONG-017
   - name: put-song-invalid-payload-tempo-wrong-type
     steps:
       - type: http
@@ -1265,6 +1345,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: put-song-missing-token
     steps:
       - type: http
@@ -1284,6 +1365,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: put-song-invalid-token
     steps:
       - type: http
@@ -1304,6 +1386,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SONG-006, BLC-SONG-012, BLC-SONG-013
   - name: put-song-notfound
     steps:
       - type: http
@@ -1324,6 +1407,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-SONG-006
   - name: put-song-no-permission
     steps:
       - type: http
@@ -1344,6 +1428,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-SONG-007
   - name: put-song-read-permission-only
     steps:
       - type: http
@@ -1365,6 +1450,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # PUT /api/v1/songs/{id} create (upsert) tests
+  # BLC: BLC-SONG-018
   - name: put-song-create-success
     steps:
       - type: http
@@ -1389,6 +1475,7 @@ testcases:
           - result.bodyjson.data.titles.titles0 ShouldEqual "Created By PUT"
           - result.bodyjson.owner ShouldEqual "{{.get-song-owner-personal-team.owner_personal_team_id}}"
 
+  # BLC: BLC-SONG-018
   - name: put-song-create-with-write-permission
     steps:
       - type: http
@@ -1413,6 +1500,7 @@ testcases:
           - result.bodyjson.data.titles.titles0 ShouldEqual "Created By Write User Via PUT"
           - result.bodyjson.owner ShouldEqual "{{.get-write-user-personal-team.write_user_personal_team_id}}"
 
+  # BLC: BLC-SONG-018
   - name: put-song-create-no-permission
     steps:
       - type: http
@@ -1481,6 +1569,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-008, BLC-SONG-014
   - name: delete-song-success
     steps:
       - type: http
@@ -1492,6 +1581,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.post-song-for-delete.songid}}"
 
+  # BLC: BLC-SONG-008, BLC-SONG-014
   - name: delete-song-success-with-write-permission
     steps:
       - type: http
@@ -1503,6 +1593,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.post-song-for-delete-with-write-permission.songid}}"
 
+  # BLC: BLC-HTTP-001
   - name: delete-song-invalid-id
     steps:
       - type: http
@@ -1513,6 +1604,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: delete-song-missing-token
     steps:
       - type: http
@@ -1521,6 +1613,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: delete-song-invalid-token
     steps:
       - type: http
@@ -1531,6 +1624,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SONG-006, BLC-SONG-012, BLC-SONG-013
   - name: delete-song-notfound
     steps:
       - type: http
@@ -1541,6 +1635,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-SONG-006
   - name: delete-song-no-permission
     steps:
       - type: http
@@ -1551,6 +1646,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-SONG-007
   - name: delete-song-read-permission-only
     steps:
       - type: http
@@ -1561,6 +1657,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-SONG-014
   - name: delete-song-again
     steps:
       - type: http
@@ -1571,6 +1668,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-SONG-015, BLC-SETL-014, BLC-COLL-019
   - name: create-song-cascade-blob
     steps:
       - type: http
@@ -1592,6 +1690,7 @@ testcases:
           blobid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-015, BLC-SETL-014, BLC-COLL-019
   - name: put-song-cascade-target
     steps:
       - type: http
@@ -1659,6 +1758,7 @@ testcases:
           collectionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-015, BLC-SETL-014, BLC-COLL-019
   - name: like-cascade-song
     steps:
       - type: http
@@ -1675,6 +1775,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.liked ShouldEqual true
 
+  # BLC: BLC-SONG-015, BLC-SETL-014, BLC-COLL-019
   - name: delete-song-cascade-target
     steps:
       - type: http
@@ -1686,6 +1787,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.put-song-cascade-target.songid}}"
 
+  # BLC: BLC-SONG-015, BLC-SETL-014, BLC-COLL-019
   - name: get-setlist-after-song-delete
     steps:
       - type: http
@@ -1697,6 +1799,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.songs ShouldHaveLength 0
 
+  # BLC: BLC-SONG-015, BLC-SETL-014, BLC-COLL-019
   - name: get-collection-after-song-delete
     steps:
       - type: http
@@ -1708,6 +1811,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.songs ShouldHaveLength 0
 
+  # BLC: BLC-SONG-015, BLC-SETL-014, BLC-COLL-019
   - name: put-song-cascade-target-recreate
     steps:
       - type: http
@@ -1729,6 +1833,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.put-song-cascade-target.songid}}"
 
+  # BLC: BLC-SONG-004
   - name: get-song-likes-after-recreate
     steps:
       - type: http
@@ -1741,6 +1846,7 @@ testcases:
           - result.bodyjson.liked ShouldEqual false
 
   # GET /api/v1/songs/{id}/likes tests
+  # BLC: BLC-SONG-004
   - name: get-song-likes-success-not-liked
     steps:
       - type: http
@@ -1752,6 +1858,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.liked ShouldEqual false
 
+  # BLC: BLC-SONG-004
   - name: get-song-likes-success-with-read-permission
     steps:
       - type: http
@@ -1763,6 +1870,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.liked ShouldEqual false
 
+  # BLC: BLC-SONG-004, BLC-HTTP-001
   - name: get-song-likes-invalid-id
     steps:
       - type: http
@@ -1773,6 +1881,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-SONG-004
   - name: get-song-likes-missing-token
     steps:
       - type: http
@@ -1781,6 +1890,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SONG-004
   - name: get-song-likes-invalid-token
     steps:
       - type: http
@@ -1791,6 +1901,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SONG-004
   - name: get-song-likes-notfound
     steps:
       - type: http
@@ -1801,6 +1912,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-SONG-004, BLC-SONG-006
   - name: get-song-likes-no-read-permission
     steps:
       - type: http
@@ -1812,6 +1924,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # PUT /api/v1/songs/{id}/likes tests
+  # BLC: BLC-SONG-004
   - name: post-song-for-likes
     steps:
       - type: http
@@ -1835,6 +1948,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-004
   - name: put-song-likes-like
     steps:
       - type: http
@@ -1851,6 +1965,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.liked ShouldEqual true
 
+  # BLC: BLC-SONG-004
   - name: get-song-likes-success-liked
     steps:
       - type: http
@@ -1862,6 +1977,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.liked ShouldEqual true
 
+  # BLC: BLC-SONG-004
   - name: put-song-likes-unlike
     steps:
       - type: http
@@ -1878,6 +1994,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.liked ShouldEqual false
 
+  # BLC: BLC-SONG-004
   - name: put-song-likes-with-read-permission
     steps:
       - type: http
@@ -1894,6 +2011,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.liked ShouldEqual true
 
+  # BLC: BLC-SONG-004, BLC-HTTP-001
   - name: put-song-likes-invalid-id
     steps:
       - type: http
@@ -1909,6 +2027,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-SONG-004
   - name: put-song-likes-invalid-payload-missing-liked
     steps:
       - type: http
@@ -1922,6 +2041,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-SONG-004
   - name: put-song-likes-missing-token
     steps:
       - type: http
@@ -1936,6 +2056,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SONG-004
   - name: put-song-likes-invalid-token
     steps:
       - type: http
@@ -1951,6 +2072,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SONG-004
   - name: put-song-likes-notfound
     steps:
       - type: http
@@ -1966,6 +2088,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-SONG-004, BLC-SONG-006
   - name: put-song-likes-no-read-permission
     steps:
       - type: http
@@ -1982,6 +2105,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # Default collection auto add tests
+  # BLC: BLC-USER-003, BLC-SONG-010, BLC-COLL-016, BLC-COLL-010
   - name: create-default-collection-user
     steps:
       - type: http
@@ -2001,6 +2125,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011, BLC-SONG-010, BLC-COLL-016, BLC-COLL-010
   - name: create-default-collection-session
     steps:
       - type: http
@@ -2014,6 +2139,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-001, BLC-SONG-010, BLC-COLL-016, BLC-COLL-010
   - name: get-default-collection-personal-team
     steps:
       - type: http
@@ -2028,6 +2154,7 @@ testcases:
           default_collection_personal_team_id:
             from: result.bodyjson.bodyjson0.id
 
+  # BLC: BLC-SONG-010, BLC-COLL-016, BLC-COLL-010
   - name: post-default-collection-song-one
     steps:
       - type: http
@@ -2052,6 +2179,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-010, BLC-COLL-016, BLC-COLL-010
   - name: post-default-collection-song-two
     steps:
       - type: http
@@ -2076,6 +2204,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-010, BLC-COLL-016, BLC-COLL-010
   - name: get-default-collection-user
     steps:
       - type: http
@@ -2090,6 +2219,7 @@ testcases:
           defaultcollectionid:
             from: result.bodyjson.default_collection
 
+  # BLC: BLC-SONG-010, BLC-COLL-016, BLC-COLL-010
   - name: get-default-collection-contains-both-songs
     steps:
       - type: http
@@ -2103,6 +2233,7 @@ testcases:
           - result.bodyjson.songs ShouldHaveLength 2
 
   # Cleanup: Delete test users
+  # BLC: BLC-SONG-010, BLC-COLL-016, BLC-COLL-010
   - name: delete-default-collection-user
     steps:
       - type: http
@@ -2123,6 +2254,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-011
   - name: delete-read-user
     steps:
       - type: http
@@ -2133,6 +2265,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-011
   - name: delete-write-user
     steps:
       - type: http
@@ -2143,6 +2276,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-011
   - name: delete-no-permission-user
     steps:
       - type: http

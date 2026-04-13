@@ -5,6 +5,7 @@ vars:
 
 testcases:
   # Setup users and sessions
+  # BLC: BLC-USER-003
   - name: create-setlist-owner-user
     steps:
       - type: http
@@ -24,6 +25,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-setlist-owner-session
     steps:
       - type: http
@@ -37,6 +39,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-001, BLC-SETL-011
   - name: get-setlist-owner-personal-team
     steps:
       - type: http
@@ -51,6 +54,7 @@ testcases:
           owner_personal_team_id:
             from: result.bodyjson.bodyjson0.id
 
+  # BLC: BLC-USER-003
   - name: create-setlist-read-user
     steps:
       - type: http
@@ -70,6 +74,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-setlist-read-session
     steps:
       - type: http
@@ -83,6 +88,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: create-setlist-write-user
     steps:
       - type: http
@@ -102,6 +108,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-setlist-write-session
     steps:
       - type: http
@@ -115,6 +122,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-003
   - name: create-setlist-noperm-user
     steps:
       - type: http
@@ -134,6 +142,7 @@ testcases:
           userid:
             from: result.bodyjson.id
 
+  # BLC: BLC-USER-011
   - name: create-setlist-noperm-session
     steps:
       - type: http
@@ -147,6 +156,7 @@ testcases:
           sessionid:
             from: result.bodyjson.id
 
+  # BLC: BLC-TEAM-011, BLC-SETL-002
   - name: configure-setlist-owner-team-acl
     steps:
       - type: http
@@ -167,6 +177,7 @@ testcases:
           - result.statuscode ShouldEqual 200
 
   # Create songs for linking
+  # BLC: BLC-SONG-009
   - name: create-setlist-song-one
     steps:
       - type: http
@@ -192,6 +203,7 @@ testcases:
           songid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SONG-009
   - name: create-setlist-song-two
     steps:
       - type: http
@@ -218,6 +230,7 @@ testcases:
             from: result.bodyjson.id
 
   # POST /setlists validations
+  # BLC: BLC-SETL-004
   - name: post-setlist-missing-songs
     steps:
       - type: http
@@ -233,6 +246,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-SETL-004, BLC-AUTH-001
   - name: post-setlist-missing-token
     steps:
       - type: http
@@ -250,6 +264,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: post-setlist-invalid-token
     steps:
       - type: http
@@ -268,6 +283,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SETL-004
   - name: post-setlist-missing-title
     steps:
       - type: http
@@ -285,6 +301,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-SETL-004
   - name: post-setlist-empty-title-rejected
     steps:
       - type: http
@@ -303,6 +320,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-SETL-009, BLC-SETL-004
   - name: post-setlist-success
     steps:
       - type: http
@@ -328,6 +346,7 @@ testcases:
           setlistid:
             from: result.bodyjson.id
 
+  # BLC: BLC-SETL-009, BLC-SETL-008
   - name: post-setlist-for-delete-by-write
     steps:
       - type: http
@@ -350,6 +369,7 @@ testcases:
             from: result.bodyjson.id
 
   # GET /setlists
+  # BLC: BLC-SETL-010, BLC-SETL-005, BLC-LP-001, BLC-LP-002
   - name: get-setlists-owner
     steps:
       - type: http
@@ -361,6 +381,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 2
 
+  # BLC: BLC-SETL-010, BLC-SETL-005, BLC-LP-001, BLC-LP-002
   - name: get-setlists-owner-paginated
     steps:
       - type: http
@@ -372,6 +393,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 1
 
+  # BLC: BLC-SETL-010
   - name: get-setlists-read-user
     steps:
       - type: http
@@ -383,6 +405,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 2
 
+  # BLC: BLC-SETL-006
   - name: get-setlists-noperm-user
     steps:
       - type: http
@@ -394,6 +417,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 0
 
+  # BLC: BLC-AUTH-001
   - name: get-setlists-missing-token
     steps:
       - type: http
@@ -402,6 +426,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: get-setlists-invalid-token
     steps:
       - type: http
@@ -412,6 +437,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-LP-004
   - name: get-setlists-invalid-page-parameter
     steps:
       - type: http
@@ -422,6 +448,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-LP-004
   - name: get-setlists-invalid-page-size-parameter
     steps:
       - type: http
@@ -432,6 +459,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-LP-006, BLC-SETL-010, BLC-SETL-005, BLC-LP-001, BLC-LP-002
   - name: get-setlists-owner-page-size-zero
     steps:
       - type: http
@@ -443,6 +471,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 2
 
+  # BLC: BLC-LP-007, BLC-SETL-010, BLC-SETL-005, BLC-LP-001, BLC-LP-002
   - name: get-setlists-owner-page-only
     steps:
       - type: http
@@ -454,6 +483,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 2
 
+  # BLC: BLC-LP-007, BLC-SETL-010, BLC-SETL-005, BLC-LP-001, BLC-LP-002
   - name: get-setlists-owner-page-size-only
     steps:
       - type: http
@@ -465,6 +495,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 2
 
+  # BLC: BLC-LP-008, BLC-SETL-010, BLC-SETL-005, BLC-LP-001, BLC-LP-002
   - name: get-setlists-owner-page-beyond-range
     steps:
       - type: http
@@ -476,6 +507,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 0
 
+  # BLC: BLC-LP-003
   - name: get-setlists-q-match
     steps:
       - type: http
@@ -488,6 +520,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 1
           - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-setlist-success.setlistid}}"
 
+  # BLC: BLC-LP-009, BLC-LP-003
   - name: get-setlists-q-with-pagination
     steps:
       - type: http
@@ -500,6 +533,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 1
           - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-setlist-success.setlistid}}"
 
+  # BLC: BLC-LP-003, BLC-LP-008, BLC-SETL-010
   - name: get-setlists-q-no-matches-empty-array
     steps:
       - type: http
@@ -511,6 +545,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 0
 
+  # BLC: BLC-LP-005
   - name: get-setlists-q-blank-ignored-full-list
     steps:
       - type: http
@@ -523,6 +558,7 @@ testcases:
           - result.bodyjson ShouldHaveLength 2
 
   # GET /setlists/{id}
+  # BLC: BLC-SETL-011
   - name: get-setlist-owner
     steps:
       - type: http
@@ -535,6 +571,7 @@ testcases:
           - result.bodyjson.id ShouldEqual "{{.post-setlist-success.setlistid}}"
           - result.bodyjson.songs ShouldHaveLength 2
 
+  # BLC: BLC-SETL-011
   - name: get-setlist-read-user
     steps:
       - type: http
@@ -545,6 +582,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-SETL-006
   - name: get-setlist-noperm-user
     steps:
       - type: http
@@ -555,6 +593,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-AUTH-002
   - name: get-setlist-invalid-token
     steps:
       - type: http
@@ -565,6 +604,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-001
   - name: get-setlist-missing-token
     steps:
       - type: http
@@ -573,6 +613,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SETL-006
   - name: get-setlist-notfound
     steps:
       - type: http
@@ -583,6 +624,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-HTTP-001
   - name: get-setlist-invalid-id
     steps:
       - type: http
@@ -594,6 +636,7 @@ testcases:
           - result.statuscode ShouldEqual 400
 
   # GET /setlists/{id}/songs
+  # BLC: BLC-SETL-011
   - name: get-setlist-songs-owner
     steps:
       - type: http
@@ -605,6 +648,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 2
 
+  # BLC: BLC-SETL-011
   - name: get-setlist-songs-read-user
     steps:
       - type: http
@@ -616,6 +660,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 2
 
+  # BLC: BLC-SETL-006
   - name: get-setlist-songs-noperm-user
     steps:
       - type: http
@@ -626,6 +671,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-AUTH-001
   - name: get-setlist-songs-missing-token
     steps:
       - type: http
@@ -634,6 +680,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-HTTP-001
   - name: get-setlist-songs-invalid-id
     steps:
       - type: http
@@ -644,6 +691,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-002
   - name: get-setlist-songs-invalid-token
     steps:
       - type: http
@@ -654,6 +702,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SETL-006
   - name: get-setlist-songs-notfound
     steps:
       - type: http
@@ -665,6 +714,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # GET /setlists/{id}/player
+  # BLC: BLC-SETL-011
   - name: get-setlist-player-owner
     steps:
       - type: http
@@ -676,6 +726,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.toc ShouldHaveLength 2
 
+  # BLC: BLC-SETL-011
   - name: get-setlist-player-read-user
     steps:
       - type: http
@@ -687,6 +738,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.toc ShouldHaveLength 2
 
+  # BLC: BLC-SETL-006
   - name: get-setlist-player-noperm-user
     steps:
       - type: http
@@ -697,6 +749,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-HTTP-001
   - name: get-setlist-player-invalid-id
     steps:
       - type: http
@@ -707,6 +760,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: get-setlist-player-missing-token
     steps:
       - type: http
@@ -715,6 +769,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: get-setlist-player-invalid-token
     steps:
       - type: http
@@ -725,6 +780,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SETL-006
   - name: get-setlist-player-notfound
     steps:
       - type: http
@@ -736,6 +792,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # GET /setlists/{id}/export
+  # BLC: BLC-SETL-011
   - name: get-setlist-export-owner
     steps:
       - type: http
@@ -746,6 +803,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-SETL-011
   - name: get-setlist-export-read-user
     steps:
       - type: http
@@ -756,6 +814,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-SETL-006
   - name: get-setlist-export-noperm-user
     steps:
       - type: http
@@ -766,6 +825,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-HTTP-001
   - name: get-setlist-export-invalid-id
     steps:
       - type: http
@@ -776,6 +836,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-001
   - name: get-setlist-export-missing-token
     steps:
       - type: http
@@ -784,6 +845,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-AUTH-002
   - name: get-setlist-export-invalid-token
     steps:
       - type: http
@@ -794,6 +856,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SETL-006
   - name: get-setlist-export-notfound
     steps:
       - type: http
@@ -805,6 +868,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # PUT /setlists/{id}
+  # BLC: BLC-SETL-008, BLC-SETL-003
   - name: put-setlist-success-owner
     steps:
       - type: http
@@ -827,6 +891,7 @@ testcases:
           - result.bodyjson.owner ShouldEqual "{{.get-setlist-owner-personal-team.owner_personal_team_id}}"
           - result.bodyjson.title ShouldEqual "Updated Sunday Set"
 
+  # BLC: BLC-SETL-008, BLC-SETL-003
   - name: put-setlist-success-write-user
     steps:
       - type: http
@@ -849,6 +914,7 @@ testcases:
           - result.bodyjson.owner ShouldEqual "{{.get-setlist-owner-personal-team.owner_personal_team_id}}"
           - result.bodyjson.title ShouldEqual "Write User Updated Set"
 
+  # BLC: BLC-SETL-008, BLC-SETL-003, BLC-SETL-011
   - name: get-setlist-owner-after-write-update
     steps:
       - type: http
@@ -861,6 +927,7 @@ testcases:
           - result.bodyjson.owner ShouldEqual "{{.get-setlist-owner-personal-team.owner_personal_team_id}}"
           - result.bodyjson.title ShouldEqual "Write User Updated Set"
 
+  # BLC: BLC-SETL-007, BLC-SETL-006
   - name: put-setlist-noperm-user
     steps:
       - type: http
@@ -879,6 +946,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-SETL-007, BLC-SETL-006
   - name: put-setlist-read-user
     steps:
       - type: http
@@ -898,6 +966,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-AUTH-001
   - name: put-setlist-missing-token
     steps:
       - type: http
@@ -915,6 +984,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-HTTP-001
   - name: put-setlist-invalid-id
     steps:
       - type: http
@@ -933,6 +1003,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-002
   - name: put-setlist-invalid-token
     steps:
       - type: http
@@ -951,6 +1022,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SETL-006
   - name: put-setlist-unknown-id
     steps:
       - type: http
@@ -970,6 +1042,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # DELETE /setlists/{id}
+  # BLC: BLC-SETL-007, BLC-SETL-006
   - name: delete-setlist-noperm-user
     steps:
       - type: http
@@ -980,6 +1053,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # BLC: BLC-AUTH-001
   - name: delete-setlist-missing-token
     steps:
       - type: http
@@ -988,6 +1062,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-HTTP-001
   - name: delete-setlist-invalid-id
     steps:
       - type: http
@@ -998,6 +1073,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 400
 
+  # BLC: BLC-AUTH-002
   - name: delete-setlist-invalid-token
     steps:
       - type: http
@@ -1008,6 +1084,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 401
 
+  # BLC: BLC-SETL-008, BLC-SETL-012
   - name: delete-setlist-success-write-user
     steps:
       - type: http
@@ -1019,6 +1096,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.post-setlist-for-delete-by-write.setlistid}}"
 
+  # BLC: BLC-SETL-008, BLC-SETL-012
   - name: delete-setlist-success
     steps:
       - type: http
@@ -1030,6 +1108,7 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.post-setlist-success.setlistid}}"
 
+  # BLC: BLC-HTTP-002
   - name: delete-setlist-again
     steps:
       - type: http
@@ -1041,6 +1120,7 @@ testcases:
           - result.statuscode ShouldEqual 404
 
   # Cleanup users to keep environment idempotent
+  # BLC: BLC-USER-011
   - name: cleanup-delete-setlist-owner-user
     steps:
       - type: http
@@ -1051,6 +1131,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-011
   - name: cleanup-delete-setlist-read-user
     steps:
       - type: http
@@ -1061,6 +1142,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-011
   - name: cleanup-delete-setlist-write-user
     steps:
       - type: http
@@ -1071,6 +1153,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
 
+  # BLC: BLC-USER-011
   - name: cleanup-delete-setlist-noperm-user
     steps:
       - type: http
