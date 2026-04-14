@@ -6,7 +6,7 @@ use uuid::Uuid;
 use shared::team::{Team, TeamInvitation};
 use shared::user::User;
 
-use crate::database::Database;
+use crate::database::{record_id_string, Database};
 use crate::error::AppError;
 
 use super::model::{invitation_thing, team_things_match};
@@ -69,9 +69,10 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
     ) -> Result<TeamInvitation, AppError> {
         let team_thing = self.assert_shared_team_admin(&user.id, team_id).await?;
         let inv_thing = invitation_thing(invitation_id)?;
+        let inv_id_key = record_id_string(&inv_thing);
         let row = self
             .inv_repo
-            .get_invitation(&inv_thing.id.to_string())
+            .get_invitation(&inv_id_key)
             .await?
             .ok_or_else(|| AppError::NotFound("invitation not found".into()))?;
 
@@ -90,9 +91,10 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
     ) -> Result<(), AppError> {
         let team_thing = self.assert_shared_team_admin(&user.id, team_id).await?;
         let inv_thing = invitation_thing(invitation_id)?;
+        let inv_id_key = record_id_string(&inv_thing);
         let row = self
             .inv_repo
-            .get_invitation(&inv_thing.id.to_string())
+            .get_invitation(&inv_id_key)
             .await?
             .ok_or_else(|| AppError::NotFound("invitation not found".into()))?;
 
@@ -102,7 +104,7 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
 
         let deleted = self
             .inv_repo
-            .delete_invitation(&inv_thing.id.to_string())
+            .delete_invitation(&inv_id_key)
             .await?;
         if !deleted {
             return Err(AppError::NotFound("invitation not found".into()));
@@ -118,7 +120,7 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         let inv_thing = invitation_thing(invitation_id)?;
         let row = self
             .inv_repo
-            .get_invitation_with_team(&inv_thing.id.to_string())
+            .get_invitation_with_team(&record_id_string(&inv_thing))
             .await?
             .ok_or_else(|| AppError::NotFound("invitation not found".into()))?;
 
