@@ -7,7 +7,7 @@ use crate::database::record_id_string;
 use crate::error::AppError;
 use crate::resources::user::UserRecord;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub(crate) struct InvitationRow {
     pub(crate) id: Thing,
     pub(crate) team: Thing,
@@ -15,7 +15,7 @@ pub(crate) struct InvitationRow {
     pub(crate) created_at: Datetime,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub(crate) struct InvitationAcceptRow {
     #[allow(dead_code)]
     pub(crate) id: Thing,
