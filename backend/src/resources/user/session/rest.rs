@@ -4,13 +4,13 @@ use actix_web::{
 };
 use serde::Deserialize;
 
-use super::Model;
-use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
 use crate::settings::Settings;
+
+use super::service::SessionServiceHandle;
 
 #[utoipa::path(
     get,
@@ -27,11 +27,11 @@ use crate::settings::Settings;
     )
 )]
 #[get("/me/sessions")]
-async fn get_sessions_for_current_user(
-    db: Data<Database>,
+pub async fn get_sessions_for_current_user(
+    svc: Data<SessionServiceHandle>,
     user: ReqData<User>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_sessions_by_user_id(&user.id).await?))
+    Ok(HttpResponse::Ok().json(svc.get_sessions_by_user_id(&user.id).await?))
 }
 
 #[utoipa::path(
@@ -53,11 +53,11 @@ async fn get_sessions_for_current_user(
     )
 )]
 #[get("/me/sessions/{id}")]
-async fn get_session_for_current_user(
-    db: Data<Database>,
+pub async fn get_session_for_current_user(
+    svc: Data<SessionServiceHandle>,
     path: Path<SessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_session(&path.id).await?))
+    Ok(HttpResponse::Ok().json(svc.get_session(&path.id).await?))
 }
 
 #[utoipa::path(
@@ -79,11 +79,11 @@ async fn get_session_for_current_user(
     )
 )]
 #[delete("/me/sessions/{id}")]
-async fn delete_session_for_current_user(
-    db: Data<Database>,
+pub async fn delete_session_for_current_user(
+    svc: Data<SessionServiceHandle>,
     path: Path<SessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_session(&path.id).await?))
+    Ok(HttpResponse::Ok().json(svc.delete_session(&path.id).await?))
 }
 
 #[utoipa::path(
@@ -105,12 +105,13 @@ async fn delete_session_for_current_user(
     )
 )]
 #[post("/{user_id}/sessions")]
-async fn create_session_for_user(
-    db: Data<Database>,
+pub async fn create_session_for_user(
+    svc: Data<SessionServiceHandle>,
     path: Path<UserIdPath>,
 ) -> Result<HttpResponse, AppError> {
     let ttl = Settings::global().session_ttl_seconds as i64;
-    Ok(HttpResponse::Created().json(db.create_session_for_user_by_id(&path.user_id, ttl).await?))
+    Ok(HttpResponse::Created()
+        .json(svc.create_session_for_user_by_id(&path.user_id, ttl).await?))
 }
 
 #[utoipa::path(
@@ -132,11 +133,11 @@ async fn create_session_for_user(
     )
 )]
 #[get("/{user_id}/sessions")]
-async fn get_sessions_for_user(
-    db: Data<Database>,
+pub async fn get_sessions_for_user(
+    svc: Data<SessionServiceHandle>,
     path: Path<UserIdPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_sessions_by_user_id(&path.user_id).await?))
+    Ok(HttpResponse::Ok().json(svc.get_sessions_by_user_id(&path.user_id).await?))
 }
 
 #[utoipa::path(
@@ -160,11 +161,11 @@ async fn get_sessions_for_user(
     )
 )]
 #[get("/{user_id}/sessions/{id}")]
-async fn get_session_for_user(
-    db: Data<Database>,
+pub async fn get_session_for_user(
+    svc: Data<SessionServiceHandle>,
     path: Path<UserSessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_session(&path.id).await?))
+    Ok(HttpResponse::Ok().json(svc.get_session(&path.id).await?))
 }
 
 #[utoipa::path(
@@ -188,11 +189,11 @@ async fn get_session_for_user(
     )
 )]
 #[delete("/{user_id}/sessions/{id}")]
-async fn delete_session_for_user(
-    db: Data<Database>,
+pub async fn delete_session_for_user(
+    svc: Data<SessionServiceHandle>,
     path: Path<UserSessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_session(&path.id).await?))
+    Ok(HttpResponse::Ok().json(svc.delete_session(&path.id).await?))
 }
 
 #[derive(Debug, Deserialize)]
@@ -201,8 +202,8 @@ struct SessionPath {
 }
 
 #[derive(Debug, Deserialize)]
-struct UserIdPath {
-    user_id: String,
+pub(crate) struct UserIdPath {
+    pub(crate) user_id: String,
 }
 
 #[derive(Debug, Deserialize)]

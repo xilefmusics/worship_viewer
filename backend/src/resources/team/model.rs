@@ -2,291 +2,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use surrealdb::sql::Thing;
 
-use shared::team::{
-    CreateTeam, Team, TeamMember, TeamMemberInput, TeamRole, TeamUser, TeamUserRef, UpdateTeam,
-};
-use shared::user::{Role as UserRole, User};
+use shared::team::{Team, TeamMember, TeamMemberInput, TeamRole, TeamUser, TeamUserRef};
 
-use crate::database::{Database, record_id_string};
+use crate::database::record_id_string;
 use crate::error::AppError;
 use crate::resources::user::UserRecord;
-
-pub trait TeamModel {
-    async fn create_personal_team(&self, owner: &shared::user::User) -> Result<(), AppError>;
-    async fn get_teams(&self, user_id: &str, app_admin: bool) -> Result<Vec<Team>, AppError>;
-    async fn get_team(&self, user_id: &str, id: &str, app_admin: bool) -> Result<Team, AppError>;
-    async fn create_shared_team(
-        &self,
-        creator_id: &str,
-        payload: CreateTeam,
-    ) -> Result<Team, AppError>;
-    async fn update_team(
-        &self,
-        user_id: &str,
-        id: &str,
-        payload: UpdateTeam,
-    ) -> Result<Team, AppError>;
-    async fn delete_team(&self, user_id: &str, id: &str) -> Result<Team, AppError>;
-}
-
-impl TeamModel for Database {
-    async fn create_personal_team(&self, owner: &shared::user::User) -> Result<(), AppError> {
-        let name = "Personal".to_owned();
-        let _: Option<TeamIdRow> = self
-            .db
-            .create("team")
-            .content(TeamCreatePayload {
-                name,
-                owner: Some(user_thing(&owner.id)),
-                members: vec![],
-            })
-            .await?;
-        Ok(())
-    }
-
-    async fn get_teams(&self, user_id: &str, app_admin: bool) -> Result<Vec<Team>, AppError> {
-        let public_thing = public_team_thing();
-        let rows = self
-            .db
-            .query("SELECT * FROM team WHERE id != $public FETCH owner, members.user")
-            .bind(("public", public_thing))
-            .await?
-            .take::<Vec<TeamFetched>>(0)?;
-
-        let mut by_id: BTreeMap<String, Team> = BTreeMap::new();
-        for row in rows {
-            let stored = team_fetched_to_stored(&row)?;
-            if can_read_team(user_id, &stored, app_admin) {
-                let team = row.into_team()?;
-                by_id.insert(team.id.clone(), team);
-            }
-        }
-        let mut list: Vec<Team> = by_id.into_values().collect();
-        // Personal teams (owner set) first, then stable id order — helps clients and tests.
-        list.sort_by(|a, b| match (a.owner.is_some(), b.owner.is_some()) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.id.cmp(&b.id),
-        });
-        Ok(list)
-    }
-
-    async fn get_team(&self, user_id: &str, id: &str, app_admin: bool) -> Result<Team, AppError> {
-        let resource = team_resource_or_reject_public(id)?;
-
-        let row = self
-            .db
-            .query("SELECT * FROM $tid FETCH owner, members.user")
-            .bind(("tid", Thing::from(resource.clone())))
-            .await?
-            .take::<Option<TeamFetched>>(0)?
-            .ok_or_else(|| AppError::NotFound("team not found".into()))?;
-
-        let stored = team_fetched_to_stored(&row)?;
-        if !can_read_team(user_id, &stored, app_admin) {
-            return Err(AppError::NotFound("team not found".into()));
-        }
-        row.into_team()
-    }
-
-    async fn create_shared_team(
-        &self,
-        creator_id: &str,
-        payload: CreateTeam,
-    ) -> Result<Team, AppError> {
-        let name = payload.name.trim().to_owned();
-        if name.is_empty() {
-            return Err(AppError::invalid_request("team name must not be empty"));
-        }
-        let members = build_create_shared_members(creator_id, &payload.members)?;
-        let created: Option<TeamIdRow> = self
-            .db
-            .create("team")
-            .content(TeamCreatePayload {
-                name: name.clone(),
-                owner: None,
-                members,
-            })
-            .await?;
-
-        let id = created
-            .ok_or_else(|| AppError::database("failed to create team"))?
-            .id
-            .id
-            .to_string();
-        self.get_team(creator_id, &id, false).await
-    }
-
-    async fn update_team(
-        &self,
-        user_id: &str,
-        id: &str,
-        payload: UpdateTeam,
-    ) -> Result<Team, AppError> {
-        let resource = team_resource_or_reject_public(id)?;
-        let name_trim = payload.name.trim().to_owned();
-        if name_trim.is_empty() {
-            return Err(AppError::invalid_request("team name must not be empty"));
-        }
-
-        let row = self
-            .db
-            .query("SELECT * FROM $tid FETCH owner, members.user")
-            .bind(("tid", Thing::from(resource.clone())))
-            .await?
-            .take::<Option<TeamFetched>>(0)?
-            .ok_or_else(|| AppError::NotFound("team not found".into()))?;
-
-        let current_name = row.name.trim();
-        let stored = team_fetched_to_stored(&row)?;
-        if !member_or_owner_readable(user_id, &stored) {
-            return Err(AppError::NotFound("team not found".into()));
-        }
-
-        let admin = effective_admin(user_id, &stored);
-
-        if !admin {
-            let Some(ref inputs) = payload.members else {
-                return Err(AppError::forbidden());
-            };
-            let new_members = inputs_to_db_members(inputs)?;
-            if !member_self_leave_payload(
-                &stored,
-                user_id,
-                current_name,
-                name_trim.as_str(),
-                &new_members,
-            ) {
-                return Err(AppError::forbidden());
-            }
-            if stored.owner.is_some() {
-                let owner_id = stored
-                    .owner
-                    .as_ref()
-                    .map(thing_user_id)
-                    .ok_or_else(|| AppError::database("personal team missing owner"))?;
-                validate_personal_members_not_owner(&owner_id, &new_members)?;
-            } else {
-                ensure_shared_team_has_admin_after_update(&new_members)?;
-            }
-            self.db
-                .query("UPDATE $tid SET members = $members")
-                .bind(("tid", Thing::from(resource.clone())))
-                .bind(("members", new_members))
-                .await?
-                .check()
-                .map_err(AppError::database)?;
-            return load_team_display(self, id).await;
-        }
-
-        self.db
-            .query("UPDATE $tid SET name = $name")
-            .bind(("tid", Thing::from(resource.clone())))
-            .bind(("name", name_trim.clone()))
-            .await?
-            .check()
-            .map_err(AppError::database)?;
-
-        if let Some(inputs) = payload.members {
-            let new_members = inputs_to_db_members(&inputs)?;
-            if stored.owner.is_some() {
-                let owner_id = stored
-                    .owner
-                    .as_ref()
-                    .map(thing_user_id)
-                    .ok_or_else(|| AppError::database("personal team missing owner"))?;
-                validate_personal_members_not_owner(&owner_id, &new_members)?;
-            } else {
-                ensure_shared_team_has_admin_after_update(&new_members)?;
-            }
-            self.db
-                .query("UPDATE $tid SET members = $members")
-                .bind(("tid", Thing::from(resource.clone())))
-                .bind(("members", new_members))
-                .await?
-                .check()
-                .map_err(AppError::database)?;
-        }
-
-        load_team_display(self, id).await
-    }
-
-    async fn delete_team(&self, user_id: &str, id: &str) -> Result<Team, AppError> {
-        let resource = team_resource_or_reject_public(id)?;
-
-        let row = self
-            .db
-            .query("SELECT * FROM $tid FETCH owner, members.user")
-            .bind(("tid", Thing::from(resource.clone())))
-            .await?
-            .take::<Option<TeamFetched>>(0)?
-            .ok_or_else(|| AppError::NotFound("team not found".into()))?;
-
-        let stored = team_fetched_to_stored(&row)?;
-        if stored.owner.is_some() {
-            return Err(AppError::forbidden());
-        }
-        if !effective_admin(user_id, &stored) {
-            return Err(AppError::forbidden());
-        }
-
-        let team = row.into_team()?;
-        let personal = self.personal_team_thing_for_user(user_id).await?;
-        let tid = Thing::from(resource.clone());
-        for table in ["blob", "song", "collection", "setlist"] {
-            let q = format!("UPDATE {table} SET owner = $personal WHERE owner = $tid");
-            self.db
-                .query(&q)
-                .bind(("personal", personal.clone()))
-                .bind(("tid", tid.clone()))
-                .await?
-                .check()
-                .map_err(AppError::database)?;
-        }
-
-        self.db
-            .query("DELETE $tid")
-            .bind(("tid", tid))
-            .await?
-            .check()
-            .map_err(AppError::database)?;
-
-        Ok(team)
-    }
-}
-
-impl Database {
-    pub async fn list_teams_for_user(&self, user: &User) -> Result<Vec<Team>, AppError> {
-        let app_admin = user.role == UserRole::Admin;
-        self.get_teams(&user.id, app_admin).await
-    }
-
-    pub async fn get_team_for_user(&self, user: &User, id: &str) -> Result<Team, AppError> {
-        let app_admin = user.role == UserRole::Admin;
-        self.get_team(&user.id, id, app_admin).await
-    }
-
-    pub async fn create_shared_team_for_user(
-        &self,
-        user: &User,
-        payload: CreateTeam,
-    ) -> Result<Team, AppError> {
-        self.create_shared_team(&user.id, payload).await
-    }
-
-    pub async fn update_team_for_user(
-        &self,
-        user: &User,
-        id: &str,
-        payload: UpdateTeam,
-    ) -> Result<Team, AppError> {
-        self.update_team(&user.id, id, payload).await
-    }
-
-    pub async fn delete_team_for_user(&self, user: &User, id: &str) -> Result<Team, AppError> {
-        self.delete_team(&user.id, id).await
-    }
-}
 
 pub(crate) fn thing_record_key(t: &Thing) -> String {
     format!("{}:{}", t.tb, record_id_string(t))
@@ -305,7 +25,7 @@ pub(crate) fn team_content_writable(user_id: &str, stored: &TeamStored) -> bool 
     })
 }
 
-fn build_create_shared_members(
+pub(crate) fn build_create_shared_members(
     creator_id: &str,
     extra: &[TeamMemberInput],
 ) -> Result<Vec<DbTeamMember>, AppError> {
@@ -335,7 +55,7 @@ fn build_create_shared_members(
     Ok(members)
 }
 
-fn inputs_to_db_members(inputs: &[TeamMemberInput]) -> Result<Vec<DbTeamMember>, AppError> {
+pub(crate) fn inputs_to_db_members(inputs: &[TeamMemberInput]) -> Result<Vec<DbTeamMember>, AppError> {
     let mut map: BTreeMap<String, DbTeamMember> = BTreeMap::new();
     for m in inputs {
         let uid = member_user_id(&m.user)?;
@@ -350,7 +70,7 @@ fn inputs_to_db_members(inputs: &[TeamMemberInput]) -> Result<Vec<DbTeamMember>,
     Ok(map.into_values().collect())
 }
 
-fn member_user_id(user: &TeamUserRef) -> Result<String, AppError> {
+pub(crate) fn member_user_id(user: &TeamUserRef) -> Result<String, AppError> {
     let id = user.id.trim();
     if id.is_empty() {
         return Err(AppError::invalid_request(
@@ -360,7 +80,7 @@ fn member_user_id(user: &TeamUserRef) -> Result<String, AppError> {
     Ok(id.to_owned())
 }
 
-fn validate_shared_has_admin(members: &[DbTeamMember]) -> Result<(), AppError> {
+pub(crate) fn validate_shared_has_admin(members: &[DbTeamMember]) -> Result<(), AppError> {
     if !members.iter().any(|m| m.role == "admin") {
         return Err(AppError::invalid_request(
             "shared team must have at least one admin member",
@@ -370,7 +90,7 @@ fn validate_shared_has_admin(members: &[DbTeamMember]) -> Result<(), AppError> {
 }
 
 /// After a membership update on an existing shared team (PUT), missing any admin is a conflict (e.g. sole admin leaving).
-fn ensure_shared_team_has_admin_after_update(members: &[DbTeamMember]) -> Result<(), AppError> {
+pub(crate) fn ensure_shared_team_has_admin_after_update(members: &[DbTeamMember]) -> Result<(), AppError> {
     if !members.iter().any(|m| m.role == "admin") {
         return Err(AppError::conflict(
             "cannot leave team as the sole admin; promote another admin or delete the team",
@@ -397,7 +117,7 @@ fn members_without_user(stored: &TeamStored, user_id: &str) -> Vec<DbTeamMember>
 }
 
 /// Non-admins may only PUT to remove themselves: same team name and `members` exactly the current list minus the caller.
-fn member_self_leave_payload(
+pub(crate) fn member_self_leave_payload(
     stored: &TeamStored,
     user_id: &str,
     current_name: &str,
@@ -415,7 +135,7 @@ fn member_self_leave_payload(
     members_role_map(new_members) == members_role_map(&expected)
 }
 
-fn validate_personal_members_not_owner(
+pub(crate) fn validate_personal_members_not_owner(
     owner_id: &str,
     members: &[DbTeamMember],
 ) -> Result<(), AppError> {
@@ -429,11 +149,11 @@ fn validate_personal_members_not_owner(
 }
 
 #[derive(Serialize)]
-struct TeamCreatePayload {
-    name: String,
+pub(crate) struct TeamCreatePayload {
+    pub(crate) name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    owner: Option<Thing>,
-    members: Vec<DbTeamMember>,
+    pub(crate) owner: Option<Thing>,
+    pub(crate) members: Vec<DbTeamMember>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -445,17 +165,17 @@ pub(crate) struct DbTeamMember {
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct TeamFetched {
     pub(crate) id: Thing,
-    name: String,
+    pub(crate) name: String,
     #[serde(default)]
-    owner: Option<UserRecord>,
+    pub(crate) owner: Option<UserRecord>,
     #[serde(default)]
-    members: Vec<TeamMemberFetched>,
+    pub(crate) members: Vec<TeamMemberFetched>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-struct TeamMemberFetched {
-    user: UserRecord,
-    role: String,
+pub(crate) struct TeamMemberFetched {
+    pub(crate) user: UserRecord,
+    pub(crate) role: String,
 }
 
 impl TeamFetched {
@@ -487,8 +207,8 @@ fn user_record_to_team_user(rec: UserRecord) -> Result<TeamUser, AppError> {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct TeamIdRow {
-    id: Thing,
+pub(crate) struct TeamIdRow {
+    pub(crate) id: Thing,
 }
 
 #[derive(Clone, Debug)]
@@ -511,18 +231,6 @@ pub(crate) fn team_fetched_to_stored(row: &TeamFetched) -> Result<TeamStored, Ap
         });
     }
     Ok(TeamStored { owner, members })
-}
-
-pub(crate) async fn load_team_display(db: &Database, id: &str) -> Result<Team, AppError> {
-    let resource = team_resource_or_reject_public(id)?;
-    let row = db
-        .db
-        .query("SELECT * FROM $tid FETCH owner, members.user")
-        .bind(("tid", Thing::from(resource)))
-        .await?
-        .take::<Option<TeamFetched>>(0)?
-        .ok_or_else(|| AppError::NotFound("team not found".into()))?;
-    row.into_team()
 }
 
 pub(crate) fn user_thing(user_id: &str) -> Thing {
@@ -608,68 +316,3 @@ fn role_str(r: &TeamRole) -> &'static str {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use shared::team::CreateTeam;
-
-    use crate::error::AppError;
-    use crate::test_helpers::{create_user, test_db};
-
-    #[tokio::test]
-    async fn blc_team_shared_create_and_list() {
-        let db = test_db().await.expect("db");
-        let u = create_user(&db, "team-creator@test.local")
-            .await
-            .expect("u");
-        let t = db
-            .create_shared_team_for_user(
-                &u,
-                CreateTeam {
-                    name: "Band".into(),
-                    members: vec![],
-                },
-            )
-            .await
-            .expect("shared team");
-
-        assert!(!t.id.is_empty());
-        assert_eq!(t.name, "Band");
-
-        let teams = db.list_teams_for_user(&u).await.expect("teams");
-        assert!(teams.iter().any(|x| x.id == t.id));
-    }
-
-    #[tokio::test]
-    async fn blc_team_personal_cannot_delete() {
-        let db = test_db().await.expect("db");
-        let u = create_user(&db, "team-personal@test.local")
-            .await
-            .expect("u");
-        let teams = db.list_teams_for_user(&u).await.expect("teams");
-        let personal = teams
-            .iter()
-            .find(|t| t.owner.as_ref().map(|o| o.id == u.id).unwrap_or(false))
-            .expect("personal");
-        let err = db.delete_team_for_user(&u, &personal.id).await;
-        assert!(matches!(err, Err(AppError::Forbidden)));
-    }
-
-    #[tokio::test]
-    async fn blc_team_delete_shared_empty_team() {
-        let db = test_db().await.expect("db");
-        let u = create_user(&db, "team-del@test.local").await.expect("u");
-        let shared = db
-            .create_shared_team_for_user(
-                &u,
-                CreateTeam {
-                    name: "ToRemove".into(),
-                    members: vec![],
-                },
-            )
-            .await
-            .expect("shared");
-        db.delete_team_for_user(&u, &shared.id)
-            .await
-            .expect("delete");
-    }
-}

@@ -7,9 +7,10 @@ use actix_web::{Error, HttpMessage};
 use futures_util::future::LocalBoxFuture;
 
 use super::authorization_bearer;
-use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::{SessionModel, User, UserRole};
+use crate::resources::User;
+use crate::resources::user::session::service::SessionServiceHandle;
+use crate::resources::user::{Role as UserRole};
 use crate::settings::Settings;
 
 #[derive(Clone, Default)]
@@ -49,17 +50,17 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        let db = req
-            .app_data::<Data<Database>>()
+        let svc = req
+            .app_data::<Data<SessionServiceHandle>>()
             .cloned()
-            .ok_or_else(|| AppError::Internal("database handle missing".into()))
+            .ok_or_else(|| AppError::Internal("session service handle missing".into()))
             .map_err(Error::from);
 
         let cookie_name = Settings::global().cookie_name.clone();
         let service = Rc::clone(&self.service);
 
         Box::pin(async move {
-            let db = match db {
+            let svc = match svc {
                 Ok(data) => data,
                 Err(err) => return Err(err),
             };
@@ -71,8 +72,8 @@ where
                 })
                 .ok_or_else(AppError::unauthorized)?;
 
-            let user = match db
-                .get_session_and_update_user_metrics_or_delete_if_exipired(&session_id)
+            let user = match svc
+                .validate_session_and_update_metrics(&session_id)
                 .await
             {
                 Ok(Some(session)) => session.user,

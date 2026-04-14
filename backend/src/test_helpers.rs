@@ -9,8 +9,10 @@ use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::collection::service::CollectionServiceHandle;
 use crate::resources::setlist::{SetlistService, SetlistServiceHandle, SurrealSetlistRepo};
 use crate::resources::song::service::SongServiceHandle;
-use crate::resources::team::SurrealTeamResolver;
-use crate::resources::{User, UserModel};
+use crate::resources::team::{SurrealTeamResolver, TeamServiceHandle};
+use crate::resources::user::service::UserServiceHandle;
+use crate::resources::user::session::service::SessionServiceHandle;
+use crate::resources::User;
 use crate::settings::Settings;
 use shared::setlist::CreateSetlist;
 use shared::song::CreateSong;
@@ -24,16 +26,16 @@ pub async fn test_db() -> AnyResult<Arc<Database>> {
 }
 
 pub async fn seed_user(db: &Arc<Database>) -> AnyResult<User> {
-    Ok(db.create_user(User::new("smoke@test.local")).await?)
+    Ok(user_service(db).create_user(User::new("smoke@test.local")).await?)
 }
 
 pub async fn create_user(db: &Arc<Database>, email: &str) -> AnyResult<User> {
-    Ok(db.create_user(User::new(email)).await?)
+    Ok(user_service(db).create_user(User::new(email)).await?)
 }
 
 /// Personal team id for the user (matches API `team.id` — record id string only).
 pub async fn personal_team_id(db: &Arc<Database>, user: &User) -> AnyResult<String> {
-    let teams = db.list_teams_for_user(user).await?;
+    let teams = team_service(db).list_teams_for_user(user).await?;
     let personal = teams
         .into_iter()
         .find(|t| t.owner.as_ref().map(|o| o.id == user.id).unwrap_or(false))
@@ -74,15 +76,16 @@ pub async fn configure_personal_team_members(
             role,
         })
         .collect();
-    db.update_team_for_user(
-        owner,
-        team_id,
-        UpdateTeam {
-            name: "Personal".into(),
-            members: Some(inputs),
-        },
-    )
-    .await?;
+    team_service(db)
+        .update_team_for_user(
+            owner,
+            team_id,
+            UpdateTeam {
+                name: "Personal".into(),
+                members: Some(inputs),
+            },
+        )
+        .await?;
     Ok(())
 }
 
@@ -133,6 +136,24 @@ pub fn setlist_service(db: &Arc<Database>) -> SetlistServiceHandle {
         SurrealTeamResolver::new(data.clone()),
         data.clone(),
     )
+}
+
+/// Team application service (same wiring as HTTP `main`).
+pub fn team_service(db: &Arc<Database>) -> TeamServiceHandle {
+    let data = Data::from(db.clone());
+    TeamServiceHandle::build(data)
+}
+
+/// User application service (same wiring as HTTP `main`).
+pub fn user_service(db: &Arc<Database>) -> UserServiceHandle {
+    let data = Data::from(db.clone());
+    UserServiceHandle::build(data)
+}
+
+/// Session application service (same wiring as HTTP `main`).
+pub fn session_service(db: &Arc<Database>) -> SessionServiceHandle {
+    let data = Data::from(db.clone());
+    SessionServiceHandle::build(data)
 }
 
 pub fn setlist_with_songs(title: &str, song_ids: &[(&str, Option<&str>)]) -> CreateSetlist {

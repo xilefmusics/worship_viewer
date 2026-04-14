@@ -1,0 +1,103 @@
+use actix_web::web::Data;
+use async_trait::async_trait;
+use surrealdb::sql::Thing;
+
+use shared::user::Session;
+
+use crate::database::Database;
+use crate::error::AppError;
+
+use super::model::{SessionCreateRecord, SessionIdRecord, SessionRecord};
+use super::repository::SessionRepository;
+
+#[derive(Clone)]
+pub struct SurrealSessionRepo {
+    db: Data<Database>,
+}
+
+impl SurrealSessionRepo {
+    pub fn new(db: Data<Database>) -> Self {
+        Self { db }
+    }
+
+    fn inner(&self) -> &Database {
+        self.db.get_ref()
+    }
+}
+
+#[async_trait]
+impl SessionRepository for SurrealSessionRepo {
+    async fn get_session(&self, id: &str) -> Result<Session, AppError> {
+        self.inner()
+            .db
+            .query("SELECT * FROM session WHERE id = $id FETCH user")
+            .bind(("id", Thing::from(("session".to_owned(), id.to_string()))))
+            .await?
+            .take::<Option<SessionRecord>>(0)?
+            .map(SessionRecord::into_session)
+            .ok_or(AppError::NotFound("session not found".into()))
+    }
+
+    async fn create_session(&self, session: Session) -> Result<Session, AppError> {
+        let record: SessionIdRecord = self
+            .inner()
+            .db
+            .create(("session", session.id.clone()))
+            .content(SessionCreateRecord::from_session(session))
+            .await?
+            .ok_or_else(|| AppError::database("Failed to create session"))?;
+
+        self.get_session(&record.id.id.to_raw()).await
+    }
+
+    async fn delete_session(&self, id: &str) -> Result<Session, AppError> {
+        let session = self.get_session(id).await?;
+        let _: Option<SessionIdRecord> = self.inner().db.delete(("session", id)).await?;
+        Ok(session)
+    }
+
+    async fn get_sessions_by_user_id(&self, user_id: &str) -> Result<Vec<Session>, AppError> {
+        Ok(self
+            .inner()
+            .db
+            .query("SELECT * FROM session WHERE user = $user FETCH user")
+            .bind(("user", Thing::from(("user".to_owned(), user_id.to_owned()))))
+            .await?
+            .take::<Vec<SessionRecord>>(0)?
+            .into_iter()
+            .map(|record| record.into_session())
+            .collect())
+    }
+
+    async fn validate_session_and_update_metrics(
+        &self,
+        id: &str,
+    ) -> Result<Option<Session>, AppError> {
+        Ok(self
+            .inner()
+            .db
+            .query(
+                r#"
+            LET $sid = type::thing("session", $id);
+                        
+            DELETE $sid
+            WHERE expires_at != NONE
+              AND expires_at <= time::now();
+                        
+            UPDATE user
+            SET
+              last_login_at = time::now(),
+              request_count += 1
+            WHERE id = (SELECT user FROM $sid)[0].user;
+                        
+            RETURN (SELECT * FROM $sid FETCH user)[0];
+                "#,
+            )
+            .bind(("id", id.to_owned()))
+            .await
+            .map_err(AppError::database)?
+            .take::<Option<SessionRecord>>(3)
+            .map_err(AppError::database)?
+            .map(SessionRecord::into_session))
+    }
+}

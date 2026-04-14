@@ -15,7 +15,9 @@ use crate::database::Database;
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::mail::Mail;
-use crate::resources::{Session, SessionModel, UserModel};
+use crate::resources::Session;
+use crate::resources::user::service::UserServiceHandle;
+use crate::resources::user::session::service::SessionServiceHandle;
 use crate::settings::Settings;
 
 #[utoipa::path(
@@ -67,6 +69,8 @@ async fn otp_request(
 #[post("/otp/verify")]
 async fn otp_verify(
     db: Data<Database>,
+    user_svc: Data<UserServiceHandle>,
+    session_svc: Data<SessionServiceHandle>,
     payload: web::Json<OtpVerify>,
 ) -> Result<HttpResponse, AppError> {
     let email = payload
@@ -85,11 +89,9 @@ async fn otp_verify(
 
     db.validate_otp(&email, &code).await?;
 
-    let session = db
-        .create_session(Session::new(
-            db.get_user_by_email_or_create(&email).await?,
-            Settings::global().session_ttl_seconds as i64,
-        ))
+    let user = user_svc.get_user_by_email_or_create(&email).await?;
+    let session = session_svc
+        .create_session(Session::new(user, Settings::global().session_ttl_seconds as i64))
         .await?;
 
     Ok(HttpResponse::Ok()

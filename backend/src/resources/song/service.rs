@@ -12,7 +12,8 @@ use crate::resources::User;
 use crate::resources::collection::CollectionRepository;
 
 use crate::resources::team::TeamResolver;
-use crate::resources::UserModel;
+use crate::resources::user::surreal_repo::SurrealUserRepo;
+use crate::resources::user::UserRepository;
 use shared::collection::CreateCollection;
 
 use super::export::{Format, export};
@@ -31,13 +32,13 @@ pub trait UserCollectionUpdater: Send + Sync {
 }
 
 #[async_trait]
-impl UserCollectionUpdater for Data<Database> {
+impl UserCollectionUpdater for Data<SurrealUserRepo> {
     async fn set_default_collection(
         &self,
         user_id: &str,
         collection_id: &str,
     ) -> Result<(), AppError> {
-        UserModel::set_default_collection_to_user(self.get_ref(), user_id, collection_id).await
+        self.get_ref().set_default_collection(user_id, collection_id).await
     }
 }
 
@@ -204,7 +205,7 @@ pub type SongServiceHandle = SongService<
     crate::resources::team::SurrealTeamResolver,
     Data<Database>,
     crate::resources::collection::SurrealCollectionRepo,
-    Data<Database>,
+    Data<SurrealUserRepo>,
 >;
 
 impl SongServiceHandle {
@@ -214,7 +215,7 @@ impl SongServiceHandle {
             crate::resources::team::SurrealTeamResolver::new(db.clone()),
             db.clone(),
             crate::resources::collection::SurrealCollectionRepo::new(db.clone()),
-            db.clone(),
+            Data::new(SurrealUserRepo::new(db.clone())),
         )
     }
 }

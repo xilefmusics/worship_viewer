@@ -1,4 +1,3 @@
-use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
@@ -12,6 +11,8 @@ use shared::team::Team;
 #[allow(unused_imports)]
 use shared::team::TeamInvitation;
 use shared::team::{CreateTeam, UpdateTeam};
+
+use super::service::TeamServiceHandle;
 
 pub fn scope() -> Scope {
     web::scope("/teams")
@@ -57,13 +58,12 @@ fn team_invitations_scope() -> Scope {
 )]
 #[post("")]
 async fn create_team_invitation(
-    db: Data<Database>,
+    svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
     team_id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Created().json(
-        db.create_team_invitation_for_user(&user, team_id.as_str())
-            .await?,
+        svc.create_invitation_for_user(&user, team_id.as_str()).await?,
     ))
 }
 
@@ -88,13 +88,12 @@ async fn create_team_invitation(
 )]
 #[get("")]
 async fn list_team_invitations(
-    db: Data<Database>,
+    svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
     team_id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.list_team_invitations_for_user(&user, team_id.as_str())
-            .await?,
+        svc.list_invitations_for_user(&user, team_id.as_str()).await?,
     ))
 }
 
@@ -120,14 +119,13 @@ async fn list_team_invitations(
 )]
 #[get("/{invitation_id}")]
 async fn get_team_invitation(
-    db: Data<Database>,
+    svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
     path: Path<(String, String)>,
 ) -> Result<HttpResponse, AppError> {
     let (team_id, invitation_id) = path.into_inner();
     Ok(HttpResponse::Ok().json(
-        db.get_team_invitation_for_user(&user, &team_id, &invitation_id)
-            .await?,
+        svc.get_invitation_for_user(&user, &team_id, &invitation_id).await?,
     ))
 }
 
@@ -153,13 +151,12 @@ async fn get_team_invitation(
 )]
 #[delete("/{invitation_id}")]
 async fn delete_team_invitation(
-    db: Data<Database>,
+    svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
     path: Path<(String, String)>,
 ) -> Result<HttpResponse, AppError> {
     let (team_id, invitation_id) = path.into_inner();
-    db.delete_team_invitation_for_user(&user, &team_id, &invitation_id)
-        .await?;
+    svc.delete_invitation_for_user(&user, &team_id, &invitation_id).await?;
     Ok(HttpResponse::NoContent().finish())
 }
 
@@ -183,13 +180,12 @@ async fn delete_team_invitation(
 )]
 #[post("/{invitation_id}/accept")]
 async fn accept_team_invitation(
-    db: Data<Database>,
+    svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
     invitation_id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.accept_team_invitation_for_user(&user, invitation_id.as_str())
-            .await?,
+        svc.accept_invitation_for_user(&user, invitation_id.as_str()).await?,
     ))
 }
 
@@ -208,8 +204,11 @@ async fn accept_team_invitation(
     )
 )]
 #[get("")]
-async fn get_teams(db: Data<Database>, user: ReqData<User>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.list_teams_for_user(&user).await?))
+async fn get_teams(
+    svc: Data<TeamServiceHandle>,
+    user: ReqData<User>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(svc.list_teams_for_user(&user).await?))
 }
 
 #[utoipa::path(
@@ -232,11 +231,11 @@ async fn get_teams(db: Data<Database>, user: ReqData<User>) -> Result<HttpRespon
 )]
 #[get("/{id}")]
 async fn get_team(
-    db: Data<Database>,
+    svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_team_for_user(&user, &id).await?))
+    Ok(HttpResponse::Ok().json(svc.get_team_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -257,13 +256,12 @@ async fn get_team(
 )]
 #[post("")]
 async fn create_team(
-    db: Data<Database>,
+    svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
     payload: Json<CreateTeam>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Created().json(
-        db.create_shared_team_for_user(&user, payload.into_inner())
-            .await?,
+        svc.create_shared_team_for_user(&user, payload.into_inner()).await?,
     ))
 }
 
@@ -291,14 +289,13 @@ async fn create_team(
 )]
 #[put("/{id}")]
 async fn update_team(
-    db: Data<Database>,
+    svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
     payload: Json<UpdateTeam>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.update_team_for_user(&user, &id, payload.into_inner())
-            .await?,
+        svc.update_team_for_user(&user, &id, payload.into_inner()).await?,
     ))
 }
 
@@ -323,9 +320,9 @@ async fn update_team(
 )]
 #[delete("/{id}")]
 async fn delete_team(
-    db: Data<Database>,
+    svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_team_for_user(&user, &id).await?))
+    Ok(HttpResponse::Ok().json(svc.delete_team_for_user(&user, &id).await?))
 }

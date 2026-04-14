@@ -16,8 +16,11 @@ use backend::resources::blob::service::BlobServiceHandle;
 use backend::resources::collection::service::CollectionServiceHandle;
 use backend::resources::setlist::{SetlistService, SurrealSetlistRepo};
 use backend::resources::song::service::SongServiceHandle;
-use backend::resources::team::SurrealTeamResolver;
-use backend::resources::{Session, SessionModel, User, UserModel, UserRole};
+use backend::resources::team::{SurrealTeamResolver, TeamServiceHandle};
+use backend::resources::user::service::UserServiceHandle;
+use backend::resources::user::session::service::SessionServiceHandle;
+use backend::resources::user::{Role as UserRole, User};
+use backend::resources::Session;
 use backend::settings::Settings;
 
 #[actix_web::main]
@@ -37,40 +40,44 @@ async fn main() -> AnyResult<()> {
         .await
         .context("database migration failed")?;
 
+    let user_service = UserServiceHandle::build(db.clone());
+    let session_service = SessionServiceHandle::build(db.clone());
+
     if let Some(email) = settings.initial_admin_user_email.as_ref() {
-        let (admin, created_initial_admin) = if let Some(user) =
-            db.get_user_by_email(email)
+        let (admin, created_initial_admin) =
+            if let Some(user) = user_service
+                .get_user_by_email(email)
                 .await
                 .context("failed to look up initial admin user by email")?
-        {
-            info!(
-                "Initial admin user already exists ({}), not creating: {}",
-                user.id, user.email
-            );
-            (user, false)
-        } else {
-            let admin = db
-                .create_user(User {
-                    id: String::new(),
-                    email: email.to_owned(),
-                    role: UserRole::Admin,
-                    default_collection: None,
-                    created_at: Utc::now(),
-                    last_login_at: None,
-                    request_count: 0,
-                })
-                .await
-                .context("failed to create admin user")?;
-            info!(
-                "Created admin user {} with email: {}",
-                admin.id, admin.email
-            );
-            (admin, true)
-        };
+            {
+                info!(
+                    "Initial admin user already exists ({}), not creating: {}",
+                    user.id, user.email
+                );
+                (user, false)
+            } else {
+                let admin = user_service
+                    .create_user(User {
+                        id: String::new(),
+                        email: email.to_owned(),
+                        role: UserRole::Admin,
+                        default_collection: None,
+                        created_at: Utc::now(),
+                        last_login_at: None,
+                        request_count: 0,
+                    })
+                    .await
+                    .context("failed to create admin user")?;
+                info!(
+                    "Created admin user {} with email: {}",
+                    admin.id, admin.email
+                );
+                (admin, true)
+            };
 
         if settings.initial_admin_user_test_session {
             if created_initial_admin {
-                let session = db
+                let session = session_service
                     .create_session(Session::admin(admin, settings.session_ttl_seconds as i64))
                     .await
                     .context("failed to create a test session for the admin user")?;
@@ -94,6 +101,7 @@ async fn main() -> AnyResult<()> {
         SurrealTeamResolver::new(db.clone()),
         db.clone(),
     );
+    let team_service = TeamServiceHandle::build(db.clone());
 
     info!(
         "Starting server on http://{}:{}",
@@ -107,6 +115,9 @@ async fn main() -> AnyResult<()> {
             .app_data(Data::new(collection_service.clone()))
             .app_data(Data::new(song_service.clone()))
             .app_data(Data::new(setlist_service.clone()))
+            .app_data(Data::new(team_service.clone()))
+            .app_data(Data::new(user_service.clone()))
+            .app_data(Data::new(session_service.clone()))
             .app_data(oidc_clients.clone())
             .wrap(Logger::default())
             .service(auth::rest::scope())

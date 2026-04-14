@@ -22,7 +22,9 @@ use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
-use crate::resources::{Session, SessionModel, UserModel};
+use crate::resources::Session;
+use crate::resources::user::service::UserServiceHandle;
+use crate::resources::user::session::service::SessionServiceHandle;
 use crate::settings::Settings;
 
 #[utoipa::path(
@@ -103,6 +105,8 @@ async fn login(
 #[get("/callback")]
 async fn callback(
     db: Data<Database>,
+    user_svc: Data<UserServiceHandle>,
+    session_svc: Data<SessionServiceHandle>,
     oidc_clients: Data<Arc<OidcClients>>,
     query: web::Query<AuthCallbackQuery>,
 ) -> Result<HttpResponse, AppError> {
@@ -144,11 +148,11 @@ async fn callback(
         .claims(&oidc_client.id_token_verifier(), &nonce)
         .map_err(AppError::oidc)?;
 
-    let user = db
+    let user = user_svc
         .get_user_by_email_or_create(claims.email().ok_or(AppError::Unauthorized)?)
         .await?;
     let settings = Settings::global();
-    let session = db
+    let session = session_svc
         .create_session(Session::new(user, settings.session_ttl_seconds as i64))
         .await?;
     let redirect_target = resolve_frontend_redirect(settings, redirect_to.as_deref());

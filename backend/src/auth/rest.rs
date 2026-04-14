@@ -9,8 +9,7 @@ use tracing::warn;
 
 pub use super::authorization_bearer;
 use super::{oidc, otp};
-use crate::database::Database;
-use crate::resources::SessionModel;
+use crate::resources::user::session::service::SessionServiceHandle;
 use crate::settings::Settings;
 
 pub fn scope() -> actix_web::Scope {
@@ -33,7 +32,7 @@ pub fn scope() -> actix_web::Scope {
     )
 )]
 #[post("/logout")]
-async fn logout(db: Data<Database>, req: HttpRequest) -> HttpResponse {
+async fn logout(svc: Data<SessionServiceHandle>, req: HttpRequest) -> HttpResponse {
     let settings = Settings::global();
     let bearer_session = authorization_bearer(&req);
     let cookie_session = req
@@ -41,7 +40,7 @@ async fn logout(db: Data<Database>, req: HttpRequest) -> HttpResponse {
         .map(|cookie| cookie.value().to_owned());
 
     if let Some(session_id) = bearer_session.as_deref().or(cookie_session.as_deref())
-        && let Err(err) = db.delete_session(session_id).await
+        && let Err(err) = svc.delete_session(session_id).await
     {
         warn!(session = session_id, "failed to drop session: {}", err);
     }

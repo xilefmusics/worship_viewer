@@ -1,133 +1,16 @@
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Datetime;
-use surrealdb::sql::Thing;
+use surrealdb::sql::{Datetime, Thing};
 
-use super::{CreateUserRequest, Role, User};
-use crate::database::Database;
+use super::{Role, User};
 use crate::error::AppError;
-use crate::resources::team::TeamModel;
-use shared::api::ListQuery;
 
-pub trait Model {
-    async fn get_users(&self, pagination: ListQuery) -> Result<Vec<User>, AppError>;
-    async fn get_user(&self, id: &str) -> Result<User, AppError>;
-    async fn get_user_by_email(&self, email: &str) -> Result<Option<User>, AppError>;
-    async fn create_user(&self, user: User) -> Result<User, AppError>;
-    async fn delete_user(&self, id: &str) -> Result<User, AppError>;
-    async fn get_user_by_email_or_create(&self, email: &str) -> Result<User, AppError>;
-    async fn set_default_collection_to_user(
-        &self,
-        id: &str,
-        collection_id: &str,
-    ) -> Result<(), AppError>;
-}
-
-impl Model for Database {
-    async fn get_users(&self, pagination: ListQuery) -> Result<Vec<User>, AppError> {
-        if let Some((offset, limit)) = pagination.to_offset_limit() {
-            let mut response = self
-                .db
-                .query("SELECT * FROM user LIMIT $limit START $start")
-                .bind(("limit", limit))
-                .bind(("start", offset))
-                .await?;
-
-            Ok(response
-                .take::<Vec<UserRecord>>(0)?
-                .into_iter()
-                .map(UserRecord::into_user)
-                .collect())
-        } else {
-            Ok(self
-                .db
-                .select("user")
-                .await?
-                .into_iter()
-                .map(UserRecord::into_user)
-                .collect())
-        }
-    }
-
-    async fn get_user(&self, id: &str) -> Result<User, AppError> {
-        self.db
-            .select(user_resource(id)?)
-            .await?
-            .map(UserRecord::into_user)
-            .ok_or(AppError::NotFound("user not found".into()))
-    }
-
-    async fn get_user_by_email(&self, email: &str) -> Result<Option<User>, AppError> {
-        Ok(self
-            .db
-            .query("SELECT * FROM user WHERE email = $email LIMIT 1")
-            .bind(("email", email.to_lowercase()))
-            .await?
-            .take::<Option<UserRecord>>(0)?
-            .map(UserRecord::into_user))
-    }
-
-    async fn create_user(&self, user: User) -> Result<User, AppError> {
-        let created = self
-            .db
-            .create("user")
-            .content(UserRecord::from_user(user))
-            .await?
-            .map(UserRecord::into_user)
-            .ok_or_else(|| AppError::database("failed to create user"))?;
-        TeamModel::create_personal_team(self, &created).await?;
-        Ok(created)
-    }
-
-    async fn delete_user(&self, id: &str) -> Result<User, AppError> {
-        self.db
-            .delete(user_resource(id)?)
-            .await?
-            .map(UserRecord::into_user)
-            .ok_or(AppError::NotFound("user not found".into()))
-    }
-
-    async fn get_user_by_email_or_create(&self, email: &str) -> Result<User, AppError> {
-        if let Some(user) = self.get_user_by_email(email).await? {
-            return Ok(user);
-        }
-        self.create_user(User::new(email.to_lowercase())).await
-    }
-
-    async fn set_default_collection_to_user(
-        &self,
-        id: &str,
-        collection_id: &str,
-    ) -> Result<(), AppError> {
-        let _ = self
-            .db
-            .query("UPDATE $user SET default_collection = $collection")
-            .bind(("user", Thing::from(("user".to_owned(), id.to_owned()))))
-            .bind((
-                "collection",
-                Thing::from(("collection".to_owned(), collection_id.to_owned())),
-            ))
-            .await?;
-        Ok(())
-    }
-}
-
-impl Database {
-    pub async fn create_user_from_request(
-        &self,
-        request: CreateUserRequest,
-    ) -> Result<User, AppError> {
-        self.create_user(request.into_user()).await
-    }
-}
-
-fn user_resource(id: &str) -> Result<(String, String), AppError> {
+pub(crate) fn user_resource(id: &str) -> Result<(String, String), AppError> {
     if let Ok(thing) = id.parse::<Thing>() {
         if thing.tb == "user" {
             return Ok((thing.tb, thing.id.to_string()));
         }
         return Err(AppError::invalid_request("invalid user id"));
     }
-
     Ok(("user".to_owned(), id.to_owned()))
 }
 
