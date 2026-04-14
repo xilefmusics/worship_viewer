@@ -321,7 +321,9 @@ mod http_contract {
         let db = test_db().await.unwrap();
         let user = create_user(&db, "http-del@test.local").await.unwrap();
         let token = create_session_token(&db, user.clone()).await.unwrap();
-        let song = create_song_with_title(&db, &user, "DeleteMe").await.unwrap();
+        let song = create_song_with_title(&db, &user, "DeleteMe")
+            .await
+            .unwrap();
         let song_id = song.id.clone();
 
         let app = test::init_service(build_app(db.clone())).await;
@@ -469,7 +471,9 @@ mod user_admin_gates {
     async fn blc_user_007_non_admin_delete_user_returns_403() {
         let db = test_db().await.unwrap();
         let user = create_user(&db, "nonadmin-du@test.local").await.unwrap();
-        let other = create_user(&db, "nonadmin-du-other@test.local").await.unwrap();
+        let other = create_user(&db, "nonadmin-du-other@test.local")
+            .await
+            .unwrap();
         let token = create_session_token(&db, user).await.unwrap();
 
         let app = test::init_service(build_app(db.clone())).await;
@@ -484,7 +488,9 @@ mod user_admin_gates {
     async fn blc_user_007_non_admin_get_user_by_id_returns_403() {
         let db = test_db().await.unwrap();
         let user = create_user(&db, "nonadmin-gu@test.local").await.unwrap();
-        let other = create_user(&db, "nonadmin-gu-other@test.local").await.unwrap();
+        let other = create_user(&db, "nonadmin-gu-other@test.local")
+            .await
+            .unwrap();
         let token = create_session_token(&db, user).await.unwrap();
 
         let app = test::init_service(build_app(db.clone())).await;
@@ -648,7 +654,9 @@ mod session_admin_gates {
     async fn blc_sess_005_non_admin_get_other_sessions_returns_403() {
         let db = test_db().await.unwrap();
         let user = create_user(&db, "nonadmin-gs@test.local").await.unwrap();
-        let other = create_user(&db, "nonadmin-gs-other@test.local").await.unwrap();
+        let other = create_user(&db, "nonadmin-gs-other@test.local")
+            .await
+            .unwrap();
         let token = create_session_token(&db, user).await.unwrap();
 
         let app = test::init_service(build_app(db.clone())).await;
@@ -663,7 +671,9 @@ mod session_admin_gates {
     async fn blc_sess_005_non_admin_create_other_session_returns_403() {
         let db = test_db().await.unwrap();
         let user = create_user(&db, "nonadmin-cs@test.local").await.unwrap();
-        let other = create_user(&db, "nonadmin-cs-other@test.local").await.unwrap();
+        let other = create_user(&db, "nonadmin-cs-other@test.local")
+            .await
+            .unwrap();
         let token = create_session_token(&db, user).await.unwrap();
 
         let app = test::init_service(build_app(db.clone())).await;
@@ -832,7 +842,9 @@ mod list_pagination {
     async fn blc_lp_005_empty_q_treated_as_absent() {
         let db = test_db().await.unwrap();
         let (user, token) = authed_user_and_token(&db, "lp005b@test.local").await;
-        create_song_with_title(&db, &user, "Empty Q Song").await.unwrap();
+        create_song_with_title(&db, &user, "Empty Q Song")
+            .await
+            .unwrap();
 
         let app = test::init_service(build_app(db.clone())).await;
 
@@ -846,8 +858,7 @@ mod list_pagination {
             .uri("/api/v1/songs?q=")
             .insert_header(("Authorization", format!("Bearer {token}")))
             .to_request();
-        let empty_q_resp: serde_json::Value =
-            test::call_and_read_body_json(&app, empty_q).await;
+        let empty_q_resp: serde_json::Value = test::call_and_read_body_json(&app, empty_q).await;
 
         assert_eq!(
             no_q_resp.as_array().unwrap().len(),

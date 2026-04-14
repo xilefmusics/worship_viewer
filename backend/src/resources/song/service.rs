@@ -334,12 +334,18 @@ mod tests {
         crate::resources::User,
         String,
     ) {
-        use crate::test_helpers::{configure_personal_team_members, create_user, personal_team_id, test_db};
+        use crate::test_helpers::{
+            configure_personal_team_members, create_user, personal_team_id, test_db,
+        };
 
         let db = test_db().await.expect("db");
-        let owner = create_user(&db, "s3h-owner@test.local").await.expect("owner");
+        let owner = create_user(&db, "s3h-owner@test.local")
+            .await
+            .expect("owner");
         let cm = create_user(&db, "s3h-cm@test.local").await.expect("cm");
-        let guest_u = create_user(&db, "s3h-guest@test.local").await.expect("guest");
+        let guest_u = create_user(&db, "s3h-guest@test.local")
+            .await
+            .expect("guest");
         let non_member = create_user(&db, "s3h-nm@test.local").await.expect("nm");
         let tid = personal_team_id(&db, &owner).await.expect("tid");
         configure_personal_team_members(
@@ -363,11 +369,15 @@ mod tests {
         let svc = SongServiceHandle::build(db.clone());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let nm_p = UserPermissions::new(&nm, &svc.teams);
-        let song = create_song_with_title(&db, &owner, "NMSong").await.expect("song");
+        let song = create_song_with_title(&db, &owner, "NMSong")
+            .await
+            .expect("song");
         let r = svc.get_song_for_user(&nm_p, &song.id).await;
         assert!(matches!(r, Err(crate::error::AppError::NotFound(_))));
         // Verify owner can still read it (sanity check that song exists).
-        svc.get_song_for_user(&owner_p, &song.id).await.expect("owner reads ok");
+        svc.get_song_for_user(&owner_p, &song.id)
+            .await
+            .expect("owner reads ok");
     }
 
     /// BLC-SONG-007: guest cannot PUT (update) a song.
@@ -378,8 +388,14 @@ mod tests {
         let svc = SongServiceHandle::build(db.clone());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let guest_p = UserPermissions::new(&guest_u, &svc.teams);
-        let song = create_song_with_title(&db, &owner, "GuestPUTSong").await.expect("song");
-        let create = CreateSong { not_a_song: false, blobs: vec![], data: crate::test_helpers::minimal_song_data() };
+        let song = create_song_with_title(&db, &owner, "GuestPUTSong")
+            .await
+            .expect("song");
+        let create = CreateSong {
+            not_a_song: false,
+            blobs: vec![],
+            data: crate::test_helpers::minimal_song_data(),
+        };
         let r = svc.update_song_for_user(&guest_p, &song.id, create).await;
         assert!(matches!(r, Err(crate::error::AppError::NotFound(_))));
     }
@@ -391,11 +407,15 @@ mod tests {
         let svc = SongServiceHandle::build(db.clone());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let guest_p = UserPermissions::new(&guest_u, &svc.teams);
-        let song = create_song_with_title(&db, &owner, "GuestDELSong").await.expect("song");
+        let song = create_song_with_title(&db, &owner, "GuestDELSong")
+            .await
+            .expect("song");
         let r = svc.delete_song_for_user(&guest_p, &song.id).await;
         assert!(matches!(r, Err(crate::error::AppError::NotFound(_))));
         // Song still exists.
-        svc.get_song_for_user(&owner_p, &song.id).await.expect("still exists");
+        svc.get_song_for_user(&owner_p, &song.id)
+            .await
+            .expect("still exists");
     }
 
     /// BLC-SONG-008: content_maintainer can update a song.
@@ -406,11 +426,19 @@ mod tests {
         let svc = SongServiceHandle::build(db.clone());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let cm_p = UserPermissions::new(&cm, &svc.teams);
-        let song = create_song_with_title(&db, &owner, "CMUpdateSong").await.expect("song");
+        let song = create_song_with_title(&db, &owner, "CMUpdateSong")
+            .await
+            .expect("song");
         let mut data = crate::test_helpers::minimal_song_data();
         data.titles = vec!["UpdatedTitle".into()];
-        let create = CreateSong { not_a_song: false, blobs: vec![], data };
-        svc.update_song_for_user(&cm_p, &song.id, create).await.expect("cm update");
+        let create = CreateSong {
+            not_a_song: false,
+            blobs: vec![],
+            data,
+        };
+        svc.update_song_for_user(&cm_p, &song.id, create)
+            .await
+            .expect("cm update");
     }
 
     /// BLC-SONG-003: PUT does not change the song's owner.
@@ -420,11 +448,20 @@ mod tests {
         let (db, owner, _cm, _guest, _nm, tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let song = create_song_with_title(&db, &owner, "OwnerSong").await.expect("song");
+        let song = create_song_with_title(&db, &owner, "OwnerSong")
+            .await
+            .expect("song");
         assert_eq!(song.owner, tid);
         let data = crate::test_helpers::minimal_song_data();
-        let create = CreateSong { not_a_song: false, blobs: vec![], data };
-        let updated = svc.update_song_for_user(&owner_p, &song.id, create).await.expect("update");
+        let create = CreateSong {
+            not_a_song: false,
+            blobs: vec![],
+            data,
+        };
+        let updated = svc
+            .update_song_for_user(&owner_p, &song.id, create)
+            .await
+            .expect("update");
         assert_eq!(updated.owner, tid, "owner must not change on PUT");
     }
 
@@ -439,13 +476,25 @@ mod tests {
         let mut data_with_artist = crate::test_helpers::minimal_song_data();
         data_with_artist.titles = vec!["SongByArtist".into()];
         data_with_artist.artists = vec!["UniqueArtistZZZ".into()];
-        let create = shared::song::CreateSong { not_a_song: false, blobs: vec![], data: data_with_artist };
-        svc.create_song_for_user(&owner_p, create).await.expect("with artist");
+        let create = shared::song::CreateSong {
+            not_a_song: false,
+            blobs: vec![],
+            data: data_with_artist,
+        };
+        svc.create_song_for_user(&owner_p, create)
+            .await
+            .expect("with artist");
 
         let mut data_no_artist = crate::test_helpers::minimal_song_data();
         data_no_artist.titles = vec!["SongWithoutArtist".into()];
-        let create2 = shared::song::CreateSong { not_a_song: false, blobs: vec![], data: data_no_artist };
-        svc.create_song_for_user(&owner_p, create2).await.expect("without artist");
+        let create2 = shared::song::CreateSong {
+            not_a_song: false,
+            blobs: vec![],
+            data: data_no_artist,
+        };
+        svc.create_song_for_user(&owner_p, create2)
+            .await
+            .expect("without artist");
 
         let results = svc
             .list_songs_for_user(&owner_p, ListQuery::new().with_q("UniqueArtistZZZ"))
@@ -461,9 +510,16 @@ mod tests {
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let song = create_song_with_title(&db, &owner, "LikeSong").await.expect("song");
-        svc.set_song_like_status_for_user(&owner_p, &song.id, true).await.expect("like");
-        let fetched = svc.get_song_for_user(&owner_p, &song.id).await.expect("get");
+        let song = create_song_with_title(&db, &owner, "LikeSong")
+            .await
+            .expect("song");
+        svc.set_song_like_status_for_user(&owner_p, &song.id, true)
+            .await
+            .expect("like");
+        let fetched = svc
+            .get_song_for_user(&owner_p, &song.id)
+            .await
+            .expect("get");
         assert!(fetched.user_specific_addons.liked);
     }
 
@@ -473,8 +529,13 @@ mod tests {
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let song = create_song_with_title(&db, &owner, "UnlikedSong").await.expect("song");
-        let fetched = svc.get_song_for_user(&owner_p, &song.id).await.expect("get");
+        let song = create_song_with_title(&db, &owner, "UnlikedSong")
+            .await
+            .expect("song");
+        let fetched = svc
+            .get_song_for_user(&owner_p, &song.id)
+            .await
+            .expect("get");
         assert!(!fetched.user_specific_addons.liked);
     }
 
@@ -485,12 +546,25 @@ mod tests {
         let svc = SongServiceHandle::build(db.clone());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let guest_p = UserPermissions::new(&guest_u, &svc.teams);
-        let song = create_song_with_title(&db, &owner, "IndependentLike").await.expect("song");
-        svc.set_song_like_status_for_user(&owner_p, &song.id, true).await.expect("owner likes");
-        let owner_status = svc.song_like_status_for_user(&owner_p, &song.id).await.expect("owner status");
-        let guest_status = svc.song_like_status_for_user(&guest_p, &song.id).await.expect("guest status");
+        let song = create_song_with_title(&db, &owner, "IndependentLike")
+            .await
+            .expect("song");
+        svc.set_song_like_status_for_user(&owner_p, &song.id, true)
+            .await
+            .expect("owner likes");
+        let owner_status = svc
+            .song_like_status_for_user(&owner_p, &song.id)
+            .await
+            .expect("owner status");
+        let guest_status = svc
+            .song_like_status_for_user(&guest_p, &song.id)
+            .await
+            .expect("guest status");
         assert!(owner_status.liked, "owner must see liked=true");
-        assert!(!guest_status.liked, "guest must see liked=false (they never liked)");
+        assert!(
+            !guest_status.liked,
+            "guest must see liked=false (they never liked)"
+        );
     }
 
     /// BLC-SONG-004: like on a song the user cannot read returns NotFound.
@@ -500,8 +574,12 @@ mod tests {
         let svc = SongServiceHandle::build(db.clone());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let nm_p = UserPermissions::new(&nm, &svc.teams);
-        let song = create_song_with_title(&db, &owner, "SecretLikeSong").await.expect("song");
-        let r = svc.set_song_like_status_for_user(&nm_p, &song.id, true).await;
+        let song = create_song_with_title(&db, &owner, "SecretLikeSong")
+            .await
+            .expect("song");
+        let r = svc
+            .set_song_like_status_for_user(&nm_p, &song.id, true)
+            .await;
         assert!(matches!(r, Err(crate::error::AppError::NotFound(_))));
     }
 
@@ -513,9 +591,18 @@ mod tests {
         let svc = SongServiceHandle::build(db.clone());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let data = crate::test_helpers::minimal_song_data();
-        let create = CreateSong { not_a_song: false, blobs: vec![], data };
-        let result = svc.update_song_for_user(&owner_p, "brand-new-id", create).await;
-        assert!(result.is_ok(), "upsert with new id must succeed for owner: {result:?}");
+        let create = CreateSong {
+            not_a_song: false,
+            blobs: vec![],
+            data,
+        };
+        let result = svc
+            .update_song_for_user(&owner_p, "brand-new-id", create)
+            .await;
+        assert!(
+            result.is_ok(),
+            "upsert with new id must succeed for owner: {result:?}"
+        );
     }
 
     /// BLC-SONG-018: PUT with a brand-new ID as guest on someone else's team creates the song on
@@ -528,14 +615,21 @@ mod tests {
         let svc = SongServiceHandle::build(db.clone());
         let guest_p = UserPermissions::new(&guest_u, &svc.teams);
         let data = crate::test_helpers::minimal_song_data();
-        let create = CreateSong { not_a_song: false, blobs: vec![], data };
+        let create = CreateSong {
+            not_a_song: false,
+            blobs: vec![],
+            data,
+        };
         // Guest can create songs on their own personal team via upsert.
         let result = svc
             .update_song_for_user(&guest_p, "brand-new-guest-created-id", create)
             .await
             .expect("guest can upsert to own personal team");
         let guest_pt = personal_team_id(&db, &guest_u).await.expect("guest pt");
-        assert_eq!(result.owner, guest_pt, "upserted song must be owned by guest's personal team");
+        assert_eq!(
+            result.owner, guest_pt,
+            "upserted song must be owned by guest's personal team"
+        );
     }
 
     /// BLC-SONG-010, BLC-COLL-016: user without default_collection → "Default" collection created.
@@ -544,14 +638,23 @@ mod tests {
         use shared::api::ListQuery;
         let db = test_db().await.expect("db");
         let u = create_user(&db, "s3i-new@test.local").await.expect("u");
-        assert!(u.default_collection.is_none(), "new user must have no default_collection");
+        assert!(
+            u.default_collection.is_none(),
+            "new user must have no default_collection"
+        );
         let svc = SongServiceHandle::build(db.clone());
         let perms = UserPermissions::new(&u, &svc.teams);
-        let song = svc.create_song_for_user(&perms, shared::song::CreateSong {
-            not_a_song: false,
-            blobs: vec![],
-            data: crate::test_helpers::minimal_song_data(),
-        }).await.expect("create song");
+        let song = svc
+            .create_song_for_user(
+                &perms,
+                shared::song::CreateSong {
+                    not_a_song: false,
+                    blobs: vec![],
+                    data: crate::test_helpers::minimal_song_data(),
+                },
+            )
+            .await
+            .expect("create song");
 
         // A "Default" collection must have been created.
         let coll_svc = crate::test_helpers::collection_service(&db);
@@ -561,7 +664,10 @@ mod tests {
             .await
             .expect("collections");
         let default_coll = collections.iter().find(|c| c.title == "Default");
-        assert!(default_coll.is_some(), "a 'Default' collection must be created");
+        assert!(
+            default_coll.is_some(),
+            "a 'Default' collection must be created"
+        );
 
         // The "Default" collection must contain the newly created song.
         let coll = default_coll.unwrap();
@@ -569,7 +675,10 @@ mod tests {
             .collection_songs_for_user(&fresh_perms, &coll.id)
             .await
             .expect("songs");
-        assert!(songs.iter().any(|s| s.id == song.id), "song must be in the Default collection");
+        assert!(
+            songs.iter().any(|s| s.id == song.id),
+            "song must be in the Default collection"
+        );
 
         // The user's default_collection field must be updated.
         let user_svc = crate::test_helpers::user_service(&db);
@@ -587,28 +696,53 @@ mod tests {
         use shared::api::ListQuery;
         let db = test_db().await.expect("db");
         // Create user and first song (auto-creates Default collection + sets default_collection).
-        let u = create_user(&db, "s3i-existing@test.local").await.expect("u");
+        let u = create_user(&db, "s3i-existing@test.local")
+            .await
+            .expect("u");
         let svc = SongServiceHandle::build(db.clone());
         let perms = UserPermissions::new(&u, &svc.teams);
-        let song1 = svc.create_song_for_user(&perms, shared::song::CreateSong {
-            not_a_song: false,
-            blobs: vec![],
-            data: { let mut d = crate::test_helpers::minimal_song_data(); d.titles = vec!["First".into()]; d },
-        }).await.expect("song1");
+        let song1 = svc
+            .create_song_for_user(
+                &perms,
+                shared::song::CreateSong {
+                    not_a_song: false,
+                    blobs: vec![],
+                    data: {
+                        let mut d = crate::test_helpers::minimal_song_data();
+                        d.titles = vec!["First".into()];
+                        d
+                    },
+                },
+            )
+            .await
+            .expect("song1");
 
         // Fetch the updated user (who now has default_collection set).
         let user_svc = crate::test_helpers::user_service(&db);
         let updated_u = user_svc.get_user(&u.id).await.expect("user");
-        assert!(updated_u.default_collection.is_some(), "default_collection should be set");
+        assert!(
+            updated_u.default_collection.is_some(),
+            "default_collection should be set"
+        );
 
         // Create a second song using the updated user (whose default_collection is set).
         let svc2 = SongServiceHandle::build(db.clone());
         let perms2 = UserPermissions::new(&updated_u, &svc2.teams);
-        let song2 = svc2.create_song_for_user(&perms2, shared::song::CreateSong {
-            not_a_song: false,
-            blobs: vec![],
-            data: { let mut d = crate::test_helpers::minimal_song_data(); d.titles = vec!["Second".into()]; d },
-        }).await.expect("song2");
+        let song2 = svc2
+            .create_song_for_user(
+                &perms2,
+                shared::song::CreateSong {
+                    not_a_song: false,
+                    blobs: vec![],
+                    data: {
+                        let mut d = crate::test_helpers::minimal_song_data();
+                        d.titles = vec!["Second".into()];
+                        d
+                    },
+                },
+            )
+            .await
+            .expect("song2");
 
         let coll_svc = crate::test_helpers::collection_service(&db);
         let fresh_perms = UserPermissions::new(&updated_u, &coll_svc.teams);
@@ -616,14 +750,24 @@ mod tests {
             .list_collections_for_user(&fresh_perms, ListQuery::default())
             .await
             .expect("collections");
-        assert_eq!(collections.len(), 1, "must still have exactly one collection");
+        assert_eq!(
+            collections.len(),
+            1,
+            "must still have exactly one collection"
+        );
         let songs = coll_svc
             .collection_songs_for_user(&fresh_perms, &collections[0].id)
             .await
             .expect("songs");
         let song_ids: Vec<&str> = songs.iter().map(|s| s.id.as_str()).collect();
-        assert!(song_ids.contains(&song1.id.as_str()), "song1 must be in Default collection");
-        assert!(song_ids.contains(&song2.id.as_str()), "song2 must be in Default collection");
+        assert!(
+            song_ids.contains(&song1.id.as_str()),
+            "song1 must be in Default collection"
+        );
+        assert!(
+            song_ids.contains(&song2.id.as_str()),
+            "song2 must be in Default collection"
+        );
     }
 
     #[tokio::test]

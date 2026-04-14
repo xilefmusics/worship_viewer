@@ -6,7 +6,7 @@ use uuid::Uuid;
 use shared::team::{Team, TeamInvitation};
 use shared::user::User;
 
-use crate::database::{record_id_string, Database};
+use crate::database::{Database, record_id_string};
 use crate::error::AppError;
 
 use super::model::{invitation_thing, team_things_match};
@@ -102,10 +102,7 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
             return Err(AppError::NotFound("invitation not found".into()));
         }
 
-        let deleted = self
-            .inv_repo
-            .delete_invitation(&inv_id_key)
-            .await?;
+        let deleted = self.inv_repo.delete_invitation(&inv_id_key).await?;
         if !deleted {
             return Err(AppError::NotFound("invitation not found".into()));
         }
@@ -233,9 +230,9 @@ mod tests {
     use crate::resources::team::repository::TeamRepository;
     use crate::resources::user::UserRecord;
 
-    use super::InvitationService;
     use super::super::model::{InvitationAcceptRow, InvitationRow};
     use super::super::repository::TeamInvitationRepository;
+    use super::InvitationService;
 
     // ── Test data helpers ─────────────────────────────────────────────────────
 
@@ -383,10 +380,7 @@ mod tests {
             unreachable!("not used in invitation tests")
         }
 
-        async fn delete_team_record(
-            &self,
-            _resource: (String, String),
-        ) -> Result<(), AppError> {
+        async fn delete_team_record(&self, _resource: (String, String)) -> Result<(), AppError> {
             unreachable!("not used in invitation tests")
         }
 
@@ -651,7 +645,10 @@ mod tests {
         let svc = make_svc(mock_team, MockInvRepo::with_accept(accept_row));
         let r = svc.accept_invitation_for_user(&user, "inv1").await;
         assert!(r.is_ok());
-        assert!(*update_called.lock().unwrap(), "update_team_members must be called to add guest");
+        assert!(
+            *update_called.lock().unwrap(),
+            "update_team_members must be called to add guest"
+        );
     }
 
     /// BLC-TINV-001: accepting an invitation for team:public returns not found.
@@ -659,7 +656,10 @@ mod tests {
     async fn blc_tinv_001_accept_public_team_not_found() {
         let user = make_user("u1");
         let accept_row = inv_accept_row("inv1", public_team_fetched());
-        let svc = make_svc(MockTeamRepo::missing(), MockInvRepo::with_accept(accept_row));
+        let svc = make_svc(
+            MockTeamRepo::missing(),
+            MockInvRepo::with_accept(accept_row),
+        );
         let r = svc.accept_invitation_for_user(&user, "inv1").await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
@@ -669,7 +669,10 @@ mod tests {
     async fn blc_tinv_001_accept_personal_team_not_found() {
         let user = make_user("u1");
         let accept_row = inv_accept_row("inv1", personal_team("t1", "owner1"));
-        let svc = make_svc(MockTeamRepo::missing(), MockInvRepo::with_accept(accept_row));
+        let svc = make_svc(
+            MockTeamRepo::missing(),
+            MockInvRepo::with_accept(accept_row),
+        );
         let r = svc.accept_invitation_for_user(&user, "inv1").await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
@@ -720,10 +723,7 @@ mod tests {
         let user = make_user("u1");
         let team = shared_team(
             "t1",
-            vec![
-                member_fetched("u2", "admin"),
-                member_fetched("u1", "guest"),
-            ],
+            vec![member_fetched("u2", "admin"), member_fetched("u1", "guest")],
         );
         let accept_row = inv_accept_row("inv1", team);
         let mock_team = MockTeamRepo::with(shared_team("t1", vec![member_fetched("u2", "admin")]));
@@ -837,7 +837,10 @@ mod tests {
             let other_team = team_svc
                 .create_shared_team_for_user(
                     &fx.admin_user,
-                    shared::team::CreateTeam { name: "Other".into(), members: vec![] },
+                    shared::team::CreateTeam {
+                        name: "Other".into(),
+                        members: vec![],
+                    },
                 )
                 .await
                 .expect("other team");
@@ -879,7 +882,9 @@ mod tests {
             svc.delete_invitation_for_user(&fx.admin_user, &fx.shared_team_id, &inv.id)
                 .await
                 .expect("delete");
-            let new_user = create_user(&db, "tinv004accept@test.local").await.expect("u");
+            let new_user = create_user(&db, "tinv004accept@test.local")
+                .await
+                .expect("u");
             let r = svc.accept_invitation_for_user(&new_user, &inv.id).await;
             assert!(matches!(r, Err(AppError::NotFound(_))));
         }
@@ -971,7 +976,11 @@ mod tests {
                 .accept_invitation_for_user(&new_user, &inv.id)
                 .await
                 .expect("accept 2");
-            let count = team.members.iter().filter(|m| m.user.id == new_user.id).count();
+            let count = team
+                .members
+                .iter()
+                .filter(|m| m.user.id == new_user.id)
+                .count();
             assert_eq!(count, 1, "must not create duplicate member entries");
         }
 

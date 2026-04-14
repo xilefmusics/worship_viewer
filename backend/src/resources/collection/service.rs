@@ -261,12 +261,18 @@ mod tests {
         crate::resources::User,
         String,
     ) {
-        use crate::test_helpers::{configure_personal_team_members, create_user, personal_team_id, test_db};
+        use crate::test_helpers::{
+            configure_personal_team_members, create_user, personal_team_id, test_db,
+        };
 
         let db = test_db().await.expect("db");
-        let owner = create_user(&db, "c3g-owner@test.local").await.expect("owner");
+        let owner = create_user(&db, "c3g-owner@test.local")
+            .await
+            .expect("owner");
         let cm = create_user(&db, "c3g-cm@test.local").await.expect("cm");
-        let guest = create_user(&db, "c3g-guest@test.local").await.expect("guest");
+        let guest = create_user(&db, "c3g-guest@test.local")
+            .await
+            .expect("guest");
         let non_member = create_user(&db, "c3g-nm@test.local").await.expect("nm");
         let tid = personal_team_id(&db, &owner).await.expect("tid");
         configure_personal_team_members(
@@ -284,7 +290,11 @@ mod tests {
     }
 
     fn make_collection(title: &str) -> CreateCollection {
-        CreateCollection { title: title.into(), cover: "mysongs".into(), songs: vec![] }
+        CreateCollection {
+            title: title.into(),
+            cover: "mysongs".into(),
+            songs: vec![],
+        }
     }
 
     /// BLC-COLL-002, BLC-COLL-006: non-member reading a collection returns NotFound.
@@ -313,7 +323,9 @@ mod tests {
             .create_collection_for_user(&owner_p, make_collection("GuestTest"))
             .await
             .expect("create");
-        svc.get_collection_for_user(&guest_p, &col.id).await.expect("guest read");
+        svc.get_collection_for_user(&guest_p, &col.id)
+            .await
+            .expect("guest read");
     }
 
     /// BLC-COLL-002: content_maintainer can update a collection.
@@ -343,13 +355,17 @@ mod tests {
         // Actually, create always goes to caller's personal team, so guest creates on their own
         // personal team -> that succeeds. The constraint is about mutating others' content.
         // BLC-COLL-007 tests guest PUT/DELETE on owner's collection.
-        let owner_2 = crate::test_helpers::create_user(&db, "c3g-owner2@test.local").await.expect("o2");
+        let owner_2 = crate::test_helpers::create_user(&db, "c3g-owner2@test.local")
+            .await
+            .expect("o2");
         let owner2_p = UserPermissions::new(&owner_2, &svc.teams);
         let col = svc
             .create_collection_for_user(&owner2_p, make_collection("O2Coll"))
             .await
             .expect("create");
-        let r = svc.update_collection_for_user(&guest_p, &col.id, make_collection("Hack")).await;
+        let r = svc
+            .update_collection_for_user(&guest_p, &col.id, make_collection("Hack"))
+            .await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
 
@@ -442,12 +458,18 @@ mod tests {
                 .expect("create");
         }
         let page0 = svc
-            .list_collections_for_user(&owner_p, ListQuery::default().with_page(0).with_page_size(2))
+            .list_collections_for_user(
+                &owner_p,
+                ListQuery::default().with_page(0).with_page_size(2),
+            )
             .await
             .expect("page0");
         assert_eq!(page0.len(), 2);
         let page1 = svc
-            .list_collections_for_user(&owner_p, ListQuery::default().with_page(1).with_page_size(2))
+            .list_collections_for_user(
+                &owner_p,
+                ListQuery::default().with_page(1).with_page_size(2),
+            )
             .await
             .expect("page1");
         assert_eq!(page1.len(), 1);
@@ -460,14 +482,20 @@ mod tests {
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let song = create_song_with_title(&db, &owner, "CollSongSub").await.expect("song");
+        let song = create_song_with_title(&db, &owner, "CollSongSub")
+            .await
+            .expect("song");
         let col = svc
             .create_collection_for_user(
                 &owner_p,
                 CreateCollection {
                     title: "SubTest".into(),
                     cover: "mysongs".into(),
-                    songs: vec![shared::song::Link { id: song.id.clone(), nr: None, key: None }],
+                    songs: vec![shared::song::Link {
+                        id: song.id.clone(),
+                        nr: None,
+                        key: None,
+                    }],
                 },
             )
             .await

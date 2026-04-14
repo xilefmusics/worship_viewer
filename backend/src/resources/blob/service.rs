@@ -326,14 +326,22 @@ mod tests {
         crate::resources::User,
         String,
     ) {
+        use crate::test_helpers::{
+            configure_personal_team_members, create_user, personal_team_id, test_db,
+        };
         use shared::team::TeamRole;
-        use crate::test_helpers::{configure_personal_team_members, create_user, personal_team_id, test_db};
 
         let db = test_db().await.expect("db");
-        let owner = create_user(&db, "b3f-owner@test.local").await.expect("owner");
+        let owner = create_user(&db, "b3f-owner@test.local")
+            .await
+            .expect("owner");
         let cm = create_user(&db, "b3f-cm@test.local").await.expect("cm");
-        let guest = create_user(&db, "b3f-guest@test.local").await.expect("guest");
-        let non_member = create_user(&db, "b3f-nonmember@test.local").await.expect("nm");
+        let guest = create_user(&db, "b3f-guest@test.local")
+            .await
+            .expect("guest");
+        let non_member = create_user(&db, "b3f-nonmember@test.local")
+            .await
+            .expect("nm");
         let tid = personal_team_id(&db, &owner).await.expect("tid");
         configure_personal_team_members(
             &db,
@@ -354,11 +362,20 @@ mod tests {
     async fn blc_blob_002_non_member_read_not_found() {
         let blob_dir = tempfile::tempdir().expect("tempdir");
         let (db, owner, _cm, _guest, non_member, _tid) = four_user_blob_fixture().await;
-        let svc = crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let svc =
+            crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let nm_p = UserPermissions::new(&non_member, &svc.teams);
         let b = svc
-            .create_blob_for_user(&owner_p, CreateBlob { file_type: FileType::PNG, width: 1, height: 1, ocr: String::new() })
+            .create_blob_for_user(
+                &owner_p,
+                CreateBlob {
+                    file_type: FileType::PNG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
+            )
             .await
             .expect("create");
         let r = svc.get_blob_for_user(&nm_p, &b.id).await;
@@ -370,16 +387,34 @@ mod tests {
     async fn blc_blob_002_content_maintainer_can_update() {
         let blob_dir = tempfile::tempdir().expect("tempdir");
         let (db, owner, cm, _guest, _nm, _tid) = four_user_blob_fixture().await;
-        let svc = crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let svc =
+            crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let cm_p = UserPermissions::new(&cm, &svc.teams);
         let b = svc
-            .create_blob_for_user(&owner_p, CreateBlob { file_type: FileType::PNG, width: 1, height: 1, ocr: String::new() })
+            .create_blob_for_user(
+                &owner_p,
+                CreateBlob {
+                    file_type: FileType::PNG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
+            )
             .await
             .expect("create");
-        svc.update_blob_for_user(&cm_p, &b.id, CreateBlob { file_type: FileType::JPEG, width: 2, height: 2, ocr: String::new() })
-            .await
-            .expect("cm update");
+        svc.update_blob_for_user(
+            &cm_p,
+            &b.id,
+            CreateBlob {
+                file_type: FileType::JPEG,
+                width: 2,
+                height: 2,
+                ocr: String::new(),
+            },
+        )
+        .await
+        .expect("cm update");
     }
 
     /// BLC-BLOB-007: guest cannot update a blob.
@@ -387,15 +422,33 @@ mod tests {
     async fn blc_blob_007_guest_update_not_found() {
         let blob_dir = tempfile::tempdir().expect("tempdir");
         let (db, owner, _cm, guest, _nm, _tid) = four_user_blob_fixture().await;
-        let svc = crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let svc =
+            crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let guest_p = UserPermissions::new(&guest, &svc.teams);
         let b = svc
-            .create_blob_for_user(&owner_p, CreateBlob { file_type: FileType::PNG, width: 1, height: 1, ocr: String::new() })
+            .create_blob_for_user(
+                &owner_p,
+                CreateBlob {
+                    file_type: FileType::PNG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
+            )
             .await
             .expect("create");
         let r = svc
-            .update_blob_for_user(&guest_p, &b.id, CreateBlob { file_type: FileType::JPEG, width: 2, height: 2, ocr: String::new() })
+            .update_blob_for_user(
+                &guest_p,
+                &b.id,
+                CreateBlob {
+                    file_type: FileType::JPEG,
+                    width: 2,
+                    height: 2,
+                    ocr: String::new(),
+                },
+            )
             .await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
@@ -405,11 +458,20 @@ mod tests {
     async fn blc_blob_007_guest_delete_not_found() {
         let blob_dir = tempfile::tempdir().expect("tempdir");
         let (db, owner, _cm, guest, _nm, _tid) = four_user_blob_fixture().await;
-        let svc = crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let svc =
+            crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let guest_p = UserPermissions::new(&guest, &svc.teams);
         let b = svc
-            .create_blob_for_user(&owner_p, CreateBlob { file_type: FileType::PNG, width: 1, height: 1, ocr: String::new() })
+            .create_blob_for_user(
+                &owner_p,
+                CreateBlob {
+                    file_type: FileType::PNG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
+            )
             .await
             .expect("create");
         let r = svc.delete_blob_for_user(&guest_p, &b.id).await;
@@ -421,15 +483,33 @@ mod tests {
     async fn blc_blob_008_personal_owner_can_update() {
         let blob_dir = tempfile::tempdir().expect("tempdir");
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_blob_fixture().await;
-        let svc = crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let svc =
+            crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let b = svc
-            .create_blob_for_user(&owner_p, CreateBlob { file_type: FileType::PNG, width: 1, height: 1, ocr: String::new() })
+            .create_blob_for_user(
+                &owner_p,
+                CreateBlob {
+                    file_type: FileType::PNG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
+            )
             .await
             .expect("create");
-        svc.update_blob_for_user(&owner_p, &b.id, CreateBlob { file_type: FileType::JPEG, width: 5, height: 5, ocr: "updated".into() })
-            .await
-            .expect("owner update");
+        svc.update_blob_for_user(
+            &owner_p,
+            &b.id,
+            CreateBlob {
+                file_type: FileType::JPEG,
+                width: 5,
+                height: 5,
+                ocr: "updated".into(),
+            },
+        )
+        .await
+        .expect("owner update");
     }
 
     /// BLC-BLOB-003: PUT does not change the blob's owner field.
@@ -437,15 +517,33 @@ mod tests {
     async fn blc_blob_003_put_does_not_change_owner() {
         let blob_dir = tempfile::tempdir().expect("tempdir");
         let (db, owner, _cm, _guest, _nm, tid) = four_user_blob_fixture().await;
-        let svc = crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let svc =
+            crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let b = svc
-            .create_blob_for_user(&owner_p, CreateBlob { file_type: FileType::PNG, width: 1, height: 1, ocr: String::new() })
+            .create_blob_for_user(
+                &owner_p,
+                CreateBlob {
+                    file_type: FileType::PNG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
+            )
             .await
             .expect("create");
         assert_eq!(b.owner, tid, "blob owner must be personal team");
         let updated = svc
-            .update_blob_for_user(&owner_p, &b.id, CreateBlob { file_type: FileType::JPEG, width: 2, height: 2, ocr: String::new() })
+            .update_blob_for_user(
+                &owner_p,
+                &b.id,
+                CreateBlob {
+                    file_type: FileType::JPEG,
+                    width: 2,
+                    height: 2,
+                    ocr: String::new(),
+                },
+            )
             .await
             .expect("update");
         assert_eq!(updated.owner, tid, "owner must not change after PUT");
@@ -456,10 +554,19 @@ mod tests {
     async fn blc_blob_005_create_png_ok() {
         let blob_dir = tempfile::tempdir().expect("tempdir");
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_blob_fixture().await;
-        let svc = crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let svc =
+            crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let b = svc
-            .create_blob_for_user(&owner_p, CreateBlob { file_type: FileType::PNG, width: 1, height: 1, ocr: String::new() })
+            .create_blob_for_user(
+                &owner_p,
+                CreateBlob {
+                    file_type: FileType::PNG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
+            )
             .await
             .expect("png ok");
         assert_eq!(b.file_type, FileType::PNG);
@@ -470,10 +577,19 @@ mod tests {
     async fn blc_blob_005_create_jpeg_ok() {
         let blob_dir = tempfile::tempdir().expect("tempdir");
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_blob_fixture().await;
-        let svc = crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let svc =
+            crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let b = svc
-            .create_blob_for_user(&owner_p, CreateBlob { file_type: FileType::JPEG, width: 1, height: 1, ocr: String::new() })
+            .create_blob_for_user(
+                &owner_p,
+                CreateBlob {
+                    file_type: FileType::JPEG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
+            )
             .await
             .expect("jpeg ok");
         assert_eq!(b.file_type, FileType::JPEG);
@@ -484,10 +600,19 @@ mod tests {
     async fn blc_blob_005_create_svg_ok() {
         let blob_dir = tempfile::tempdir().expect("tempdir");
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_blob_fixture().await;
-        let svc = crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let svc =
+            crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let b = svc
-            .create_blob_for_user(&owner_p, CreateBlob { file_type: FileType::SVG, width: 1, height: 1, ocr: String::new() })
+            .create_blob_for_user(
+                &owner_p,
+                CreateBlob {
+                    file_type: FileType::SVG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
+            )
             .await
             .expect("svg ok");
         assert_eq!(b.file_type, FileType::SVG);
@@ -499,11 +624,20 @@ mod tests {
         use shared::api::ListQuery;
         let blob_dir = tempfile::tempdir().expect("tempdir");
         let (db, owner, _cm, _guest, non_member, _tid) = four_user_blob_fixture().await;
-        let svc = crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let svc =
+            crate::test_helpers::blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
         let owner_p = UserPermissions::new(&owner, &svc.teams);
         let nm_p = UserPermissions::new(&non_member, &svc.teams);
         let b = svc
-            .create_blob_for_user(&owner_p, CreateBlob { file_type: FileType::PNG, width: 1, height: 1, ocr: String::new() })
+            .create_blob_for_user(
+                &owner_p,
+                CreateBlob {
+                    file_type: FileType::PNG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
+            )
             .await
             .expect("create");
         let owner_list = svc

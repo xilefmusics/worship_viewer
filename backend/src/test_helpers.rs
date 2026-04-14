@@ -185,11 +185,15 @@ impl TeamFixture {
                     name: "Fixture Shared Team".into(),
                     members: vec![
                         TeamMemberInput {
-                            user: TeamUserRef { id: writer.id.clone() },
+                            user: TeamUserRef {
+                                id: writer.id.clone(),
+                            },
                             role: TeamRole::ContentMaintainer,
                         },
                         TeamMemberInput {
-                            user: TeamUserRef { id: guest.id.clone() },
+                            user: TeamUserRef {
+                                id: guest.id.clone(),
+                            },
                             role: TeamRole::Guest,
                         },
                     ],

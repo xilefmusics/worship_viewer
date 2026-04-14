@@ -107,9 +107,7 @@ mod tests {
 
     use crate::database::record_id_string;
     use crate::error::AppError;
-    use crate::resources::team::model::{
-        DbTeamMember, TeamCreatePayload, TeamFetched,
-    };
+    use crate::resources::team::model::{DbTeamMember, TeamCreatePayload, TeamFetched};
     use crate::resources::team::repository::TeamRepository;
     use crate::resources::user::repository::UserRepository;
 
@@ -244,18 +242,11 @@ mod tests {
             unreachable!("not used in user tests")
         }
 
-        async fn delete_team_record(
-            &self,
-            _resource: (String, String),
-        ) -> Result<(), AppError> {
+        async fn delete_team_record(&self, _resource: (String, String)) -> Result<(), AppError> {
             unreachable!("not used in user tests")
         }
 
-        async fn reassign_content(
-            &self,
-            _from: Thing,
-            _to: Thing,
-        ) -> Result<(), AppError> {
+        async fn reassign_content(&self, _from: Thing, _to: Thing) -> Result<(), AppError> {
             unreachable!("not used in user tests")
         }
 
@@ -275,7 +266,9 @@ mod tests {
         let user = User::new("user@example.com");
         let result = svc.create_user(user).await.unwrap();
         let owner = captured_owner.lock().unwrap();
-        let owner_thing = owner.as_ref().expect("create_team must be called with an owner");
+        let owner_thing = owner
+            .as_ref()
+            .expect("create_team must be called with an owner");
         assert_eq!(owner_thing.tb, "user");
         assert_eq!(record_id_string(owner_thing), result.id);
     }
@@ -302,8 +295,14 @@ mod tests {
     #[tokio::test]
     async fn blc_user_001_get_by_email_or_create_existing_email() {
         let existing = make_user("existing-id", "exists@example.com");
-        let svc = UserService::new(MockUserRepo::with_existing_user(existing.clone()), MockTeamRepo::new());
-        let result = svc.get_user_by_email_or_create("exists@example.com").await.unwrap();
+        let svc = UserService::new(
+            MockUserRepo::with_existing_user(existing.clone()),
+            MockTeamRepo::new(),
+        );
+        let result = svc
+            .get_user_by_email_or_create("exists@example.com")
+            .await
+            .unwrap();
         assert_eq!(result.id, existing.id);
     }
 
@@ -329,7 +328,10 @@ mod tests {
         async fn blc_user_003_create_user_creates_personal_team_integration() {
             let db = test_db().await.expect("db");
             let svc = user_service(&db);
-            let user = svc.create_user(User::new("j3u001@test.local")).await.expect("create");
+            let user = svc
+                .create_user(User::new("j3u001@test.local"))
+                .await
+                .expect("create");
             let pt_id = personal_team_id(&db, &user).await.expect("personal team");
             assert!(!pt_id.is_empty());
         }
@@ -339,14 +341,20 @@ mod tests {
         async fn blc_user_003_personal_team_starts_empty() {
             let db = test_db().await.expect("db");
             let svc = user_service(&db);
-            let user = svc.create_user(User::new("j3u002@test.local")).await.expect("create");
+            let user = svc
+                .create_user(User::new("j3u002@test.local"))
+                .await
+                .expect("create");
             let team_svc = crate::test_helpers::team_service(&db);
             let teams = team_svc.list_teams_for_user(&user).await.expect("list");
             let personal = teams
                 .into_iter()
                 .find(|t| t.owner.as_ref().map(|o| o.id == user.id).unwrap_or(false))
                 .expect("personal team");
-            assert!(personal.members.is_empty(), "personal team must start with empty members");
+            assert!(
+                personal.members.is_empty(),
+                "personal team must start with empty members"
+            );
         }
 
         /// BLC-USER-001: creating two users with different emails both succeed.
@@ -354,8 +362,14 @@ mod tests {
         async fn blc_user_001_distinct_emails_both_succeed() {
             let db = test_db().await.expect("db");
             let svc = user_service(&db);
-            let u1 = svc.create_user(User::new("j3u003a@test.local")).await.expect("u1");
-            let u2 = svc.create_user(User::new("j3u003b@test.local")).await.expect("u2");
+            let u1 = svc
+                .create_user(User::new("j3u003a@test.local"))
+                .await
+                .expect("u1");
+            let u2 = svc
+                .create_user(User::new("j3u003b@test.local"))
+                .await
+                .expect("u2");
             assert_ne!(u1.id, u2.id);
         }
 
@@ -364,7 +378,9 @@ mod tests {
         async fn blc_user_001_duplicate_email_conflict() {
             let db = test_db().await.expect("db");
             let svc = user_service(&db);
-            svc.create_user(User::new("j3u004@test.local")).await.expect("first");
+            svc.create_user(User::new("j3u004@test.local"))
+                .await
+                .expect("first");
             // SurrealDB enforces uniqueness via DB constraints; duplicate insert returns an error.
             let r = svc.create_user(User::new("j3u004@test.local")).await;
             assert!(r.is_err(), "duplicate email must be rejected");
@@ -375,7 +391,10 @@ mod tests {
         async fn blc_user_014_delete_twice_not_found() {
             let db = test_db().await.expect("db");
             let svc = user_service(&db);
-            let user = svc.create_user(User::new("j3u005@test.local")).await.expect("create");
+            let user = svc
+                .create_user(User::new("j3u005@test.local"))
+                .await
+                .expect("create");
             svc.delete_user(&user.id).await.expect("first delete");
             let r = svc.delete_user(&user.id).await;
             assert!(matches!(r, Err(AppError::NotFound(_))));

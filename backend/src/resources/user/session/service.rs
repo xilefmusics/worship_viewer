@@ -248,7 +248,9 @@ mod tests {
     #[tokio::test]
     async fn blc_sess_001_create_for_user_by_id_nonexistent() {
         let svc = SessionService::new(MockSessionRepo::empty(), MockUserRepo::empty());
-        let result = svc.create_session_for_user_by_id("no-such-user", 3600).await;
+        let result = svc
+            .create_session_for_user_by_id("no-such-user", 3600)
+            .await;
         assert!(matches!(result, Err(AppError::NotFound(_))));
     }
 
@@ -265,7 +267,10 @@ mod tests {
         // validate_returns is None by default — simulates a deleted/expired session
         let validate_result = svc.validate_session_and_update_metrics("s1").await;
         assert!(validate_result.is_ok());
-        assert!(validate_result.unwrap().is_none(), "deleted session must not authenticate");
+        assert!(
+            validate_result.unwrap().is_none(),
+            "deleted session must not authenticate"
+        );
     }
 
     /// BLC-SESS-003: get_sessions_by_user_id returns only sessions belonging to that user.

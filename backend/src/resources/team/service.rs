@@ -205,7 +205,7 @@ impl TeamServiceHandle {
 
 #[cfg(test)]
 mod tests {
-    use shared::team::{CreateTeam, UpdateTeam, TeamMemberInput, TeamUserRef, TeamRole};
+    use shared::team::{CreateTeam, TeamMemberInput, TeamRole, TeamUserRef, UpdateTeam};
 
     use crate::error::AppError;
     use crate::resources::team::UserPermissions;
@@ -290,11 +290,23 @@ mod tests {
         let u = create_user(&db, "team004@test.local").await.expect("u");
         let svc = team_service(&db);
         let t1 = svc
-            .create_shared_team_for_user(&u, CreateTeam { name: "Band".into(), members: vec![] })
+            .create_shared_team_for_user(
+                &u,
+                CreateTeam {
+                    name: "Band".into(),
+                    members: vec![],
+                },
+            )
             .await
             .expect("t1");
         let t2 = svc
-            .create_shared_team_for_user(&u, CreateTeam { name: "Band".into(), members: vec![] })
+            .create_shared_team_for_user(
+                &u,
+                CreateTeam {
+                    name: "Band".into(),
+                    members: vec![],
+                },
+            )
             .await
             .expect("t2");
         assert_ne!(t1.id, t2.id, "each team must get a distinct id");
@@ -395,7 +407,9 @@ mod tests {
         let db = test_db().await.expect("db");
         let fx = TeamFixture::build(&db).await.expect("fixture");
         let svc = team_service(&db);
-        let r = svc.get_team_for_user(&fx.non_member, &fx.shared_team_id).await;
+        let r = svc
+            .get_team_for_user(&fx.non_member, &fx.shared_team_id)
+            .await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
 
@@ -409,7 +423,10 @@ mod tests {
             .update_team_for_user(
                 &fx.admin_user,
                 &fx.shared_team_id,
-                UpdateTeam { name: "Renamed".into(), members: None },
+                UpdateTeam {
+                    name: "Renamed".into(),
+                    members: None,
+                },
             )
             .await
             .expect("rename");
@@ -420,14 +437,19 @@ mod tests {
     #[tokio::test]
     async fn blc_team_012_personal_owner_changes_name() {
         let db = test_db().await.expect("db");
-        let owner = create_user(&db, "team012personal@test.local").await.expect("u");
+        let owner = create_user(&db, "team012personal@test.local")
+            .await
+            .expect("u");
         let tid = personal_team_id(&db, &owner).await.expect("tid");
         let svc = team_service(&db);
         let updated = svc
             .update_team_for_user(
                 &owner,
                 &tid,
-                UpdateTeam { name: "My Songs".into(), members: None },
+                UpdateTeam {
+                    name: "My Songs".into(),
+                    members: None,
+                },
             )
             .await
             .expect("rename");
@@ -449,11 +471,15 @@ mod tests {
                     name: "Fixture Shared Team".into(),
                     members: Some(vec![
                         TeamMemberInput {
-                            user: TeamUserRef { id: fx.admin_user.id.clone() },
+                            user: TeamUserRef {
+                                id: fx.admin_user.id.clone(),
+                            },
                             role: TeamRole::Admin,
                         },
                         TeamMemberInput {
-                            user: TeamUserRef { id: new_user.id.clone() },
+                            user: TeamUserRef {
+                                id: new_user.id.clone(),
+                            },
                             role: TeamRole::Guest,
                         },
                     ]),
@@ -478,7 +504,9 @@ mod tests {
                 UpdateTeam {
                     name: "Fixture Shared Team".into(),
                     members: Some(vec![TeamMemberInput {
-                        user: TeamUserRef { id: fx.guest.id.clone() },
+                        user: TeamUserRef {
+                            id: fx.guest.id.clone(),
+                        },
                         role: TeamRole::Guest,
                     }]),
                 },
@@ -504,11 +532,15 @@ mod tests {
                 name: "Fixture Shared Team".into(),
                 members: Some(vec![
                     TeamMemberInput {
-                        user: TeamUserRef { id: fx.admin_user.id.clone() },
+                        user: TeamUserRef {
+                            id: fx.admin_user.id.clone(),
+                        },
                         role: TeamRole::Admin,
                     },
                     TeamMemberInput {
-                        user: TeamUserRef { id: fx.writer.id.clone() },
+                        user: TeamUserRef {
+                            id: fx.writer.id.clone(),
+                        },
                         role: TeamRole::ContentMaintainer,
                     },
                 ]),
@@ -535,11 +567,15 @@ mod tests {
                     name: "Hacked Name".into(),
                     members: Some(vec![
                         TeamMemberInput {
-                            user: TeamUserRef { id: fx.admin_user.id.clone() },
+                            user: TeamUserRef {
+                                id: fx.admin_user.id.clone(),
+                            },
                             role: TeamRole::Admin,
                         },
                         TeamMemberInput {
-                            user: TeamUserRef { id: fx.writer.id.clone() },
+                            user: TeamUserRef {
+                                id: fx.writer.id.clone(),
+                            },
                             role: TeamRole::ContentMaintainer,
                         },
                     ]),
@@ -564,11 +600,15 @@ mod tests {
                     name: "Fixture Shared Team".into(),
                     members: Some(vec![
                         TeamMemberInput {
-                            user: TeamUserRef { id: fx.admin_user.id.clone() },
+                            user: TeamUserRef {
+                                id: fx.admin_user.id.clone(),
+                            },
                             role: TeamRole::Admin,
                         },
                         TeamMemberInput {
-                            user: TeamUserRef { id: fx.guest.id.clone() },
+                            user: TeamUserRef {
+                                id: fx.guest.id.clone(),
+                            },
                             role: TeamRole::Guest,
                         },
                     ]),
@@ -591,11 +631,15 @@ mod tests {
                 name: "Fixture Shared Team".into(),
                 members: Some(vec![
                     TeamMemberInput {
-                        user: TeamUserRef { id: fx.admin_user.id.clone() },
+                        user: TeamUserRef {
+                            id: fx.admin_user.id.clone(),
+                        },
                         role: TeamRole::Admin,
                     },
                     TeamMemberInput {
-                        user: TeamUserRef { id: fx.guest.id.clone() },
+                        user: TeamUserRef {
+                            id: fx.guest.id.clone(),
+                        },
                         role: TeamRole::Guest,
                     },
                 ]),
@@ -622,7 +666,9 @@ mod tests {
                 UpdateTeam {
                     name: "Personal".into(),
                     members: Some(vec![TeamMemberInput {
-                        user: TeamUserRef { id: fx.owner.id.clone() },
+                        user: TeamUserRef {
+                            id: fx.owner.id.clone(),
+                        },
                         role: TeamRole::Guest,
                     }]),
                 },
@@ -645,7 +691,9 @@ mod tests {
         // Create a song on the shared team by a member (content_maintainer writes to their
         // personal team; for shared-team songs we need admin_user whose personal team owns
         // the song — team ownership of content follows the personal team of the creator).
-        let song = create_song_with_title(&db, &fx.admin_user, "SharedSong").await.expect("song");
+        let song = create_song_with_title(&db, &fx.admin_user, "SharedSong")
+            .await
+            .expect("song");
 
         let admin_perms = UserPermissions::new(&fx.admin_user, &svc.resolver);
         svc.delete_team_for_user(&admin_perms, &fx.shared_team_id)
@@ -655,8 +703,14 @@ mod tests {
         // admin_user's personal team now owns the song.
         let admin_personal = personal_team_id(&db, &fx.admin_user).await.expect("pt");
         let song_perms = UserPermissions::new(&fx.admin_user, &song_svc.teams);
-        let fetched = song_svc.get_song_for_user(&song_perms, &song.id).await.expect("get song");
-        assert_eq!(fetched.owner, admin_personal, "song must be reassigned to admin's personal team");
+        let fetched = song_svc
+            .get_song_for_user(&song_perms, &song.id)
+            .await
+            .expect("get song");
+        assert_eq!(
+            fetched.owner, admin_personal,
+            "song must be reassigned to admin's personal team"
+        );
     }
 
     /// BLC-TEAM-016: collections on a shared team are reassigned on delete.
@@ -701,7 +755,9 @@ mod tests {
         let fx = TeamFixture::build(&db).await.expect("fixture");
         let svc = mk_team_svc(&db);
         let guest_perms = UserPermissions::new(&fx.guest, &svc.resolver);
-        let r = svc.delete_team_for_user(&guest_perms, &fx.shared_team_id).await;
+        let r = svc
+            .delete_team_for_user(&guest_perms, &fx.shared_team_id)
+            .await;
         assert!(matches!(r, Err(AppError::Forbidden)));
     }
 
