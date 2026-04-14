@@ -12,8 +12,7 @@ pub fn thing_record_key(t: &Thing) -> String {
     format!("{}:{}", t.tb, record_id_string(t))
 }
 
-// Used by `resolver` parity tests; write ACL is enforced in SurrealQL in `content_write_team_things`.
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn team_content_writable(user_id: &str, stored: &TeamStored) -> bool {
     if let Some(ref o) = stored.owner
         && thing_user_id(o) == user_id

@@ -17,32 +17,13 @@ pub struct InvitationRow {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct InvitationAcceptRow {
-    #[allow(dead_code)]
-    pub id: Thing,
     pub team: super::super::model::TeamFetched,
-    #[allow(dead_code)]
-    pub created_by: UserRecord,
-    #[allow(dead_code)]
-    pub created_at: Datetime,
 }
 
 #[derive(Serialize)]
 pub struct InvitationCreate {
     pub team: Thing,
     pub created_by: Thing,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct InvitationIdRow {
-    #[allow(dead_code)]
-    pub id: Thing,
-}
-
-/// Return shape of `DELETE team_invitation:…` — raw links are not expanded like `SELECT … FETCH`.
-#[derive(Debug, Deserialize)]
-pub struct InvitationDeleteRow {
-    #[allow(dead_code)]
-    pub id: Thing,
 }
 
 impl InvitationRow {

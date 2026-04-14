@@ -208,18 +208,6 @@ mod tests {
         User::new("u@test.local")
     }
 
-    #[allow(dead_code)]
-    fn sample_blob() -> Blob {
-        Blob {
-            id: "b1".into(),
-            owner: "t1".into(),
-            file_type: FileType::PNG,
-            width: 10,
-            height: 10,
-            ocr: String::new(),
-        }
-    }
-
     #[tokio::test]
     async fn get_returns_not_found_when_empty() {
         let user = test_user();

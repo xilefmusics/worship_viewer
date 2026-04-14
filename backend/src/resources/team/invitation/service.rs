@@ -302,13 +302,8 @@ mod tests {
         }
     }
 
-    fn inv_accept_row(inv_id: &str, team: TeamFetched) -> InvitationAcceptRow {
-        InvitationAcceptRow {
-            id: inv_thing(inv_id),
-            team,
-            created_by: UserRecord::from_user(make_user("creator")),
-            created_at: Datetime::default(),
-        }
+    fn inv_accept_row(_inv_id: &str, team: TeamFetched) -> InvitationAcceptRow {
+        InvitationAcceptRow { team }
     }
 
     // ── MockTeamRepo ──────────────────────────────────────────────────────────

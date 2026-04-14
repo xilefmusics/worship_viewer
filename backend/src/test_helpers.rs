@@ -141,8 +141,6 @@ pub fn session_service(db: &Arc<Database>) -> SessionServiceHandle {
 /// non-member, and platform admin users. Use `TeamFixture::build(&db).await` in integration tests
 /// that need to exercise ACL across multiple roles.
 pub struct TeamFixture {
-    #[allow(dead_code)]
-    pub db: Arc<Database>,
     /// Owns a personal team; not a member of the shared team.
     pub owner: User,
     /// ID of `owner`'s personal team.
@@ -204,7 +202,6 @@ impl TeamFixture {
         let shared_team_id = shared_team.id;
 
         Ok(TeamFixture {
-            db: db.clone(),
             owner,
             personal_team_id,
             admin_user,
