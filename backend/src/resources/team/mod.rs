@@ -1,6 +1,5 @@
-pub(crate) mod invitation_model;
-pub(crate) mod invitation_repository;
-pub(crate) mod invitation_surreal_repo;
+pub mod invitation;
+
 pub(crate) mod model;
 pub mod repository;
 pub mod resolver;
@@ -15,4 +14,4 @@ pub use resolver::{
 };
 pub use service::{TeamService, TeamServiceHandle};
 pub use surreal_repo::SurrealTeamRepo;
-pub use rest::invitations_accept_scope;
+pub use invitation::rest::invitations_accept_scope;

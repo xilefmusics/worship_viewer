@@ -3,7 +3,7 @@ use surrealdb::sql::Thing;
 
 use crate::error::AppError;
 
-use super::invitation_model::{InvitationAcceptRow, InvitationRow};
+use super::model::{InvitationAcceptRow, InvitationRow};
 
 /// Pure invitation data access — no authorization. Service layer does all ACL checks.
 #[async_trait]

@@ -83,11 +83,11 @@ pub mod rest {
         crate::resources::team::rest::create_team,
         crate::resources::team::rest::update_team,
         crate::resources::team::rest::delete_team,
-        crate::resources::team::rest::create_team_invitation,
-        crate::resources::team::rest::list_team_invitations,
-        crate::resources::team::rest::get_team_invitation,
-        crate::resources::team::rest::delete_team_invitation,
-        crate::resources::team::rest::accept_team_invitation
+        crate::resources::team::invitation::rest::create_team_invitation,
+        crate::resources::team::invitation::rest::list_team_invitations,
+        crate::resources::team::invitation::rest::get_team_invitation,
+        crate::resources::team::invitation::rest::delete_team_invitation,
+        crate::resources::team::invitation::rest::accept_team_invitation
     ),
     components(
         schemas(

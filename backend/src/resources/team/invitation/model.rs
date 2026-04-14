@@ -19,7 +19,7 @@ pub(crate) struct InvitationRow {
 pub(crate) struct InvitationAcceptRow {
     #[allow(dead_code)]
     pub(crate) id: Thing,
-    pub(crate) team: super::model::TeamFetched,
+    pub(crate) team: super::super::model::TeamFetched,
     #[allow(dead_code)]
     pub(crate) created_by: UserRecord,
     #[allow(dead_code)]

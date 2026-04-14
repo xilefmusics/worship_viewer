@@ -8,6 +8,7 @@ use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::collection::service::CollectionServiceHandle;
 use crate::resources::setlist::{SetlistService, SetlistServiceHandle, SurrealSetlistRepo};
 use crate::resources::song::service::SongServiceHandle;
+use crate::resources::team::invitation::InvitationServiceHandle;
 use crate::resources::team::{SurrealTeamResolver, TeamServiceHandle, UserPermissions};
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
@@ -116,6 +117,11 @@ pub fn setlist_service(db: &Arc<Database>) -> SetlistServiceHandle {
 /// Team application service (same wiring as HTTP `main`).
 pub fn team_service(db: &Arc<Database>) -> TeamServiceHandle {
     TeamServiceHandle::build(db.clone())
+}
+
+/// Invitation application service (same wiring as HTTP `main`).
+pub fn invitation_service(db: &Arc<Database>) -> InvitationServiceHandle {
+    InvitationServiceHandle::build(db.clone())
 }
 
 /// User application service (same wiring as HTTP `main`).

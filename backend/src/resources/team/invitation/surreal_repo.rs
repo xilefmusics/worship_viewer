@@ -6,10 +6,10 @@ use surrealdb::sql::Thing;
 use crate::database::Database;
 use crate::error::AppError;
 
-use super::invitation_model::{
+use super::model::{
     InvitationAcceptRow, InvitationCreate, InvitationDeleteRow, InvitationIdRow, InvitationRow,
 };
-use super::invitation_repository::TeamInvitationRepository;
+use super::repository::TeamInvitationRepository;
 
 #[derive(Clone)]
 pub struct SurrealTeamInvitationRepo {

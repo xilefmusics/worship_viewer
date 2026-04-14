@@ -1,42 +1,37 @@
 use std::collections::BTreeMap;
 
 use std::sync::Arc;
-use uuid::Uuid;
 
-use shared::team::{CreateTeam, Team, TeamInvitation, UpdateTeam};
+use shared::team::{CreateTeam, Team, UpdateTeam};
 use shared::user::{Role as UserRole, User};
 
 use crate::database::Database;
 use crate::error::AppError;
 
-use super::invitation_model::{invitation_thing, team_things_match};
-use super::invitation_repository::TeamInvitationRepository;
-use super::invitation_surreal_repo::SurrealTeamInvitationRepo;
 use super::model::{
-    DbTeamMember, TeamCreatePayload, build_create_shared_members, can_read_team, effective_admin,
-    ensure_shared_team_has_admin_after_update, inputs_to_db_members, is_public_resource,
+    TeamCreatePayload, build_create_shared_members, can_read_team, effective_admin,
+    ensure_shared_team_has_admin_after_update, inputs_to_db_members,
     member_or_owner_readable, member_self_leave_payload, team_fetched_to_stored,
-    team_resource_or_reject_public, thing_user_id, user_thing, validate_personal_members_not_owner,
+    team_resource_or_reject_public, thing_user_id, validate_personal_members_not_owner,
 };
 use super::repository::TeamRepository;
 use super::resolver::{TeamResolver, UserPermissions};
 use super::surreal_repo::SurrealTeamRepo;
 
-/// Application service: authorization and orchestration for teams and invitations.
+/// Application service: authorization and orchestration for teams.
 #[derive(Clone)]
-pub struct TeamService<R, IR, TR> {
+pub struct TeamService<R, TR> {
     pub repo: R,
-    pub inv_repo: IR,
     pub resolver: TR,
 }
 
-impl<R, IR, TR> TeamService<R, IR, TR> {
-    pub fn new(repo: R, inv_repo: IR, resolver: TR) -> Self {
-        Self { repo, inv_repo, resolver }
+impl<R, TR> TeamService<R, TR> {
+    pub fn new(repo: R, resolver: TR) -> Self {
+        Self { repo, resolver }
     }
 }
 
-impl<R: TeamRepository, IR: TeamInvitationRepository, TR: TeamResolver> TeamService<R, IR, TR> {
+impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
     pub async fn list_teams_for_user(&self, user: &User) -> Result<Vec<Team>, AppError> {
         let app_admin = user.role == UserRole::Admin;
         let rows = self.repo.fetch_teams_for_user(&user.id, app_admin).await?;
@@ -192,176 +187,15 @@ impl<R: TeamRepository, IR: TeamInvitationRepository, TR: TeamResolver> TeamServ
 
         Ok(team)
     }
-
-    // --- Invitation operations ---
-
-    pub async fn create_invitation_for_user(
-        &self,
-        user: &User,
-        team_id: &str,
-    ) -> Result<TeamInvitation, AppError> {
-        let team_thing = self.assert_shared_team_admin(&user.id, team_id).await?;
-        let inv_id = Uuid::new_v4().to_string();
-        self.inv_repo
-            .create_invitation(team_thing, user_thing(&user.id), &inv_id)
-            .await?;
-        self.get_invitation_for_user(user, team_id, &inv_id).await
-    }
-
-    pub async fn list_invitations_for_user(
-        &self,
-        user: &User,
-        team_id: &str,
-    ) -> Result<Vec<TeamInvitation>, AppError> {
-        let team_thing = self.assert_shared_team_admin(&user.id, team_id).await?;
-        let rows = self.inv_repo.list_invitations(team_thing).await?;
-        rows.into_iter()
-            .map(|r| r.into_invitation())
-            .collect::<Result<Vec<_>, _>>()
-    }
-
-    pub async fn get_invitation_for_user(
-        &self,
-        user: &User,
-        team_id: &str,
-        invitation_id: &str,
-    ) -> Result<TeamInvitation, AppError> {
-        let team_thing = self.assert_shared_team_admin(&user.id, team_id).await?;
-        let inv_thing = invitation_thing(invitation_id)?;
-        let row = self
-            .inv_repo
-            .get_invitation(&inv_thing.id.to_string())
-            .await?
-            .ok_or_else(|| AppError::NotFound("invitation not found".into()))?;
-
-        if !team_things_match(&row.team, &team_thing) {
-            return Err(AppError::NotFound("invitation not found".into()));
-        }
-
-        row.into_invitation()
-    }
-
-    pub async fn delete_invitation_for_user(
-        &self,
-        user: &User,
-        team_id: &str,
-        invitation_id: &str,
-    ) -> Result<(), AppError> {
-        let team_thing = self.assert_shared_team_admin(&user.id, team_id).await?;
-        let inv_thing = invitation_thing(invitation_id)?;
-        let row = self
-            .inv_repo
-            .get_invitation(&inv_thing.id.to_string())
-            .await?
-            .ok_or_else(|| AppError::NotFound("invitation not found".into()))?;
-
-        if !team_things_match(&row.team, &team_thing) {
-            return Err(AppError::NotFound("invitation not found".into()));
-        }
-
-        let deleted = self
-            .inv_repo
-            .delete_invitation(&inv_thing.id.to_string())
-            .await?;
-        if !deleted {
-            return Err(AppError::NotFound("invitation not found".into()));
-        }
-        Ok(())
-    }
-
-    pub async fn accept_invitation_for_user(
-        &self,
-        user: &User,
-        invitation_id: &str,
-    ) -> Result<Team, AppError> {
-        let inv_thing = invitation_thing(invitation_id)?;
-        let row = self
-            .inv_repo
-            .get_invitation_with_team(&inv_thing.id.to_string())
-            .await?
-            .ok_or_else(|| AppError::NotFound("invitation not found".into()))?;
-
-        let team_row = row.team;
-        let res = (team_row.id.tb.clone(), crate::database::record_id_string(&team_row.id));
-        if is_public_resource(&res) {
-            return Err(AppError::NotFound("invitation not found".into()));
-        }
-
-        let stored = team_fetched_to_stored(&team_row)?;
-        if stored.owner.is_some() {
-            return Err(AppError::NotFound("invitation not found".into()));
-        }
-
-        let team_id_str = crate::database::record_id_string(&team_row.id);
-        let uid = user.id.clone();
-        let mut map: BTreeMap<String, DbTeamMember> = BTreeMap::new();
-        for m in &stored.members {
-            map.insert(thing_user_id(&m.user), m.clone());
-        }
-        let needs_guest = match map.get(&uid).map(|m| m.role.as_str()) {
-            Some("admin") | Some("content_maintainer") | Some("guest") => false,
-            None => true,
-            Some(_) => true,
-        };
-
-        if !needs_guest {
-            return self.repo.load_team_display(&team_id_str).await;
-        }
-
-        map.insert(
-            uid.clone(),
-            DbTeamMember { user: user_thing(&uid), role: "guest".to_owned() },
-        );
-        let members: Vec<DbTeamMember> = map.into_values().collect();
-        let resource = (team_row.id.tb.clone(), crate::database::record_id_string(&team_row.id));
-        self.repo.update_team_members(resource, members).await?;
-
-        self.repo.load_team_display(&team_id_str).await
-    }
-
-    /// Asserts that a team exists, is a shared team, and the user is an admin of it.
-    /// Returns the team `Thing` for binding into queries.
-    async fn assert_shared_team_admin(
-        &self,
-        user_id: &str,
-        team_id: &str,
-    ) -> Result<surrealdb::sql::Thing, AppError> {
-        let resource = team_resource_or_reject_public(team_id)?;
-        let team_thing = surrealdb::sql::Thing::from(resource);
-        let row = self
-            .repo
-            .fetch_team(team_id)
-            .await?
-            .ok_or_else(|| AppError::NotFound("team not found".into()))?;
-
-        let stored = team_fetched_to_stored(&row)?;
-        if stored.owner.is_some() {
-            return Err(AppError::invalid_request(
-                "team invitations are only supported for shared teams",
-            ));
-        }
-        if !member_or_owner_readable(user_id, &stored) {
-            return Err(AppError::NotFound("team not found".into()));
-        }
-        if !effective_admin(user_id, &stored) {
-            return Err(AppError::forbidden());
-        }
-        Ok(team_thing)
-    }
 }
 
 /// Production type alias used in HTTP wiring.
-pub type TeamServiceHandle = TeamService<
-    SurrealTeamRepo,
-    SurrealTeamInvitationRepo,
-    super::resolver::SurrealTeamResolver,
->;
+pub type TeamServiceHandle = TeamService<SurrealTeamRepo, super::resolver::SurrealTeamResolver>;
 
 impl TeamServiceHandle {
     pub fn build(db: Arc<Database>) -> Self {
         TeamService::new(
             SurrealTeamRepo::new(db.clone()),
-            SurrealTeamInvitationRepo::new(db.clone()),
             super::resolver::SurrealTeamResolver::new(db.clone()),
         )
     }

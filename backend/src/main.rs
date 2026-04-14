@@ -18,6 +18,7 @@ use backend::resources::blob::service::BlobServiceHandle;
 use backend::resources::collection::service::CollectionServiceHandle;
 use backend::resources::setlist::{SetlistService, SurrealSetlistRepo};
 use backend::resources::song::service::SongServiceHandle;
+use backend::resources::team::invitation::InvitationServiceHandle;
 use backend::resources::team::{SurrealTeamResolver, TeamServiceHandle};
 use backend::resources::user::service::UserServiceHandle;
 use backend::resources::user::session::service::SessionServiceHandle;
@@ -122,6 +123,7 @@ async fn main() -> AnyResult<()> {
         db.clone(),
     );
     let team_service = TeamServiceHandle::build(db.clone());
+    let invitation_service = InvitationServiceHandle::build(db.clone());
     let static_dir = settings.static_dir.clone();
     let db_data = Data::from(db);
 
@@ -139,6 +141,7 @@ async fn main() -> AnyResult<()> {
             .app_data(Data::new(song_service.clone()))
             .app_data(Data::new(setlist_service.clone()))
             .app_data(Data::new(team_service.clone()))
+            .app_data(Data::new(invitation_service.clone()))
             .app_data(Data::new(user_service.clone()))
             .app_data(Data::new(session_service.clone()))
             .app_data(oidc_clients.clone())
