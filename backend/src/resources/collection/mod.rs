@@ -1,7 +1,12 @@
 pub use shared::collection::{Collection, CreateCollection};
 
 mod model;
-#[allow(unused_imports)]
-pub use model::Model;
+mod repository;
+pub mod service;
+mod surreal_repo;
+
+pub use repository::CollectionRepository;
+pub use service::{CollectionService, CollectionServiceHandle};
+pub use surreal_repo::SurrealCollectionRepo;
 
 pub mod rest;

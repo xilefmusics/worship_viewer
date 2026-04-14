@@ -1,228 +1,25 @@
-use std::path::{Path, PathBuf};
-
-use actix_files::NamedFile;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
 
-use shared::api::ListQuery;
 use shared::blob::{Blob, CreateBlob};
 
-use crate::database::Database;
-use crate::error::AppError;
-use crate::resources::User;
-use crate::resources::common::{belongs_to, resource_id};
-use crate::resources::team::{content_read_team_things, content_write_team_things};
-use crate::settings::Settings;
-
-pub trait Model {
-    async fn get_blobs(
-        &self,
-        read_teams: Vec<Thing>,
-        pagination: ListQuery,
-    ) -> Result<Vec<Blob>, AppError>;
-    async fn get_blob(&self, read_teams: Vec<Thing>, id: &str) -> Result<Blob, AppError>;
-    async fn create_blob(&self, owner: &str, blob: CreateBlob) -> Result<Blob, AppError>;
-    async fn update_blob(
-        &self,
-        write_teams: Vec<Thing>,
-        id: &str,
-        blob: CreateBlob,
-    ) -> Result<Blob, AppError>;
-    async fn delete_blob(&self, write_teams: Vec<Thing>, id: &str) -> Result<Blob, AppError>;
-}
-
-impl Model for Database {
-    async fn get_blobs(
-        &self,
-        read_teams: Vec<Thing>,
-        pagination: ListQuery,
-    ) -> Result<Vec<Blob>, AppError> {
-        let mut query = String::from("SELECT * FROM blob WHERE owner IN $teams");
-        if pagination.to_offset_limit().is_some() {
-            query.push_str(" LIMIT $limit START $start");
-        }
-
-        let mut request = self.db.query(query).bind(("teams", read_teams));
-        if let Some((offset, limit)) = pagination.to_offset_limit() {
-            request = request.bind(("limit", limit)).bind(("start", offset));
-        }
-
-        let mut response = request.await.map_err(AppError::database)?;
-
-        Ok(response
-            .take::<Vec<BlobRecord>>(0)?
-            .into_iter()
-            .map(BlobRecord::into_blob)
-            .collect())
-    }
-
-    async fn get_blob(&self, read_teams: Vec<Thing>, id: &str) -> Result<Blob, AppError> {
-        let record: Option<BlobRecord> = self.db.select(resource_id("blob", id)?).await?;
-        match record {
-            Some(r) if belongs_to(&r.owner, &read_teams) => Ok(r.into_blob()),
-            _ => Err(AppError::NotFound("blob not found".into())),
-        }
-    }
-
-    async fn create_blob(&self, owner: &str, blob: CreateBlob) -> Result<Blob, AppError> {
-        let owner_team = self.personal_team_thing_for_user(owner).await?;
-        let created = self
-            .db
-            .create("blob")
-            .content(BlobRecord::from_payload(
-                None,
-                Some(owner_team),
-                Some(Utc::now().into()),
-                blob,
-            ))
-            .await?
-            .map(BlobRecord::into_blob)
-            .ok_or_else(|| AppError::database("failed to create blob"))?;
-        write_blob_file(&created)?;
-        Ok(created)
-    }
-
-    async fn update_blob(
-        &self,
-        write_teams: Vec<Thing>,
-        id: &str,
-        blob: CreateBlob,
-    ) -> Result<Blob, AppError> {
-        let (tb, sid) = resource_id("blob", id)?;
-
-        let mut response = self
-            .db
-            .query(
-                "UPDATE type::thing($tb, $sid) SET file_type = $file_type, width = $width, \
-                 height = $height, ocr = $ocr WHERE owner IN $teams RETURN AFTER",
-            )
-            .bind(("tb", tb))
-            .bind(("sid", sid))
-            .bind(("file_type", blob.file_type))
-            .bind(("width", blob.width))
-            .bind(("height", blob.height))
-            .bind(("ocr", blob.ocr.clone()))
-            .bind(("teams", write_teams))
-            .await?;
-
-        let rows: Vec<BlobRecord> = response.take(0)?;
-        let updated = rows
-            .into_iter()
-            .next()
-            .map(BlobRecord::into_blob)
-            .ok_or_else(|| AppError::NotFound("blob not found".into()))?;
-        write_blob_file(&updated)?;
-        Ok(updated)
-    }
-
-    async fn delete_blob(&self, write_teams: Vec<Thing>, id: &str) -> Result<Blob, AppError> {
-        let (tb, sid) = resource_id("blob", id)?;
-        let mut response = self
-            .db
-            .query(
-                "DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE",
-            )
-            .bind(("tb", tb))
-            .bind(("sid", sid))
-            .bind(("teams", write_teams))
-            .await?;
-
-        let rows: Vec<BlobRecord> = response.take(0)?;
-        let deleted = rows
-            .into_iter()
-            .next()
-            .map(BlobRecord::into_blob)
-            .ok_or_else(|| AppError::NotFound("blob not found".into()))?;
-        if let Some(name) = deleted.file_name() {
-            let path = Path::new(&Settings::global().blob_dir).join(name);
-            let _ = std::fs::remove_file(path);
-        }
-        Ok(deleted)
-    }
-}
-
-impl Database {
-    pub async fn list_blobs_for_user(
-        &self,
-        user: &User,
-        pagination: ListQuery,
-    ) -> Result<Vec<Blob>, AppError> {
-        let read_teams = content_read_team_things(self, user).await?;
-        self.get_blobs(read_teams, pagination).await
-    }
-
-    pub async fn get_blob_for_user(&self, user: &User, id: &str) -> Result<Blob, AppError> {
-        let read_teams = content_read_team_things(self, user).await?;
-        self.get_blob(read_teams, id).await
-    }
-
-    pub async fn create_blob_for_user(
-        &self,
-        user: &User,
-        blob: CreateBlob,
-    ) -> Result<Blob, AppError> {
-        self.create_blob(&user.id, blob).await
-    }
-
-    pub async fn update_blob_for_user(
-        &self,
-        user: &User,
-        id: &str,
-        blob: CreateBlob,
-    ) -> Result<Blob, AppError> {
-        let write_teams = content_write_team_things(self, user).await?;
-        self.update_blob(write_teams, id, blob).await
-    }
-
-    pub async fn delete_blob_for_user(&self, user: &User, id: &str) -> Result<Blob, AppError> {
-        let write_teams = content_write_team_things(self, user).await?;
-        self.delete_blob(write_teams, id).await
-    }
-
-    pub async fn open_blob_data_file_for_user(
-        &self,
-        user: &User,
-        id: &str,
-    ) -> Result<NamedFile, AppError> {
-        let read_teams = content_read_team_things(self, user).await?;
-        let blob = self.get_blob(read_teams, id).await?;
-        let file_name = blob
-            .file_name()
-            .ok_or_else(|| AppError::NotFound("blob has no id".into()))?;
-        NamedFile::open(Path::new(&Settings::global().blob_dir).join(PathBuf::from(file_name)))
-            .map_err(|err| AppError::Internal(format!("{}", err)))
-    }
-}
-
-fn write_blob_file(blob: &Blob) -> Result<(), AppError> {
-    let file_name = blob
-        .file_name()
-        .ok_or_else(|| AppError::Internal("blob has no id".into()))?;
-    let path = Path::new(&Settings::global().blob_dir).join(file_name);
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).map_err(|e| AppError::Internal(e.to_string()))?;
-    }
-    std::fs::write(&path, []).map_err(|e| AppError::Internal(e.to_string()))
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct BlobRecord {
+pub(crate) struct BlobRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    id: Option<Thing>,
+    pub(crate) id: Option<Thing>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    owner: Option<Thing>,
-    file_type: shared::blob::FileType,
-    width: u32,
-    height: u32,
+    pub(crate) owner: Option<Thing>,
+    pub(crate) file_type: shared::blob::FileType,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
     #[serde(default)]
-    ocr: String,
+    pub(crate) ocr: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    created_at: Option<Datetime>,
+    pub(crate) created_at: Option<Datetime>,
 }
 
 impl BlobRecord {
-    fn into_blob(self) -> Blob {
+    pub(crate) fn into_blob(self) -> Blob {
         Blob {
             id: self
                 .id
@@ -239,7 +36,7 @@ impl BlobRecord {
         }
     }
 
-    fn from_payload(
+    pub(crate) fn from_payload(
         id: Option<Thing>,
         owner: Option<Thing>,
         created_at: Option<Datetime>,
@@ -284,63 +81,5 @@ mod tests {
         assert_eq!(b.width, 640);
         assert_eq!(b.height, 480);
         assert_eq!(b.ocr, "text");
-    }
-
-    #[tokio::test]
-    async fn blc_blob_crud() {
-        use shared::api::ListQuery;
-        use shared::team::TeamRole;
-
-        use crate::error::AppError;
-        use crate::test_helpers::{
-            configure_personal_team_members, create_user, init_settings_for_files,
-            personal_team_id, test_db,
-        };
-
-        init_settings_for_files();
-        let db = test_db().await.expect("db");
-        let owner = create_user(&db, "blob-owner@test.local").await.expect("o");
-        let other = create_user(&db, "blob-other@test.local").await.expect("x");
-        let team_id = personal_team_id(&db, &owner).await.expect("team");
-        configure_personal_team_members(
-            &db,
-            &owner,
-            &team_id,
-            vec![(other.id.clone(), TeamRole::Guest)],
-        )
-        .await
-        .expect("acl");
-
-        let b = db
-            .create_blob_for_user(
-                &owner,
-                CreateBlob {
-                    file_type: FileType::PNG,
-                    width: 10,
-                    height: 10,
-                    ocr: "hi".into(),
-                },
-            )
-            .await
-            .expect("create");
-
-        let list = db
-            .list_blobs_for_user(&owner, ListQuery::default())
-            .await
-            .expect("list");
-        assert!(list.iter().any(|x| x.id == b.id));
-
-        db.get_blob_for_user(&owner, &b.id).await.expect("get");
-
-        db.get_blob_for_user(&other, &b.id)
-            .await
-            .expect("guest read");
-
-        let miss = db.get_blob_for_user(&other, "never-created").await;
-        assert!(matches!(miss, Err(AppError::NotFound(_))));
-
-        db.delete_blob_for_user(&owner, &b.id)
-            .await
-            .expect("delete");
     }
 }

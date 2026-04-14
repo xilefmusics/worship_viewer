@@ -12,7 +12,10 @@ use backend::database;
 use backend::docs;
 use backend::frontend;
 use backend::resources;
+use backend::resources::blob::service::BlobServiceHandle;
+use backend::resources::collection::service::CollectionServiceHandle;
 use backend::resources::setlist::{SetlistService, SurrealSetlistRepo};
+use backend::resources::song::service::SongServiceHandle;
 use backend::resources::team::SurrealTeamResolver;
 use backend::resources::{Session, SessionModel, User, UserModel, UserRole};
 use backend::settings::Settings;
@@ -82,11 +85,16 @@ async fn main() -> AnyResult<()> {
     }
 
     let oidc_clients = Data::new(Arc::new(oidc::build_clients(settings).await?));
+
+    let blob_service = BlobServiceHandle::build(db.clone());
+    let collection_service = CollectionServiceHandle::build(db.clone());
+    let song_service = SongServiceHandle::build(db.clone());
     let setlist_service = SetlistService::new(
         SurrealSetlistRepo::new(db.clone()),
         SurrealTeamResolver::new(db.clone()),
         db.clone(),
     );
+
     info!(
         "Starting server on http://{}:{}",
         settings.host, settings.port
@@ -95,6 +103,9 @@ async fn main() -> AnyResult<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(db.clone())
+            .app_data(Data::new(blob_service.clone()))
+            .app_data(Data::new(collection_service.clone()))
+            .app_data(Data::new(song_service.clone()))
             .app_data(Data::new(setlist_service.clone()))
             .app_data(oidc_clients.clone())
             .wrap(Logger::default())

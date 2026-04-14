@@ -3,7 +3,6 @@ use actix_web::{
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
-use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
@@ -11,6 +10,7 @@ use crate::resources::User;
 use crate::resources::song::CreateSong;
 #[allow(unused_imports)]
 use crate::resources::song::Song;
+use crate::resources::song::service::SongServiceHandle;
 #[allow(unused_imports)]
 use crate::resources::song::{Format, QueryParams};
 use shared::api::ListQuery;
@@ -52,11 +52,11 @@ pub fn scope() -> Scope {
 )]
 #[get("")]
 async fn get_songs(
-    db: Data<Database>,
+    svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.list_songs_for_user(&user, query.into_inner()).await?))
+    Ok(HttpResponse::Ok().json(svc.list_songs_for_user(&user, query.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -80,11 +80,11 @@ async fn get_songs(
 )]
 #[get("/{id}")]
 async fn get_song(
-    db: Data<Database>,
+    svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_song_for_user(&user, &id).await?))
+    Ok(HttpResponse::Ok().json(svc.get_song_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -108,11 +108,11 @@ async fn get_song(
 )]
 #[get("/{id}/player")]
 async fn get_song_player(
-    db: Data<Database>,
+    svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.song_player_for_user(&user, &id).await?))
+    Ok(HttpResponse::Ok().json(svc.song_player_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -142,12 +142,12 @@ async fn get_song_player(
 )]
 #[get("/{id}/export")]
 async fn get_song_export(
-    db: Data<Database>,
+    svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
-    db.export_song_for_user(&user, &id, query.into_inner().format)
+    svc.export_song_for_user(&user, &id, query.into_inner().format)
         .await
 }
 
@@ -169,11 +169,13 @@ async fn get_song_export(
 )]
 #[post("")]
 async fn create_song(
-    db: Data<Database>,
+    svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     payload: Json<CreateSong>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(db.create_song_for_user(&user, payload.into_inner()).await?))
+    Ok(HttpResponse::Created().json(
+        svc.create_song_for_user(&user, payload.into_inner()).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -198,13 +200,13 @@ async fn create_song(
 )]
 #[put("/{id}")]
 async fn update_song(
-    db: Data<Database>,
+    svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
     payload: Json<CreateSong>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.update_song_for_user(&user, &id, payload.into_inner())
+        svc.update_song_for_user(&user, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -230,11 +232,11 @@ async fn update_song(
 )]
 #[delete("/{id}")]
 async fn delete_song(
-    db: Data<Database>,
+    svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_song_for_user(&user, &id).await?))
+    Ok(HttpResponse::Ok().json(svc.delete_song_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -258,11 +260,11 @@ async fn delete_song(
 )]
 #[get("/{id}/likes")]
 async fn get_song_like_status(
-    db: Data<Database>,
+    svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.song_like_status_for_user(&user, &id).await?))
+    Ok(HttpResponse::Ok().json(svc.song_like_status_for_user(&user, &id).await?))
 }
 
 #[utoipa::path(
@@ -287,13 +289,13 @@ async fn get_song_like_status(
 )]
 #[put("/{id}/likes")]
 async fn update_song_like_status(
-    db: Data<Database>,
+    svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
     payload: Json<LikeStatus>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        db.set_song_like_status_for_user(&user, &id, payload.into_inner().liked)
+        svc.set_song_like_status_for_user(&user, &id, payload.into_inner().liked)
             .await?,
     ))
 }

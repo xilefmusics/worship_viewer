@@ -5,7 +5,10 @@ use anyhow::Result as AnyResult;
 use chordlib::types::Song as SongData;
 
 use crate::database::Database;
+use crate::resources::blob::service::BlobServiceHandle;
+use crate::resources::collection::service::CollectionServiceHandle;
 use crate::resources::setlist::{SetlistService, SetlistServiceHandle, SurrealSetlistRepo};
+use crate::resources::song::service::SongServiceHandle;
 use crate::resources::team::SurrealTeamResolver;
 use crate::resources::{User, UserModel};
 use crate::settings::Settings;
@@ -54,7 +57,7 @@ pub async fn create_song_with_title(
         blobs: vec![],
         data,
     };
-    Ok(db.create_song_for_user(user, create).await?)
+    Ok(song_service(db).create_song_for_user(user, create).await?)
 }
 
 /// Adds non-owner members to the owner's personal team.
@@ -102,6 +105,24 @@ pub fn init_settings_for_files() {
         }
         Settings::init().expect("Settings::init in tests");
     });
+}
+
+/// Blob application service (same wiring as HTTP `main`).
+pub fn blob_service(db: &Arc<Database>) -> BlobServiceHandle {
+    let data = Data::from(db.clone());
+    BlobServiceHandle::build(data)
+}
+
+/// Collection application service (same wiring as HTTP `main`).
+pub fn collection_service(db: &Arc<Database>) -> CollectionServiceHandle {
+    let data = Data::from(db.clone());
+    CollectionServiceHandle::build(data)
+}
+
+/// Song application service (same wiring as HTTP `main`).
+pub fn song_service(db: &Arc<Database>) -> SongServiceHandle {
+    let data = Data::from(db.clone());
+    SongServiceHandle::build(data)
 }
 
 /// Setlist application service (same wiring as HTTP `main`).
