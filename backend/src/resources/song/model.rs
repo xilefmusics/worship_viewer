@@ -120,35 +120,41 @@ impl Model for Database {
         song: CreateSong,
     ) -> Result<Song, AppError> {
         let resource = song_resource(id)?;
-        let owner_team = if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !song_belongs_to(&existing, &write_teams) {
-                return Err(AppError::NotFound("song not found".into()));
-            }
-            existing
-                .owner
-                .clone()
-                .ok_or_else(|| AppError::database("song missing owner"))?
-        } else {
-            let personal = self.personal_team_thing_for_user(actor_user_id).await?;
-            if !write_teams.contains(&personal) {
-                return Err(AppError::NotFound("song not found".into()));
-            }
-            personal
-        };
+        let (tb, sid) = resource.clone();
+        let search_content = search_content_from_song_data(&song.data);
+        let blobs: Vec<Thing> = song.blobs.iter().map(|b| blob_thing(b)).collect();
 
-        let record_id = Thing::from(resource.clone());
-        let record = SongRecord::from_payload(Some(record_id), Some(owner_team), song);
-
-        if let Some(updated) = self
+        let mut response = self
             .db
-            .update(resource.clone())
-            .content(record.clone())
-            .await?
-            .map(SongRecord::into_song)
-        {
-            return Ok(updated);
+            .query(
+                "UPDATE type::thing($tb, $sid) SET not_a_song = $not_a_song, blobs = $blobs, \
+                 data = $data, search_content = $search_content WHERE owner IN $teams RETURN AFTER",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("not_a_song", song.not_a_song))
+            .bind(("blobs", blobs))
+            .bind(("data", song.data.clone()))
+            .bind(("search_content", search_content))
+            .bind(("teams", write_teams.clone()))
+            .await?;
+
+        let rows: Vec<SongRecord> = response.take(0)?;
+        if let Some(updated) = rows.into_iter().next() {
+            return Ok(updated.into_song());
         }
 
+        let existing: Option<SongRecord> = self.db.select(resource.clone()).await?;
+        if existing.is_some() {
+            return Err(AppError::NotFound("song not found".into()));
+        }
+
+        let personal = self.personal_team_thing_for_user(actor_user_id).await?;
+        if !write_teams.contains(&personal) {
+            return Err(AppError::NotFound("song not found".into()));
+        }
+        let record_id = Thing::from(resource.clone());
+        let record = SongRecord::from_payload(Some(record_id), Some(personal), song);
         self.db
             .create(resource)
             .content(record)
@@ -158,18 +164,21 @@ impl Model for Database {
     }
 
     async fn delete_song(&self, write_teams: Vec<Thing>, id: &str) -> Result<Song, AppError> {
-        let resource = song_resource(id)?;
-        if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !song_belongs_to(&existing, &write_teams) {
-                return Err(AppError::NotFound("song not found".into()));
-            }
-        } else {
-            return Err(AppError::NotFound("song not found".into()));
-        }
+        let (tb, sid) = song_resource(id)?;
+        let mut response = self
+            .db
+            .query(
+                "DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("teams", write_teams))
+            .await?;
 
-        self.db
-            .delete(resource)
-            .await?
+        let rows: Vec<SongRecord> = response.take(0)?;
+        rows
+            .into_iter()
+            .next()
             .map(SongRecord::into_song)
             .ok_or_else(|| AppError::NotFound("song not found".into()))
     }
@@ -274,8 +283,10 @@ impl Database {
         user: &User,
         pagination: ListQuery,
     ) -> Result<Vec<Song>, AppError> {
-        let liked_set = self.get_liked_set(&user.id).await?;
-        let read_teams = content_read_team_things(self, user).await?;
+        let (liked_set, read_teams) = tokio::try_join!(
+            self.get_liked_set(&user.id),
+            content_read_team_things(self, user)
+        )?;
         Ok(self
             .get_songs(read_teams, pagination)
             .await?
@@ -288,8 +299,10 @@ impl Database {
     }
 
     pub async fn get_song_for_user(&self, user: &User, id: &str) -> Result<Song, AppError> {
-        let liked_set = self.get_liked_set(&user.id).await?;
-        let read_teams = content_read_team_things(self, user).await?;
+        let (liked_set, read_teams) = tokio::try_join!(
+            self.get_liked_set(&user.id),
+            content_read_team_things(self, user)
+        )?;
         let mut song = self.get_song(read_teams, id).await?;
         song.user_specific_addons.liked = liked_set.contains(&song.id);
         Ok(song)

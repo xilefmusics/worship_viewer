@@ -155,40 +155,31 @@ impl Model for Database {
         id: &str,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
-        let resource = collection_resource(id)?;
-        let existing = self
+        let (tb, sid) = collection_resource(id)?;
+        let songs: Vec<SongLinkRecord> = collection.songs.into_iter().map(Into::into).collect();
+        let cover = blob_thing(&collection.cover);
+        let title = collection.title;
+
+        let mut response = self
             .db
-            .select(resource.clone())
-            .await?
-            .ok_or_else(|| AppError::NotFound("collection not found".into()))?;
+            .query(
+                "UPDATE type::thing($tb, $sid) SET title = $title, cover = $cover, songs = $songs \
+                 WHERE owner IN $teams RETURN AFTER",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("title", title))
+            .bind(("cover", cover))
+            .bind(("songs", songs))
+            .bind(("teams", write_teams))
+            .await?;
 
-        if !collection_belongs_to(&existing, &write_teams) {
-            return Err(AppError::NotFound("collection not found".into()));
-        }
-
-        let record_id = Thing::from(resource.clone());
-        let owner_team = existing
-            .owner
-            .clone()
-            .ok_or_else(|| AppError::database("collection missing owner"))?;
-        let record = CollectionRecord::from_payload(Some(record_id), Some(owner_team), collection);
-
-        if let Some(updated) = self
-            .db
-            .update(resource.clone())
-            .content(record.clone())
-            .await?
+        let rows: Vec<CollectionRecord> = response.take(0)?;
+        rows
+            .into_iter()
+            .next()
             .map(CollectionRecord::into_collection)
-        {
-            return Ok(updated);
-        }
-
-        self.db
-            .create(resource)
-            .content(record)
-            .await?
-            .map(CollectionRecord::into_collection)
-            .ok_or_else(|| AppError::database("failed to upsert collection"))
+            .ok_or_else(|| AppError::NotFound("collection not found".into()))
     }
 
     async fn delete_collection(
@@ -196,18 +187,21 @@ impl Model for Database {
         write_teams: Vec<Thing>,
         id: &str,
     ) -> Result<Collection, AppError> {
-        let resource = collection_resource(id)?;
-        if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !collection_belongs_to(&existing, &write_teams) {
-                return Err(AppError::NotFound("collection not found".into()));
-            }
-        } else {
-            return Err(AppError::NotFound("collection not found".into()));
-        }
+        let (tb, sid) = collection_resource(id)?;
+        let mut response = self
+            .db
+            .query(
+                "DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("teams", write_teams))
+            .await?;
 
-        self.db
-            .delete(resource)
-            .await?
+        let rows: Vec<CollectionRecord> = response.take(0)?;
+        rows
+            .into_iter()
+            .next()
             .map(CollectionRecord::into_collection)
             .ok_or_else(|| AppError::NotFound("collection not found".into()))
     }
@@ -260,8 +254,10 @@ impl Database {
         user: &User,
         id: &str,
     ) -> Result<Player, AppError> {
-        let liked_set = SongDbModel::get_liked_set(self, &user.id).await?;
-        let read_teams = content_read_team_things(self, user).await?;
+        let (liked_set, read_teams) = tokio::try_join!(
+            SongDbModel::get_liked_set(self, &user.id),
+            content_read_team_things(self, user)
+        )?;
         let links = self.get_collection_songs(read_teams, id).await?;
         collection_player_from_links(liked_set, links)
     }
@@ -287,8 +283,10 @@ impl Database {
         user: &User,
         id: &str,
     ) -> Result<Vec<Song>, AppError> {
-        let liked_set = SongDbModel::get_liked_set(self, &user.id).await?;
-        let read_teams = content_read_team_things(self, user).await?;
+        let (liked_set, read_teams) = tokio::try_join!(
+            SongDbModel::get_liked_set(self, &user.id),
+            content_read_team_things(self, user)
+        )?;
         Ok(self
             .get_collection_songs(read_teams, id)
             .await?

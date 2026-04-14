@@ -43,8 +43,10 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
     }
 
     pub async fn setlist_player_for_user(&self, user: &User, id: &str) -> Result<Player, AppError> {
-        let liked_set = self.likes.liked_song_ids(&user.id).await?;
-        let read_teams = self.teams.content_read_teams(user).await?;
+        let (liked_set, read_teams) = tokio::try_join!(
+            self.likes.liked_song_ids(&user.id),
+            self.teams.content_read_teams(user)
+        )?;
         let links = self.repo.get_setlist_songs(read_teams, id).await?;
         player_from_song_links(liked_set, links)
     }
@@ -71,8 +73,10 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         user: &User,
         id: &str,
     ) -> Result<Vec<Song>, AppError> {
-        let liked_set = self.likes.liked_song_ids(&user.id).await?;
-        let read_teams = self.teams.content_read_teams(user).await?;
+        let (liked_set, read_teams) = tokio::try_join!(
+            self.likes.liked_song_ids(&user.id),
+            self.teams.content_read_teams(user)
+        )?;
         Ok(self
             .repo
             .get_setlist_songs(read_teams, id)

@@ -87,54 +87,49 @@ impl Model for Database {
         id: &str,
         blob: CreateBlob,
     ) -> Result<Blob, AppError> {
-        let resource = blob_resource(id)?;
-        let existing = self
+        let (tb, sid) = blob_resource(id)?;
+
+        let mut response = self
             .db
-            .select(resource.clone())
-            .await?
-            .ok_or_else(|| AppError::NotFound("blob not found".into()))?;
+            .query(
+                "UPDATE type::thing($tb, $sid) SET file_type = $file_type, width = $width, \
+                 height = $height, ocr = $ocr WHERE owner IN $teams RETURN AFTER",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("file_type", blob.file_type))
+            .bind(("width", blob.width))
+            .bind(("height", blob.height))
+            .bind(("ocr", blob.ocr.clone()))
+            .bind(("teams", write_teams))
+            .await?;
 
-        if !blob_belongs_to(&existing, &write_teams) {
-            return Err(AppError::NotFound("blob not found".into()));
-        }
-
-        let record_id = Thing::from(resource.clone());
-        let owner_team = existing
-            .owner
-            .clone()
-            .ok_or_else(|| AppError::database("blob missing owner"))?;
-        let record = BlobRecord::from_payload(
-            Some(record_id),
-            Some(owner_team),
-            existing.created_at.clone(),
-            blob,
-        );
-
-        let updated = self
-            .db
-            .update(resource)
-            .content(record)
-            .await?
+        let rows: Vec<BlobRecord> = response.take(0)?;
+        let updated = rows
+            .into_iter()
+            .next()
             .map(BlobRecord::into_blob)
-            .ok_or_else(|| AppError::database("failed to update blob"))?;
+            .ok_or_else(|| AppError::NotFound("blob not found".into()))?;
         write_blob_file(&updated)?;
         Ok(updated)
     }
 
     async fn delete_blob(&self, write_teams: Vec<Thing>, id: &str) -> Result<Blob, AppError> {
-        let resource = blob_resource(id)?;
-        if let Some(existing) = self.db.select(resource.clone()).await? {
-            if !blob_belongs_to(&existing, &write_teams) {
-                return Err(AppError::NotFound("blob not found".into()));
-            }
-        } else {
-            return Err(AppError::NotFound("blob not found".into()));
-        }
-
-        let deleted = self
+        let (tb, sid) = blob_resource(id)?;
+        let mut response = self
             .db
-            .delete(resource)
-            .await?
+            .query(
+                "DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("teams", write_teams))
+            .await?;
+
+        let rows: Vec<BlobRecord> = response.take(0)?;
+        let deleted = rows
+            .into_iter()
+            .next()
             .map(BlobRecord::into_blob)
             .ok_or_else(|| AppError::NotFound("blob not found".into()))?;
         if let Some(name) = deleted.file_name() {

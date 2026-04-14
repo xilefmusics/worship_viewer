@@ -9,7 +9,7 @@ use shared::song::LinkOwned as SongLinkOwned;
 use crate::database::Database;
 use crate::error::AppError;
 
-use super::model::{SetlistRecord, SetlistSongsRecord, setlist_belongs_to, setlist_resource};
+use super::model::{SetlistRecord, SetlistSongsRecord, SongLinkRecord, setlist_belongs_to, setlist_resource};
 use super::repository::SetlistRepository;
 
 #[derive(Clone)]
@@ -128,57 +128,48 @@ impl SetlistRepository for SurrealSetlistRepo {
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
         let db = self.inner();
-        let resource = setlist_resource(id)?;
-        let owner_team = match db.db.select(resource.clone()).await? {
-            Some(existing) => {
-                if !setlist_belongs_to(&existing, &write_teams) {
-                    return Err(AppError::NotFound("setlist not found".into()));
-                }
-                existing
-                    .owner
-                    .clone()
-                    .ok_or_else(|| AppError::database("setlist missing owner"))?
-            }
-            None => {
-                return Err(AppError::NotFound("setlist not found".into()));
-            }
-        };
+        let (tb, sid) = setlist_resource(id)?;
+        let songs: Vec<SongLinkRecord> = setlist.songs.into_iter().map(Into::into).collect();
+        let title = setlist.title;
 
-        let record_id = Thing::from(resource.clone());
-        let record = SetlistRecord::from_payload(Some(record_id), Some(owner_team), setlist);
-
-        if let Some(updated) = db
+        let mut response = db
             .db
-            .update(resource.clone())
-            .content(record.clone())
-            .await?
-            .map(SetlistRecord::into_setlist)
-        {
-            return Ok(updated);
-        }
+            .query(
+                "UPDATE type::thing($tb, $sid) SET title = $title, songs = $songs \
+                 WHERE owner IN $teams RETURN AFTER",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("title", title))
+            .bind(("songs", songs))
+            .bind(("teams", write_teams))
+            .await?;
 
-        db.db
-            .create(resource)
-            .content(record)
-            .await?
+        let rows: Vec<SetlistRecord> = response.take(0)?;
+        rows
+            .into_iter()
+            .next()
             .map(SetlistRecord::into_setlist)
-            .ok_or_else(|| AppError::database("failed to upsert setlist"))
+            .ok_or_else(|| AppError::NotFound("setlist not found".into()))
     }
 
     async fn delete_setlist(&self, write_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError> {
         let db = self.inner();
-        let resource = setlist_resource(id)?;
-        if let Some(existing) = db.db.select(resource.clone()).await? {
-            if !setlist_belongs_to(&existing, &write_teams) {
-                return Err(AppError::NotFound("setlist not found".into()));
-            }
-        } else {
-            return Err(AppError::NotFound("setlist not found".into()));
-        }
+        let (tb, sid) = setlist_resource(id)?;
+        let mut response = db
+            .db
+            .query(
+                "DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("teams", write_teams))
+            .await?;
 
-        db.db
-            .delete(resource)
-            .await?
+        let rows: Vec<SetlistRecord> = response.take(0)?;
+        rows
+            .into_iter()
+            .next()
             .map(SetlistRecord::into_setlist)
             .ok_or_else(|| AppError::NotFound("setlist not found".into()))
     }
