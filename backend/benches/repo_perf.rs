@@ -1,7 +1,6 @@
 //! Criterion benchmarks for team resolution and setlist repository (in-memory SurrealDB).
 use std::sync::Arc;
 
-use actix_web::web::Data;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tokio::runtime::Runtime;
 
@@ -46,7 +45,7 @@ fn bench_repo_hot_paths(c: &mut Criterion) {
         .block_on(content_read_team_things(db.as_ref(), &user))
         .unwrap();
 
-    let repo = SurrealSetlistRepo::new(Data::from(db.clone()));
+    let repo = SurrealSetlistRepo::new(db.clone());
     c.bench_function("get_setlists_empty", |b| {
         b.iter(|| {
             rt.block_on(async {

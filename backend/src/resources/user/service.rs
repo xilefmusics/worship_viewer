@@ -1,4 +1,4 @@
-use actix_web::web::Data;
+use std::sync::Arc;
 
 use shared::api::ListQuery;
 use shared::user::User;
@@ -84,7 +84,7 @@ impl<R: UserRepository, T: TeamRepository> UserService<R, T> {
 pub type UserServiceHandle = UserService<SurrealUserRepo, SurrealTeamRepo>;
 
 impl UserServiceHandle {
-    pub fn build(db: Data<Database>) -> Self {
+    pub fn build(db: Arc<Database>) -> Self {
         UserService::new(
             SurrealUserRepo::new(db.clone()),
             SurrealTeamRepo::new(db.clone()),

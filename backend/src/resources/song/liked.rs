@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
-use actix_web::web::Data;
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use serde::Deserialize;
 use surrealdb::sql::Thing;
@@ -20,7 +21,7 @@ struct LikeRow {
 }
 
 #[async_trait]
-impl LikedSongIds for Data<Database> {
+impl LikedSongIds for Arc<Database> {
     async fn liked_song_ids(&self, user_id: &str) -> Result<HashSet<String>, AppError> {
         let owner = Thing::from(("user".to_owned(), user_id.to_owned()));
         let mut response = self

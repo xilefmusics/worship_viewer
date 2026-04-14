@@ -1,4 +1,5 @@
-use actix_web::web::Data;
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use surrealdb::sql::Thing;
 
@@ -15,16 +16,16 @@ use super::repository::CollectionRepository;
 
 #[derive(Clone)]
 pub struct SurrealCollectionRepo {
-    db: Data<Database>,
+    db: Arc<Database>,
 }
 
 impl SurrealCollectionRepo {
-    pub fn new(db: Data<Database>) -> Self {
+    pub fn new(db: Arc<Database>) -> Self {
         Self { db }
     }
 
     fn inner(&self) -> &Database {
-        self.db.get_ref()
+        &self.db
     }
 }
 

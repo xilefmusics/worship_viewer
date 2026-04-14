@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
-use actix_web::web::Data;
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use serde::Deserialize;
 use surrealdb::sql::Thing;
@@ -88,11 +89,11 @@ impl<'a, T: TeamResolver> UserPermissions<'a, T> {
 /// Production resolver backed by [`Database`].
 #[derive(Clone)]
 pub struct SurrealTeamResolver {
-    db: Data<Database>,
+    db: Arc<Database>,
 }
 
 impl SurrealTeamResolver {
-    pub fn new(db: Data<Database>) -> Self {
+    pub fn new(db: Arc<Database>) -> Self {
         Self { db }
     }
 }
@@ -100,18 +101,15 @@ impl SurrealTeamResolver {
 #[async_trait]
 impl TeamResolver for SurrealTeamResolver {
     async fn content_read_teams(&self, user: &User) -> Result<Vec<Thing>, AppError> {
-        content_read_team_things(self.db.get_ref(), user).await
+        content_read_team_things(&self.db, user).await
     }
 
     async fn content_write_teams(&self, user: &User) -> Result<Vec<Thing>, AppError> {
-        content_write_team_things(self.db.get_ref(), user).await
+        content_write_team_things(&self.db, user).await
     }
 
     async fn personal_team(&self, user_id: &str) -> Result<Thing, AppError> {
-        self.db
-            .get_ref()
-            .personal_team_thing_for_user(user_id)
-            .await
+        self.db.personal_team_thing_for_user(user_id).await
     }
 }
 

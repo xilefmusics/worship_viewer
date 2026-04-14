@@ -1,6 +1,5 @@
 use std::sync::{Arc, Once};
 
-use actix_web::web::Data;
 use anyhow::Result as AnyResult;
 use chordlib::types::Song as SongData;
 
@@ -114,48 +113,41 @@ pub fn init_settings_for_files() {
 
 /// Blob application service (same wiring as HTTP `main`).
 pub fn blob_service(db: &Arc<Database>) -> BlobServiceHandle {
-    let data = Data::from(db.clone());
-    BlobServiceHandle::build(data)
+    BlobServiceHandle::build(db.clone())
 }
 
 /// Collection application service (same wiring as HTTP `main`).
 pub fn collection_service(db: &Arc<Database>) -> CollectionServiceHandle {
-    let data = Data::from(db.clone());
-    CollectionServiceHandle::build(data)
+    CollectionServiceHandle::build(db.clone())
 }
 
 /// Song application service (same wiring as HTTP `main`).
 pub fn song_service(db: &Arc<Database>) -> SongServiceHandle {
-    let data = Data::from(db.clone());
-    SongServiceHandle::build(data)
+    SongServiceHandle::build(db.clone())
 }
 
 /// Setlist application service (same wiring as HTTP `main`).
 pub fn setlist_service(db: &Arc<Database>) -> SetlistServiceHandle {
-    let data = Data::from(db.clone());
     SetlistService::new(
-        SurrealSetlistRepo::new(data.clone()),
-        SurrealTeamResolver::new(data.clone()),
-        data.clone(),
+        SurrealSetlistRepo::new(db.clone()),
+        SurrealTeamResolver::new(db.clone()),
+        db.clone(),
     )
 }
 
 /// Team application service (same wiring as HTTP `main`).
 pub fn team_service(db: &Arc<Database>) -> TeamServiceHandle {
-    let data = Data::from(db.clone());
-    TeamServiceHandle::build(data)
+    TeamServiceHandle::build(db.clone())
 }
 
 /// User application service (same wiring as HTTP `main`).
 pub fn user_service(db: &Arc<Database>) -> UserServiceHandle {
-    let data = Data::from(db.clone());
-    UserServiceHandle::build(data)
+    UserServiceHandle::build(db.clone())
 }
 
 /// Session application service (same wiring as HTTP `main`).
 pub fn session_service(db: &Arc<Database>) -> SessionServiceHandle {
-    let data = Data::from(db.clone());
-    SessionServiceHandle::build(data)
+    SessionServiceHandle::build(db.clone())
 }
 
 pub fn setlist_with_songs(title: &str, song_ids: &[(&str, Option<&str>)]) -> CreateSetlist {

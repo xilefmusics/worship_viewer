@@ -1,4 +1,6 @@
-use actix_web::{HttpResponse, web::Data};
+use std::sync::Arc;
+
+use actix_web::HttpResponse;
 use async_trait::async_trait;
 
 use shared::api::ListQuery;
@@ -31,13 +33,13 @@ pub trait UserCollectionUpdater: Send + Sync {
 }
 
 #[async_trait]
-impl UserCollectionUpdater for Data<SurrealUserRepo> {
+impl UserCollectionUpdater for Arc<SurrealUserRepo> {
     async fn set_default_collection(
         &self,
         user_id: &str,
         collection_id: &str,
     ) -> Result<(), AppError> {
-        self.get_ref().set_default_collection(user_id, collection_id).await
+        (**self).set_default_collection(user_id, collection_id).await
     }
 }
 
@@ -216,27 +218,25 @@ impl<
 pub type SongServiceHandle = SongService<
     SurrealSongRepo,
     crate::resources::team::SurrealTeamResolver,
-    Data<Database>,
+    Arc<Database>,
     crate::resources::collection::SurrealCollectionRepo,
-    Data<SurrealUserRepo>,
+    Arc<SurrealUserRepo>,
 >;
 
 impl SongServiceHandle {
-    pub fn build(db: Data<Database>) -> Self {
+    pub fn build(db: Arc<Database>) -> Self {
         SongService::new(
             SurrealSongRepo::new(db.clone()),
             crate::resources::team::SurrealTeamResolver::new(db.clone()),
             db.clone(),
             crate::resources::collection::SurrealCollectionRepo::new(db.clone()),
-            Data::new(SurrealUserRepo::new(db.clone())),
+            Arc::new(SurrealUserRepo::new(db.clone())),
         )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use actix_web::web::Data;
-
     use crate::resources::team::UserPermissions;
     use crate::test_helpers::{
         configure_personal_team_members, create_song_with_title, create_user, personal_team_id,
@@ -250,8 +250,7 @@ mod tests {
     #[tokio::test]
     async fn blc_song_crud_search_likes() {
         let db = test_db().await.expect("db");
-        let data = Data::from(db.clone());
-        let svc = SongServiceHandle::build(data);
+        let svc = SongServiceHandle::build(db.clone());
 
         let owner = create_user(&db, "song-owner@test.local").await.expect("o");
         let other = create_user(&db, "song-other@test.local").await.expect("x");
@@ -311,8 +310,7 @@ mod tests {
     #[tokio::test]
     async fn blc_song_delete_after_setlist_link() {
         let db = test_db().await.expect("db");
-        let data = Data::from(db.clone());
-        let svc = SongServiceHandle::build(data);
+        let svc = SongServiceHandle::build(db.clone());
 
         let u = create_user(&db, "song-del@test.local").await.expect("u");
         let song = create_song_with_title(&db, &u, "ToDelete")

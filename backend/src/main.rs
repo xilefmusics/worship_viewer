@@ -35,7 +35,7 @@ async fn main() -> AnyResult<()> {
 
     let settings = Settings::init()?;
 
-    let db = Data::new(database::Database::new().await?);
+    let db = Arc::new(database::Database::new().await?);
     db.migrate(settings.db_migration_path.as_str())
         .await
         .context("database migration failed")?;
@@ -102,6 +102,7 @@ async fn main() -> AnyResult<()> {
         db.clone(),
     );
     let team_service = TeamServiceHandle::build(db.clone());
+    let db_data = Data::from(db);
 
     info!(
         "Starting server on http://{}:{}",
@@ -110,7 +111,7 @@ async fn main() -> AnyResult<()> {
 
     HttpServer::new(move || {
         App::new()
-            .app_data(db.clone())
+            .app_data(db_data.clone())
             .app_data(Data::new(blob_service.clone()))
             .app_data(Data::new(collection_service.clone()))
             .app_data(Data::new(song_service.clone()))

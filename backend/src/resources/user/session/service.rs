@@ -1,4 +1,4 @@
-use actix_web::web::Data;
+use std::sync::Arc;
 
 use shared::user::Session;
 
@@ -62,7 +62,7 @@ impl<S: SessionRepository, U: UserRepository> SessionService<S, U> {
 pub type SessionServiceHandle = SessionService<SurrealSessionRepo, SurrealUserRepo>;
 
 impl SessionServiceHandle {
-    pub fn build(db: Data<Database>) -> Self {
+    pub fn build(db: Arc<Database>) -> Self {
         SessionService::new(
             SurrealSessionRepo::new(db.clone()),
             SurrealUserRepo::new(db.clone()),

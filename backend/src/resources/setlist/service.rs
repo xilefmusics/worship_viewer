@@ -1,4 +1,6 @@
-use actix_web::{HttpResponse, web::Data};
+use std::sync::Arc;
+
+use actix_web::HttpResponse;
 use shared::api::ListQuery;
 use shared::player::Player;
 use shared::setlist::{CreateSetlist, Setlist};
@@ -131,7 +133,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 pub type SetlistServiceHandle = SetlistService<
     super::surreal_repo::SurrealSetlistRepo,
     crate::resources::team::SurrealTeamResolver,
-    Data<crate::database::Database>,
+    Arc<crate::database::Database>,
 >;
 
 #[cfg(test)]

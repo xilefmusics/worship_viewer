@@ -100,17 +100,14 @@ mod tests {
 
     #[tokio::test]
     async fn smoke_create_and_read_setlist() {
-        use actix_web::web::Data;
-
         use crate::resources::setlist::{SetlistService, SurrealSetlistRepo};
         use crate::resources::team::{SurrealTeamResolver, UserPermissions};
 
         let db = test_db().await.expect("test db");
-        let data = Data::from(db.clone());
         let svc = SetlistService::new(
-            SurrealSetlistRepo::new(data.clone()),
-            SurrealTeamResolver::new(data.clone()),
-            data.clone(),
+            SurrealSetlistRepo::new(db.clone()),
+            SurrealTeamResolver::new(db.clone()),
+            db.clone(),
         );
         let user = seed_user(&db).await.expect("seed user");
         let perms = UserPermissions::new(&user, &svc.teams);

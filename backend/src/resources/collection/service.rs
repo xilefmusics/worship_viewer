@@ -1,4 +1,6 @@
-use actix_web::{HttpResponse, web::Data};
+use std::sync::Arc;
+
+use actix_web::HttpResponse;
 
 use shared::api::ListQuery;
 use shared::collection::{Collection, CreateCollection};
@@ -133,11 +135,11 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 pub type CollectionServiceHandle = CollectionService<
     SurrealCollectionRepo,
     crate::resources::team::SurrealTeamResolver,
-    Data<Database>,
+    Arc<Database>,
 >;
 
 impl CollectionServiceHandle {
-    pub fn build(db: Data<Database>) -> Self {
+    pub fn build(db: Arc<Database>) -> Self {
         CollectionService::new(
             SurrealCollectionRepo::new(db.clone()),
             crate::resources::team::SurrealTeamResolver::new(db.clone()),
@@ -148,7 +150,6 @@ impl CollectionServiceHandle {
 
 #[cfg(test)]
 mod tests {
-    use actix_web::web::Data;
     use shared::song::Link as SongLink;
 
     use crate::error::AppError;
@@ -166,8 +167,7 @@ mod tests {
     #[tokio::test]
     async fn blc_collection_crud_and_acl() {
         let db = test_db().await.expect("db");
-        let data = Data::from(db.clone());
-        let svc = CollectionServiceHandle::build(data);
+        let svc = CollectionServiceHandle::build(db.clone());
 
         let owner = create_user(&db, "coll-owner@test.local").await.expect("o");
         let guest = create_user(&db, "coll-guest@test.local").await.expect("g");

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use actix_web::web::Data;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use shared::team::{CreateTeam, Team, TeamInvitation, UpdateTeam};
@@ -361,7 +361,7 @@ pub type TeamServiceHandle = TeamService<
 >;
 
 impl TeamServiceHandle {
-    pub fn build(db: Data<Database>) -> Self {
+    pub fn build(db: Arc<Database>) -> Self {
         TeamService::new(
             SurrealTeamRepo::new(db.clone()),
             SurrealTeamInvitationRepo::new(db.clone()),

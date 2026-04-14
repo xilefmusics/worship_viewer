@@ -1,5 +1,6 @@
+use std::sync::Arc;
+
 use actix_files::NamedFile;
-use actix_web::web::Data;
 
 use shared::api::ListQuery;
 use shared::blob::{Blob, CreateBlob};
@@ -98,7 +99,7 @@ pub type BlobServiceHandle = BlobService<
 >;
 
 impl BlobServiceHandle {
-    pub fn build(db: Data<Database>) -> Self {
+    pub fn build(db: Arc<Database>) -> Self {
         BlobService::new(
             SurrealBlobRepo::new(db.clone()),
             crate::resources::team::SurrealTeamResolver::new(db.clone()),
@@ -109,7 +110,6 @@ impl BlobServiceHandle {
 
 #[cfg(test)]
 mod tests {
-    use actix_web::web::Data;
     use async_trait::async_trait;
     use surrealdb::sql::Thing;
 
@@ -269,8 +269,7 @@ mod tests {
 
         init_settings_for_files();
         let db = test_db().await.expect("db");
-        let data = Data::from(db.clone());
-        let svc = BlobServiceHandle::build(data);
+        let svc = BlobServiceHandle::build(db.clone());
 
         let owner = create_user(&db, "blob-owner@test.local").await.expect("o");
         let other = create_user(&db, "blob-other@test.local").await.expect("x");
