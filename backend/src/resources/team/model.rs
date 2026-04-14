@@ -153,7 +153,7 @@ pub(crate) fn validate_personal_members_not_owner(
 }
 
 #[derive(Serialize)]
-pub(crate) struct TeamCreatePayload {
+pub struct TeamCreatePayload {
     pub(crate) name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) owner: Option<Thing>,
@@ -161,13 +161,13 @@ pub(crate) struct TeamCreatePayload {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct DbTeamMember {
+pub struct DbTeamMember {
     pub(crate) user: Thing,
     pub(crate) role: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct TeamFetched {
+pub struct TeamFetched {
     pub(crate) id: Thing,
     pub(crate) name: String,
     #[serde(default)]

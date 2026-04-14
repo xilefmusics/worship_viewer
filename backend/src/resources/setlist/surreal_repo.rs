@@ -75,7 +75,7 @@ impl SetlistRepository for SurrealSetlistRepo {
         let db = self.inner();
         let record: Option<SetlistRecord> = db.db.select(resource_id("setlist", id)?).await?;
         match record {
-            Some(r) if belongs_to(&r.owner, &read_teams) => Ok(r.into_setlist()),
+            Some(r) if belongs_to(&r.owner, read_teams) => Ok(r.into_setlist()),
             _ => Err(AppError::NotFound("setlist not found".into())),
         }
     }
@@ -97,7 +97,7 @@ impl SetlistRepository for SurrealSetlistRepo {
             .take::<Option<SetlistSongsRecord>>(0)?
             .ok_or_else(|| AppError::NotFound("setlist not found".into()))?;
 
-        if !record.belongs_to(&read_teams) {
+        if !record.belongs_to(read_teams) {
             return Err(AppError::NotFound("setlist not found".into()));
         }
 

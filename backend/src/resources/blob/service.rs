@@ -208,6 +208,7 @@ mod tests {
         User::new("u@test.local")
     }
 
+    #[allow(dead_code)]
     fn sample_blob() -> Blob {
         Blob {
             id: "b1".into(),

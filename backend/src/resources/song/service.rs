@@ -386,7 +386,7 @@ mod tests {
         use shared::song::CreateSong;
         let (db, owner, _cm, guest_u, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let _owner_p = UserPermissions::new(&owner, &svc.teams);
         let guest_p = UserPermissions::new(&guest_u, &svc.teams);
         let song = create_song_with_title(&db, &owner, "GuestPUTSong")
             .await
@@ -424,7 +424,7 @@ mod tests {
         use shared::song::CreateSong;
         let (db, owner, cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let _owner_p = UserPermissions::new(&owner, &svc.teams);
         let cm_p = UserPermissions::new(&cm, &svc.teams);
         let song = create_song_with_title(&db, &owner, "CMUpdateSong")
             .await
@@ -572,7 +572,7 @@ mod tests {
     async fn blc_song_004_like_unreadable_song_not_found() {
         let (db, owner, _cm, _guest, nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let _owner_p = UserPermissions::new(&owner, &svc.teams);
         let nm_p = UserPermissions::new(&nm, &svc.teams);
         let song = create_song_with_title(&db, &owner, "SecretLikeSong")
             .await

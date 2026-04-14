@@ -82,7 +82,7 @@ impl SongRepository for SurrealSongRepo {
         let db = self.inner();
         let record: Option<SongRecord> = db.db.select(resource_id("song", id)?).await?;
         match record {
-            Some(r) if belongs_to(&r.owner, &read_teams) => Ok(r.into_song()),
+            Some(r) if belongs_to(&r.owner, read_teams) => Ok(r.into_song()),
             _ => Err(AppError::NotFound("song not found".into())),
         }
     }
@@ -186,7 +186,7 @@ impl SongRepository for SurrealSongRepo {
             .await?
             .ok_or_else(|| AppError::NotFound("song not found".into()))?;
 
-        if !belongs_to(&existing.owner, &read_teams) {
+        if !belongs_to(&existing.owner, read_teams) {
             return Err(AppError::NotFound("song not found".into()));
         }
 
@@ -219,7 +219,7 @@ impl SongRepository for SurrealSongRepo {
             .await?
             .ok_or_else(|| AppError::NotFound("song not found".into()))?;
 
-        if !belongs_to(&existing.owner, &read_teams) {
+        if !belongs_to(&existing.owner, read_teams) {
             return Err(AppError::NotFound("song not found".into()));
         }
 

@@ -81,8 +81,7 @@ impl<'a, T: TeamResolver> UserPermissions<'a, T> {
         let resolver = self.resolver;
         self.personal_team
             .get_or_try_init(|| async move { resolver.personal_team(&user_id).await })
-            .await
-            .map(Thing::clone)
+            .await.cloned()
     }
 }
 
@@ -196,7 +195,7 @@ mod tests {
     };
 
     fn thing_key_set(things: &[Thing]) -> BTreeSet<String> {
-        things.iter().map(|t| thing_record_key(t)).collect()
+        things.iter().map(thing_record_key).collect()
     }
 
     async fn naive_read_teams(db: &Database, user: &User) -> Result<Vec<Thing>, AppError> {

@@ -21,7 +21,7 @@ pub struct PendingOidc {
     pub provider: OidcProvider,
 }
 
-pub trait Model {
+pub(crate) trait Model {
     async fn remember_oidc_state(&self, key: &str, value: PendingOidc) -> Result<(), AppError>;
     async fn take_oidc_state(&self, key: &str) -> Result<Option<PendingOidc>, AppError>;
     async fn cleanup_expired_oidc_states(&self) -> Result<(), AppError>;

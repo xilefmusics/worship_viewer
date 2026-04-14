@@ -8,7 +8,7 @@ use crate::error::AppError;
 use crate::resources::user::UserRecord;
 
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct InvitationRow {
+pub struct InvitationRow {
     pub(crate) id: Thing,
     pub(crate) team: Thing,
     pub(crate) created_by: UserRecord,
@@ -16,7 +16,7 @@ pub(crate) struct InvitationRow {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct InvitationAcceptRow {
+pub struct InvitationAcceptRow {
     #[allow(dead_code)]
     pub(crate) id: Thing,
     pub(crate) team: super::super::model::TeamFetched,

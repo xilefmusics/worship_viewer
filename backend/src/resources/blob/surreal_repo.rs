@@ -60,7 +60,7 @@ impl BlobRepository for SurrealBlobRepo {
         let db = self.inner();
         let record: Option<BlobRecord> = db.db.select(resource_id("blob", id)?).await?;
         match record {
-            Some(r) if belongs_to(&r.owner, &read_teams) => Ok(r.into_blob()),
+            Some(r) if belongs_to(&r.owner, read_teams) => Ok(r.into_blob()),
             _ => Err(AppError::NotFound("blob not found".into())),
         }
     }

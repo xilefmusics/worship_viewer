@@ -75,7 +75,7 @@ impl CollectionRepository for SurrealCollectionRepo {
         let db = self.inner();
         let record: Option<CollectionRecord> = db.db.select(resource_id("collection", id)?).await?;
         match record {
-            Some(r) if belongs_to(&r.owner, &read_teams) => Ok(r.into_collection()),
+            Some(r) if belongs_to(&r.owner, read_teams) => Ok(r.into_collection()),
             _ => Err(AppError::NotFound("collection not found".into())),
         }
     }
@@ -97,7 +97,7 @@ impl CollectionRepository for SurrealCollectionRepo {
             .take::<Option<CollectionSongsRecord>>(0)?
             .ok_or_else(|| AppError::NotFound("collection not found".into()))?;
 
-        if !belongs_to(&record.owner, &read_teams) {
+        if !belongs_to(&record.owner, read_teams) {
             return Err(AppError::NotFound("collection not found".into()));
         }
 
