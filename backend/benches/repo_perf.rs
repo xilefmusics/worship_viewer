@@ -7,7 +7,8 @@ use tokio::runtime::Runtime;
 use backend::database::Database;
 use backend::resources::setlist::{SetlistRepository, SurrealSetlistRepo};
 use backend::resources::team::content_read_team_things;
-use backend::resources::{User, UserModel};
+use backend::resources::User;
+use backend::resources::user::UserServiceHandle;
 use shared::api::ListQuery;
 
 fn setup() -> (Runtime, Arc<Database>, User) {
@@ -21,7 +22,8 @@ fn setup() -> (Runtime, Arc<Database>, User) {
         Arc::new(db)
     });
     let user = rt.block_on(async {
-        db.create_user(User::new("bench@local"))
+        UserServiceHandle::build(db.clone())
+            .create_user(User::new("bench@local"))
             .await
             .expect("user")
     });
