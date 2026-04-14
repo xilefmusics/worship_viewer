@@ -1,9 +1,9 @@
-pub(crate) mod model;
+mod model;
 
 pub mod repository;
 pub use repository::TeamInvitationRepository;
 
-pub(crate) mod surreal_repo;
+mod surreal_repo;
 pub use surreal_repo::SurrealTeamInvitationRepo;
 
 pub mod service;

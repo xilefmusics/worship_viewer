@@ -13,7 +13,7 @@ use crate::resources::collection::CollectionRepository;
 
 use crate::resources::team::{TeamResolver, UserPermissions};
 use crate::resources::user::UserRepository;
-use crate::resources::user::surreal_repo::SurrealUserRepo;
+use crate::resources::user::SurrealUserRepo;
 use shared::collection::CreateCollection;
 
 use super::export::{ExportResult, Format, export};

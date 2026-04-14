@@ -6,18 +6,18 @@ use shared::setlist::{CreateSetlist, Setlist};
 use crate::resources::common::{FetchedSongRecord, SongLinkRecord, belongs_to};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
-pub(crate) struct SetlistRecord {
+pub struct SetlistRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     id: Option<Thing>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) owner: Option<Thing>,
+    pub owner: Option<Thing>,
     title: String,
     #[serde(default)]
     songs: Vec<SongLinkRecord>,
 }
 
 impl SetlistRecord {
-    pub(crate) fn into_setlist(self) -> Setlist {
+    pub fn into_setlist(self) -> Setlist {
         Setlist {
             id: self
                 .id
@@ -32,7 +32,7 @@ impl SetlistRecord {
         }
     }
 
-    pub(crate) fn from_payload(
+    pub fn from_payload(
         id: Option<Thing>,
         owner: Option<Thing>,
         setlist: CreateSetlist,
@@ -47,7 +47,7 @@ impl SetlistRecord {
 }
 
 #[derive(Deserialize)]
-pub(crate) struct SetlistSongsRecord {
+pub struct SetlistSongsRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     owner: Option<Thing>,
     #[serde(default)]
@@ -55,11 +55,11 @@ pub(crate) struct SetlistSongsRecord {
 }
 
 impl SetlistSongsRecord {
-    pub(crate) fn belongs_to(&self, teams: &[Thing]) -> bool {
+    pub fn belongs_to(&self, teams: &[Thing]) -> bool {
         belongs_to(&self.owner, teams)
     }
 
-    pub(crate) fn into_songs(self) -> Vec<shared::song::LinkOwned> {
+    pub fn into_songs(self) -> Vec<shared::song::LinkOwned> {
         self.songs
             .into_iter()
             .map(|record| record.into_song_link_owned())

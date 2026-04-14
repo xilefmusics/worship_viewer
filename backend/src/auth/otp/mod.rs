@@ -1,4 +1,4 @@
 pub mod rest;
 
 mod model;
-pub(crate) use model::Model;
+pub use model::Model;

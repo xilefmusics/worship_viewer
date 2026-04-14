@@ -4,7 +4,7 @@ use surrealdb::sql::{Datetime, Thing};
 use super::{Role, User};
 use crate::error::AppError;
 
-pub(crate) fn user_resource(id: &str) -> Result<(String, String), AppError> {
+pub fn user_resource(id: &str) -> Result<(String, String), AppError> {
     if let Ok(thing) = id.parse::<Thing>() {
         if thing.tb == "user" {
             return Ok((thing.tb, thing.id.to_string()));

@@ -1,13 +1,14 @@
 pub mod invitation;
 
-pub(crate) mod model;
+mod model;
 pub mod repository;
 pub mod resolver;
 pub mod rest;
 pub mod service;
-pub(crate) mod surreal_repo;
+mod surreal_repo;
 
 pub use invitation::rest::invitations_accept_scope;
+pub use model::{DbTeamMember, TeamCreatePayload, TeamFetched, user_thing};
 pub use repository::TeamRepository;
 pub use resolver::{
     SurrealTeamResolver, TeamResolver, UserPermissions, content_read_team_things,

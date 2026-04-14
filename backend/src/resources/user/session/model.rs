@@ -39,6 +39,6 @@ impl SessionCreateRecord {
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct SessionIdRecord {
-    pub(crate) id: Thing,
+pub struct SessionIdRecord {
+    pub id: Thing,
 }

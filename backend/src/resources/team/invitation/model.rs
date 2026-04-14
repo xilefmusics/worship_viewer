@@ -9,44 +9,44 @@ use crate::resources::user::UserRecord;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct InvitationRow {
-    pub(crate) id: Thing,
-    pub(crate) team: Thing,
-    pub(crate) created_by: UserRecord,
-    pub(crate) created_at: Datetime,
+    pub id: Thing,
+    pub team: Thing,
+    pub created_by: UserRecord,
+    pub created_at: Datetime,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct InvitationAcceptRow {
     #[allow(dead_code)]
-    pub(crate) id: Thing,
-    pub(crate) team: super::super::model::TeamFetched,
+    pub id: Thing,
+    pub team: super::super::model::TeamFetched,
     #[allow(dead_code)]
-    pub(crate) created_by: UserRecord,
+    pub created_by: UserRecord,
     #[allow(dead_code)]
-    pub(crate) created_at: Datetime,
+    pub created_at: Datetime,
 }
 
 #[derive(Serialize)]
-pub(crate) struct InvitationCreate {
-    pub(crate) team: Thing,
-    pub(crate) created_by: Thing,
+pub struct InvitationCreate {
+    pub team: Thing,
+    pub created_by: Thing,
 }
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct InvitationIdRow {
+pub struct InvitationIdRow {
     #[allow(dead_code)]
-    pub(crate) id: Thing,
+    pub id: Thing,
 }
 
 /// Return shape of `DELETE team_invitation:…` — raw links are not expanded like `SELECT … FETCH`.
 #[derive(Debug, Deserialize)]
-pub(crate) struct InvitationDeleteRow {
+pub struct InvitationDeleteRow {
     #[allow(dead_code)]
-    pub(crate) id: Thing,
+    pub id: Thing,
 }
 
 impl InvitationRow {
-    pub(crate) fn into_invitation(self) -> Result<TeamInvitation, AppError> {
+    pub fn into_invitation(self) -> Result<TeamInvitation, AppError> {
         let u = self.created_by.into_user();
         Ok(TeamInvitation {
             id: record_id_string(&self.id),
@@ -60,7 +60,7 @@ impl InvitationRow {
     }
 }
 
-pub(crate) fn invitation_thing(invitation_id: &str) -> Result<Thing, AppError> {
+pub fn invitation_thing(invitation_id: &str) -> Result<Thing, AppError> {
     let id = invitation_id.trim();
     if id.is_empty() {
         return Err(AppError::NotFound("invitation not found".into()));
@@ -73,7 +73,7 @@ pub(crate) fn invitation_thing(invitation_id: &str) -> Result<Thing, AppError> {
     Ok(Thing::from(("team_invitation".to_owned(), id.to_owned())))
 }
 
-pub(crate) fn team_things_match(a: &Thing, b: &Thing) -> bool {
+pub fn team_things_match(a: &Thing, b: &Thing) -> bool {
     a.tb == b.tb && record_id_string(a) == record_id_string(b)
 }
 

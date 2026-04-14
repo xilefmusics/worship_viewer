@@ -55,7 +55,7 @@ async fn logout(
     response.finish()
 }
 
-pub(crate) fn empty_cookie(cfg: &CookieConfig) -> Cookie<'static> {
+fn empty_cookie(cfg: &CookieConfig) -> Cookie<'static> {
     Cookie::build(cfg.name.clone(), "")
         .http_only(true)
         .same_site(SameSite::Lax)

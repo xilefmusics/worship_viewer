@@ -4,7 +4,7 @@ use serde::Deserialize;
 use crate::database::Database;
 use crate::error::AppError;
 
-pub(crate) trait Model {
+pub trait Model {
     async fn remember_otp(
         &self,
         email: &str,

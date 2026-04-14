@@ -4,4 +4,4 @@ mod client;
 pub use client::{OidcClients, OidcProvider, build_clients};
 
 mod model;
-pub(crate) use model::{Model, PendingOidc};
+pub use model::{Model, PendingOidc};

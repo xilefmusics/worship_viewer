@@ -15,7 +15,7 @@ struct TeamIdOnly {
 }
 
 /// Stable string id for a `Thing` (matches API / legacy `id_to_plain_string` behavior).
-pub(crate) fn record_id_string(thing: &Thing) -> String {
+pub fn record_id_string(thing: &Thing) -> String {
     match &thing.id {
         Id::String(value) => value.clone(),
         Id::Number(number) => format!("{number}"),

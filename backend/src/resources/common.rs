@@ -13,7 +13,7 @@ use crate::resources::song::SongRecord;
 ///
 /// Accepts both plain IDs (`"abc"`) and `Thing` strings (`"setlist:abc"`).
 /// Returns an error when the parsed table prefix does not match `table`.
-pub(crate) fn resource_id(table: &str, id: &str) -> Result<(String, String), AppError> {
+pub fn resource_id(table: &str, id: &str) -> Result<(String, String), AppError> {
     if let Ok(thing) = id.parse::<Thing>() {
         if thing.tb == table {
             return Ok((thing.tb, thing.id.to_string()));
@@ -24,12 +24,12 @@ pub(crate) fn resource_id(table: &str, id: &str) -> Result<(String, String), App
 }
 
 /// Return `true` when `owner` is present and contained in `teams`.
-pub(crate) fn belongs_to(owner: &Option<Thing>, teams: &[Thing]) -> bool {
+pub fn belongs_to(owner: &Option<Thing>, teams: &[Thing]) -> bool {
     owner.as_ref().map(|t| teams.contains(t)).unwrap_or(false)
 }
 
 /// Coerce a string to a `song:…` [`Thing`], validating the table prefix when present.
-pub(crate) fn song_thing(id: &str) -> Thing {
+pub fn song_thing(id: &str) -> Thing {
     if let Ok(thing) = id.parse::<Thing>()
         && thing.tb == "song"
     {
@@ -39,7 +39,7 @@ pub(crate) fn song_thing(id: &str) -> Thing {
 }
 
 /// Coerce a string to a `blob:…` [`Thing`], validating the table prefix when present.
-pub(crate) fn blob_thing(id: &str) -> Thing {
+pub fn blob_thing(id: &str) -> Thing {
     if let Ok(thing) = id.parse::<Thing>()
         && thing.tb == "blob"
     {
@@ -50,7 +50,7 @@ pub(crate) fn blob_thing(id: &str) -> Thing {
 
 /// Build a [`Player`] from fetched song links, populating liked flags and
 /// filling in default track numbers where absent.
-pub(crate) fn player_from_song_links(
+pub fn player_from_song_links(
     liked_set: HashSet<String>,
     links: Vec<SongLinkOwned>,
 ) -> Result<Player, AppError> {
@@ -72,7 +72,7 @@ pub(crate) fn player_from_song_links(
 
 /// DB record for a song reference stored on a setlist or collection.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct SongLinkRecord {
+pub struct SongLinkRecord {
     id: Thing,
     #[serde(default)]
     nr: Option<String>,
@@ -104,7 +104,7 @@ impl From<SongLink> for SongLinkRecord {
 ///
 /// The `id` field holds the fetched [`SongRecord`]; the other fields come from the link itself.
 #[derive(Deserialize)]
-pub(crate) struct FetchedSongRecord {
+pub struct FetchedSongRecord {
     #[serde(rename = "id")]
     song: SongRecord,
     #[serde(default)]
@@ -116,7 +116,7 @@ pub(crate) struct FetchedSongRecord {
 }
 
 impl FetchedSongRecord {
-    pub(crate) fn into_song_link_owned(self) -> SongLinkOwned {
+    pub fn into_song_link_owned(self) -> SongLinkOwned {
         SongLinkOwned {
             song: self.song.into_song(),
             nr: self.nr,

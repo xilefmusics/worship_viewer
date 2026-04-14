@@ -5,10 +5,7 @@ use shared::user::User;
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::team::TeamRepository;
-use crate::resources::team::model::TeamCreatePayload;
-use crate::resources::team::model::user_thing;
-use crate::resources::team::surreal_repo::SurrealTeamRepo;
+use crate::resources::team::{TeamCreatePayload, TeamRepository, SurrealTeamRepo, user_thing};
 
 use super::CreateUserRequest;
 use super::repository::UserRepository;
@@ -107,7 +104,7 @@ mod tests {
 
     use crate::database::record_id_string;
     use crate::error::AppError;
-    use crate::resources::team::model::{DbTeamMember, TeamCreatePayload, TeamFetched};
+    use crate::resources::team::{DbTeamMember, TeamCreatePayload, TeamFetched};
     use crate::resources::team::repository::TeamRepository;
     use crate::resources::user::repository::UserRepository;
 

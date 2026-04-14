@@ -4,22 +4,22 @@ use surrealdb::sql::{Datetime, Thing};
 use shared::blob::{Blob, CreateBlob};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct BlobRecord {
+pub struct BlobRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) id: Option<Thing>,
+    pub id: Option<Thing>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) owner: Option<Thing>,
-    pub(crate) file_type: shared::blob::FileType,
-    pub(crate) width: u32,
-    pub(crate) height: u32,
+    pub owner: Option<Thing>,
+    pub file_type: shared::blob::FileType,
+    pub width: u32,
+    pub height: u32,
     #[serde(default)]
-    pub(crate) ocr: String,
+    pub ocr: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) created_at: Option<Datetime>,
+    pub created_at: Option<Datetime>,
 }
 
 impl BlobRecord {
-    pub(crate) fn into_blob(self) -> Blob {
+    pub fn into_blob(self) -> Blob {
         Blob {
             id: self
                 .id
@@ -36,7 +36,7 @@ impl BlobRecord {
         }
     }
 
-    pub(crate) fn from_payload(
+    pub fn from_payload(
         id: Option<Thing>,
         owner: Option<Thing>,
         created_at: Option<Datetime>,

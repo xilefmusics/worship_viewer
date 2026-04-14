@@ -1,6 +1,6 @@
 pub mod rest;
 
-pub(crate) mod common;
+mod common;
 
 pub mod blob;
 pub use blob::{Blob, CreateBlob};

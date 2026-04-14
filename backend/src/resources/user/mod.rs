@@ -1,12 +1,12 @@
 pub use shared::user::{CreateUserRequest, Role, User};
 
-pub(crate) mod model;
+mod model;
 pub use model::UserRecord;
 
 pub mod repository;
 pub use repository::UserRepository;
 
-pub(crate) mod surreal_repo;
+mod surreal_repo;
 pub use surreal_repo::SurrealUserRepo;
 
 pub mod service;

@@ -9,16 +9,16 @@ use crate::resources::common::blob_thing;
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct SongRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) id: Option<Thing>,
+    pub id: Option<Thing>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) owner: Option<Thing>,
+    pub owner: Option<Thing>,
     #[serde(default)]
-    pub(crate) not_a_song: bool,
+    pub not_a_song: bool,
     #[serde(default)]
-    pub(crate) blobs: Vec<Thing>,
-    pub(crate) data: SongData,
+    pub blobs: Vec<Thing>,
+    pub data: SongData,
     #[serde(default)]
-    pub(crate) search_content: String,
+    pub search_content: String,
 }
 
 impl SongRecord {
@@ -33,7 +33,7 @@ impl SongRecord {
         }
     }
 
-    pub(crate) fn from_payload(id: Option<Thing>, owner: Option<Thing>, song: CreateSong) -> Self {
+    pub fn from_payload(id: Option<Thing>, owner: Option<Thing>, song: CreateSong) -> Self {
         let search_content = search_content_from_song_data(&song.data);
         Self {
             id,
@@ -50,7 +50,7 @@ impl SongRecord {
     }
 }
 
-pub(crate) fn search_content_from_song_data(data: &SongData) -> String {
+pub fn search_content_from_song_data(data: &SongData) -> String {
     let mut pieces: Vec<String> = Vec::new();
     for section in &data.sections {
         for line in &section.lines {
@@ -66,7 +66,7 @@ pub(crate) fn search_content_from_song_data(data: &SongData) -> String {
     pieces.join(" ")
 }
 
-pub(crate) fn id_from_thing(thing: Thing) -> String {
+pub fn id_from_thing(thing: Thing) -> String {
     id_to_plain_string(thing.id)
 }
 
@@ -80,15 +80,15 @@ fn id_to_plain_string(id: Id) -> String {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct LikeRecord {
+pub struct LikeRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) id: Option<Thing>,
-    pub(crate) owner: Thing,
-    pub(crate) song: Thing,
+    pub id: Option<Thing>,
+    pub owner: Thing,
+    pub song: Thing,
 }
 
 impl LikeRecord {
-    pub(crate) fn new(owner: Thing, song: Thing) -> Self {
+    pub fn new(owner: Thing, song: Thing) -> Self {
         Self {
             id: None,
             owner,

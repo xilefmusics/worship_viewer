@@ -205,8 +205,8 @@ struct SessionPath {
 }
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct UserIdPath {
-    pub(crate) user_id: String,
+pub struct UserIdPath {
+    pub user_id: String,
 }
 
 #[derive(Debug, Deserialize)]

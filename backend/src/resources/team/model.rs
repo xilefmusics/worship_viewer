@@ -8,13 +8,13 @@ use crate::database::record_id_string;
 use crate::error::AppError;
 use crate::resources::user::UserRecord;
 
-pub(crate) fn thing_record_key(t: &Thing) -> String {
+pub fn thing_record_key(t: &Thing) -> String {
     format!("{}:{}", t.tb, record_id_string(t))
 }
 
 // Used by `resolver` parity tests; write ACL is enforced in SurrealQL in `content_write_team_things`.
 #[allow(dead_code)]
-pub(crate) fn team_content_writable(user_id: &str, stored: &TeamStored) -> bool {
+pub fn team_content_writable(user_id: &str, stored: &TeamStored) -> bool {
     if let Some(ref o) = stored.owner
         && thing_user_id(o) == user_id
     {
@@ -25,7 +25,7 @@ pub(crate) fn team_content_writable(user_id: &str, stored: &TeamStored) -> bool 
     })
 }
 
-pub(crate) fn build_create_shared_members(
+pub fn build_create_shared_members(
     creator_id: &str,
     extra: &[TeamMemberInput],
 ) -> Result<Vec<DbTeamMember>, AppError> {
@@ -55,7 +55,7 @@ pub(crate) fn build_create_shared_members(
     Ok(members)
 }
 
-pub(crate) fn inputs_to_db_members(
+pub fn inputs_to_db_members(
     inputs: &[TeamMemberInput],
 ) -> Result<Vec<DbTeamMember>, AppError> {
     let mut map: BTreeMap<String, DbTeamMember> = BTreeMap::new();
@@ -72,7 +72,7 @@ pub(crate) fn inputs_to_db_members(
     Ok(map.into_values().collect())
 }
 
-pub(crate) fn member_user_id(user: &TeamUserRef) -> Result<String, AppError> {
+pub fn member_user_id(user: &TeamUserRef) -> Result<String, AppError> {
     let id = user.id.trim();
     if id.is_empty() {
         return Err(AppError::invalid_request(
@@ -82,7 +82,7 @@ pub(crate) fn member_user_id(user: &TeamUserRef) -> Result<String, AppError> {
     Ok(id.to_owned())
 }
 
-pub(crate) fn validate_shared_has_admin(members: &[DbTeamMember]) -> Result<(), AppError> {
+pub fn validate_shared_has_admin(members: &[DbTeamMember]) -> Result<(), AppError> {
     if !members.iter().any(|m| m.role == "admin") {
         return Err(AppError::invalid_request(
             "shared team must have at least one admin member",
@@ -92,7 +92,7 @@ pub(crate) fn validate_shared_has_admin(members: &[DbTeamMember]) -> Result<(), 
 }
 
 /// After a membership update on an existing shared team (PUT), missing any admin is a conflict (e.g. sole admin leaving).
-pub(crate) fn ensure_shared_team_has_admin_after_update(
+pub fn ensure_shared_team_has_admin_after_update(
     members: &[DbTeamMember],
 ) -> Result<(), AppError> {
     if !members.iter().any(|m| m.role == "admin") {
@@ -121,7 +121,7 @@ fn members_without_user(stored: &TeamStored, user_id: &str) -> Vec<DbTeamMember>
 }
 
 /// Non-admins may only PUT to remove themselves: same team name and `members` exactly the current list minus the caller.
-pub(crate) fn member_self_leave_payload(
+pub fn member_self_leave_payload(
     stored: &TeamStored,
     user_id: &str,
     current_name: &str,
@@ -139,7 +139,7 @@ pub(crate) fn member_self_leave_payload(
     members_role_map(new_members) == members_role_map(&expected)
 }
 
-pub(crate) fn validate_personal_members_not_owner(
+pub fn validate_personal_members_not_owner(
     owner_id: &str,
     members: &[DbTeamMember],
 ) -> Result<(), AppError> {
@@ -154,36 +154,36 @@ pub(crate) fn validate_personal_members_not_owner(
 
 #[derive(Serialize)]
 pub struct TeamCreatePayload {
-    pub(crate) name: String,
+    pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) owner: Option<Thing>,
-    pub(crate) members: Vec<DbTeamMember>,
+    pub owner: Option<Thing>,
+    pub members: Vec<DbTeamMember>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DbTeamMember {
-    pub(crate) user: Thing,
-    pub(crate) role: String,
+    pub user: Thing,
+    pub role: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct TeamFetched {
-    pub(crate) id: Thing,
-    pub(crate) name: String,
+    pub id: Thing,
+    pub name: String,
     #[serde(default)]
-    pub(crate) owner: Option<UserRecord>,
+    pub owner: Option<UserRecord>,
     #[serde(default)]
-    pub(crate) members: Vec<TeamMemberFetched>,
+    pub members: Vec<TeamMemberFetched>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct TeamMemberFetched {
-    pub(crate) user: UserRecord,
-    pub(crate) role: String,
+pub struct TeamMemberFetched {
+    pub user: UserRecord,
+    pub role: String,
 }
 
 impl TeamFetched {
-    pub(crate) fn into_team(self) -> Result<Team, AppError> {
+    pub fn into_team(self) -> Result<Team, AppError> {
         let id = self.id.id.to_string();
         let owner = self.owner.map(user_record_to_team_user).transpose()?;
         let mut members = Vec::with_capacity(self.members.len());
@@ -211,17 +211,17 @@ fn user_record_to_team_user(rec: UserRecord) -> Result<TeamUser, AppError> {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub(crate) struct TeamIdRow {
-    pub(crate) id: Thing,
+pub struct TeamIdRow {
+    pub id: Thing,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct TeamStored {
-    pub(crate) owner: Option<Thing>,
-    pub(crate) members: Vec<DbTeamMember>,
+pub struct TeamStored {
+    pub owner: Option<Thing>,
+    pub members: Vec<DbTeamMember>,
 }
 
-pub(crate) fn team_fetched_to_stored(row: &TeamFetched) -> Result<TeamStored, AppError> {
+pub fn team_fetched_to_stored(row: &TeamFetched) -> Result<TeamStored, AppError> {
     let owner = row
         .owner
         .as_ref()
@@ -237,20 +237,20 @@ pub(crate) fn team_fetched_to_stored(row: &TeamFetched) -> Result<TeamStored, Ap
     Ok(TeamStored { owner, members })
 }
 
-pub(crate) fn user_thing(user_id: &str) -> Thing {
+pub fn user_thing(user_id: &str) -> Thing {
     Thing::from(("user".to_owned(), user_id.to_owned()))
 }
 
-pub(crate) fn public_team_thing() -> Thing {
+pub fn public_team_thing() -> Thing {
     Thing::from(("team".to_owned(), "public".to_owned()))
 }
 
-pub(crate) fn is_public_resource(resource: &(String, String)) -> bool {
+pub fn is_public_resource(resource: &(String, String)) -> bool {
     resource.0 == "team" && resource.1 == "public"
 }
 
 /// `team:public` is seeded for internal use only (see migration). It is not exposed through the REST API.
-pub(crate) fn team_resource_or_reject_public(id: &str) -> Result<(String, String), AppError> {
+pub fn team_resource_or_reject_public(id: &str) -> Result<(String, String), AppError> {
     let resource = team_resource(id)?;
     if is_public_resource(&resource) {
         return Err(AppError::NotFound("team not found".into()));
@@ -270,11 +270,11 @@ fn team_resource(id: &str) -> Result<(String, String), AppError> {
     Ok(("team".to_owned(), id.to_owned()))
 }
 
-pub(crate) fn thing_user_id(t: &Thing) -> String {
+pub fn thing_user_id(t: &Thing) -> String {
     t.id.to_string()
 }
 
-pub(crate) fn member_or_owner_readable(user_id: &str, stored: &TeamStored) -> bool {
+pub fn member_or_owner_readable(user_id: &str, stored: &TeamStored) -> bool {
     if let Some(ref o) = stored.owner
         && thing_user_id(o) == user_id
     {
@@ -287,11 +287,11 @@ pub(crate) fn member_or_owner_readable(user_id: &str, stored: &TeamStored) -> bo
 }
 
 /// List/get team: members, personal owner, or platform (`User.role` admin) for read-only API access.
-pub(crate) fn can_read_team(user_id: &str, stored: &TeamStored, app_admin: bool) -> bool {
+pub fn can_read_team(user_id: &str, stored: &TeamStored, app_admin: bool) -> bool {
     app_admin || member_or_owner_readable(user_id, stored)
 }
 
-pub(crate) fn effective_admin(user_id: &str, stored: &TeamStored) -> bool {
+pub fn effective_admin(user_id: &str, stored: &TeamStored) -> bool {
     if let Some(ref o) = stored.owner
         && thing_user_id(o) == user_id
     {

@@ -7,19 +7,19 @@ use shared::song::LinkOwned as SongLinkOwned;
 use crate::resources::common::{FetchedSongRecord, SongLinkRecord, blob_thing};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
-pub(crate) struct CollectionRecord {
+pub struct CollectionRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) id: Option<Thing>,
+    pub id: Option<Thing>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) owner: Option<Thing>,
-    pub(crate) title: String,
-    pub(crate) cover: Option<Thing>,
+    pub owner: Option<Thing>,
+    pub title: String,
+    pub cover: Option<Thing>,
     #[serde(default)]
-    pub(crate) songs: Vec<SongLinkRecord>,
+    pub songs: Vec<SongLinkRecord>,
 }
 
 impl CollectionRecord {
-    pub(crate) fn into_collection(self) -> Collection {
+    pub fn into_collection(self) -> Collection {
         Collection {
             id: self
                 .id
@@ -38,7 +38,7 @@ impl CollectionRecord {
         }
     }
 
-    pub(crate) fn from_payload(
+    pub fn from_payload(
         id: Option<Thing>,
         owner: Option<Thing>,
         collection: CreateCollection,
@@ -54,15 +54,15 @@ impl CollectionRecord {
 }
 
 #[derive(Deserialize)]
-pub(crate) struct CollectionSongsRecord {
+pub struct CollectionSongsRecord {
     #[serde(default)]
-    pub(crate) owner: Option<Thing>,
+    pub owner: Option<Thing>,
     #[serde(default)]
-    pub(crate) songs: Vec<FetchedSongRecord>,
+    pub songs: Vec<FetchedSongRecord>,
 }
 
 impl CollectionSongsRecord {
-    pub(crate) fn into_songs(self) -> Vec<SongLinkOwned> {
+    pub fn into_songs(self) -> Vec<SongLinkOwned> {
         self.songs
             .into_iter()
             .map(|record| record.into_song_link_owned())
