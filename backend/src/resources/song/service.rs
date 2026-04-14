@@ -111,7 +111,7 @@ impl<
     ) -> Result<Player, AppError> {
         let read_teams = perms.read_teams().await?;
         Ok(Player::from(SongLinkOwned {
-            song: self.repo.get_song(read_teams.clone(), id).await?,
+            song: self.repo.get_song(read_teams, id).await?,
             nr: None,
             key: None,
             liked: self.repo.get_song_like(read_teams, &perms.user().id, id).await?,

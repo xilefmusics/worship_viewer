@@ -132,7 +132,7 @@ mod tests {
     impl BlobRepository for MockBlobRepo {
         async fn get_blobs(
             &self,
-            _read_teams: Vec<Thing>,
+            _read_teams: &[Thing],
             _pagination: ListQuery,
         ) -> Result<Vec<Blob>, AppError> {
             Ok(self.blobs.clone())
@@ -140,7 +140,7 @@ mod tests {
 
         async fn get_blob(
             &self,
-            _read_teams: Vec<Thing>,
+            _read_teams: &[Thing],
             _id: &str,
         ) -> Result<Blob, AppError> {
             self.blobs
@@ -162,7 +162,7 @@ mod tests {
 
         async fn update_blob(
             &self,
-            _write_teams: Vec<Thing>,
+            _write_teams: &[Thing],
             _id: &str,
             _blob: CreateBlob,
         ) -> Result<Blob, AppError> {
@@ -174,7 +174,7 @@ mod tests {
 
         async fn delete_blob(
             &self,
-            _write_teams: Vec<Thing>,
+            _write_teams: &[Thing],
             _id: &str,
         ) -> Result<Blob, AppError> {
             self.blobs

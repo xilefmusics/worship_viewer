@@ -12,15 +12,15 @@ use crate::error::AppError;
 pub trait SetlistRepository: Send + Sync {
     async fn get_setlists(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         pagination: ListQuery,
     ) -> Result<Vec<Setlist>, AppError>;
 
-    async fn get_setlist(&self, read_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError>;
+    async fn get_setlist(&self, read_teams: &[Thing], id: &str) -> Result<Setlist, AppError>;
 
     async fn get_setlist_songs(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         id: &str,
     ) -> Result<Vec<SongLinkOwned>, AppError>;
 
@@ -32,10 +32,10 @@ pub trait SetlistRepository: Send + Sync {
 
     async fn update_setlist(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         id: &str,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError>;
 
-    async fn delete_setlist(&self, write_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError>;
+    async fn delete_setlist(&self, write_teams: &[Thing], id: &str) -> Result<Setlist, AppError>;
 }

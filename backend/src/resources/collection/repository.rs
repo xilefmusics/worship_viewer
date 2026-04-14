@@ -12,19 +12,19 @@ use crate::error::AppError;
 pub trait CollectionRepository: Send + Sync {
     async fn get_collections(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         pagination: ListQuery,
     ) -> Result<Vec<Collection>, AppError>;
 
     async fn get_collection(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         id: &str,
     ) -> Result<Collection, AppError>;
 
     async fn get_collection_songs(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         id: &str,
     ) -> Result<Vec<SongLinkOwned>, AppError>;
 
@@ -36,20 +36,20 @@ pub trait CollectionRepository: Send + Sync {
 
     async fn update_collection(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         id: &str,
         collection: CreateCollection,
     ) -> Result<Collection, AppError>;
 
     async fn delete_collection(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         id: &str,
     ) -> Result<Collection, AppError>;
 
     async fn add_song_to_collection(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         id: &str,
         song_link: SongLink,
     ) -> Result<(), AppError>;

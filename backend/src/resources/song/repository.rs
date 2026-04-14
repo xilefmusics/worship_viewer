@@ -13,34 +13,34 @@ use crate::error::AppError;
 pub trait SongRepository: Send + Sync {
     async fn get_songs(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         pagination: ListQuery,
     ) -> Result<Vec<Song>, AppError>;
 
-    async fn get_song(&self, read_teams: Vec<Thing>, id: &str) -> Result<Song, AppError>;
+    async fn get_song(&self, read_teams: &[Thing], id: &str) -> Result<Song, AppError>;
 
     async fn create_song(&self, owner: &str, song: CreateSong) -> Result<Song, AppError>;
 
     async fn update_song(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         actor_user_id: &str,
         id: &str,
         song: CreateSong,
     ) -> Result<Song, AppError>;
 
-    async fn delete_song(&self, write_teams: Vec<Thing>, id: &str) -> Result<Song, AppError>;
+    async fn delete_song(&self, write_teams: &[Thing], id: &str) -> Result<Song, AppError>;
 
     async fn get_song_like(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         user_id: &str,
         id: &str,
     ) -> Result<bool, AppError>;
 
     async fn set_song_like(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         user_id: &str,
         id: &str,
         liked: bool,

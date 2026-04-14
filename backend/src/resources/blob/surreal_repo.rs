@@ -33,7 +33,7 @@ impl SurrealBlobRepo {
 impl BlobRepository for SurrealBlobRepo {
     async fn get_blobs(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         pagination: ListQuery,
     ) -> Result<Vec<Blob>, AppError> {
         let db = self.inner();
@@ -42,7 +42,7 @@ impl BlobRepository for SurrealBlobRepo {
             query.push_str(" LIMIT $limit START $start");
         }
 
-        let mut request = db.db.query(query).bind(("teams", read_teams));
+        let mut request = db.db.query(query).bind(("teams", read_teams.to_vec()));
         if let Some((offset, limit)) = pagination.to_offset_limit() {
             request = request.bind(("limit", limit)).bind(("start", offset));
         }
@@ -56,7 +56,7 @@ impl BlobRepository for SurrealBlobRepo {
             .collect())
     }
 
-    async fn get_blob(&self, read_teams: Vec<Thing>, id: &str) -> Result<Blob, AppError> {
+    async fn get_blob(&self, read_teams: &[Thing], id: &str) -> Result<Blob, AppError> {
         let db = self.inner();
         let record: Option<BlobRecord> = db.db.select(resource_id("blob", id)?).await?;
         match record {
@@ -83,7 +83,7 @@ impl BlobRepository for SurrealBlobRepo {
 
     async fn update_blob(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         id: &str,
         blob: CreateBlob,
     ) -> Result<Blob, AppError> {
@@ -102,7 +102,7 @@ impl BlobRepository for SurrealBlobRepo {
             .bind(("width", blob.width))
             .bind(("height", blob.height))
             .bind(("ocr", blob.ocr.clone()))
-            .bind(("teams", write_teams))
+            .bind(("teams", write_teams.to_vec()))
             .await?;
 
         let rows: Vec<BlobRecord> = response.take(0)?;
@@ -112,7 +112,7 @@ impl BlobRepository for SurrealBlobRepo {
             .ok_or_else(|| AppError::NotFound("blob not found".into()))
     }
 
-    async fn delete_blob(&self, write_teams: Vec<Thing>, id: &str) -> Result<Blob, AppError> {
+    async fn delete_blob(&self, write_teams: &[Thing], id: &str) -> Result<Blob, AppError> {
         let db = self.inner();
         let (tb, sid) = resource_id("blob", id)?;
         let mut response = db
@@ -120,7 +120,7 @@ impl BlobRepository for SurrealBlobRepo {
             .query("DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
-            .bind(("teams", write_teams))
+            .bind(("teams", write_teams.to_vec()))
             .await?;
 
         let rows: Vec<BlobRecord> = response.take(0)?;

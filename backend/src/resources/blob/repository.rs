@@ -11,20 +11,20 @@ use crate::error::AppError;
 pub trait BlobRepository: Send + Sync {
     async fn get_blobs(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         pagination: ListQuery,
     ) -> Result<Vec<Blob>, AppError>;
 
-    async fn get_blob(&self, read_teams: Vec<Thing>, id: &str) -> Result<Blob, AppError>;
+    async fn get_blob(&self, read_teams: &[Thing], id: &str) -> Result<Blob, AppError>;
 
     async fn create_blob(&self, owner: &str, blob: CreateBlob) -> Result<Blob, AppError>;
 
     async fn update_blob(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         id: &str,
         blob: CreateBlob,
     ) -> Result<Blob, AppError>;
 
-    async fn delete_blob(&self, write_teams: Vec<Thing>, id: &str) -> Result<Blob, AppError>;
+    async fn delete_blob(&self, write_teams: &[Thing], id: &str) -> Result<Blob, AppError>;
 }

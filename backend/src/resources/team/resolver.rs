@@ -55,24 +55,24 @@ impl<'a, T: TeamResolver> UserPermissions<'a, T> {
         self.user
     }
 
-    /// Teams whose content the user may read. Resolved once; subsequent calls return a clone.
-    pub async fn read_teams(&self) -> Result<Vec<Thing>, AppError> {
+    /// Teams whose content the user may read. Resolved once; subsequent calls return the cached slice.
+    pub async fn read_teams(&self) -> Result<&[Thing], AppError> {
         let user = self.user;
         let resolver = self.resolver;
         self.read_teams
             .get_or_try_init(|| async move { resolver.content_read_teams(user).await })
             .await
-            .map(Vec::clone)
+            .map(Vec::as_slice)
     }
 
-    /// Teams whose content the user may write. Resolved once; subsequent calls return a clone.
-    pub async fn write_teams(&self) -> Result<Vec<Thing>, AppError> {
+    /// Teams whose content the user may write. Resolved once; subsequent calls return the cached slice.
+    pub async fn write_teams(&self) -> Result<&[Thing], AppError> {
         let user = self.user;
         let resolver = self.resolver;
         self.write_teams
             .get_or_try_init(|| async move { resolver.content_write_teams(user).await })
             .await
-            .map(Vec::clone)
+            .map(Vec::as_slice)
     }
 
     /// The user's personal team. Resolved once; subsequent calls return a clone.

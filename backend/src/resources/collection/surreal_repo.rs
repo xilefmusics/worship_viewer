@@ -33,7 +33,7 @@ impl SurrealCollectionRepo {
 impl CollectionRepository for SurrealCollectionRepo {
     async fn get_collections(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         pagination: ListQuery,
     ) -> Result<Vec<Collection>, AppError> {
         let db = self.inner();
@@ -52,7 +52,7 @@ impl CollectionRepository for SurrealCollectionRepo {
             query.push_str(" LIMIT $limit START $start");
         }
 
-        let mut request = db.db.query(query).bind(("teams", read_teams));
+        let mut request = db.db.query(query).bind(("teams", read_teams.to_vec()));
         if let Some(ref q) = pagination.q
             && !q.trim().is_empty()
         {
@@ -73,7 +73,7 @@ impl CollectionRepository for SurrealCollectionRepo {
 
     async fn get_collection(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         id: &str,
     ) -> Result<Collection, AppError> {
         let db = self.inner();
@@ -87,7 +87,7 @@ impl CollectionRepository for SurrealCollectionRepo {
 
     async fn get_collection_songs(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         id: &str,
     ) -> Result<Vec<SongLinkOwned>, AppError> {
         let db = self.inner();
@@ -130,7 +130,7 @@ impl CollectionRepository for SurrealCollectionRepo {
 
     async fn update_collection(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         id: &str,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
@@ -151,7 +151,7 @@ impl CollectionRepository for SurrealCollectionRepo {
             .bind(("title", title))
             .bind(("cover", cover))
             .bind(("songs", songs))
-            .bind(("teams", write_teams))
+            .bind(("teams", write_teams.to_vec()))
             .await?;
 
         let rows: Vec<CollectionRecord> = response.take(0)?;
@@ -163,7 +163,7 @@ impl CollectionRepository for SurrealCollectionRepo {
 
     async fn delete_collection(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         id: &str,
     ) -> Result<Collection, AppError> {
         let db = self.inner();
@@ -173,7 +173,7 @@ impl CollectionRepository for SurrealCollectionRepo {
             .query("DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
-            .bind(("teams", write_teams))
+            .bind(("teams", write_teams.to_vec()))
             .await?;
 
         let rows: Vec<CollectionRecord> = response.take(0)?;
@@ -185,7 +185,7 @@ impl CollectionRepository for SurrealCollectionRepo {
 
     async fn add_song_to_collection(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         id: &str,
         song_link: SongLink,
     ) -> Result<(), AppError> {
@@ -196,7 +196,7 @@ impl CollectionRepository for SurrealCollectionRepo {
                 r#"UPDATE type::thing("collection", $id) SET songs = array::append(songs, $song) WHERE owner IN $teams;"#,
             )
             .bind(("id", id.to_owned()))
-            .bind(("teams", write_teams))
+            .bind(("teams", write_teams.to_vec()))
             .bind(("song", SongLinkRecord::from(song_link)))
             .await?;
 

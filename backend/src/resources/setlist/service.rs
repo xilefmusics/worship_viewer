@@ -165,7 +165,7 @@ mod tests {
     impl SetlistRepository for MockRepo {
         async fn get_setlists(
             &self,
-            _read_teams: Vec<Thing>,
+            _read_teams: &[Thing],
             _pagination: ListQuery,
         ) -> Result<Vec<Setlist>, AppError> {
             Ok(self.setlists.clone())
@@ -173,7 +173,7 @@ mod tests {
 
         async fn get_setlist(
             &self,
-            _read_teams: Vec<Thing>,
+            _read_teams: &[Thing],
             _id: &str,
         ) -> Result<Setlist, AppError> {
             self.get_returns
@@ -183,7 +183,7 @@ mod tests {
 
         async fn get_setlist_songs(
             &self,
-            _read_teams: Vec<Thing>,
+            _read_teams: &[Thing],
             _id: &str,
         ) -> Result<Vec<SongLinkOwned>, AppError> {
             Ok(vec![])
@@ -199,7 +199,7 @@ mod tests {
 
         async fn update_setlist(
             &self,
-            _write_teams: Vec<Thing>,
+            _write_teams: &[Thing],
             _id: &str,
             _setlist: CreateSetlist,
         ) -> Result<Setlist, AppError> {
@@ -217,7 +217,7 @@ mod tests {
 
         async fn delete_setlist(
             &self,
-            _write_teams: Vec<Thing>,
+            _write_teams: &[Thing],
             _id: &str,
         ) -> Result<Setlist, AppError> {
             Err(AppError::NotFound("setlist not found".into()))

@@ -38,7 +38,7 @@ impl SurrealSongRepo {
 impl SongRepository for SurrealSongRepo {
     async fn get_songs(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         pagination: ListQuery,
     ) -> Result<Vec<Song>, AppError> {
         let db = self.inner();
@@ -59,7 +59,7 @@ impl SongRepository for SurrealSongRepo {
             query.push_str(" LIMIT $limit START $start");
         }
 
-        let mut request = db.db.query(query).bind(("teams", read_teams));
+        let mut request = db.db.query(query).bind(("teams", read_teams.to_vec()));
         if let Some(ref q) = pagination.q
             && !q.trim().is_empty()
         {
@@ -78,7 +78,7 @@ impl SongRepository for SurrealSongRepo {
             .collect())
     }
 
-    async fn get_song(&self, read_teams: Vec<Thing>, id: &str) -> Result<Song, AppError> {
+    async fn get_song(&self, read_teams: &[Thing], id: &str) -> Result<Song, AppError> {
         let db = self.inner();
         let record: Option<SongRecord> = db.db.select(resource_id("song", id)?).await?;
         match record {
@@ -100,7 +100,7 @@ impl SongRepository for SurrealSongRepo {
 
     async fn update_song(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         actor_user_id: &str,
         id: &str,
         song: CreateSong,
@@ -123,7 +123,7 @@ impl SongRepository for SurrealSongRepo {
             .bind(("blobs", blobs))
             .bind(("data", song.data.clone()))
             .bind(("search_content", search_content))
-            .bind(("teams", write_teams.clone()))
+            .bind(("teams", write_teams.to_vec()))
             .await?;
 
         let rows: Vec<SongRecord> = response.take(0)?;
@@ -150,7 +150,7 @@ impl SongRepository for SurrealSongRepo {
             .ok_or_else(|| AppError::database("failed to upsert song"))
     }
 
-    async fn delete_song(&self, write_teams: Vec<Thing>, id: &str) -> Result<Song, AppError> {
+    async fn delete_song(&self, write_teams: &[Thing], id: &str) -> Result<Song, AppError> {
         let db = self.inner();
         let (tb, sid) = resource_id("song", id)?;
         let mut response = db
@@ -158,7 +158,7 @@ impl SongRepository for SurrealSongRepo {
             .query("DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
-            .bind(("teams", write_teams))
+            .bind(("teams", write_teams.to_vec()))
             .await?;
 
         let rows: Vec<SongRecord> = response.take(0)?;
@@ -170,7 +170,7 @@ impl SongRepository for SurrealSongRepo {
 
     async fn get_song_like(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         user_id: &str,
         id: &str,
     ) -> Result<bool, AppError> {
@@ -202,7 +202,7 @@ impl SongRepository for SurrealSongRepo {
 
     async fn set_song_like(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         user_id: &str,
         id: &str,
         liked: bool,

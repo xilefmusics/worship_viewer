@@ -34,7 +34,7 @@ impl SurrealSetlistRepo {
 impl SetlistRepository for SurrealSetlistRepo {
     async fn get_setlists(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         pagination: ListQuery,
     ) -> Result<Vec<Setlist>, AppError> {
         let db = self.inner();
@@ -53,7 +53,7 @@ impl SetlistRepository for SurrealSetlistRepo {
             query.push_str(" LIMIT $limit START $start");
         }
 
-        let mut request = db.db.query(query).bind(("teams", read_teams));
+        let mut request = db.db.query(query).bind(("teams", read_teams.to_vec()));
         if let Some(ref q) = pagination.q
             && !q.trim().is_empty()
         {
@@ -71,7 +71,7 @@ impl SetlistRepository for SurrealSetlistRepo {
             .collect())
     }
 
-    async fn get_setlist(&self, read_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError> {
+    async fn get_setlist(&self, read_teams: &[Thing], id: &str) -> Result<Setlist, AppError> {
         let db = self.inner();
         let record: Option<SetlistRecord> = db.db.select(resource_id("setlist", id)?).await?;
         match record {
@@ -82,7 +82,7 @@ impl SetlistRepository for SurrealSetlistRepo {
 
     async fn get_setlist_songs(
         &self,
-        read_teams: Vec<Thing>,
+        read_teams: &[Thing],
         id: &str,
     ) -> Result<Vec<SongLinkOwned>, AppError> {
         let db = self.inner();
@@ -121,7 +121,7 @@ impl SetlistRepository for SurrealSetlistRepo {
 
     async fn update_setlist(
         &self,
-        write_teams: Vec<Thing>,
+        write_teams: &[Thing],
         id: &str,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
@@ -140,7 +140,7 @@ impl SetlistRepository for SurrealSetlistRepo {
             .bind(("sid", sid))
             .bind(("title", title))
             .bind(("songs", songs))
-            .bind(("teams", write_teams))
+            .bind(("teams", write_teams.to_vec()))
             .await?;
 
         let rows: Vec<SetlistRecord> = response.take(0)?;
@@ -151,7 +151,7 @@ impl SetlistRepository for SurrealSetlistRepo {
             .ok_or_else(|| AppError::NotFound("setlist not found".into()))
     }
 
-    async fn delete_setlist(&self, write_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError> {
+    async fn delete_setlist(&self, write_teams: &[Thing], id: &str) -> Result<Setlist, AppError> {
         let db = self.inner();
         let (tb, sid) = resource_id("setlist", id)?;
         let mut response = db
@@ -161,7 +161,7 @@ impl SetlistRepository for SurrealSetlistRepo {
             )
             .bind(("tb", tb))
             .bind(("sid", sid))
-            .bind(("teams", write_teams))
+            .bind(("teams", write_teams.to_vec()))
             .await?;
 
         let rows: Vec<SetlistRecord> = response.take(0)?;
