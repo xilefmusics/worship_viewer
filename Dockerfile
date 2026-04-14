@@ -5,7 +5,10 @@ RUN export CARGO_BUILD_JOBS=$(nproc) && \
     cargo binstall trunk --version 0.21.14 --no-confirm && \
     rustup target add wasm32-unknown-unknown && \
     apt-get update && \
-    apt-get install -y --no-install-recommends pkg-config libssl-dev build-essential ca-certificates curl
+    apt-get install -y --no-install-recommends pkg-config libssl-dev build-essential ca-certificates curl && \
+    VENOM_VERSION=1.2.0 && \
+    curl -L "https://github.com/ovh/venom/releases/download/v${VENOM_VERSION}/venom.linux-amd64" -o /usr/local/bin/venom && \
+    chmod +x /usr/local/bin/venom
 
 WORKDIR /wrk
 COPY ./shared ./shared
@@ -13,7 +16,7 @@ COPY ./shared ./shared
 WORKDIR /wrk
 COPY ./backend ./backend
 WORKDIR /wrk/backend
-RUN cargo test && cargo build --release
+RUN cargo build --release
 
 WORKDIR /wrk
 COPY ./frontend ./frontend
@@ -22,7 +25,7 @@ RUN trunk build --release
 
 FROM scratch AS tester
 
-# runtime libraries required for backend binary
+# runtime libraries required for backend and Venom
 COPY --from=builder /lib/x86_64-linux-gnu/libdl.so.2 /lib/x86_64-linux-gnu/libdl.so.2
 COPY --from=builder /lib/x86_64-linux-gnu/libpthread.so.0 /lib/x86_64-linux-gnu/libpthread.so.0
 COPY --from=builder /lib/x86_64-linux-gnu/libm.so.6 /lib/x86_64-linux-gnu/libm.so.6
@@ -37,17 +40,31 @@ COPY --from=builder /usr/lib/x86_64-linux-gnu/libzstd.so.1 /usr/lib/x86_64-linux
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /usr/lib/x86_64-linux-gnu/libstdc++.so.6
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
+# shell & utilities to orchestrate tests
 COPY --from=builder /bin/sh /bin/sh
+COPY --from=builder /bin/sleep /bin/sleep
 
 SHELL ["/bin/sh", "-c"]
 
+COPY --from=builder /usr/local/bin/venom /usr/local/bin/venom
+COPY --from=builder /wrk/backend/tests /app/tests
 COPY --from=builder /wrk/backend/target/release/backend /app/worship_viewer
 COPY --from=builder /wrk/backend/db-migrations /app/db-migrations
 COPY --from=builder /wrk/frontend/dist/ /app/static
 
 WORKDIR /app
 
-RUN test -x /app/worship_viewer
+ENV INITIAL_ADMIN_USER_EMAIL="admin@example.com" \
+    INITIAL_ADMIN_USER_TEST_SESSION=true
+
+RUN set -eux; \
+    ./worship_viewer & \
+    backend_pid=$!; \
+    trap "kill $backend_pid 2>/dev/null || true" EXIT; \
+    sleep 5; \
+    /usr/local/bin/venom run /app/tests/*.yml; \
+    kill $backend_pid; \
+    wait $backend_pid 2>/dev/null || true
 
 FROM scratch
 
