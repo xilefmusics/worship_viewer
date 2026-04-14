@@ -16,6 +16,7 @@ use crate::database::Database;
 use crate::error::AppError;
 use crate::resources::User;
 use crate::resources::collection::{CreateCollection, Model as CollectionDbModel};
+use crate::resources::common::{belongs_to, blob_thing, resource_id};
 use crate::resources::team::{content_read_team_things, content_write_team_things};
 use crate::resources::user::Model as UserDbModel;
 
@@ -96,8 +97,9 @@ impl Model for Database {
     }
 
     async fn get_song(&self, read_teams: Vec<Thing>, id: &str) -> Result<Song, AppError> {
-        match self.db.select(song_resource(id)?).await? {
-            Some(record) if song_belongs_to(&record, &read_teams) => Ok(record.into_song()),
+        let record: Option<SongRecord> = self.db.select(resource_id("song", id)?).await?;
+        match record {
+            Some(r) if belongs_to(&r.owner, &read_teams) => Ok(r.into_song()),
             _ => Err(AppError::NotFound("song not found".into())),
         }
     }
@@ -119,7 +121,7 @@ impl Model for Database {
         id: &str,
         song: CreateSong,
     ) -> Result<Song, AppError> {
-        let resource = song_resource(id)?;
+        let resource = resource_id("song", id)?;
         let (tb, sid) = resource.clone();
         let search_content = search_content_from_song_data(&song.data);
         let blobs: Vec<Thing> = song.blobs.iter().map(|b| blob_thing(b)).collect();
@@ -164,7 +166,7 @@ impl Model for Database {
     }
 
     async fn delete_song(&self, write_teams: Vec<Thing>, id: &str) -> Result<Song, AppError> {
-        let (tb, sid) = song_resource(id)?;
+        let (tb, sid) = resource_id("song", id)?;
         let mut response = self
             .db
             .query(
@@ -189,14 +191,14 @@ impl Model for Database {
         user_id: &str,
         id: &str,
     ) -> Result<bool, AppError> {
-        let resource = song_resource(id)?;
-        let existing = self
+        let resource = resource_id("song", id)?;
+        let existing: SongRecord = self
             .db
             .select(resource.clone())
             .await?
             .ok_or_else(|| AppError::NotFound("song not found".into()))?;
 
-        if !song_belongs_to(&existing, &read_teams) {
+        if !belongs_to(&existing.owner, &read_teams) {
             return Err(AppError::NotFound("song not found".into()));
         }
 
@@ -221,14 +223,14 @@ impl Model for Database {
         id: &str,
         liked: bool,
     ) -> Result<bool, AppError> {
-        let resource = song_resource(id)?;
-        let existing = self
+        let resource = resource_id("song", id)?;
+        let existing: SongRecord = self
             .db
             .select(resource.clone())
             .await?
             .ok_or_else(|| AppError::NotFound("song not found".into()))?;
 
-        if !song_belongs_to(&existing, &read_teams) {
+        if !belongs_to(&existing.owner, &read_teams) {
             return Err(AppError::NotFound("song not found".into()));
         }
 
@@ -407,16 +409,6 @@ impl Database {
     }
 }
 
-fn song_resource(id: &str) -> Result<(String, String), AppError> {
-    if let Ok(thing) = id.parse::<Thing>() {
-        if thing.tb == "song" {
-            return Ok((thing.tb, thing.id.to_string()));
-        }
-        return Err(AppError::invalid_request("invalid song id"));
-    }
-
-    Ok(("song".to_owned(), id.to_owned()))
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct SongRecord {
@@ -482,24 +474,6 @@ fn owner_thing(user_id: &str) -> Thing {
     Thing::from(("user".to_owned(), user_id.to_owned()))
 }
 
-fn blob_thing(blob_id: &str) -> Thing {
-    if let Ok(thing) = blob_id.parse::<Thing>()
-        && thing.tb == "blob"
-    {
-        return thing;
-    }
-
-    Thing::from(("blob".to_owned(), blob_id.to_owned()))
-}
-
-fn song_belongs_to(record: &SongRecord, teams: &[Thing]) -> bool {
-    record
-        .owner
-        .as_ref()
-        .map(|t| teams.contains(t))
-        .unwrap_or(false)
-}
-
 fn id_from_thing(thing: Thing) -> String {
     id_to_plain_string(thing.id)
 }
@@ -534,67 +508,6 @@ impl LikeRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::AppError;
-
-    #[test]
-    fn song_resource_plain_id() {
-        assert_eq!(
-            song_resource("sid").unwrap(),
-            ("song".to_owned(), "sid".to_owned())
-        );
-    }
-
-    #[test]
-    fn song_resource_thing_string() {
-        assert_eq!(
-            song_resource("song:abc").unwrap(),
-            ("song".to_owned(), "abc".to_owned())
-        );
-    }
-
-    #[test]
-    fn song_resource_wrong_table_is_invalid() {
-        let err = song_resource("setlist:x").unwrap_err();
-        assert!(matches!(err, AppError::InvalidRequest(_)));
-    }
-
-    #[test]
-    fn song_belongs_to_when_owner_in_teams() {
-        let owner = Thing::from(("team".to_owned(), "t1".to_owned()));
-        let record = SongRecord {
-            owner: Some(owner.clone()),
-            ..Default::default()
-        };
-        assert!(song_belongs_to(
-            &record,
-            &[owner, Thing::from(("team".to_owned(), "t2".to_owned()))]
-        ));
-    }
-
-    #[test]
-    fn song_belongs_to_false_when_owner_missing() {
-        let record = SongRecord {
-            owner: None,
-            ..Default::default()
-        };
-        assert!(!song_belongs_to(
-            &record,
-            &[Thing::from(("team".to_owned(), "t1".to_owned()))]
-        ));
-    }
-
-    #[test]
-    fn song_belongs_to_false_when_not_in_teams() {
-        let owner = Thing::from(("team".to_owned(), "mine".to_owned()));
-        let record = SongRecord {
-            owner: Some(owner),
-            ..Default::default()
-        };
-        assert!(!song_belongs_to(
-            &record,
-            &[Thing::from(("team".to_owned(), "other".to_owned()))]
-        ));
-    }
 
     #[test]
     fn song_record_into_song_maps_string_ids() {

@@ -11,6 +11,7 @@ use shared::blob::{Blob, CreateBlob};
 use crate::database::Database;
 use crate::error::AppError;
 use crate::resources::User;
+use crate::resources::common::{belongs_to, resource_id};
 use crate::resources::team::{content_read_team_things, content_write_team_things};
 use crate::settings::Settings;
 
@@ -57,8 +58,9 @@ impl Model for Database {
     }
 
     async fn get_blob(&self, read_teams: Vec<Thing>, id: &str) -> Result<Blob, AppError> {
-        match self.db.select(blob_resource(id)?).await? {
-            Some(record) if blob_belongs_to(&record, &read_teams) => Ok(record.into_blob()),
+        let record: Option<BlobRecord> = self.db.select(resource_id("blob", id)?).await?;
+        match record {
+            Some(r) if belongs_to(&r.owner, &read_teams) => Ok(r.into_blob()),
             _ => Err(AppError::NotFound("blob not found".into())),
         }
     }
@@ -87,7 +89,7 @@ impl Model for Database {
         id: &str,
         blob: CreateBlob,
     ) -> Result<Blob, AppError> {
-        let (tb, sid) = blob_resource(id)?;
+        let (tb, sid) = resource_id("blob", id)?;
 
         let mut response = self
             .db
@@ -115,7 +117,7 @@ impl Model for Database {
     }
 
     async fn delete_blob(&self, write_teams: Vec<Thing>, id: &str) -> Result<Blob, AppError> {
-        let (tb, sid) = blob_resource(id)?;
+        let (tb, sid) = resource_id("blob", id)?;
         let mut response = self
             .db
             .query(
@@ -204,17 +206,6 @@ fn write_blob_file(blob: &Blob) -> Result<(), AppError> {
     std::fs::write(&path, []).map_err(|e| AppError::Internal(e.to_string()))
 }
 
-fn blob_resource(id: &str) -> Result<(String, String), AppError> {
-    if let Ok(thing) = id.parse::<Thing>() {
-        if thing.tb == "blob" {
-            return Ok((thing.tb, thing.id.to_string()));
-        }
-        return Err(AppError::invalid_request("invalid blob id"));
-    }
-
-    Ok(("blob".to_owned(), id.to_owned()))
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct BlobRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -266,94 +257,10 @@ impl BlobRecord {
     }
 }
 
-fn blob_belongs_to(record: &BlobRecord, teams: &[Thing]) -> bool {
-    record
-        .owner
-        .as_ref()
-        .map(|t| teams.contains(t))
-        .unwrap_or(false)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::AppError;
     use shared::blob::FileType;
-
-    #[test]
-    fn blob_resource_plain_id() {
-        assert_eq!(
-            blob_resource("bid").unwrap(),
-            ("blob".to_owned(), "bid".to_owned())
-        );
-    }
-
-    #[test]
-    fn blob_resource_thing_string() {
-        assert_eq!(
-            blob_resource("blob:abc").unwrap(),
-            ("blob".to_owned(), "abc".to_owned())
-        );
-    }
-
-    #[test]
-    fn blob_resource_wrong_table_is_invalid() {
-        let err = blob_resource("song:x").unwrap_err();
-        assert!(matches!(err, AppError::InvalidRequest(_)));
-    }
-
-    #[test]
-    fn blob_belongs_to_when_owner_in_teams() {
-        let owner = Thing::from(("team".to_owned(), "t1".to_owned()));
-        let record = BlobRecord {
-            id: None,
-            owner: Some(owner.clone()),
-            file_type: FileType::PNG,
-            width: 10,
-            height: 20,
-            ocr: "x".into(),
-            created_at: None,
-        };
-        assert!(blob_belongs_to(
-            &record,
-            &[owner, Thing::from(("team".to_owned(), "t2".to_owned()))]
-        ));
-    }
-
-    #[test]
-    fn blob_belongs_to_false_when_owner_missing() {
-        let record = BlobRecord {
-            id: None,
-            owner: None,
-            file_type: FileType::PNG,
-            width: 1,
-            height: 1,
-            ocr: String::new(),
-            created_at: None,
-        };
-        assert!(!blob_belongs_to(
-            &record,
-            &[Thing::from(("team".to_owned(), "t1".to_owned()))]
-        ));
-    }
-
-    #[test]
-    fn blob_belongs_to_false_when_not_in_teams() {
-        let owner = Thing::from(("team".to_owned(), "mine".to_owned()));
-        let record = BlobRecord {
-            id: None,
-            owner: Some(owner),
-            file_type: FileType::JPEG,
-            width: 1,
-            height: 1,
-            ocr: String::new(),
-            created_at: None,
-        };
-        assert!(!blob_belongs_to(
-            &record,
-            &[Thing::from(("team".to_owned(), "other".to_owned()))]
-        ));
-    }
 
     #[test]
     fn blob_record_from_payload_into_blob() {

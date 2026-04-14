@@ -6,13 +6,16 @@ use shared::{
     api::ListQuery,
     collection::{Collection, CreateCollection},
     player::Player,
-    song::{Link as SongLink, LinkOwned as SongLinkOwned, SimpleChord, Song},
+    song::{Link as SongLink, LinkOwned as SongLinkOwned, Song},
 };
 
 use crate::database::Database;
 use crate::error::AppError;
 use crate::resources::User;
-use crate::resources::song::{Format, Model as SongDbModel, SongRecord, export};
+use crate::resources::common::{
+    FetchedSongRecord, SongLinkRecord, belongs_to, blob_thing, player_from_song_links, resource_id,
+};
+use crate::resources::song::{Format, Model as SongDbModel, export};
 use crate::resources::team::{content_read_team_things, content_write_team_things};
 
 pub trait Model {
@@ -100,10 +103,10 @@ impl Model for Database {
         read_teams: Vec<Thing>,
         id: &str,
     ) -> Result<Collection, AppError> {
-        match self.db.select(collection_resource(id)?).await? {
-            Some(record) if collection_belongs_to(&record, &read_teams) => {
-                Ok(record.into_collection())
-            }
+        let record: Option<CollectionRecord> =
+            self.db.select(resource_id("collection", id)?).await?;
+        match record {
+            Some(r) if belongs_to(&r.owner, &read_teams) => Ok(r.into_collection()),
             _ => Err(AppError::NotFound("collection not found".into())),
         }
     }
@@ -113,7 +116,7 @@ impl Model for Database {
         read_teams: Vec<Thing>,
         id: &str,
     ) -> Result<Vec<SongLinkOwned>, AppError> {
-        let resource = collection_resource(id)?;
+        let resource = resource_id("collection", id)?;
         let mut response = self
             .db
             .query("SELECT owner, songs FROM collection WHERE id = $id FETCH songs.*.id")
@@ -124,7 +127,7 @@ impl Model for Database {
             .take::<Option<CollectionSongsRecord>>(0)?
             .ok_or_else(|| AppError::NotFound("collection not found".into()))?;
 
-        if !record.belongs_to(&read_teams) {
+        if !belongs_to(&record.owner, &read_teams) {
             return Err(AppError::NotFound("collection not found".into()));
         }
 
@@ -155,7 +158,7 @@ impl Model for Database {
         id: &str,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
-        let (tb, sid) = collection_resource(id)?;
+        let (tb, sid) = resource_id("collection", id)?;
         let songs: Vec<SongLinkRecord> = collection.songs.into_iter().map(Into::into).collect();
         let cover = blob_thing(&collection.cover);
         let title = collection.title;
@@ -187,7 +190,7 @@ impl Model for Database {
         write_teams: Vec<Thing>,
         id: &str,
     ) -> Result<Collection, AppError> {
-        let (tb, sid) = collection_resource(id)?;
+        let (tb, sid) = resource_id("collection", id)?;
         let mut response = self
             .db
             .query(
@@ -259,7 +262,7 @@ impl Database {
             content_read_team_things(self, user)
         )?;
         let links = self.get_collection_songs(read_teams, id).await?;
-        collection_player_from_links(liked_set, links)
+        player_from_song_links(liked_set, links)
     }
 
     pub async fn export_collection_for_user(
@@ -327,37 +330,6 @@ impl Database {
     }
 }
 
-fn collection_player_from_links(
-    liked_set: std::collections::HashSet<String>,
-    links: Vec<SongLinkOwned>,
-) -> Result<Player, AppError> {
-    links
-        .into_iter()
-        .enumerate()
-        .map(|(idx, link)| {
-            Player::from(SongLinkOwned {
-                liked: liked_set.contains(&link.song.id),
-                song: link.song,
-                nr: Some(link.nr.unwrap_or_else(|| (idx + 1).to_string())),
-                key: link.key,
-            })
-        })
-        .try_fold(Player::default(), |acc, player| {
-            Ok::<Player, AppError>(acc + player)
-        })
-}
-
-fn collection_resource(id: &str) -> Result<(String, String), AppError> {
-    if let Ok(thing) = id.parse::<Thing>() {
-        if thing.tb == "collection" {
-            return Ok((thing.tb, thing.id.to_string()));
-        }
-        return Err(AppError::invalid_request("invalid collection id"));
-    }
-
-    Ok(("collection".to_owned(), id.to_owned()))
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 struct CollectionRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -401,79 +373,15 @@ impl CollectionRecord {
     }
 }
 
-fn blob_thing(blob_id: &str) -> Thing {
-    if let Ok(thing) = blob_id.parse::<Thing>()
-        && thing.tb == "blob"
-    {
-        return thing;
-    }
-
-    Thing::from(("blob".to_owned(), blob_id.to_owned()))
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct SongLinkRecord {
-    id: Thing,
-    #[serde(default)]
-    nr: Option<String>,
-    #[serde(default)]
-    key: Option<SimpleChord>,
-}
-
-impl From<SongLinkRecord> for SongLink {
-    fn from(record: SongLinkRecord) -> Self {
-        Self {
-            id: record.id.id.to_string(),
-            nr: record.nr,
-            key: record.key,
-        }
-    }
-}
-
-impl From<SongLink> for SongLinkRecord {
-    fn from(link: SongLink) -> Self {
-        Self {
-            id: song_thing(&link.id),
-            nr: link.nr,
-            key: link.key,
-        }
-    }
-}
-
-fn song_thing(song_id: &str) -> Thing {
-    if let Ok(thing) = song_id.parse::<Thing>()
-        && thing.tb == "song"
-    {
-        return thing;
-    }
-
-    Thing::from(("song".to_owned(), song_id.to_owned()))
-}
-
-fn collection_belongs_to(record: &CollectionRecord, teams: &[Thing]) -> bool {
-    record
-        .owner
-        .as_ref()
-        .map(|t| teams.contains(t))
-        .unwrap_or(false)
-}
-
 #[derive(Deserialize)]
 struct CollectionSongsRecord {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     owner: Option<Thing>,
     #[serde(default)]
     songs: Vec<FetchedSongRecord>,
 }
 
 impl CollectionSongsRecord {
-    fn belongs_to(&self, teams: &[Thing]) -> bool {
-        self.owner
-            .as_ref()
-            .map(|t| teams.contains(t))
-            .unwrap_or(false)
-    }
-
     fn into_songs(self) -> Vec<SongLinkOwned> {
         self.songs
             .into_iter()
@@ -482,93 +390,10 @@ impl CollectionSongsRecord {
     }
 }
 
-#[derive(Deserialize)]
-struct FetchedSongRecord {
-    #[serde(rename = "id")]
-    song: SongRecord,
-    nr: Option<String>,
-    key: Option<SimpleChord>,
-    #[serde(default)]
-    liked: bool,
-}
-
-impl FetchedSongRecord {
-    fn into_song_link_owned(self) -> SongLinkOwned {
-        SongLinkOwned {
-            song: self.song.into_song(),
-            nr: self.nr,
-            key: self.key,
-            liked: self.liked,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use super::*;
-    use crate::error::AppError;
-
-    #[test]
-    fn collection_resource_plain_id() {
-        assert_eq!(
-            collection_resource("cid").unwrap(),
-            ("collection".to_owned(), "cid".to_owned())
-        );
-    }
-
-    #[test]
-    fn collection_resource_thing_string() {
-        assert_eq!(
-            collection_resource("collection:abc").unwrap(),
-            ("collection".to_owned(), "abc".to_owned())
-        );
-    }
-
-    #[test]
-    fn collection_resource_wrong_table_is_invalid() {
-        let err = collection_resource("song:x").unwrap_err();
-        assert!(matches!(err, AppError::InvalidRequest(_)));
-    }
-
-    #[test]
-    fn collection_belongs_to_when_owner_in_teams() {
-        let owner = Thing::from(("team".to_owned(), "t1".to_owned()));
-        let record = CollectionRecord {
-            owner: Some(owner.clone()),
-            ..Default::default()
-        };
-        assert!(collection_belongs_to(
-            &record,
-            &[owner, Thing::from(("team".to_owned(), "t2".to_owned()))]
-        ));
-    }
-
-    #[test]
-    fn collection_belongs_to_false_when_owner_missing() {
-        let record = CollectionRecord {
-            owner: None,
-            ..Default::default()
-        };
-        assert!(!collection_belongs_to(
-            &record,
-            &[Thing::from(("team".to_owned(), "t1".to_owned()))]
-        ));
-    }
-
-    #[test]
-    fn collection_belongs_to_false_when_not_in_teams() {
-        let owner = Thing::from(("team".to_owned(), "mine".to_owned()));
-        let record = CollectionRecord {
-            owner: Some(owner),
-            ..Default::default()
-        };
-        assert!(!collection_belongs_to(
-            &record,
-            &[Thing::from(("team".to_owned(), "other".to_owned()))]
-        ));
-    }
+    use shared::song::Link as SongLink;
 
     #[test]
     fn collection_record_from_payload_into_collection() {
@@ -594,40 +419,5 @@ mod tests {
         assert_eq!(c.cover, "cover1");
         assert_eq!(c.songs.len(), 1);
         assert_eq!(c.songs[0].id, "s1");
-    }
-
-    #[test]
-    fn collection_player_from_links_sets_liked_and_default_nr() {
-        let mut liked = HashSet::new();
-        liked.insert("a".into());
-        let s1 = Song {
-            id: "a".into(),
-            ..Default::default()
-        };
-        let s2 = Song {
-            id: "b".into(),
-            ..Default::default()
-        };
-        let links = vec![
-            SongLinkOwned {
-                song: s1,
-                nr: None,
-                key: None,
-                liked: false,
-            },
-            SongLinkOwned {
-                song: s2,
-                nr: Some("z".into()),
-                key: None,
-                liked: false,
-            },
-        ];
-        let player = collection_player_from_links(liked, links).unwrap();
-        assert!(player.is_liked("a"));
-        assert!(!player.is_liked("b"));
-        let toc = player.toc();
-        assert_eq!(toc.len(), 2);
-        assert_eq!(toc[0].nr, "1");
-        assert_eq!(toc[1].nr, "z");
     }
 }

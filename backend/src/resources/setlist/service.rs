@@ -10,7 +10,7 @@ use crate::resources::song::LikedSongIds;
 use crate::resources::song::{Format, export};
 use crate::resources::team::TeamResolver;
 
-use super::model::player_from_song_links;
+use crate::resources::common::player_from_song_links;
 use super::repository::SetlistRepository;
 
 /// Application service: team resolution, authorization, and orchestration for setlists.

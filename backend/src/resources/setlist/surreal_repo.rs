@@ -9,7 +9,9 @@ use shared::song::LinkOwned as SongLinkOwned;
 use crate::database::Database;
 use crate::error::AppError;
 
-use super::model::{SetlistRecord, SetlistSongsRecord, SongLinkRecord, setlist_belongs_to, setlist_resource};
+use crate::resources::common::{SongLinkRecord, belongs_to, resource_id};
+
+use super::model::{SetlistRecord, SetlistSongsRecord};
 use super::repository::SetlistRepository;
 
 #[derive(Clone)]
@@ -70,15 +72,10 @@ impl SetlistRepository for SurrealSetlistRepo {
 
     async fn get_setlist(&self, read_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError> {
         let db = self.inner();
-        match db.db.select(setlist_resource(id)?).await? {
-            Some(record) => {
-                if setlist_belongs_to(&record, &read_teams) {
-                    Ok(record.into_setlist())
-                } else {
-                    Err(AppError::NotFound("setlist not found".into()))
-                }
-            }
-            None => Err(AppError::NotFound("setlist not found".into())),
+        let record: Option<SetlistRecord> = db.db.select(resource_id("setlist", id)?).await?;
+        match record {
+            Some(r) if belongs_to(&r.owner, &read_teams) => Ok(r.into_setlist()),
+            _ => Err(AppError::NotFound("setlist not found".into())),
         }
     }
 
@@ -88,7 +85,7 @@ impl SetlistRepository for SurrealSetlistRepo {
         id: &str,
     ) -> Result<Vec<SongLinkOwned>, AppError> {
         let db = self.inner();
-        let resource = setlist_resource(id)?;
+        let resource = resource_id("setlist", id)?;
         let mut response = db
             .db
             .query("SELECT owner, songs FROM setlist WHERE id = $id FETCH songs.*.id")
@@ -128,7 +125,7 @@ impl SetlistRepository for SurrealSetlistRepo {
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
         let db = self.inner();
-        let (tb, sid) = setlist_resource(id)?;
+        let (tb, sid) = resource_id("setlist", id)?;
         let songs: Vec<SongLinkRecord> = setlist.songs.into_iter().map(Into::into).collect();
         let title = setlist.title;
 
@@ -155,7 +152,7 @@ impl SetlistRepository for SurrealSetlistRepo {
 
     async fn delete_setlist(&self, write_teams: Vec<Thing>, id: &str) -> Result<Setlist, AppError> {
         let db = self.inner();
-        let (tb, sid) = setlist_resource(id)?;
+        let (tb, sid) = resource_id("setlist", id)?;
         let mut response = db
             .db
             .query(
