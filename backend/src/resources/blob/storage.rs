@@ -5,7 +5,6 @@ use actix_files::NamedFile;
 use shared::blob::Blob;
 
 use crate::error::AppError;
-use crate::settings::Settings;
 
 /// Abstracts blob file I/O. Enables mocking in tests.
 pub trait BlobStorage: Send + Sync {
@@ -21,10 +20,8 @@ pub struct FsBlobStorage {
 }
 
 impl FsBlobStorage {
-    pub fn new() -> Self {
-        Self {
-            blob_dir: Settings::global().blob_dir.clone(),
-        }
+    pub fn new(blob_dir: String) -> Self {
+        Self { blob_dir }
     }
 }
 

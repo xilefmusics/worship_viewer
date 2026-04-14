@@ -11,7 +11,7 @@ use crate::error::AppError;
 use crate::resources::User;
 use crate::resources::user::session::service::SessionServiceHandle;
 use crate::resources::user::{Role as UserRole};
-use crate::settings::Settings;
+use crate::settings::CookieConfig;
 
 #[derive(Clone, Default)]
 pub struct RequireUser;
@@ -56,7 +56,11 @@ where
             .ok_or_else(|| AppError::Internal("session service handle missing".into()))
             .map_err(Error::from);
 
-        let cookie_name = Settings::global().cookie_name.clone();
+        let cookie_cfg = req
+            .app_data::<Data<CookieConfig>>()
+            .cloned()
+            .ok_or_else(|| AppError::Internal("cookie config missing".into()))
+            .map_err(Error::from);
         let service = Rc::clone(&self.service);
 
         Box::pin(async move {
@@ -64,10 +68,14 @@ where
                 Ok(data) => data,
                 Err(err) => return Err(err),
             };
+            let cookie_cfg = match cookie_cfg {
+                Ok(data) => data,
+                Err(err) => return Err(err),
+            };
 
             let session_id = authorization_bearer(&req)
                 .or_else(|| {
-                    req.cookie(&cookie_name)
+                    req.cookie(&cookie_cfg.name)
                         .map(|cookie| cookie.value().to_owned())
                 })
                 .ok_or_else(AppError::unauthorized)?;

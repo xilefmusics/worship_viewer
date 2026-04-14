@@ -25,7 +25,7 @@ use crate::error::AppError;
 use crate::resources::Session;
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
-use crate::settings::Settings;
+use crate::settings::CookieConfig;
 
 #[utoipa::path(
     get,
@@ -108,6 +108,7 @@ async fn callback(
     user_svc: Data<UserServiceHandle>,
     session_svc: Data<SessionServiceHandle>,
     oidc_clients: Data<Arc<OidcClients>>,
+    cookie_cfg: Data<CookieConfig>,
     query: web::Query<AuthCallbackQuery>,
 ) -> Result<HttpResponse, AppError> {
     db.cleanup_expired_oidc_states().await?;
@@ -151,28 +152,26 @@ async fn callback(
     let user = user_svc
         .get_user_by_email_or_create(claims.email().ok_or(AppError::Unauthorized)?)
         .await?;
-    let settings = Settings::global();
     let session = session_svc
-        .create_session(Session::new(user, settings.session_ttl_seconds as i64))
+        .create_session(Session::new(user, cookie_cfg.session_ttl_seconds as i64))
         .await?;
-    let redirect_target = resolve_frontend_redirect(settings, redirect_to.as_deref());
+    let redirect_target = resolve_frontend_redirect(&cookie_cfg.post_login_path, redirect_to.as_deref());
 
     Ok(HttpResponse::Found()
         .append_header((header::LOCATION, redirect_target))
-        .cookie(session_cookie(&session.id))
+        .cookie(session_cookie(&session.id, &cookie_cfg))
         .finish())
 }
 
-fn session_cookie(session_id: &str) -> Cookie<'static> {
-    let settings = Settings::global();
-    let mut builder = Cookie::build(settings.cookie_name.clone(), session_id.to_owned())
+fn session_cookie(session_id: &str, cfg: &CookieConfig) -> Cookie<'static> {
+    let mut builder = Cookie::build(cfg.name.clone(), session_id.to_owned())
         .http_only(true)
         .same_site(SameSite::Lax)
         .path("/")
-        .secure(settings.cookie_secure);
+        .secure(cfg.secure);
 
-    if settings.session_ttl_seconds > 0 {
-        builder = builder.max_age(CookieDuration::seconds(settings.session_ttl_seconds as i64));
+    if cfg.session_ttl_seconds > 0 {
+        builder = builder.max_age(CookieDuration::seconds(cfg.session_ttl_seconds as i64));
     }
 
     builder.finish()
@@ -205,10 +204,10 @@ struct AuthCallbackQuery {
     state: String,
 }
 
-fn resolve_frontend_redirect(settings: &Settings, requested: Option<&str>) -> String {
+fn resolve_frontend_redirect(post_login_path: &str, requested: Option<&str>) -> String {
     requested
         .and_then(sanitize_redirect)
-        .unwrap_or_else(|| default_frontend_path(&settings.post_login_path))
+        .unwrap_or_else(|| default_frontend_path(post_login_path))
 }
 
 fn default_frontend_path(path: &str) -> String {

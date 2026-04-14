@@ -99,11 +99,11 @@ pub type BlobServiceHandle = BlobService<
 >;
 
 impl BlobServiceHandle {
-    pub fn build(db: Arc<Database>) -> Self {
+    pub fn build(db: Arc<Database>, blob_dir: String) -> Self {
         BlobService::new(
             SurrealBlobRepo::new(db.clone()),
             crate::resources::team::SurrealTeamResolver::new(db.clone()),
-            FsBlobStorage::new(),
+            FsBlobStorage::new(blob_dir),
         )
     }
 }
@@ -122,7 +122,7 @@ mod tests {
 
     use super::super::repository::BlobRepository;
     use super::super::storage::BlobStorage;
-    use super::{BlobService, BlobServiceHandle};
+    use super::BlobService;
 
     struct MockBlobRepo {
         blobs: Vec<Blob>,
@@ -263,13 +263,12 @@ mod tests {
         use shared::team::TeamRole;
 
         use crate::test_helpers::{
-            configure_personal_team_members, create_user, init_settings_for_files,
-            personal_team_id, test_db,
+            blob_service, configure_personal_team_members, create_user, personal_team_id, test_db,
         };
 
-        init_settings_for_files();
+        let blob_dir = tempfile::tempdir().expect("tempdir");
         let db = test_db().await.expect("db");
-        let svc = BlobServiceHandle::build(db.clone());
+        let svc = blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
 
         let owner = create_user(&db, "blob-owner@test.local").await.expect("o");
         let other = create_user(&db, "blob-other@test.local").await.expect("x");

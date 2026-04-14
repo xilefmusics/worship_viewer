@@ -35,14 +35,27 @@ async fn main() -> AnyResult<()> {
         .compact()
         .init();
 
-    let settings = Settings::init()?;
+    let settings = Settings::from_env()?;
+
+    let cookie_config = Data::new(settings.cookie_config());
+    let otp_config = Data::new(settings.otp_config());
+    let printer_config = Data::new(settings.printer_config());
 
     let mail_service = MailService::new(
         settings.gmail_from.clone(),
         Credentials::new(settings.gmail_from.clone(), settings.gmail_app_password.clone()),
     )?;
 
-    let db = Arc::new(database::Database::new().await?);
+    let db = Arc::new(
+        database::Database::connect(
+            &settings.db_address,
+            &settings.db_namespace,
+            &settings.db_database,
+            settings.db_username.as_deref(),
+            settings.db_password.as_deref(),
+        )
+        .await?,
+    );
     db.migrate(settings.db_migration_path.as_str())
         .await
         .context("database migration failed")?;
@@ -98,9 +111,9 @@ async fn main() -> AnyResult<()> {
         }
     }
 
-    let oidc_clients = Data::new(Arc::new(oidc::build_clients(settings).await?));
+    let oidc_clients = Data::new(Arc::new(oidc::build_clients(&settings).await?));
 
-    let blob_service = BlobServiceHandle::build(db.clone());
+    let blob_service = BlobServiceHandle::build(db.clone(), settings.blob_dir.clone());
     let collection_service = CollectionServiceHandle::build(db.clone());
     let song_service = SongServiceHandle::build(db.clone());
     let setlist_service = SetlistService::new(
@@ -109,6 +122,7 @@ async fn main() -> AnyResult<()> {
         db.clone(),
     );
     let team_service = TeamServiceHandle::build(db.clone());
+    let static_dir = settings.static_dir.clone();
     let db_data = Data::from(db);
 
     info!(
@@ -128,11 +142,14 @@ async fn main() -> AnyResult<()> {
             .app_data(Data::new(user_service.clone()))
             .app_data(Data::new(session_service.clone()))
             .app_data(oidc_clients.clone())
+            .app_data(cookie_config.clone())
+            .app_data(otp_config.clone())
+            .app_data(printer_config.clone())
             .wrap(Logger::default())
             .service(auth::rest::scope())
             .service(docs::rest::scope())
             .service(resources::rest::scope())
-            .service(frontend::rest::scope())
+            .service(frontend::rest::scope(&static_dir))
     })
     .bind((settings.host.clone(), settings.port))?
     .run()

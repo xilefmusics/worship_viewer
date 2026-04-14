@@ -1,4 +1,4 @@
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 
 use anyhow::Result as AnyResult;
 use chordlib::types::Song as SongData;
@@ -12,7 +12,6 @@ use crate::resources::team::{SurrealTeamResolver, TeamServiceHandle, UserPermiss
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
 use crate::resources::User;
-use crate::settings::Settings;
 use shared::setlist::CreateSetlist;
 use shared::song::CreateSong;
 use shared::team::{TeamMemberInput, TeamRole, TeamUserRef, UpdateTeam};
@@ -90,30 +89,9 @@ pub async fn configure_personal_team_members(
     Ok(())
 }
 
-/// Initializes [`Settings`] once (required for blob file I/O and similar).
-pub fn init_settings_for_files() {
-    static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let p = dir.path().to_string_lossy().to_string();
-        std::mem::forget(dir);
-        // SAFETY: single-threaded test process; env is set before Settings::init.
-        unsafe {
-            std::env::set_var("BLOB_DIR", &p);
-            std::env::set_var("STATIC_DIR", &p);
-            std::env::set_var("GMAIL_APP_PASSWORD", "test");
-            std::env::set_var("GMAIL_FROM", "test@local");
-            std::env::set_var("OTP_PEPPER", "test");
-            std::env::set_var("PRINTER_ADDRESS", "http://127.0.0.1:9");
-            std::env::set_var("PRINTER_API_KEY", "test");
-        }
-        Settings::init().expect("Settings::init in tests");
-    });
-}
-
-/// Blob application service (same wiring as HTTP `main`).
-pub fn blob_service(db: &Arc<Database>) -> BlobServiceHandle {
-    BlobServiceHandle::build(db.clone())
+/// Blob application service with an explicit blob directory.
+pub fn blob_service(db: &Arc<Database>, blob_dir: String) -> BlobServiceHandle {
+    BlobServiceHandle::build(db.clone(), blob_dir)
 }
 
 /// Collection application service (same wiring as HTTP `main`).

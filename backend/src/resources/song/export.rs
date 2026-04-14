@@ -4,7 +4,7 @@ use serde::Deserialize;
 use utoipa::ToSchema;
 
 use crate::error::AppError;
-use crate::settings::Settings;
+use crate::settings::PrinterConfig;
 use shared::song::{Song, wrap_html};
 use std::io::{Cursor, Write};
 use zip::{CompressionMethod, ZipWriter, write::FileOptions};
@@ -53,12 +53,16 @@ fn sanitize_filename(s: &str) -> String {
         .collect()
 }
 
-pub async fn export(songs: Vec<Song>, format: Format) -> Result<ExportResult, AppError> {
+pub async fn export(
+    songs: Vec<Song>,
+    format: Format,
+    printer: &PrinterConfig,
+) -> Result<ExportResult, AppError> {
     match format {
         Format::Zip => export_chord_pro(songs, true, true),
         Format::WorshipPro => export_chord_pro(songs, true, false),
         Format::ChordPro => export_chord_pro(songs, false, false),
-        Format::Pdf => export_pdf(songs).await,
+        Format::Pdf => export_pdf(songs, printer).await,
     }
 }
 
@@ -113,7 +117,7 @@ fn export_chord_pro(
     })
 }
 
-async fn export_pdf(songs: Vec<Song>) -> Result<ExportResult, AppError> {
+async fn export_pdf(songs: Vec<Song>, printer: &PrinterConfig) -> Result<ExportResult, AppError> {
     let css = songs
         .first()
         .map(|song| song.format_html(None, None, None, None).1)
@@ -133,10 +137,9 @@ async fn export_pdf(songs: Vec<Song>) -> Result<ExportResult, AppError> {
 
     let form = Form::new().part("files", part).text("outline", "false");
 
-    let settings = Settings::global();
     let resp = http
-        .post(&settings.printer_address)
-        .bearer_auth(&settings.printer_api_key)
+        .post(&printer.address)
+        .bearer_auth(&printer.api_key)
         .multipart(form)
         .send()
         .await

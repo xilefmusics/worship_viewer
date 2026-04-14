@@ -10,7 +10,7 @@ use tracing::warn;
 pub use super::authorization_bearer;
 use super::{oidc, otp};
 use crate::resources::user::session::service::SessionServiceHandle;
-use crate::settings::Settings;
+use crate::settings::CookieConfig;
 
 pub fn scope() -> actix_web::Scope {
     actix_web::web::scope("/auth")
@@ -32,11 +32,14 @@ pub fn scope() -> actix_web::Scope {
     )
 )]
 #[post("/logout")]
-async fn logout(svc: Data<SessionServiceHandle>, req: HttpRequest) -> HttpResponse {
-    let settings = Settings::global();
+async fn logout(
+    svc: Data<SessionServiceHandle>,
+    cookie_cfg: Data<CookieConfig>,
+    req: HttpRequest,
+) -> HttpResponse {
     let bearer_session = authorization_bearer(&req);
     let cookie_session = req
-        .cookie(&settings.cookie_name)
+        .cookie(&cookie_cfg.name)
         .map(|cookie| cookie.value().to_owned());
 
     if let Some(session_id) = bearer_session.as_deref().or(cookie_session.as_deref())
@@ -47,18 +50,17 @@ async fn logout(svc: Data<SessionServiceHandle>, req: HttpRequest) -> HttpRespon
 
     let mut response = HttpResponse::NoContent();
     if cookie_session.is_some() {
-        response.cookie(empty_cookie());
+        response.cookie(empty_cookie(&cookie_cfg));
     }
     response.finish()
 }
 
-fn empty_cookie() -> Cookie<'static> {
-    let settings = Settings::global();
-    Cookie::build(settings.cookie_name.clone(), "")
+pub(crate) fn empty_cookie(cfg: &CookieConfig) -> Cookie<'static> {
+    Cookie::build(cfg.name.clone(), "")
         .http_only(true)
         .same_site(SameSite::Lax)
         .path("/")
-        .secure(settings.cookie_secure)
+        .secure(cfg.secure)
         .max_age(CookieDuration::seconds(0))
         .finish()
 }

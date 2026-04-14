@@ -13,6 +13,7 @@ use crate::resources::setlist::Setlist;
 use crate::resources::setlist::SetlistServiceHandle;
 #[allow(unused_imports)]
 use crate::resources::song::{Format, QueryParams, Song};
+use crate::settings::PrinterConfig;
 use crate::resources::team::UserPermissions;
 use shared::api::ListQuery;
 #[allow(unused_imports)]
@@ -149,12 +150,13 @@ async fn get_setlist_player(
 async fn get_setlist_export(
     svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
+    printer: Data<PrinterConfig>,
     id: Path<String>,
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
     Ok(svc
-        .export_setlist_for_user(&perms, &id, query.into_inner().format)
+        .export_setlist_for_user(&perms, &id, query.into_inner().format, &printer)
         .await?
         .into())
 }

@@ -10,6 +10,7 @@ use crate::error::AppError;
 use crate::resources::common::player_from_song_links;
 use crate::resources::song::{ExportResult, Format, LikedSongIds, export};
 use crate::resources::team::{TeamResolver, UserPermissions};
+use crate::settings::PrinterConfig;
 
 use super::repository::CollectionRepository;
 use super::surreal_repo::SurrealCollectionRepo;
@@ -66,6 +67,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         perms: &UserPermissions<'_, T>,
         id: &str,
         format: Format,
+        printer: &PrinterConfig,
     ) -> Result<ExportResult, AppError> {
         let read_teams = perms.read_teams().await?;
         let songs: Vec<Song> = self
@@ -75,7 +77,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
             .into_iter()
             .map(|l| l.song)
             .collect();
-        export(songs, format).await
+        export(songs, format, printer).await
     }
 
     pub async fn collection_songs_for_user(

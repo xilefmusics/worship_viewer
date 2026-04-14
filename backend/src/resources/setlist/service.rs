@@ -9,6 +9,7 @@ use crate::error::AppError;
 use crate::resources::song::LikedSongIds;
 use crate::resources::song::{ExportResult, Format, export};
 use crate::resources::team::{TeamResolver, UserPermissions};
+use crate::settings::PrinterConfig;
 
 use crate::resources::common::player_from_song_links;
 use super::repository::SetlistRepository;
@@ -65,6 +66,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         perms: &UserPermissions<'_, T>,
         id: &str,
         format: Format,
+        printer: &PrinterConfig,
     ) -> Result<ExportResult, AppError> {
         let read_teams = perms.read_teams().await?;
         let songs: Vec<Song> = self
@@ -74,7 +76,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
             .into_iter()
             .map(|l| l.song)
             .collect();
-        export(songs, format).await
+        export(songs, format, printer).await
     }
 
     pub async fn setlist_songs_for_user(
@@ -406,12 +408,18 @@ mod tests {
         use crate::resources::User;
         use crate::resources::song::Format;
         use crate::resources::team::UserPermissions;
+        use crate::settings::PrinterConfig;
         use crate::test_helpers::{
             configure_personal_team_members, create_song_with_title, create_user,
             personal_team_id, setlist_service, setlist_with_songs, test_db,
         };
         use shared::api::ListQuery;
         use shared::team::TeamRole;
+
+        let test_printer = PrinterConfig {
+            address: "http://127.0.0.1:9".into(),
+            api_key: "test".into(),
+        };
 
         async fn four_user_setlist_fixture(
         ) -> (Arc<Database>, User, User, User, User, String) {
@@ -631,25 +639,30 @@ mod tests {
             .await;
         assert!(matches!(pl_nf, Err(AppError::NotFound(_))));
 
-        sl.export_setlist_for_user(&owner_p, &created.id, Format::WorshipPro)
+        sl.export_setlist_for_user(&owner_p, &created.id, Format::WorshipPro, &test_printer)
             .await
             .expect("export owner");
-        sl.export_setlist_for_user(&read_p, &created.id, Format::WorshipPro)
+        sl.export_setlist_for_user(&read_p, &created.id, Format::WorshipPro, &test_printer)
             .await
             .expect("export read");
 
         let ex_noperm = sl
-            .export_setlist_for_user(&noperm_p, &created.id, Format::WorshipPro)
+            .export_setlist_for_user(&noperm_p, &created.id, Format::WorshipPro, &test_printer)
             .await;
         assert!(matches!(ex_noperm, Err(AppError::NotFound(_))));
 
         let ex_bad = sl
-            .export_setlist_for_user(&owner_p, "song:invalid", Format::WorshipPro)
+            .export_setlist_for_user(&owner_p, "song:invalid", Format::WorshipPro, &test_printer)
             .await;
         assert!(matches!(ex_bad, Err(AppError::InvalidRequest(_))));
 
         let ex_nf = sl
-            .export_setlist_for_user(&owner_p, "never-created-setlist", Format::WorshipPro)
+            .export_setlist_for_user(
+                &owner_p,
+                "never-created-setlist",
+                Format::WorshipPro,
+                &test_printer,
+            )
             .await;
         assert!(matches!(ex_nf, Err(AppError::NotFound(_))));
 

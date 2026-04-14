@@ -13,6 +13,7 @@ use crate::resources::song::Song;
 use crate::resources::song::service::SongServiceHandle;
 #[allow(unused_imports)]
 use crate::resources::song::{Format, QueryParams};
+use crate::settings::PrinterConfig;
 use crate::resources::team::UserPermissions;
 use shared::api::ListQuery;
 use shared::like::LikeStatus;
@@ -148,12 +149,13 @@ async fn get_song_player(
 async fn get_song_export(
     svc: Data<SongServiceHandle>,
     user: ReqData<User>,
+    printer: Data<PrinterConfig>,
     id: Path<String>,
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
     Ok(svc
-        .export_song_for_user(&perms, &id, query.into_inner().format)
+        .export_song_for_user(&perms, &id, query.into_inner().format, &printer)
         .await?
         .into())
 }

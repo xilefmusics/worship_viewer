@@ -18,7 +18,7 @@ use crate::mail::MailService;
 use crate::resources::Session;
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
-use crate::settings::Settings;
+use crate::settings::{CookieConfig, OtpConfig};
 
 #[utoipa::path(
     post,
@@ -35,6 +35,7 @@ use crate::settings::Settings;
 async fn otp_request(
     db: Data<Database>,
     mail: Data<MailService>,
+    otp_cfg: Data<OtpConfig>,
     payload: web::Json<OtpRequest>,
 ) -> Result<HttpResponse, AppError> {
     let email = payload
@@ -45,7 +46,7 @@ async fn otp_request(
         .ok_or_else(|| AppError::invalid_request("email is required"))?;
 
     let code = format!("{:06}", rand::thread_rng().gen_range(0..1_000_000));
-    db.remember_otp(&email, &code).await?;
+    db.remember_otp(&email, &code, &otp_cfg.pepper, otp_cfg.ttl_seconds).await?;
 
     mail.send(
         &email,
@@ -72,6 +73,8 @@ async fn otp_verify(
     db: Data<Database>,
     user_svc: Data<UserServiceHandle>,
     session_svc: Data<SessionServiceHandle>,
+    cookie_cfg: Data<CookieConfig>,
+    otp_cfg: Data<OtpConfig>,
     payload: web::Json<OtpVerify>,
 ) -> Result<HttpResponse, AppError> {
     let email = payload
@@ -88,15 +91,15 @@ async fn otp_verify(
         .ok_if(|value| !value.is_empty())
         .ok_or_else(|| AppError::invalid_request("otp code is required"))?;
 
-    db.validate_otp(&email, &code).await?;
+    db.validate_otp(&email, &code, &otp_cfg.pepper).await?;
 
     let user = user_svc.get_user_by_email_or_create(&email).await?;
     let session = session_svc
-        .create_session(Session::new(user, Settings::global().session_ttl_seconds as i64))
+        .create_session(Session::new(user, cookie_cfg.session_ttl_seconds as i64))
         .await?;
 
     Ok(HttpResponse::Ok()
-        .cookie(session_cookie(&session.id))
+        .cookie(session_cookie(&session.id, &cookie_cfg))
         .json(session))
 }
 
@@ -112,16 +115,15 @@ impl OkIf for String {
     }
 }
 
-fn session_cookie(session_id: &str) -> Cookie<'static> {
-    let settings = Settings::global();
-    let mut builder = Cookie::build(settings.cookie_name.clone(), session_id.to_owned())
+fn session_cookie(session_id: &str, cfg: &CookieConfig) -> Cookie<'static> {
+    let mut builder = Cookie::build(cfg.name.clone(), session_id.to_owned())
         .http_only(true)
         .same_site(SameSite::Lax)
         .path("/")
-        .secure(settings.cookie_secure);
+        .secure(cfg.secure);
 
-    if settings.session_ttl_seconds > 0 {
-        builder = builder.max_age(CookieDuration::seconds(settings.session_ttl_seconds as i64));
+    if cfg.session_ttl_seconds > 0 {
+        builder = builder.max_age(CookieDuration::seconds(cfg.session_ttl_seconds as i64));
     }
 
     builder.finish()

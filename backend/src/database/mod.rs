@@ -8,7 +8,6 @@ use surrealdb::opt::auth::Database as DbAuth;
 use surrealdb::sql::{Id, Thing};
 
 use crate::error::AppError;
-use crate::settings::Settings;
 
 #[derive(Deserialize)]
 struct TeamIdOnly {
@@ -30,20 +29,6 @@ pub struct Database {
 }
 
 impl Database {
-    /// Production constructor — reads connection settings from global [`Settings`].
-    pub async fn new() -> AnyResult<Self> {
-        let settings = Settings::global();
-        Self::connect(
-            &settings.db_address,
-            &settings.db_namespace,
-            &settings.db_database,
-            settings.db_username.as_deref(),
-            settings.db_password.as_deref(),
-        )
-        .await
-    }
-
-    /// Explicit constructor — used by tests and any caller that must not depend on [`Settings::global`].
     pub async fn connect(
         address: &str,
         namespace: &str,

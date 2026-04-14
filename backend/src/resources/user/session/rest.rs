@@ -8,7 +8,7 @@ use serde::Deserialize;
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
-use crate::settings::Settings;
+use crate::settings::CookieConfig;
 
 use super::service::SessionServiceHandle;
 
@@ -107,9 +107,10 @@ pub async fn delete_session_for_current_user(
 #[post("/{user_id}/sessions")]
 pub async fn create_session_for_user(
     svc: Data<SessionServiceHandle>,
+    cookie_cfg: Data<CookieConfig>,
     path: Path<UserIdPath>,
 ) -> Result<HttpResponse, AppError> {
-    let ttl = Settings::global().session_ttl_seconds as i64;
+    let ttl = cookie_cfg.session_ttl_seconds as i64;
     Ok(HttpResponse::Created()
         .json(svc.create_session_for_user_by_id(&path.user_id, ttl).await?))
 }
