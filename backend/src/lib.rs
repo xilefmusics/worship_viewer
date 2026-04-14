@@ -9,3 +9,6 @@ pub mod settings;
 
 #[cfg(test)]
 mod test_helpers;
+
+#[cfg(test)]
+mod http_tests;
