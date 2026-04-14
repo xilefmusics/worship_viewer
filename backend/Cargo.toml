@@ -39,7 +39,7 @@ surrealdb = { version = "2.6.5", default-features = false, features = [
     "rustls",
 ] }
 async-trait = "0.1.89"
-lettre = "0.11.21"
+lettre = { version = "0.11.21", features = ["tokio1-native-tls"] }
 ring = "0.17.14"
 hex = "0.4.3"
 actix-files = "0.6.10"

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use actix_web::{App, HttpServer, middleware::Logger, web::Data};
 use anyhow::{Context, Result as AnyResult};
 use chrono::Utc;
+use lettre::transport::smtp::authentication::Credentials;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -11,6 +12,7 @@ use backend::auth::oidc;
 use backend::database;
 use backend::docs;
 use backend::frontend;
+use backend::mail::MailService;
 use backend::resources;
 use backend::resources::blob::service::BlobServiceHandle;
 use backend::resources::collection::service::CollectionServiceHandle;
@@ -34,6 +36,11 @@ async fn main() -> AnyResult<()> {
         .init();
 
     let settings = Settings::init()?;
+
+    let mail_service = MailService::new(
+        settings.gmail_from.clone(),
+        Credentials::new(settings.gmail_from.clone(), settings.gmail_app_password.clone()),
+    )?;
 
     let db = Arc::new(database::Database::new().await?);
     db.migrate(settings.db_migration_path.as_str())
@@ -112,6 +119,7 @@ async fn main() -> AnyResult<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(db_data.clone())
+            .app_data(Data::new(mail_service.clone()))
             .app_data(Data::new(blob_service.clone()))
             .app_data(Data::new(collection_service.clone()))
             .app_data(Data::new(song_service.clone()))

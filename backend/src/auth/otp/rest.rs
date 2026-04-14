@@ -14,7 +14,7 @@ use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
-use crate::mail::Mail;
+use crate::mail::MailService;
 use crate::resources::Session;
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
@@ -34,6 +34,7 @@ use crate::settings::Settings;
 #[post("/otp/request")]
 async fn otp_request(
     db: Data<Database>,
+    mail: Data<MailService>,
     payload: web::Json<OtpRequest>,
 ) -> Result<HttpResponse, AppError> {
     let email = payload
@@ -46,11 +47,11 @@ async fn otp_request(
     let code = format!("{:06}", rand::thread_rng().gen_range(0..1_000_000));
     db.remember_otp(&email, &code).await?;
 
-    Mail::default()
-        .to(&email)
-        .subject("Your WorshipViewer login code")
-        .body(&format!("Hello {email},\n\nto complete your sign-in or verification for WorshipViewer, please use the one-time password below:\n\n🔐 OTP: {code}\n\nThis code is valid for the next 5 minutes.  \nIf you did not request this, please ignore this message.\n\nBlessings,\nThe WorshipViewer Team"))
-        .send()?;
+    mail.send(
+        &email,
+        "Your WorshipViewer login code",
+        &format!("Hello {email},\n\nto complete your sign-in or verification for WorshipViewer, please use the one-time password below:\n\n🔐 OTP: {code}\n\nThis code is valid for the next 5 minutes.  \nIf you did not request this, please ignore this message.\n\nBlessings,\nThe WorshipViewer Team"),
+    ).await?;
 
     Ok(HttpResponse::NoContent().finish())
 }
