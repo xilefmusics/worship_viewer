@@ -12,6 +12,7 @@ use crate::resources::User;
 use crate::resources::blob::Blob;
 use crate::resources::blob::CreateBlob;
 use crate::resources::blob::service::BlobServiceHandle;
+use crate::resources::team::UserPermissions;
 use shared::api::ListQuery;
 
 pub fn scope() -> Scope {
@@ -48,7 +49,8 @@ async fn get_blobs(
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.list_blobs_for_user(&user, query.into_inner()).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.list_blobs_for_user(&perms, query.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -76,7 +78,8 @@ async fn get_blob(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.get_blob_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.get_blob_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -101,8 +104,9 @@ async fn create_blob(
     user: ReqData<User>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Created().json(
-        svc.create_blob_for_user(&user, payload.into_inner()).await?,
+        svc.create_blob_for_user(&perms, payload.into_inner()).await?,
     ))
 }
 
@@ -133,8 +137,9 @@ async fn update_blob(
     id: PathParam<String>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
-        svc.update_blob_for_user(&user, &id, payload.into_inner())
+        svc.update_blob_for_user(&perms, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -164,7 +169,8 @@ async fn delete_blob(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.delete_blob_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.delete_blob_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -192,6 +198,7 @@ async fn download_blob_image(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<NamedFile, AppError> {
-    svc.open_blob_data_file_for_user(&user, &id.into_inner())
+    let perms = UserPermissions::new(&user, &svc.teams);
+    svc.open_blob_data_file_for_user(&perms, &id.into_inner())
         .await
 }

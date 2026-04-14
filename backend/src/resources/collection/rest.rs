@@ -13,6 +13,7 @@ use crate::resources::collection::CreateCollection;
 use crate::resources::collection::service::CollectionServiceHandle;
 #[allow(unused_imports)]
 use crate::resources::song::{Format, QueryParams, Song};
+use crate::resources::team::UserPermissions;
 use shared::api::ListQuery;
 #[allow(unused_imports)]
 use shared::player::Player;
@@ -54,8 +55,9 @@ async fn get_collections(
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
-        svc.list_collections_for_user(&user, query.into_inner())
+        svc.list_collections_for_user(&perms, query.into_inner())
             .await?,
     ))
 }
@@ -85,7 +87,8 @@ async fn get_collection(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.get_collection_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.get_collection_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -113,7 +116,8 @@ async fn get_collection_player(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.collection_player_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.collection_player_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -148,7 +152,8 @@ async fn get_collection_export(
     id: Path<String>,
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
-    svc.export_collection_for_user(&user, &id, query.into_inner().format)
+    let perms = UserPermissions::new(&user, &svc.teams);
+    svc.export_collection_for_user(&perms, &id, query.into_inner().format)
         .await
 }
 
@@ -177,7 +182,8 @@ async fn get_collection_songs(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.collection_songs_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.collection_songs_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -202,8 +208,9 @@ async fn create_collection(
     user: ReqData<User>,
     payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Created().json(
-        svc.create_collection_for_user(&user, payload.into_inner())
+        svc.create_collection_for_user(&perms, payload.into_inner())
             .await?,
     ))
 }
@@ -235,8 +242,9 @@ async fn update_collection(
     id: Path<String>,
     payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
-        svc.update_collection_for_user(&user, &id, payload.into_inner())
+        svc.update_collection_for_user(&perms, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -266,5 +274,6 @@ async fn delete_collection(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.delete_collection_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.delete_collection_for_user(&perms, &id).await?))
 }

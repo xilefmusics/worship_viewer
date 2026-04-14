@@ -7,10 +7,9 @@ use shared::song::Song;
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::User;
 use crate::resources::common::player_from_song_links;
 use crate::resources::song::{Format, LikedSongIds, export};
-use crate::resources::team::TeamResolver;
+use crate::resources::team::{TeamResolver, UserPermissions};
 
 use super::repository::CollectionRepository;
 use super::surreal_repo::SurrealCollectionRepo;
@@ -32,30 +31,31 @@ impl<R, T, L> CollectionService<R, T, L> {
 impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionService<R, T, L> {
     pub async fn list_collections_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         pagination: ListQuery,
     ) -> Result<Vec<Collection>, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
+        let read_teams = perms.read_teams().await?;
         self.repo.get_collections(read_teams, pagination).await
     }
 
     pub async fn get_collection_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
     ) -> Result<Collection, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
+        let read_teams = perms.read_teams().await?;
         self.repo.get_collection(read_teams, id).await
     }
 
     pub async fn collection_player_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
     ) -> Result<Player, AppError> {
+        let user_id = perms.user().id.clone();
         let (liked_set, read_teams) = tokio::try_join!(
-            self.likes.liked_song_ids(&user.id),
-            self.teams.content_read_teams(user)
+            self.likes.liked_song_ids(&user_id),
+            perms.read_teams()
         )?;
         let links = self.repo.get_collection_songs(read_teams, id).await?;
         player_from_song_links(liked_set, links)
@@ -63,11 +63,11 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 
     pub async fn export_collection_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
         format: Format,
     ) -> Result<HttpResponse, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
+        let read_teams = perms.read_teams().await?;
         let songs: Vec<Song> = self
             .repo
             .get_collection_songs(read_teams, id)
@@ -80,12 +80,13 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 
     pub async fn collection_songs_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
     ) -> Result<Vec<Song>, AppError> {
+        let user_id = perms.user().id.clone();
         let (liked_set, read_teams) = tokio::try_join!(
-            self.likes.liked_song_ids(&user.id),
-            self.teams.content_read_teams(user)
+            self.likes.liked_song_ids(&user_id),
+            perms.read_teams()
         )?;
         Ok(self
             .repo
@@ -102,28 +103,28 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 
     pub async fn create_collection_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
-        self.repo.create_collection(&user.id, collection).await
+        self.repo.create_collection(&perms.user().id, collection).await
     }
 
     pub async fn update_collection_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
-        let write_teams = self.teams.content_write_teams(user).await?;
+        let write_teams = perms.write_teams().await?;
         self.repo.update_collection(write_teams, id, collection).await
     }
 
     pub async fn delete_collection_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
     ) -> Result<Collection, AppError> {
-        let write_teams = self.teams.content_write_teams(user).await?;
+        let write_teams = perms.write_teams().await?;
         self.repo.delete_collection(write_teams, id).await
     }
 }
@@ -151,6 +152,7 @@ mod tests {
     use shared::song::Link as SongLink;
 
     use crate::error::AppError;
+    use crate::resources::team::UserPermissions;
     use crate::test_helpers::{
         configure_personal_team_members, create_song_with_title, create_user, personal_team_id,
         test_db,
@@ -183,9 +185,12 @@ mod tests {
             .await
             .expect("song");
 
+        let owner_perms = UserPermissions::new(&owner, &svc.teams);
+        let guest_perms = UserPermissions::new(&guest, &svc.teams);
+
         let col = svc
             .create_collection_for_user(
-                &owner,
+                &owner_perms,
                 CreateCollection {
                     title: "My Collection".into(),
                     cover: "mysongs".into(),
@@ -202,18 +207,18 @@ mod tests {
         assert_eq!(col.owner, team_id);
 
         let list = svc
-            .list_collections_for_user(&owner, ListQuery::default())
+            .list_collections_for_user(&owner_perms, ListQuery::default())
             .await
             .expect("list");
         assert!(list.iter().any(|c| c.id == col.id));
 
-        svc.get_collection_for_user(&guest, &col.id)
+        svc.get_collection_for_user(&guest_perms, &col.id)
             .await
             .expect("guest read");
 
         let upd = svc
             .update_collection_for_user(
-                &owner,
+                &owner_perms,
                 &col.id,
                 CreateCollection {
                     title: "Updated".into(),
@@ -231,7 +236,7 @@ mod tests {
 
         let put_guest = svc
             .update_collection_for_user(
-                &guest,
+                &guest_perms,
                 &col.id,
                 CreateCollection {
                     title: "Nope".into(),
@@ -242,7 +247,7 @@ mod tests {
             .await;
         assert!(matches!(put_guest, Err(AppError::NotFound(_))));
 
-        svc.delete_collection_for_user(&owner, &col.id)
+        svc.delete_collection_for_user(&owner_perms, &col.id)
             .await
             .expect("delete");
     }

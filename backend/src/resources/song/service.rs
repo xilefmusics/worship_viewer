@@ -8,10 +8,9 @@ use shared::song::{CreateSong, Link as SongLink, LinkOwned as SongLinkOwned, Son
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::User;
 use crate::resources::collection::CollectionRepository;
 
-use crate::resources::team::TeamResolver;
+use crate::resources::team::{TeamResolver, UserPermissions};
 use crate::resources::user::surreal_repo::SurrealUserRepo;
 use crate::resources::user::UserRepository;
 use shared::collection::CreateCollection;
@@ -68,12 +67,13 @@ impl<
 {
     pub async fn list_songs_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         pagination: ListQuery,
     ) -> Result<Vec<Song>, AppError> {
+        let user_id = perms.user().id.clone();
         let (liked_set, read_teams) = tokio::try_join!(
-            self.likes.liked_song_ids(&user.id),
-            self.teams.content_read_teams(user)
+            self.likes.liked_song_ids(&user_id),
+            perms.read_teams()
         )?;
         Ok(self
             .repo
@@ -87,46 +87,55 @@ impl<
             .collect())
     }
 
-    pub async fn get_song_for_user(&self, user: &User, id: &str) -> Result<Song, AppError> {
+    pub async fn get_song_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+    ) -> Result<Song, AppError> {
+        let user_id = perms.user().id.clone();
         let (liked_set, read_teams) = tokio::try_join!(
-            self.likes.liked_song_ids(&user.id),
-            self.teams.content_read_teams(user)
+            self.likes.liked_song_ids(&user_id),
+            perms.read_teams()
         )?;
         let mut song = self.repo.get_song(read_teams, id).await?;
         song.user_specific_addons.liked = liked_set.contains(&song.id);
         Ok(song)
     }
 
-    pub async fn song_player_for_user(&self, user: &User, id: &str) -> Result<Player, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
+    pub async fn song_player_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+    ) -> Result<Player, AppError> {
+        let read_teams = perms.read_teams().await?;
         Ok(Player::from(SongLinkOwned {
             song: self.repo.get_song(read_teams.clone(), id).await?,
             nr: None,
             key: None,
-            liked: self.repo.get_song_like(read_teams, &user.id, id).await?,
+            liked: self.repo.get_song_like(read_teams, &perms.user().id, id).await?,
         }))
     }
 
     pub async fn export_song_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
         format: Format,
     ) -> Result<HttpResponse, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
+        let read_teams = perms.read_teams().await?;
         let song = self.repo.get_song(read_teams, id).await?;
         export(vec![song], format).await
     }
 
     pub async fn create_song_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         song: CreateSong,
     ) -> Result<Song, AppError> {
-        let created = self.repo.create_song(&user.id, song).await?;
+        let created = self.repo.create_song(&perms.user().id, song).await?;
 
-        if let Some(collection_id) = user.default_collection.as_ref() {
-            let write_teams = self.teams.content_write_teams(user).await?;
+        if let Some(collection_id) = perms.user().default_collection.as_ref() {
+            let write_teams = perms.write_teams().await?;
             self.collections
                 .add_song_to_collection(
                     write_teams,
@@ -142,7 +151,7 @@ impl<
             let collection = self
                 .collections
                 .create_collection(
-                    &user.id,
+                    &perms.user().id,
                     CreateCollection {
                         title: "Default".to_string(),
                         cover: "mysongs".to_string(),
@@ -155,7 +164,7 @@ impl<
                 )
                 .await?;
             self.user_updater
-                .set_default_collection(&user.id, &collection.id)
+                .set_default_collection(&perms.user().id, &collection.id)
                 .await?;
         }
 
@@ -164,37 +173,41 @@ impl<
 
     pub async fn update_song_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
         song: CreateSong,
     ) -> Result<Song, AppError> {
-        let write_teams = self.teams.content_write_teams(user).await?;
-        self.repo.update_song(write_teams, &user.id, id, song).await
+        let write_teams = perms.write_teams().await?;
+        self.repo.update_song(write_teams, &perms.user().id, id, song).await
     }
 
-    pub async fn delete_song_for_user(&self, user: &User, id: &str) -> Result<Song, AppError> {
-        let write_teams = self.teams.content_write_teams(user).await?;
+    pub async fn delete_song_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+    ) -> Result<Song, AppError> {
+        let write_teams = perms.write_teams().await?;
         self.repo.delete_song(write_teams, id).await
     }
 
     pub async fn song_like_status_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
     ) -> Result<LikeStatus, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
-        let liked = self.repo.get_song_like(read_teams, &user.id, id).await?;
+        let read_teams = perms.read_teams().await?;
+        let liked = self.repo.get_song_like(read_teams, &perms.user().id, id).await?;
         Ok(LikeStatus { liked })
     }
 
     pub async fn set_song_like_status_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
         liked: bool,
     ) -> Result<LikeStatus, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
-        let liked = self.repo.set_song_like(read_teams, &user.id, id, liked).await?;
+        let read_teams = perms.read_teams().await?;
+        let liked = self.repo.set_song_like(read_teams, &perms.user().id, id, liked).await?;
         Ok(LikeStatus { liked })
     }
 }
@@ -224,6 +237,7 @@ impl SongServiceHandle {
 mod tests {
     use actix_web::web::Data;
 
+    use crate::resources::team::UserPermissions;
     use crate::test_helpers::{
         configure_personal_team_members, create_song_with_title, create_user, personal_team_id,
         setlist_service, setlist_with_songs, test_db,
@@ -258,37 +272,40 @@ mod tests {
             .await
             .expect("s2");
 
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let other_p = UserPermissions::new(&other, &svc.teams);
+
         let list = svc
-            .list_songs_for_user(&owner, ListQuery::default())
+            .list_songs_for_user(&owner_p, ListQuery::default())
             .await
             .expect("list");
         assert!(list.len() >= 2);
 
         let q = svc
-            .list_songs_for_user(&owner, ListQuery::new().with_q("Alpha"))
+            .list_songs_for_user(&owner_p, ListQuery::new().with_q("Alpha"))
             .await
             .expect("search");
         assert_eq!(q.len(), 1);
         assert_eq!(q[0].id, s1.id);
 
-        svc.get_song_for_user(&owner, &s1.id).await.expect("get");
-        svc.get_song_for_user(&other, &s1.id)
+        svc.get_song_for_user(&owner_p, &s1.id).await.expect("get");
+        svc.get_song_for_user(&other_p, &s1.id)
             .await
             .expect("guest read");
 
-        let bad = svc.get_song_for_user(&owner, "setlist:not-a-song").await;
+        let bad = svc.get_song_for_user(&owner_p, "setlist:not-a-song").await;
         assert!(bad.is_err(), "wrong table id should not resolve: {bad:?}");
 
-        svc.set_song_like_status_for_user(&owner, &s1.id, true)
+        svc.set_song_like_status_for_user(&owner_p, &s1.id, true)
             .await
             .expect("like");
         let st = svc
-            .song_like_status_for_user(&owner, &s1.id)
+            .song_like_status_for_user(&owner_p, &s1.id)
             .await
             .expect("like status");
         assert!(st.liked);
 
-        svc.delete_song_for_user(&owner, &s1.id).await.expect("del");
+        svc.delete_song_for_user(&owner_p, &s1.id).await.expect("del");
     }
 
     #[tokio::test]
@@ -301,18 +318,23 @@ mod tests {
         let song = create_song_with_title(&db, &u, "ToDelete")
             .await
             .expect("song");
-        let sl = setlist_service(&db)
+        let sl_svc = setlist_service(&db);
+        let u_p = UserPermissions::new(&u, &sl_svc.teams);
+        let sl = sl_svc
             .create_setlist_for_user(
-                &u,
+                &u_p,
                 setlist_with_songs("L", &[(song.id.as_str(), Some("1"))]),
             )
             .await
             .expect("setlist");
-        svc.delete_song_for_user(&u, &song.id)
+        let song_p = UserPermissions::new(&u, &svc.teams);
+        svc.delete_song_for_user(&song_p, &song.id)
             .await
             .expect("del song");
-        let g = setlist_service(&db)
-            .get_setlist_for_user(&u, &sl.id)
+        let sl_svc2 = setlist_service(&db);
+        let u_p2 = UserPermissions::new(&u, &sl_svc2.teams);
+        let g = sl_svc2
+            .get_setlist_for_user(&u_p2, &sl.id)
             .await
             .expect("get setlist");
         assert!(g.songs.is_empty());

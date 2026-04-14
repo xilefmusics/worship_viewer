@@ -10,7 +10,8 @@ pub mod rest;
 
 pub use repository::TeamRepository;
 pub use resolver::{
-    SurrealTeamResolver, TeamResolver, content_read_team_things, content_write_team_things,
+    SurrealTeamResolver, TeamResolver, UserPermissions, content_read_team_things,
+    content_write_team_things,
 };
 pub use service::{TeamService, TeamServiceHandle};
 pub use surreal_repo::SurrealTeamRepo;

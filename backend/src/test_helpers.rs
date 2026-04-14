@@ -9,7 +9,7 @@ use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::collection::service::CollectionServiceHandle;
 use crate::resources::setlist::{SetlistService, SetlistServiceHandle, SurrealSetlistRepo};
 use crate::resources::song::service::SongServiceHandle;
-use crate::resources::team::{SurrealTeamResolver, TeamServiceHandle};
+use crate::resources::team::{SurrealTeamResolver, TeamServiceHandle, UserPermissions};
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
 use crate::resources::User;
@@ -59,7 +59,9 @@ pub async fn create_song_with_title(
         blobs: vec![],
         data,
     };
-    Ok(song_service(db).create_song_for_user(user, create).await?)
+    let svc = song_service(db);
+    let perms = UserPermissions::new(user, &svc.teams);
+    Ok(svc.create_song_for_user(&perms, create).await?)
 }
 
 /// Adds non-owner members to the owner's personal team.

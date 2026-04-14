@@ -2,6 +2,7 @@
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
+use crate::resources::team::UserPermissions;
 use actix_web::{
     HttpResponse, Scope, delete, get, post, put,
     web::{self, Data, Json, Path, ReqData},
@@ -324,5 +325,6 @@ async fn delete_team(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.delete_team_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.resolver);
+    Ok(HttpResponse::Ok().json(svc.delete_team_for_user(&perms, &id).await?))
 }

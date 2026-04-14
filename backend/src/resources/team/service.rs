@@ -19,7 +19,7 @@ use super::model::{
     team_resource_or_reject_public, thing_user_id, user_thing, validate_personal_members_not_owner,
 };
 use super::repository::TeamRepository;
-use super::resolver::TeamResolver;
+use super::resolver::{TeamResolver, UserPermissions};
 use super::surreal_repo::SurrealTeamRepo;
 
 /// Application service: authorization and orchestration for teams and invitations.
@@ -166,7 +166,11 @@ impl<R: TeamRepository, IR: TeamInvitationRepository, TR: TeamResolver> TeamServ
         self.repo.load_team_display(id).await
     }
 
-    pub async fn delete_team_for_user(&self, user: &User, id: &str) -> Result<Team, AppError> {
+    pub async fn delete_team_for_user(
+        &self,
+        perms: &UserPermissions<'_, TR>,
+        id: &str,
+    ) -> Result<Team, AppError> {
         let resource = team_resource_or_reject_public(id)?;
 
         let row = self
@@ -179,12 +183,12 @@ impl<R: TeamRepository, IR: TeamInvitationRepository, TR: TeamResolver> TeamServ
         if stored.owner.is_some() {
             return Err(AppError::forbidden());
         }
-        if !effective_admin(&user.id, &stored) {
+        if !effective_admin(&perms.user().id, &stored) {
             return Err(AppError::forbidden());
         }
 
         let team = row.into_team()?;
-        let personal = self.resolver.personal_team(&user.id).await?;
+        let personal = perms.personal_team().await?;
         let from = surrealdb::sql::Thing::from(resource.clone());
         self.repo.reassign_content(from, personal).await?;
         self.repo.delete_team_record(resource).await?;
@@ -371,6 +375,7 @@ mod tests {
     use shared::team::CreateTeam;
 
     use crate::error::AppError;
+    use crate::resources::team::UserPermissions;
     use crate::test_helpers::{create_user, test_db};
 
     use super::*;
@@ -409,7 +414,8 @@ mod tests {
             .iter()
             .find(|t| t.owner.as_ref().map(|o| o.id == u.id).unwrap_or(false))
             .expect("personal");
-        let err = svc.delete_team_for_user(&u, &personal.id).await;
+        let perms = UserPermissions::new(&u, &svc.resolver);
+        let err = svc.delete_team_for_user(&perms, &personal.id).await;
         assert!(matches!(err, Err(AppError::Forbidden)));
     }
 
@@ -425,6 +431,7 @@ mod tests {
             )
             .await
             .expect("shared");
-        svc.delete_team_for_user(&u, &shared.id).await.expect("delete");
+        let perms = UserPermissions::new(&u, &svc.resolver);
+        svc.delete_team_for_user(&perms, &shared.id).await.expect("delete");
     }
 }

@@ -4,6 +4,7 @@ use actix_web::web::Data;
 use async_trait::async_trait;
 use serde::Deserialize;
 use surrealdb::sql::Thing;
+use tokio::sync::OnceCell;
 
 use shared::user::{Role as UserRole, User};
 
@@ -23,6 +24,65 @@ pub trait TeamResolver: Send + Sync {
     async fn content_read_teams(&self, user: &User) -> Result<Vec<Thing>, AppError>;
     async fn content_write_teams(&self, user: &User) -> Result<Vec<Thing>, AppError>;
     async fn personal_team(&self, user_id: &str) -> Result<Thing, AppError>;
+}
+
+/// Per-request caching wrapper around a [`User`] and a [`TeamResolver`].
+///
+/// Team lists are resolved lazily on first access and cached for the lifetime of
+/// this struct. Construct one at the start of a request handler and pass it into
+/// service methods instead of a bare `&User`.
+pub struct UserPermissions<'a, T: TeamResolver> {
+    user: &'a User,
+    resolver: &'a T,
+    read_teams: OnceCell<Vec<Thing>>,
+    write_teams: OnceCell<Vec<Thing>>,
+    personal_team: OnceCell<Thing>,
+}
+
+impl<'a, T: TeamResolver> UserPermissions<'a, T> {
+    pub fn new(user: &'a User, resolver: &'a T) -> Self {
+        Self {
+            user,
+            resolver,
+            read_teams: OnceCell::new(),
+            write_teams: OnceCell::new(),
+            personal_team: OnceCell::new(),
+        }
+    }
+
+    pub fn user(&self) -> &User {
+        self.user
+    }
+
+    /// Teams whose content the user may read. Resolved once; subsequent calls return a clone.
+    pub async fn read_teams(&self) -> Result<Vec<Thing>, AppError> {
+        let user = self.user;
+        let resolver = self.resolver;
+        self.read_teams
+            .get_or_try_init(|| async move { resolver.content_read_teams(user).await })
+            .await
+            .map(Vec::clone)
+    }
+
+    /// Teams whose content the user may write. Resolved once; subsequent calls return a clone.
+    pub async fn write_teams(&self) -> Result<Vec<Thing>, AppError> {
+        let user = self.user;
+        let resolver = self.resolver;
+        self.write_teams
+            .get_or_try_init(|| async move { resolver.content_write_teams(user).await })
+            .await
+            .map(Vec::clone)
+    }
+
+    /// The user's personal team. Resolved once; subsequent calls return a clone.
+    pub async fn personal_team(&self) -> Result<Thing, AppError> {
+        let user_id = self.user.id.clone();
+        let resolver = self.resolver;
+        self.personal_team
+            .get_or_try_init(|| async move { resolver.personal_team(&user_id).await })
+            .await
+            .map(Thing::clone)
+    }
 }
 
 /// Production resolver backed by [`Database`].

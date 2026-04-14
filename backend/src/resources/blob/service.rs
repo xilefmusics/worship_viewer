@@ -6,8 +6,7 @@ use shared::blob::{Blob, CreateBlob};
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::User;
-use crate::resources::team::TeamResolver;
+use crate::resources::team::{TeamResolver, UserPermissions};
 
 use super::repository::BlobRepository;
 use super::storage::BlobStorage;
@@ -31,42 +30,50 @@ impl<R, T, S> BlobService<R, T, S> {
 impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
     pub async fn list_blobs_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         pagination: ListQuery,
     ) -> Result<Vec<Blob>, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
+        let read_teams = perms.read_teams().await?;
         self.repo.get_blobs(read_teams, pagination).await
     }
 
-    pub async fn get_blob_for_user(&self, user: &User, id: &str) -> Result<Blob, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
+    pub async fn get_blob_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+    ) -> Result<Blob, AppError> {
+        let read_teams = perms.read_teams().await?;
         self.repo.get_blob(read_teams, id).await
     }
 
     pub async fn create_blob_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         blob: CreateBlob,
     ) -> Result<Blob, AppError> {
-        let created = self.repo.create_blob(&user.id, blob).await?;
+        let created = self.repo.create_blob(&perms.user().id, blob).await?;
         self.storage.write_blob_file(&created)?;
         Ok(created)
     }
 
     pub async fn update_blob_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
         blob: CreateBlob,
     ) -> Result<Blob, AppError> {
-        let write_teams = self.teams.content_write_teams(user).await?;
+        let write_teams = perms.write_teams().await?;
         let updated = self.repo.update_blob(write_teams, id, blob).await?;
         self.storage.write_blob_file(&updated)?;
         Ok(updated)
     }
 
-    pub async fn delete_blob_for_user(&self, user: &User, id: &str) -> Result<Blob, AppError> {
-        let write_teams = self.teams.content_write_teams(user).await?;
+    pub async fn delete_blob_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+    ) -> Result<Blob, AppError> {
+        let write_teams = perms.write_teams().await?;
         let deleted = self.repo.delete_blob(write_teams, id).await?;
         self.storage.delete_blob_file(&deleted);
         Ok(deleted)
@@ -74,10 +81,10 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
 
     pub async fn open_blob_data_file_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
     ) -> Result<NamedFile, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
+        let read_teams = perms.read_teams().await?;
         let blob = self.repo.get_blob(read_teams, id).await?;
         self.storage.open_blob_data_file(&blob)
     }
@@ -111,7 +118,7 @@ mod tests {
 
     use crate::error::AppError;
     use crate::resources::User;
-    use crate::resources::team::TeamResolver;
+    use crate::resources::team::{TeamResolver, UserPermissions};
 
     use super::super::repository::BlobRepository;
     use super::super::storage::BlobStorage;
@@ -221,17 +228,21 @@ mod tests {
 
     #[tokio::test]
     async fn get_returns_not_found_when_empty() {
+        let user = test_user();
         let svc = BlobService::new(MockBlobRepo { blobs: vec![] }, MockTeams, NullStorage);
-        let r = svc.get_blob_for_user(&test_user(), "b1").await;
+        let perms = UserPermissions::new(&user, &svc.teams);
+        let r = svc.get_blob_for_user(&perms, "b1").await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
 
     #[tokio::test]
     async fn create_calls_storage_write() {
+        let user = test_user();
         let svc = BlobService::new(MockBlobRepo { blobs: vec![] }, MockTeams, NullStorage);
+        let perms = UserPermissions::new(&user, &svc.teams);
         let r = svc
             .create_blob_for_user(
-                &test_user(),
+                &perms,
                 CreateBlob { file_type: FileType::PNG, width: 1, height: 1, ocr: String::new() },
             )
             .await;
@@ -240,8 +251,10 @@ mod tests {
 
     #[tokio::test]
     async fn delete_not_found_propagates() {
+        let user = test_user();
         let svc = BlobService::new(MockBlobRepo { blobs: vec![] }, MockTeams, NullStorage);
-        let r = svc.delete_blob_for_user(&test_user(), "missing").await;
+        let perms = UserPermissions::new(&user, &svc.teams);
+        let r = svc.delete_blob_for_user(&perms, "missing").await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
 
@@ -271,9 +284,12 @@ mod tests {
         .await
         .expect("acl");
 
+        let owner_perms = UserPermissions::new(&owner, &svc.teams);
+        let other_perms = UserPermissions::new(&other, &svc.teams);
+
         let b = svc
             .create_blob_for_user(
-                &owner,
+                &owner_perms,
                 CreateBlob {
                     file_type: FileType::PNG,
                     width: 10,
@@ -285,17 +301,17 @@ mod tests {
             .expect("create");
 
         let list = svc
-            .list_blobs_for_user(&owner, ListQuery::default())
+            .list_blobs_for_user(&owner_perms, ListQuery::default())
             .await
             .expect("list");
         assert!(list.iter().any(|x| x.id == b.id));
 
-        svc.get_blob_for_user(&owner, &b.id).await.expect("get");
-        svc.get_blob_for_user(&other, &b.id).await.expect("guest read");
+        svc.get_blob_for_user(&owner_perms, &b.id).await.expect("get");
+        svc.get_blob_for_user(&other_perms, &b.id).await.expect("guest read");
 
-        let miss = svc.get_blob_for_user(&other, "never-created").await;
+        let miss = svc.get_blob_for_user(&other_perms, "never-created").await;
         assert!(matches!(miss, Err(AppError::NotFound(_))));
 
-        svc.delete_blob_for_user(&owner, &b.id).await.expect("delete");
+        svc.delete_blob_for_user(&owner_perms, &b.id).await.expect("delete");
     }
 }

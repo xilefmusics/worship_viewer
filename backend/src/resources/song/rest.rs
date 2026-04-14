@@ -13,6 +13,7 @@ use crate::resources::song::Song;
 use crate::resources::song::service::SongServiceHandle;
 #[allow(unused_imports)]
 use crate::resources::song::{Format, QueryParams};
+use crate::resources::team::UserPermissions;
 use shared::api::ListQuery;
 use shared::like::LikeStatus;
 #[allow(unused_imports)]
@@ -56,7 +57,8 @@ async fn get_songs(
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.list_songs_for_user(&user, query.into_inner()).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.list_songs_for_user(&perms, query.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -84,7 +86,8 @@ async fn get_song(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.get_song_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.get_song_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -112,7 +115,8 @@ async fn get_song_player(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.song_player_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.song_player_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -147,7 +151,8 @@ async fn get_song_export(
     id: Path<String>,
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
-    svc.export_song_for_user(&user, &id, query.into_inner().format)
+    let perms = UserPermissions::new(&user, &svc.teams);
+    svc.export_song_for_user(&perms, &id, query.into_inner().format)
         .await
 }
 
@@ -173,8 +178,9 @@ async fn create_song(
     user: ReqData<User>,
     payload: Json<CreateSong>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Created().json(
-        svc.create_song_for_user(&user, payload.into_inner()).await?,
+        svc.create_song_for_user(&perms, payload.into_inner()).await?,
     ))
 }
 
@@ -205,8 +211,9 @@ async fn update_song(
     id: Path<String>,
     payload: Json<CreateSong>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
-        svc.update_song_for_user(&user, &id, payload.into_inner())
+        svc.update_song_for_user(&perms, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -236,7 +243,8 @@ async fn delete_song(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.delete_song_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.delete_song_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -264,7 +272,8 @@ async fn get_song_like_status(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.song_like_status_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.song_like_status_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -294,8 +303,9 @@ async fn update_song_like_status(
     id: Path<String>,
     payload: Json<LikeStatus>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
-        svc.set_song_like_status_for_user(&user, &id, payload.into_inner().liked)
+        svc.set_song_like_status_for_user(&perms, &id, payload.into_inner().liked)
             .await?,
     ))
 }

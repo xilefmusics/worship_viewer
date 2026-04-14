@@ -103,7 +103,7 @@ mod tests {
         use actix_web::web::Data;
 
         use crate::resources::setlist::{SetlistService, SurrealSetlistRepo};
-        use crate::resources::team::SurrealTeamResolver;
+        use crate::resources::team::{SurrealTeamResolver, UserPermissions};
 
         let db = test_db().await.expect("test db");
         let data = Data::from(db.clone());
@@ -113,9 +113,10 @@ mod tests {
             data.clone(),
         );
         let user = seed_user(&db).await.expect("seed user");
+        let perms = UserPermissions::new(&user, &svc.teams);
         let created = svc
             .create_setlist_for_user(
-                &user,
+                &perms,
                 CreateSetlist {
                     title: "Smoke".to_string(),
                     songs: vec![],
@@ -124,7 +125,7 @@ mod tests {
             .await
             .expect("create setlist");
         let fetched = svc
-            .get_setlist_for_user(&user, &created.id)
+            .get_setlist_for_user(&perms, &created.id)
             .await
             .expect("get setlist");
         assert_eq!(fetched.title, "Smoke");

@@ -5,10 +5,9 @@ use shared::setlist::{CreateSetlist, Setlist};
 use shared::song::Song;
 
 use crate::error::AppError;
-use crate::resources::User;
 use crate::resources::song::LikedSongIds;
 use crate::resources::song::{Format, export};
-use crate::resources::team::TeamResolver;
+use crate::resources::team::{TeamResolver, UserPermissions};
 
 use crate::resources::common::player_from_song_links;
 use super::repository::SetlistRepository;
@@ -30,22 +29,31 @@ impl<R, T, L> SetlistService<R, T, L> {
 impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T, L> {
     pub async fn list_setlists_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         pagination: ListQuery,
     ) -> Result<Vec<Setlist>, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
+        let read_teams = perms.read_teams().await?;
         self.repo.get_setlists(read_teams, pagination).await
     }
 
-    pub async fn get_setlist_for_user(&self, user: &User, id: &str) -> Result<Setlist, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
+    pub async fn get_setlist_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+    ) -> Result<Setlist, AppError> {
+        let read_teams = perms.read_teams().await?;
         self.repo.get_setlist(read_teams, id).await
     }
 
-    pub async fn setlist_player_for_user(&self, user: &User, id: &str) -> Result<Player, AppError> {
+    pub async fn setlist_player_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+    ) -> Result<Player, AppError> {
+        let user_id = perms.user().id.clone();
         let (liked_set, read_teams) = tokio::try_join!(
-            self.likes.liked_song_ids(&user.id),
-            self.teams.content_read_teams(user)
+            self.likes.liked_song_ids(&user_id),
+            perms.read_teams()
         )?;
         let links = self.repo.get_setlist_songs(read_teams, id).await?;
         player_from_song_links(liked_set, links)
@@ -53,11 +61,11 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 
     pub async fn export_setlist_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
         format: Format,
     ) -> Result<HttpResponse, AppError> {
-        let read_teams = self.teams.content_read_teams(user).await?;
+        let read_teams = perms.read_teams().await?;
         let songs: Vec<Song> = self
             .repo
             .get_setlist_songs(read_teams, id)
@@ -70,12 +78,13 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 
     pub async fn setlist_songs_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
     ) -> Result<Vec<Song>, AppError> {
+        let user_id = perms.user().id.clone();
         let (liked_set, read_teams) = tokio::try_join!(
-            self.likes.liked_song_ids(&user.id),
-            self.teams.content_read_teams(user)
+            self.likes.liked_song_ids(&user_id),
+            perms.read_teams()
         )?;
         Ok(self
             .repo
@@ -92,28 +101,28 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 
     pub async fn create_setlist_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
-        self.repo.create_setlist(&user.id, setlist).await
+        self.repo.create_setlist(&perms.user().id, setlist).await
     }
 
     pub async fn update_setlist_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
-        let write_teams = self.teams.content_write_teams(user).await?;
+        let write_teams = perms.write_teams().await?;
         self.repo.update_setlist(write_teams, id, setlist).await
     }
 
     pub async fn delete_setlist_for_user(
         &self,
-        user: &User,
+        perms: &UserPermissions<'_, T>,
         id: &str,
     ) -> Result<Setlist, AppError> {
-        let write_teams = self.teams.content_write_teams(user).await?;
+        let write_teams = perms.write_teams().await?;
         self.repo.delete_setlist(write_teams, id).await
     }
 }
@@ -139,7 +148,7 @@ mod tests {
     use crate::error::AppError;
     use crate::resources::User;
     use crate::resources::song::LikedSongIds;
-    use crate::resources::team::TeamResolver;
+    use crate::resources::team::{TeamResolver, UserPermissions};
 
     use super::{SetlistRepository, SetlistService};
 
@@ -258,6 +267,7 @@ mod tests {
     /// BLC-SETL-006: missing setlist → NotFound
     #[tokio::test]
     async fn get_returns_not_found_when_setlist_missing() {
+        let user = test_user();
         let svc = SetlistService::new(
             MockRepo {
                 setlists: vec![],
@@ -272,13 +282,15 @@ mod tests {
                 ids: HashSet::new(),
             },
         );
-        let r = svc.get_setlist_for_user(&test_user(), "nope").await;
+        let perms = UserPermissions::new(&user, &svc.teams);
+        let r = svc.get_setlist_for_user(&perms, "nope").await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
 
     /// BLC-SETL-007: write teams exclude owner → update NotFound
     #[tokio::test]
     async fn update_rejects_when_user_not_in_write_teams() {
+        let user = test_user();
         let svc = SetlistService::new(
             MockRepo {
                 setlists: vec![],
@@ -293,9 +305,10 @@ mod tests {
                 ids: HashSet::new(),
             },
         );
+        let perms = UserPermissions::new(&user, &svc.teams);
         let r = svc
             .update_setlist_for_user(
-                &test_user(),
+                &perms,
                 "id",
                 CreateSetlist {
                     title: "t".into(),
@@ -309,6 +322,7 @@ mod tests {
     /// BLC-SETL-008: owner can update (repo succeeds)
     #[tokio::test]
     async fn update_succeeds_for_owner() {
+        let user = test_user();
         let svc = SetlistService::new(
             MockRepo {
                 setlists: vec![],
@@ -323,9 +337,10 @@ mod tests {
                 ids: HashSet::new(),
             },
         );
+        let perms = UserPermissions::new(&user, &svc.teams);
         let r = svc
             .update_setlist_for_user(
-                &test_user(),
+                &perms,
                 "id",
                 CreateSetlist {
                     title: "t".into(),
@@ -389,6 +404,7 @@ mod tests {
         use crate::error::AppError;
         use crate::resources::User;
         use crate::resources::song::Format;
+        use crate::resources::team::UserPermissions;
         use crate::test_helpers::{
             configure_personal_team_members, create_song_with_title, create_user,
             personal_team_id, setlist_service, setlist_with_songs, test_db,
@@ -436,9 +452,14 @@ mod tests {
             .await
             .expect("s2");
 
+        let owner_p = UserPermissions::new(&owner, &sl.teams);
+        let read_p = UserPermissions::new(&read_u, &sl.teams);
+        let write_p = UserPermissions::new(&write_u, &sl.teams);
+        let noperm_p = UserPermissions::new(&noperm, &sl.teams);
+
         let created = sl
             .create_setlist_for_user(
-                &owner,
+                &owner_p,
                 setlist_with_songs(
                     "Sunday Morning Set",
                     &[(s1.id.as_str(), Some("1")), (s2.id.as_str(), Some("2"))],
@@ -453,7 +474,7 @@ mod tests {
 
         let for_delete = sl
             .create_setlist_for_user(
-                &owner,
+                &owner_p,
                 setlist_with_songs(
                     "Setlist Delete By Write User",
                     &[(s1.id.as_str(), Some("1"))],
@@ -463,31 +484,31 @@ mod tests {
             .expect("for_delete");
 
         let all = sl
-            .list_setlists_for_user(&owner, ListQuery::default())
+            .list_setlists_for_user(&owner_p, ListQuery::default())
             .await
             .expect("list");
         assert_eq!(all.len(), 2);
 
         let page = sl
-            .list_setlists_for_user(&owner, ListQuery::new().with_page(0).with_page_size(1))
+            .list_setlists_for_user(&owner_p, ListQuery::new().with_page(0).with_page_size(1))
             .await
             .expect("page");
         assert_eq!(page.len(), 1);
 
         let read_list = sl
-            .list_setlists_for_user(&read_u, ListQuery::default())
+            .list_setlists_for_user(&read_p, ListQuery::default())
             .await
             .expect("read list");
         assert_eq!(read_list.len(), 2);
 
         let noperm_list = sl
-            .list_setlists_for_user(&noperm, ListQuery::default())
+            .list_setlists_for_user(&noperm_p, ListQuery::default())
             .await
             .expect("noperm list");
         assert_eq!(noperm_list.len(), 0);
 
         let q = sl
-            .list_setlists_for_user(&owner, ListQuery::new().with_q("Sunday"))
+            .list_setlists_for_user(&owner_p, ListQuery::new().with_q("Sunday"))
             .await
             .expect("q");
         assert_eq!(q.len(), 1);
@@ -495,7 +516,7 @@ mod tests {
 
         let q_page = sl
             .list_setlists_for_user(
-                &owner,
+                &owner_p,
                 ListQuery::new()
                     .with_q("Sunday")
                     .with_page(0)
@@ -507,7 +528,7 @@ mod tests {
 
         let q_empty = sl
             .list_setlists_for_user(
-                &owner,
+                &owner_p,
                 ListQuery::new().with_q("SetlistNoSuchTokenEver999zz"),
             )
             .await
@@ -515,125 +536,125 @@ mod tests {
         assert_eq!(q_empty.len(), 0);
 
         let q_blank = sl
-            .list_setlists_for_user(&owner, ListQuery::new().with_q(" "))
+            .list_setlists_for_user(&owner_p, ListQuery::new().with_q(" "))
             .await
             .expect("q blank");
         assert_eq!(q_blank.len(), 2);
 
         let zero_size = sl
-            .list_setlists_for_user(&owner, ListQuery::new().with_page(0).with_page_size(0))
+            .list_setlists_for_user(&owner_p, ListQuery::new().with_page(0).with_page_size(0))
             .await
             .expect("zero size");
         assert_eq!(zero_size.len(), 2);
 
         let page_only = sl
-            .list_setlists_for_user(&owner, ListQuery::new().with_page(1))
+            .list_setlists_for_user(&owner_p, ListQuery::new().with_page(1))
             .await
             .expect("page only");
         assert_eq!(page_only.len(), 2);
 
         let page_size_only = sl
-            .list_setlists_for_user(&owner, ListQuery::new().with_page_size(1))
+            .list_setlists_for_user(&owner_p, ListQuery::new().with_page_size(1))
             .await
             .expect("page only");
         assert_eq!(page_size_only.len(), 2);
 
         let beyond = sl
-            .list_setlists_for_user(&owner, ListQuery::new().with_page(10).with_page_size(10))
+            .list_setlists_for_user(&owner_p, ListQuery::new().with_page(10).with_page_size(10))
             .await
             .expect("beyond");
         assert_eq!(beyond.len(), 0);
 
         let g1 = sl
-            .get_setlist_for_user(&owner, &created.id)
+            .get_setlist_for_user(&owner_p, &created.id)
             .await
             .expect("get owner");
         assert_eq!(g1.songs.len(), 2);
 
-        sl.get_setlist_for_user(&read_u, &created.id)
+        sl.get_setlist_for_user(&read_p, &created.id)
             .await
             .expect("get read");
 
-        let miss = sl.get_setlist_for_user(&noperm, &created.id).await;
+        let miss = sl.get_setlist_for_user(&noperm_p, &created.id).await;
         assert!(matches!(miss, Err(AppError::NotFound(_))));
 
-        let bad_id = sl.get_setlist_for_user(&owner, "song:invalid").await;
+        let bad_id = sl.get_setlist_for_user(&owner_p, "song:invalid").await;
         assert!(matches!(bad_id, Err(AppError::InvalidRequest(_))));
 
         let notfound = sl
-            .get_setlist_for_user(&owner, "never-created-setlist")
+            .get_setlist_for_user(&owner_p, "never-created-setlist")
             .await;
         assert!(matches!(notfound, Err(AppError::NotFound(_))));
 
         let songs = sl
-            .setlist_songs_for_user(&owner, &created.id)
+            .setlist_songs_for_user(&owner_p, &created.id)
             .await
             .expect("songs owner");
         assert_eq!(songs.len(), 2);
 
         let songs_read = sl
-            .setlist_songs_for_user(&read_u, &created.id)
+            .setlist_songs_for_user(&read_p, &created.id)
             .await
             .expect("songs read");
         assert_eq!(songs_read.len(), 2);
 
-        let songs_noperm = sl.setlist_songs_for_user(&noperm, &created.id).await;
+        let songs_noperm = sl.setlist_songs_for_user(&noperm_p, &created.id).await;
         assert!(matches!(songs_noperm, Err(AppError::NotFound(_))));
 
-        let songs_bad = sl.setlist_songs_for_user(&owner, "song:invalid").await;
+        let songs_bad = sl.setlist_songs_for_user(&owner_p, "song:invalid").await;
         assert!(matches!(songs_bad, Err(AppError::InvalidRequest(_))));
 
         let songs_nf = sl
-            .setlist_songs_for_user(&owner, "never-created-setlist")
+            .setlist_songs_for_user(&owner_p, "never-created-setlist")
             .await;
         assert!(matches!(songs_nf, Err(AppError::NotFound(_))));
 
         let player = sl
-            .setlist_player_for_user(&owner, &created.id)
+            .setlist_player_for_user(&owner_p, &created.id)
             .await
             .expect("player");
         assert_eq!(player.toc().len(), 2);
 
-        sl.setlist_player_for_user(&read_u, &created.id)
+        sl.setlist_player_for_user(&read_p, &created.id)
             .await
             .expect("player read");
 
-        let pl_noperm = sl.setlist_player_for_user(&noperm, &created.id).await;
+        let pl_noperm = sl.setlist_player_for_user(&noperm_p, &created.id).await;
         assert!(matches!(pl_noperm, Err(AppError::NotFound(_))));
 
-        let pl_bad = sl.setlist_player_for_user(&owner, "song:invalid").await;
+        let pl_bad = sl.setlist_player_for_user(&owner_p, "song:invalid").await;
         assert!(matches!(pl_bad, Err(AppError::InvalidRequest(_))));
 
         let pl_nf = sl
-            .setlist_player_for_user(&owner, "never-created-setlist")
+            .setlist_player_for_user(&owner_p, "never-created-setlist")
             .await;
         assert!(matches!(pl_nf, Err(AppError::NotFound(_))));
 
-        sl.export_setlist_for_user(&owner, &created.id, Format::WorshipPro)
+        sl.export_setlist_for_user(&owner_p, &created.id, Format::WorshipPro)
             .await
             .expect("export owner");
-        sl.export_setlist_for_user(&read_u, &created.id, Format::WorshipPro)
+        sl.export_setlist_for_user(&read_p, &created.id, Format::WorshipPro)
             .await
             .expect("export read");
 
         let ex_noperm = sl
-            .export_setlist_for_user(&noperm, &created.id, Format::WorshipPro)
+            .export_setlist_for_user(&noperm_p, &created.id, Format::WorshipPro)
             .await;
         assert!(matches!(ex_noperm, Err(AppError::NotFound(_))));
 
         let ex_bad = sl
-            .export_setlist_for_user(&owner, "song:invalid", Format::WorshipPro)
+            .export_setlist_for_user(&owner_p, "song:invalid", Format::WorshipPro)
             .await;
         assert!(matches!(ex_bad, Err(AppError::InvalidRequest(_))));
 
         let ex_nf = sl
-            .export_setlist_for_user(&owner, "never-created-setlist", Format::WorshipPro)
+            .export_setlist_for_user(&owner_p, "never-created-setlist", Format::WorshipPro)
             .await;
         assert!(matches!(ex_nf, Err(AppError::NotFound(_))));
 
         let updated = sl
             .update_setlist_for_user(
-                &owner,
+                &owner_p,
                 &created.id,
                 setlist_with_songs(
                     "Updated Sunday Set",
@@ -646,7 +667,7 @@ mod tests {
 
         let write_updated = sl
             .update_setlist_for_user(
-                &write_u,
+                &write_p,
                 &created.id,
                 setlist_with_songs(
                     "Write User Updated Set",
@@ -658,14 +679,14 @@ mod tests {
         assert_eq!(write_updated.title, "Write User Updated Set");
 
         let got = sl
-            .get_setlist_for_user(&owner, &created.id)
+            .get_setlist_for_user(&owner_p, &created.id)
             .await
             .expect("get after write");
         assert_eq!(got.title, "Write User Updated Set");
 
         let put_noperm = sl
             .update_setlist_for_user(
-                &noperm,
+                &noperm_p,
                 &created.id,
                 setlist_with_songs("Should Fail", &[(s1.id.as_str(), None)]),
             )
@@ -674,7 +695,7 @@ mod tests {
 
         let put_read = sl
             .update_setlist_for_user(
-                &read_u,
+                &read_p,
                 &created.id,
                 setlist_with_songs(
                     "Read User Put",
@@ -686,7 +707,7 @@ mod tests {
 
         let put_bad = sl
             .update_setlist_for_user(
-                &owner,
+                &owner_p,
                 "song:invalid",
                 setlist_with_songs("x", &[(s1.id.as_str(), None)]),
             )
@@ -695,28 +716,28 @@ mod tests {
 
         let put_nf = sl
             .update_setlist_for_user(
-                &owner,
+                &owner_p,
                 "never-created-setlist",
                 setlist_with_songs("Unknown Setlist", &[(s1.id.as_str(), None)]),
             )
             .await;
         assert!(matches!(put_nf, Err(AppError::NotFound(_))));
 
-        let del_noperm = sl.delete_setlist_for_user(&noperm, &created.id).await;
+        let del_noperm = sl.delete_setlist_for_user(&noperm_p, &created.id).await;
         assert!(matches!(del_noperm, Err(AppError::NotFound(_))));
 
-        let del_bad = sl.delete_setlist_for_user(&owner, "song:invalid").await;
+        let del_bad = sl.delete_setlist_for_user(&owner_p, "song:invalid").await;
         assert!(matches!(del_bad, Err(AppError::InvalidRequest(_))));
 
-        sl.delete_setlist_for_user(&write_u, &for_delete.id)
+        sl.delete_setlist_for_user(&write_p, &for_delete.id)
             .await
             .expect("delete write");
 
-        sl.delete_setlist_for_user(&owner, &created.id)
+        sl.delete_setlist_for_user(&owner_p, &created.id)
             .await
             .expect("delete owner");
 
-        let again = sl.delete_setlist_for_user(&owner, &created.id).await;
+        let again = sl.delete_setlist_for_user(&owner_p, &created.id).await;
         assert!(matches!(again, Err(AppError::NotFound(_))));
     }
 }
