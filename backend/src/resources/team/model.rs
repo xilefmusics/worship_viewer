@@ -55,7 +55,9 @@ pub(crate) fn build_create_shared_members(
     Ok(members)
 }
 
-pub(crate) fn inputs_to_db_members(inputs: &[TeamMemberInput]) -> Result<Vec<DbTeamMember>, AppError> {
+pub(crate) fn inputs_to_db_members(
+    inputs: &[TeamMemberInput],
+) -> Result<Vec<DbTeamMember>, AppError> {
     let mut map: BTreeMap<String, DbTeamMember> = BTreeMap::new();
     for m in inputs {
         let uid = member_user_id(&m.user)?;
@@ -90,7 +92,9 @@ pub(crate) fn validate_shared_has_admin(members: &[DbTeamMember]) -> Result<(), 
 }
 
 /// After a membership update on an existing shared team (PUT), missing any admin is a conflict (e.g. sole admin leaving).
-pub(crate) fn ensure_shared_team_has_admin_after_update(members: &[DbTeamMember]) -> Result<(), AppError> {
+pub(crate) fn ensure_shared_team_has_admin_after_update(
+    members: &[DbTeamMember],
+) -> Result<(), AppError> {
     if !members.iter().any(|m| m.role == "admin") {
         return Err(AppError::conflict(
             "cannot leave team as the sole admin; promote another admin or delete the team",
@@ -316,3 +320,417 @@ fn role_str(r: &TeamRole) -> &'static str {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use shared::team::{TeamMemberInput, TeamRole, TeamUserRef};
+
+    use super::*;
+    use crate::error::AppError;
+
+    fn make_member(user_id: &str, role: &str) -> DbTeamMember {
+        DbTeamMember {
+            user: user_thing(user_id),
+            role: role.to_owned(),
+        }
+    }
+
+    fn make_stored(owner_id: Option<&str>, members: Vec<DbTeamMember>) -> TeamStored {
+        TeamStored {
+            owner: owner_id.map(user_thing),
+            members,
+        }
+    }
+
+    fn member_input(user_id: &str, role: TeamRole) -> TeamMemberInput {
+        TeamMemberInput {
+            user: TeamUserRef {
+                id: user_id.to_owned(),
+            },
+            role,
+        }
+    }
+
+    /// BLC-TEAM-011: shared team with exactly one admin is valid.
+    #[test]
+    fn blc_team_011_validate_shared_has_admin_one_admin_ok() {
+        let members = vec![make_member("u1", "admin")];
+        assert!(validate_shared_has_admin(&members).is_ok());
+    }
+
+    /// BLC-TEAM-011: shared team with two admins is valid.
+    #[test]
+    fn blc_team_011_validate_shared_has_admin_two_admins_ok() {
+        let members = vec![make_member("u1", "admin"), make_member("u2", "admin")];
+        assert!(validate_shared_has_admin(&members).is_ok());
+    }
+
+    /// BLC-TEAM-011: shared team with zero admins is invalid.
+    #[test]
+    fn blc_team_011_validate_shared_has_admin_zero_admins_err() {
+        let members = vec![make_member("u1", "guest")];
+        let err = validate_shared_has_admin(&members).unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+
+    /// BLC-TEAM-011: shared team with only guests is invalid.
+    #[test]
+    fn blc_team_011_validate_shared_has_admin_only_guests_err() {
+        let members = vec![
+            make_member("u1", "guest"),
+            make_member("u2", "content_maintainer"),
+        ];
+        let err = validate_shared_has_admin(&members).unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+
+    /// BLC-TEAM-015: updating members while keeping one admin is ok.
+    #[test]
+    fn blc_team_015_ensure_admin_after_update_one_admin_ok() {
+        let members = vec![make_member("u1", "admin")];
+        assert!(ensure_shared_team_has_admin_after_update(&members).is_ok());
+    }
+
+    /// BLC-TEAM-015: removing the last admin during an update is a conflict.
+    #[test]
+    fn blc_team_015_ensure_admin_after_update_zero_admins_conflict() {
+        let members = vec![make_member("u1", "guest")];
+        let err = ensure_shared_team_has_admin_after_update(&members).unwrap_err();
+        assert!(matches!(err, AppError::Conflict(_)));
+    }
+
+    /// BLC-TEAM-001: personal team with owner absent from members is valid.
+    #[test]
+    fn blc_team_001_validate_personal_members_not_owner_absent_ok() {
+        let members = vec![make_member("other", "guest")];
+        assert!(validate_personal_members_not_owner("ownerid", &members).is_ok());
+    }
+
+    /// BLC-TEAM-001: personal team with owner in members is invalid.
+    #[test]
+    fn blc_team_001_validate_personal_members_not_owner_present_err() {
+        let members = vec![make_member("ownerid", "admin")];
+        let err = validate_personal_members_not_owner("ownerid", &members).unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+
+    /// BLC-TEAM-001: personal team with empty members list is valid.
+    #[test]
+    fn blc_team_001_validate_personal_members_not_owner_empty_ok() {
+        assert!(validate_personal_members_not_owner("ownerid", &[]).is_ok());
+    }
+
+    #[test]
+    fn member_user_id_valid_returns_trimmed_id() {
+        let r = TeamUserRef {
+            id: "abc".to_owned(),
+        };
+        assert_eq!(member_user_id(&r).unwrap(), "abc");
+    }
+
+    #[test]
+    fn member_user_id_empty_string_err() {
+        let r = TeamUserRef { id: String::new() };
+        assert!(matches!(
+            member_user_id(&r).unwrap_err(),
+            AppError::InvalidRequest(_)
+        ));
+    }
+
+    #[test]
+    fn member_user_id_whitespace_only_err() {
+        let r = TeamUserRef {
+            id: "   ".to_owned(),
+        };
+        assert!(matches!(
+            member_user_id(&r).unwrap_err(),
+            AppError::InvalidRequest(_)
+        ));
+    }
+
+    /// BLC-TEAM-002: creator alone produces a single admin member.
+    #[test]
+    fn blc_team_002_build_create_shared_members_creator_alone() {
+        let members = build_create_shared_members("creator", &[]).unwrap();
+        assert_eq!(members.len(), 1);
+        assert_eq!(thing_user_id(&members[0].user), "creator");
+        assert_eq!(members[0].role, "admin");
+    }
+
+    /// BLC-TEAM-008: creator + extra guest — creator is admin, guest is present.
+    #[test]
+    fn blc_team_008_build_create_shared_members_creator_plus_guest() {
+        let extra = vec![member_input("guestuser", TeamRole::Guest)];
+        let members = build_create_shared_members("creator", &extra).unwrap();
+        assert_eq!(members.len(), 2);
+        let creator_entry = members
+            .iter()
+            .find(|m| thing_user_id(&m.user) == "creator")
+            .unwrap();
+        assert_eq!(creator_entry.role, "admin");
+        let guest_entry = members
+            .iter()
+            .find(|m| thing_user_id(&m.user) == "guestuser")
+            .unwrap();
+        assert_eq!(guest_entry.role, "guest");
+    }
+
+    /// BLC-TEAM-008: creator duplicated in extras as guest stays admin, no duplicate entry.
+    #[test]
+    fn blc_team_008_build_create_shared_members_creator_duplicate_stays_admin() {
+        let extra = vec![member_input("creator", TeamRole::Guest)];
+        let members = build_create_shared_members("creator", &extra).unwrap();
+        assert_eq!(members.len(), 1);
+        assert_eq!(members[0].role, "admin");
+    }
+
+    /// BLC-TEAM-008: creator + extra admin + extra guest — all present, creator is admin.
+    #[test]
+    fn blc_team_008_build_create_shared_members_mixed_roles() {
+        let extra = vec![
+            member_input("adminuser", TeamRole::Admin),
+            member_input("guestuser", TeamRole::Guest),
+        ];
+        let members = build_create_shared_members("creator", &extra).unwrap();
+        assert_eq!(members.len(), 3);
+        let creator_role = members
+            .iter()
+            .find(|m| thing_user_id(&m.user) == "creator")
+            .unwrap()
+            .role
+            .as_str();
+        assert_eq!(creator_role, "admin");
+    }
+
+    /// BLC-TEAM-008: two extras with the same user id are deduplicated.
+    #[test]
+    fn blc_team_008_build_create_shared_members_deduplicates_extras() {
+        let extra = vec![
+            member_input("dupuser", TeamRole::Guest),
+            member_input("dupuser", TeamRole::ContentMaintainer),
+        ];
+        let members = build_create_shared_members("creator", &extra).unwrap();
+        let dup_count = members
+            .iter()
+            .filter(|m| thing_user_id(&m.user) == "dupuser")
+            .count();
+        assert_eq!(dup_count, 1);
+    }
+
+    /// Extra member with empty user id returns an error.
+    #[test]
+    fn build_create_shared_members_empty_extra_user_id_err() {
+        let extra = vec![member_input("", TeamRole::Guest)];
+        let err = build_create_shared_members("creator", &extra).unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+
+    /// BLC-TEAM-003: personal team owner is effectively an admin.
+    #[test]
+    fn blc_team_003_effective_admin_personal_owner_true() {
+        let stored = make_stored(Some("ownerid"), vec![]);
+        assert!(effective_admin("ownerid", &stored));
+    }
+
+    /// BLC-TEAM-003: shared team admin member is effectively an admin.
+    #[test]
+    fn blc_team_003_effective_admin_shared_admin_member_true() {
+        let stored = make_stored(None, vec![make_member("adminuser", "admin")]);
+        assert!(effective_admin("adminuser", &stored));
+    }
+
+    /// BLC-TEAM-003: content_maintainer is not an effective admin.
+    #[test]
+    fn blc_team_003_effective_admin_content_maintainer_false() {
+        let stored = make_stored(None, vec![make_member("cmuser", "content_maintainer")]);
+        assert!(!effective_admin("cmuser", &stored));
+    }
+
+    /// BLC-TEAM-003: non-member is not an effective admin.
+    #[test]
+    fn blc_team_003_effective_admin_non_member_false() {
+        let stored = make_stored(None, vec![make_member("someone", "admin")]);
+        assert!(!effective_admin("outsider", &stored));
+    }
+
+    /// BLC-TEAM-007: personal team owner can read the team.
+    #[test]
+    fn blc_team_007_member_or_owner_readable_owner_true() {
+        let stored = make_stored(Some("ownerid"), vec![]);
+        assert!(member_or_owner_readable("ownerid", &stored));
+    }
+
+    /// BLC-TEAM-007: guest member can read the team.
+    #[test]
+    fn blc_team_007_member_or_owner_readable_guest_true() {
+        let stored = make_stored(None, vec![make_member("guestuser", "guest")]);
+        assert!(member_or_owner_readable("guestuser", &stored));
+    }
+
+    /// BLC-TEAM-007: non-member cannot read the team.
+    #[test]
+    fn blc_team_007_member_or_owner_readable_non_member_false() {
+        let stored = make_stored(None, vec![make_member("someone", "admin")]);
+        assert!(!member_or_owner_readable("outsider", &stored));
+    }
+
+    /// BLC-TEAM-007: non-member without platform admin cannot read team.
+    #[test]
+    fn blc_team_007_can_read_team_non_member_non_admin_false() {
+        let stored = make_stored(None, vec![make_member("someone", "admin")]);
+        assert!(!can_read_team("outsider", &stored, false));
+    }
+
+    /// BLC-TEAM-007: non-member platform admin can read team.
+    #[test]
+    fn blc_team_007_can_read_team_non_member_platform_admin_true() {
+        let stored = make_stored(None, vec![make_member("someone", "admin")]);
+        assert!(can_read_team("outsider", &stored, true));
+    }
+
+    /// BLC-TEAM-007: member without platform admin can read team.
+    #[test]
+    fn blc_team_007_can_read_team_member_non_admin_true() {
+        let stored = make_stored(None, vec![make_member("memberuser", "guest")]);
+        assert!(can_read_team("memberuser", &stored, false));
+    }
+
+    /// BLC-TEAM-013: correct self-removal returns true.
+    #[test]
+    fn blc_team_013_member_self_leave_payload_correct_removal_true() {
+        let members = vec![
+            make_member("leaver", "guest"),
+            make_member("other", "admin"),
+        ];
+        let stored = make_stored(None, members);
+        let new_members = vec![make_member("other", "admin")];
+        assert!(member_self_leave_payload(
+            &stored,
+            "leaver",
+            "My Team",
+            "My Team",
+            &new_members
+        ));
+    }
+
+    /// BLC-TEAM-013: changing the name is not a valid self-leave.
+    #[test]
+    fn blc_team_013_member_self_leave_payload_name_changed_false() {
+        let members = vec![
+            make_member("leaver", "guest"),
+            make_member("other", "admin"),
+        ];
+        let stored = make_stored(None, members);
+        let new_members = vec![make_member("other", "admin")];
+        assert!(!member_self_leave_payload(
+            &stored,
+            "leaver",
+            "Original",
+            "Changed",
+            &new_members
+        ));
+    }
+
+    /// BLC-TEAM-013: removing an extra member besides self is not a valid self-leave.
+    #[test]
+    fn blc_team_013_member_self_leave_payload_extra_removal_false() {
+        let members = vec![
+            make_member("leaver", "guest"),
+            make_member("other1", "admin"),
+            make_member("other2", "content_maintainer"),
+        ];
+        let stored = make_stored(None, members);
+        // Removes both leaver and other2 — not allowed
+        let new_members = vec![make_member("other1", "admin")];
+        assert!(!member_self_leave_payload(
+            &stored,
+            "leaver",
+            "Team",
+            "Team",
+            &new_members
+        ));
+    }
+
+    /// BLC-TEAM-013: user not currently in members returns false.
+    #[test]
+    fn blc_team_013_member_self_leave_payload_not_in_members_false() {
+        let stored = make_stored(None, vec![make_member("other", "admin")]);
+        let new_members = vec![make_member("other", "admin")];
+        assert!(!member_self_leave_payload(
+            &stored,
+            "outsider",
+            "Team",
+            "Team",
+            &new_members
+        ));
+    }
+
+    /// BLC-TEAM-013: names with surrounding whitespace are treated as equal.
+    #[test]
+    fn blc_team_013_member_self_leave_payload_whitespace_name_match_true() {
+        let members = vec![
+            make_member("leaver", "guest"),
+            make_member("other", "admin"),
+        ];
+        let stored = make_stored(None, members);
+        let new_members = vec![make_member("other", "admin")];
+        assert!(member_self_leave_payload(
+            &stored,
+            "leaver",
+            "  My Team  ",
+            "My Team",
+            &new_members
+        ));
+    }
+
+    /// BLC-TEAM-007: plain "public" id is rejected with NotFound.
+    #[test]
+    fn blc_team_007_team_resource_or_reject_public_plain_public_not_found() {
+        let err = team_resource_or_reject_public("public").unwrap_err();
+        assert!(matches!(err, AppError::NotFound(_)));
+    }
+
+    /// BLC-TEAM-007: a plain non-public id is accepted.
+    #[test]
+    fn blc_team_007_team_resource_or_reject_public_plain_uuid_ok() {
+        let result = team_resource_or_reject_public("some-uuid").unwrap();
+        assert_eq!(result, ("team".to_owned(), "some-uuid".to_owned()));
+    }
+
+    /// BLC-TEAM-007: a "team:someid" Thing string is accepted and parsed.
+    #[test]
+    fn blc_team_007_team_resource_or_reject_public_thing_string_ok() {
+        let result = team_resource_or_reject_public("team:someid").unwrap();
+        assert_eq!(result.0, "team");
+        assert_eq!(result.1, "someid");
+    }
+
+    #[test]
+    fn parse_role_guest_ok() {
+        assert_eq!(parse_role("guest").unwrap(), TeamRole::Guest);
+    }
+
+    #[test]
+    fn parse_role_content_maintainer_ok() {
+        assert_eq!(
+            parse_role("content_maintainer").unwrap(),
+            TeamRole::ContentMaintainer
+        );
+    }
+
+    #[test]
+    fn parse_role_admin_ok() {
+        assert_eq!(parse_role("admin").unwrap(), TeamRole::Admin);
+    }
+
+    #[test]
+    fn parse_role_unknown_err() {
+        let err = parse_role("superadmin").unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+
+    #[test]
+    fn parse_role_empty_err() {
+        let err = parse_role("").unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+}

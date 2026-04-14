@@ -62,3 +62,31 @@ impl UserRecord {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::AppError;
+
+    /// Plain id returns ("user", id).
+    #[test]
+    fn user_resource_plain_id_ok() {
+        let result = user_resource("some-uuid").unwrap();
+        assert_eq!(result, ("user".to_owned(), "some-uuid".to_owned()));
+    }
+
+    /// "user:someid" Thing string is parsed correctly.
+    #[test]
+    fn user_resource_thing_string_ok() {
+        let result = user_resource("user:someid").unwrap();
+        assert_eq!(result.0, "user");
+        assert_eq!(result.1, "someid");
+    }
+
+    /// BLC-HTTP-001: "team:abc" (wrong table) returns an error.
+    #[test]
+    fn blc_http_001_user_resource_wrong_table_err() {
+        let err = user_resource("team:abc").unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+}
