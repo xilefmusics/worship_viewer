@@ -15,7 +15,8 @@ use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
 use shared::setlist::CreateSetlist;
 use shared::song::CreateSong;
-use shared::team::{TeamMemberInput, TeamRole, TeamUserRef, UpdateTeam};
+use shared::team::{CreateTeam, TeamMemberInput, TeamRole, TeamUserRef, UpdateTeam};
+use shared::user::Role as UserRole;
 
 pub async fn test_db() -> AnyResult<Arc<Database>> {
     let db = Database::connect("mem://", "test", "test", None, None).await?;
@@ -134,6 +135,81 @@ pub fn user_service(db: &Arc<Database>) -> UserServiceHandle {
 /// Session application service (same wiring as HTTP `main`).
 pub fn session_service(db: &Arc<Database>) -> SessionServiceHandle {
     SessionServiceHandle::build(db.clone())
+}
+
+/// Multi-role test fixture that creates a shared team with owner, admin, writer, guest,
+/// non-member, and platform admin users. Use `TeamFixture::build(&db).await` in integration tests
+/// that need to exercise ACL across multiple roles.
+pub struct TeamFixture {
+    pub db: Arc<Database>,
+    /// Owns a personal team; not a member of the shared team.
+    pub owner: User,
+    /// ID of `owner`'s personal team.
+    pub personal_team_id: String,
+    /// Creator of the shared team; has the `admin` role on it.
+    pub admin_user: User,
+    /// Member of the shared team with the `content_maintainer` role.
+    pub writer: User,
+    /// Member of the shared team with the `guest` role.
+    pub guest: User,
+    /// Not a member of any team under test.
+    pub non_member: User,
+    /// User with platform-level `Admin` role (not a team member).
+    pub platform_admin: User,
+    /// ID of the shared team.
+    pub shared_team_id: String,
+}
+
+impl TeamFixture {
+    /// Build a fully-populated multi-role fixture against `db`.
+    pub async fn build(db: &Arc<Database>) -> AnyResult<Self> {
+        let owner = create_user(db, "fx-owner@test.local").await?;
+        let personal_team_id = personal_team_id(db, &owner).await?;
+
+        let admin_user = create_user(db, "fx-admin@test.local").await?;
+        let writer = create_user(db, "fx-writer@test.local").await?;
+        let guest = create_user(db, "fx-guest@test.local").await?;
+        let non_member = create_user(db, "fx-nonmember@test.local").await?;
+
+        // Create platform admin: User::new gives role=Default, so override it.
+        let mut platform_admin_raw = User::new("fx-platformadmin@test.local");
+        platform_admin_raw.role = UserRole::Admin;
+        let platform_admin = user_service(db).create_user(platform_admin_raw).await?;
+
+        // admin_user creates the shared team -> automatically becomes admin.
+        // writer and guest are passed as extra members at creation time.
+        let shared_team = team_service(db)
+            .create_shared_team_for_user(
+                &admin_user,
+                CreateTeam {
+                    name: "Fixture Shared Team".into(),
+                    members: vec![
+                        TeamMemberInput {
+                            user: TeamUserRef { id: writer.id.clone() },
+                            role: TeamRole::ContentMaintainer,
+                        },
+                        TeamMemberInput {
+                            user: TeamUserRef { id: guest.id.clone() },
+                            role: TeamRole::Guest,
+                        },
+                    ],
+                },
+            )
+            .await?;
+        let shared_team_id = shared_team.id;
+
+        Ok(TeamFixture {
+            db: db.clone(),
+            owner,
+            personal_team_id,
+            admin_user,
+            writer,
+            guest,
+            non_member,
+            platform_admin,
+            shared_team_id,
+        })
+    }
 }
 
 pub fn setlist_with_songs(title: &str, song_ids: &[(&str, Option<&str>)]) -> CreateSetlist {

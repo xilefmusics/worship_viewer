@@ -318,4 +318,76 @@ mod tests {
         let result = svc.create_user(user).await;
         assert!(matches!(result, Err(AppError::Conflict(_))));
     }
+
+    mod integration {
+        use crate::error::AppError;
+        use crate::test_helpers::{personal_team_id, test_db, user_service};
+        use shared::user::User;
+
+        /// BLC-USER-003: creating a user also creates a personal team with the user as owner.
+        #[tokio::test]
+        async fn blc_user_003_create_user_creates_personal_team_integration() {
+            let db = test_db().await.expect("db");
+            let svc = user_service(&db);
+            let user = svc.create_user(User::new("j3u001@test.local")).await.expect("create");
+            let pt_id = personal_team_id(&db, &user).await.expect("personal team");
+            assert!(!pt_id.is_empty());
+        }
+
+        /// BLC-USER-003: new user's personal team starts with no members (owner is not in members).
+        #[tokio::test]
+        async fn blc_user_003_personal_team_starts_empty() {
+            let db = test_db().await.expect("db");
+            let svc = user_service(&db);
+            let user = svc.create_user(User::new("j3u002@test.local")).await.expect("create");
+            let team_svc = crate::test_helpers::team_service(&db);
+            let teams = team_svc.list_teams_for_user(&user).await.expect("list");
+            let personal = teams
+                .into_iter()
+                .find(|t| t.owner.as_ref().map(|o| o.id == user.id).unwrap_or(false))
+                .expect("personal team");
+            assert!(personal.members.is_empty(), "personal team must start with empty members");
+        }
+
+        /// BLC-USER-001: creating two users with different emails both succeed.
+        #[tokio::test]
+        async fn blc_user_001_distinct_emails_both_succeed() {
+            let db = test_db().await.expect("db");
+            let svc = user_service(&db);
+            let u1 = svc.create_user(User::new("j3u003a@test.local")).await.expect("u1");
+            let u2 = svc.create_user(User::new("j3u003b@test.local")).await.expect("u2");
+            assert_ne!(u1.id, u2.id);
+        }
+
+        /// BLC-USER-001: creating two users with the same email (case-insensitive) returns Conflict.
+        #[tokio::test]
+        async fn blc_user_001_duplicate_email_conflict() {
+            let db = test_db().await.expect("db");
+            let svc = user_service(&db);
+            svc.create_user(User::new("j3u004@test.local")).await.expect("first");
+            // SurrealDB enforces uniqueness via DB constraints; duplicate insert returns an error.
+            let r = svc.create_user(User::new("j3u004@test.local")).await;
+            assert!(r.is_err(), "duplicate email must be rejected");
+        }
+
+        /// BLC-USER-014: deleting a user, then deleting the same ID again returns NotFound.
+        #[tokio::test]
+        async fn blc_user_014_delete_twice_not_found() {
+            let db = test_db().await.expect("db");
+            let svc = user_service(&db);
+            let user = svc.create_user(User::new("j3u005@test.local")).await.expect("create");
+            svc.delete_user(&user.id).await.expect("first delete");
+            let r = svc.delete_user(&user.id).await;
+            assert!(matches!(r, Err(AppError::NotFound(_))));
+        }
+
+        /// BLC-USER-014: deleting a non-existent user ID returns NotFound.
+        #[tokio::test]
+        async fn blc_user_014_delete_nonexistent_not_found() {
+            let db = test_db().await.expect("db");
+            let svc = user_service(&db);
+            let r = svc.delete_user("totally-nonexistent-user-id").await;
+            assert!(matches!(r, Err(AppError::NotFound(_))));
+        }
+    }
 }

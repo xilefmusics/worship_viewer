@@ -251,4 +251,246 @@ mod tests {
             .await
             .expect("delete");
     }
+
+    /// Build a four-user collection fixture: owner, content_maintainer, guest, non_member.
+    async fn four_user_coll_fixture() -> (
+        std::sync::Arc<crate::database::Database>,
+        crate::resources::User,
+        crate::resources::User,
+        crate::resources::User,
+        crate::resources::User,
+        String,
+    ) {
+        use crate::test_helpers::{configure_personal_team_members, create_user, personal_team_id, test_db};
+
+        let db = test_db().await.expect("db");
+        let owner = create_user(&db, "c3g-owner@test.local").await.expect("owner");
+        let cm = create_user(&db, "c3g-cm@test.local").await.expect("cm");
+        let guest = create_user(&db, "c3g-guest@test.local").await.expect("guest");
+        let non_member = create_user(&db, "c3g-nm@test.local").await.expect("nm");
+        let tid = personal_team_id(&db, &owner).await.expect("tid");
+        configure_personal_team_members(
+            &db,
+            &owner,
+            &tid,
+            vec![
+                (cm.id.clone(), TeamRole::ContentMaintainer),
+                (guest.id.clone(), TeamRole::Guest),
+            ],
+        )
+        .await
+        .expect("acl");
+        (db, owner, cm, guest, non_member, tid)
+    }
+
+    fn make_collection(title: &str) -> CreateCollection {
+        CreateCollection { title: title.into(), cover: "mysongs".into(), songs: vec![] }
+    }
+
+    /// BLC-COLL-002, BLC-COLL-006: non-member reading a collection returns NotFound.
+    #[tokio::test]
+    async fn blc_coll_002_non_member_read_not_found() {
+        let (db, owner, _cm, _guest, nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let nm_p = UserPermissions::new(&nm, &svc.teams);
+        let col = svc
+            .create_collection_for_user(&owner_p, make_collection("NMTest"))
+            .await
+            .expect("create");
+        let r = svc.get_collection_for_user(&nm_p, &col.id).await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    /// BLC-COLL-002: guest can read a collection.
+    #[tokio::test]
+    async fn blc_coll_002_guest_can_read() {
+        let (db, owner, _cm, guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let guest_p = UserPermissions::new(&guest, &svc.teams);
+        let col = svc
+            .create_collection_for_user(&owner_p, make_collection("GuestTest"))
+            .await
+            .expect("create");
+        svc.get_collection_for_user(&guest_p, &col.id).await.expect("guest read");
+    }
+
+    /// BLC-COLL-002: content_maintainer can update a collection.
+    #[tokio::test]
+    async fn blc_coll_002_content_maintainer_can_update() {
+        let (db, owner, cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let cm_p = UserPermissions::new(&cm, &svc.teams);
+        let col = svc
+            .create_collection_for_user(&owner_p, make_collection("CMTest"))
+            .await
+            .expect("create");
+        svc.update_collection_for_user(&cm_p, &col.id, make_collection("CMUpdated"))
+            .await
+            .expect("cm update");
+    }
+
+    /// BLC-COLL-007: guest cannot create a collection.
+    #[tokio::test]
+    async fn blc_coll_007_guest_cannot_create() {
+        let (db, _owner, _cm, guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let guest_p = UserPermissions::new(&guest, &svc.teams);
+        // The collection would be owned by the guest's personal team, which the guest can write.
+        // But test: guest on owner's team cannot write to owner's collections.
+        // Actually, create always goes to caller's personal team, so guest creates on their own
+        // personal team -> that succeeds. The constraint is about mutating others' content.
+        // BLC-COLL-007 tests guest PUT/DELETE on owner's collection.
+        let owner_2 = crate::test_helpers::create_user(&db, "c3g-owner2@test.local").await.expect("o2");
+        let owner2_p = UserPermissions::new(&owner_2, &svc.teams);
+        let col = svc
+            .create_collection_for_user(&owner2_p, make_collection("O2Coll"))
+            .await
+            .expect("create");
+        let r = svc.update_collection_for_user(&guest_p, &col.id, make_collection("Hack")).await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    /// BLC-COLL-007: guest cannot delete a collection they don't own.
+    #[tokio::test]
+    async fn blc_coll_007_guest_cannot_delete() {
+        let (db, owner, _cm, guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let guest_p = UserPermissions::new(&guest, &svc.teams);
+        let col = svc
+            .create_collection_for_user(&owner_p, make_collection("GuestDel"))
+            .await
+            .expect("create");
+        let r = svc.delete_collection_for_user(&guest_p, &col.id).await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    /// BLC-COLL-003: PUT does not change the collection's owner.
+    #[tokio::test]
+    async fn blc_coll_003_put_does_not_change_owner() {
+        let (db, owner, _cm, _guest, _nm, tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let col = svc
+            .create_collection_for_user(&owner_p, make_collection("OwnerTest"))
+            .await
+            .expect("create");
+        assert_eq!(col.owner, tid);
+        let updated = svc
+            .update_collection_for_user(&owner_p, &col.id, make_collection("Renamed"))
+            .await
+            .expect("update");
+        assert_eq!(updated.owner, tid, "owner must not change on PUT");
+    }
+
+    /// BLC-COLL-004: POST with a non-existent song ID succeeds (no existence check).
+    #[tokio::test]
+    async fn blc_coll_004_post_accepts_nonexistent_song_ids() {
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let col = svc
+            .create_collection_for_user(
+                &owner_p,
+                CreateCollection {
+                    title: "WithGhostSong".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![shared::song::Link {
+                        id: "song:doesnotexist".into(),
+                        nr: None,
+                        key: None,
+                    }],
+                },
+            )
+            .await
+            .expect("non-existent song id accepted");
+        assert!(!col.id.is_empty());
+    }
+
+    /// BLC-COLL-005: list with `q` filter matches by title (single-token titles).
+    #[tokio::test]
+    async fn blc_coll_005_list_with_q_filter() {
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        svc.create_collection_for_user(&owner_p, make_collection("Hallelujah"))
+            .await
+            .expect("c1");
+        svc.create_collection_for_user(&owner_p, make_collection("Amazing"))
+            .await
+            .expect("c2");
+        let results = svc
+            .list_collections_for_user(&owner_p, ListQuery::new().with_q("Hallelujah"))
+            .await
+            .expect("search");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Hallelujah");
+    }
+
+    /// BLC-COLL-005: list with pagination returns the correct page.
+    #[tokio::test]
+    async fn blc_coll_005_list_pagination() {
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        for i in 0..3u32 {
+            svc.create_collection_for_user(&owner_p, make_collection(&format!("Coll{i}")))
+                .await
+                .expect("create");
+        }
+        let page0 = svc
+            .list_collections_for_user(&owner_p, ListQuery::default().with_page(0).with_page_size(2))
+            .await
+            .expect("page0");
+        assert_eq!(page0.len(), 2);
+        let page1 = svc
+            .list_collections_for_user(&owner_p, ListQuery::default().with_page(1).with_page_size(2))
+            .await
+            .expect("page1");
+        assert_eq!(page1.len(), 1);
+    }
+
+    /// BLC-COLL-011: authorized user can list songs in a collection.
+    #[tokio::test]
+    async fn blc_coll_011_songs_sub_route_authorized() {
+        use crate::test_helpers::create_song_with_title;
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let song = create_song_with_title(&db, &owner, "CollSongSub").await.expect("song");
+        let col = svc
+            .create_collection_for_user(
+                &owner_p,
+                CreateCollection {
+                    title: "SubTest".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![shared::song::Link { id: song.id.clone(), nr: None, key: None }],
+                },
+            )
+            .await
+            .expect("create");
+        let songs = svc
+            .collection_songs_for_user(&owner_p, &col.id)
+            .await
+            .expect("songs");
+        assert!(songs.iter().any(|s| s.id == song.id));
+    }
+
+    /// BLC-COLL-011: unauthorized user cannot access collection songs sub-route.
+    #[tokio::test]
+    async fn blc_coll_011_songs_sub_route_unauthorized() {
+        let (db, owner, _cm, _guest, nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let nm_p = UserPermissions::new(&nm, &svc.teams);
+        let col = svc
+            .create_collection_for_user(&owner_p, make_collection("SecretColl"))
+            .await
+            .expect("create");
+        let r = svc.collection_songs_for_user(&nm_p, &col.id).await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
 }

@@ -205,11 +205,14 @@ impl TeamServiceHandle {
 
 #[cfg(test)]
 mod tests {
-    use shared::team::CreateTeam;
+    use shared::team::{CreateTeam, UpdateTeam, TeamMemberInput, TeamUserRef, TeamRole};
 
     use crate::error::AppError;
     use crate::resources::team::UserPermissions;
-    use crate::test_helpers::{create_user, test_db};
+    use crate::test_helpers::{
+        TeamFixture, blob_service, collection_service, create_song_with_title, create_user,
+        personal_team_id, team_service as mk_team_svc, test_db,
+    };
 
     use super::*;
 
@@ -278,6 +281,450 @@ mod tests {
         svc.delete_team_for_user(&perms, &shared.id)
             .await
             .expect("delete");
+    }
+
+    /// BLC-TEAM-004: two shared teams with the same name can both be created.
+    #[tokio::test]
+    async fn blc_team_004_duplicate_names_allowed() {
+        let db = test_db().await.expect("db");
+        let u = create_user(&db, "team004@test.local").await.expect("u");
+        let svc = team_service(&db);
+        let t1 = svc
+            .create_shared_team_for_user(&u, CreateTeam { name: "Band".into(), members: vec![] })
+            .await
+            .expect("t1");
+        let t2 = svc
+            .create_shared_team_for_user(&u, CreateTeam { name: "Band".into(), members: vec![] })
+            .await
+            .expect("t2");
+        assert_ne!(t1.id, t2.id, "each team must get a distinct id");
+        assert_eq!(t1.name, t2.name);
+    }
+
+    /// BLC-TEAM-007: member sees their own teams; non-member does not see the shared team.
+    #[tokio::test]
+    async fn blc_team_007_member_visible_nonmember_hidden() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+
+        let admin_teams: Vec<String> = svc
+            .list_teams_for_user(&fx.admin_user)
+            .await
+            .expect("list admin")
+            .into_iter()
+            .map(|t| t.id)
+            .collect();
+        assert!(
+            admin_teams.contains(&fx.shared_team_id),
+            "admin member must see the shared team"
+        );
+
+        let nonmember_teams: Vec<String> = svc
+            .list_teams_for_user(&fx.non_member)
+            .await
+            .expect("list non-member")
+            .into_iter()
+            .map(|t| t.id)
+            .collect();
+        assert!(
+            !nonmember_teams.contains(&fx.shared_team_id),
+            "non-member must not see the shared team"
+        );
+    }
+
+    /// BLC-TEAM-007: platform admin can see all teams (except team:public catalog).
+    #[tokio::test]
+    async fn blc_team_007_platform_admin_sees_all() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+
+        let admin_teams: Vec<String> = svc
+            .list_teams_for_user(&fx.platform_admin)
+            .await
+            .expect("list platform admin")
+            .into_iter()
+            .map(|t| t.id)
+            .collect();
+        assert!(
+            admin_teams.contains(&fx.shared_team_id),
+            "platform admin must see the shared team"
+        );
+        assert!(
+            !admin_teams.iter().any(|id| id == "public"),
+            "team:public must never appear in the list"
+        );
+    }
+
+    /// BLC-TEAM-007: get_team_for_user with the literal "public" id returns NotFound.
+    #[tokio::test]
+    async fn blc_team_007_get_public_not_found() {
+        let db = test_db().await.expect("db");
+        let u = create_user(&db, "team007pub@test.local").await.expect("u");
+        let svc = team_service(&db);
+        let r = svc.get_team_for_user(&u, "public").await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    /// BLC-TEAM-010: guest member can read the shared team.
+    #[tokio::test]
+    async fn blc_team_010_guest_can_read() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+        svc.get_team_for_user(&fx.guest, &fx.shared_team_id)
+            .await
+            .expect("guest read");
+    }
+
+    /// BLC-TEAM-010: content_maintainer member can read the shared team.
+    #[tokio::test]
+    async fn blc_team_010_content_maintainer_can_read() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+        svc.get_team_for_user(&fx.writer, &fx.shared_team_id)
+            .await
+            .expect("writer read");
+    }
+
+    /// BLC-TEAM-010: non-member cannot read the shared team.
+    #[tokio::test]
+    async fn blc_team_010_non_member_not_found() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+        let r = svc.get_team_for_user(&fx.non_member, &fx.shared_team_id).await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    /// BLC-TEAM-012: team admin can change the shared team name.
+    #[tokio::test]
+    async fn blc_team_012_admin_changes_name() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+        let updated = svc
+            .update_team_for_user(
+                &fx.admin_user,
+                &fx.shared_team_id,
+                UpdateTeam { name: "Renamed".into(), members: None },
+            )
+            .await
+            .expect("rename");
+        assert_eq!(updated.name, "Renamed");
+    }
+
+    /// BLC-TEAM-012: personal team owner can rename their personal team.
+    #[tokio::test]
+    async fn blc_team_012_personal_owner_changes_name() {
+        let db = test_db().await.expect("db");
+        let owner = create_user(&db, "team012personal@test.local").await.expect("u");
+        let tid = personal_team_id(&db, &owner).await.expect("tid");
+        let svc = team_service(&db);
+        let updated = svc
+            .update_team_for_user(
+                &owner,
+                &tid,
+                UpdateTeam { name: "My Songs".into(), members: None },
+            )
+            .await
+            .expect("rename");
+        assert_eq!(updated.name, "My Songs");
+    }
+
+    /// BLC-TEAM-012: admin can update the member list.
+    #[tokio::test]
+    async fn blc_team_012_admin_changes_members() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let new_user = create_user(&db, "team012new@test.local").await.expect("nu");
+        let svc = team_service(&db);
+        let updated = svc
+            .update_team_for_user(
+                &fx.admin_user,
+                &fx.shared_team_id,
+                UpdateTeam {
+                    name: "Fixture Shared Team".into(),
+                    members: Some(vec![
+                        TeamMemberInput {
+                            user: TeamUserRef { id: fx.admin_user.id.clone() },
+                            role: TeamRole::Admin,
+                        },
+                        TeamMemberInput {
+                            user: TeamUserRef { id: new_user.id.clone() },
+                            role: TeamRole::Guest,
+                        },
+                    ]),
+                },
+            )
+            .await
+            .expect("update members");
+        assert!(updated.members.iter().any(|m| m.user.id == new_user.id));
+    }
+
+    /// BLC-TEAM-011, BLC-TEAM-015: PUT that removes all admins returns Conflict.
+    #[tokio::test]
+    async fn blc_team_011_remove_all_admins_conflict() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+        // Replace member list with only a guest — no admin remains.
+        let r = svc
+            .update_team_for_user(
+                &fx.admin_user,
+                &fx.shared_team_id,
+                UpdateTeam {
+                    name: "Fixture Shared Team".into(),
+                    members: Some(vec![TeamMemberInput {
+                        user: TeamUserRef { id: fx.guest.id.clone() },
+                        role: TeamRole::Guest,
+                    }]),
+                },
+            )
+            .await;
+        assert!(
+            matches!(r, Err(AppError::Conflict(_))),
+            "expected Conflict, got {r:?}"
+        );
+    }
+
+    /// BLC-TEAM-013: guest performs a valid self-leave (name unchanged, removes only self).
+    #[tokio::test]
+    async fn blc_team_013_guest_self_leave_ok() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+        // Guest leaves: keep admin + writer, remove themselves.
+        svc.update_team_for_user(
+            &fx.guest,
+            &fx.shared_team_id,
+            UpdateTeam {
+                name: "Fixture Shared Team".into(),
+                members: Some(vec![
+                    TeamMemberInput {
+                        user: TeamUserRef { id: fx.admin_user.id.clone() },
+                        role: TeamRole::Admin,
+                    },
+                    TeamMemberInput {
+                        user: TeamUserRef { id: fx.writer.id.clone() },
+                        role: TeamRole::ContentMaintainer,
+                    },
+                ]),
+            },
+        )
+        .await
+        .expect("self-leave");
+        // Guest should no longer see the team.
+        let r = svc.get_team_for_user(&fx.guest, &fx.shared_team_id).await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    /// BLC-TEAM-013: guest cannot change the team name.
+    #[tokio::test]
+    async fn blc_team_013_guest_change_name_forbidden() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+        let r = svc
+            .update_team_for_user(
+                &fx.guest,
+                &fx.shared_team_id,
+                UpdateTeam {
+                    name: "Hacked Name".into(),
+                    members: Some(vec![
+                        TeamMemberInput {
+                            user: TeamUserRef { id: fx.admin_user.id.clone() },
+                            role: TeamRole::Admin,
+                        },
+                        TeamMemberInput {
+                            user: TeamUserRef { id: fx.writer.id.clone() },
+                            role: TeamRole::ContentMaintainer,
+                        },
+                    ]),
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(AppError::Forbidden)));
+    }
+
+    /// BLC-TEAM-013: guest cannot remove another member.
+    #[tokio::test]
+    async fn blc_team_013_guest_remove_other_member_forbidden() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+        // Guest tries to remove the writer but keep themselves.
+        let r = svc
+            .update_team_for_user(
+                &fx.guest,
+                &fx.shared_team_id,
+                UpdateTeam {
+                    name: "Fixture Shared Team".into(),
+                    members: Some(vec![
+                        TeamMemberInput {
+                            user: TeamUserRef { id: fx.admin_user.id.clone() },
+                            role: TeamRole::Admin,
+                        },
+                        TeamMemberInput {
+                            user: TeamUserRef { id: fx.guest.id.clone() },
+                            role: TeamRole::Guest,
+                        },
+                    ]),
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(AppError::Forbidden)));
+    }
+
+    /// BLC-TEAM-013: content_maintainer can self-leave the shared team.
+    #[tokio::test]
+    async fn blc_team_013_content_maintainer_self_leave() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+        svc.update_team_for_user(
+            &fx.writer,
+            &fx.shared_team_id,
+            UpdateTeam {
+                name: "Fixture Shared Team".into(),
+                members: Some(vec![
+                    TeamMemberInput {
+                        user: TeamUserRef { id: fx.admin_user.id.clone() },
+                        role: TeamRole::Admin,
+                    },
+                    TeamMemberInput {
+                        user: TeamUserRef { id: fx.guest.id.clone() },
+                        role: TeamRole::Guest,
+                    },
+                ]),
+            },
+        )
+        .await
+        .expect("content_maintainer self-leave");
+        let r = svc.get_team_for_user(&fx.writer, &fx.shared_team_id).await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    /// BLC-TEAM-014: PUT on a personal team with a different owner is rejected.
+    #[tokio::test]
+    async fn blc_team_014_personal_team_owner_immutable() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+        // Admin tries to add the owner of the personal team as a member (which would effectively
+        // place the owner in the members list, violating the personal team constraint).
+        let r = svc
+            .update_team_for_user(
+                &fx.owner,
+                &fx.personal_team_id,
+                UpdateTeam {
+                    name: "Personal".into(),
+                    members: Some(vec![TeamMemberInput {
+                        user: TeamUserRef { id: fx.owner.id.clone() },
+                        role: TeamRole::Guest,
+                    }]),
+                },
+            )
+            .await;
+        assert!(
+            matches!(r, Err(AppError::InvalidRequest(_))),
+            "expected InvalidRequest when owner appears in member list, got {r:?}"
+        );
+    }
+
+    /// BLC-TEAM-016: songs on a shared team are reassigned to the deleter's personal team.
+    #[tokio::test]
+    async fn blc_team_016_delete_reassigns_songs() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = mk_team_svc(&db);
+        let song_svc = crate::test_helpers::song_service(&db);
+
+        // Create a song on the shared team by a member (content_maintainer writes to their
+        // personal team; for shared-team songs we need admin_user whose personal team owns
+        // the song — team ownership of content follows the personal team of the creator).
+        let song = create_song_with_title(&db, &fx.admin_user, "SharedSong").await.expect("song");
+
+        let admin_perms = UserPermissions::new(&fx.admin_user, &svc.resolver);
+        svc.delete_team_for_user(&admin_perms, &fx.shared_team_id)
+            .await
+            .expect("delete shared team");
+
+        // admin_user's personal team now owns the song.
+        let admin_personal = personal_team_id(&db, &fx.admin_user).await.expect("pt");
+        let song_perms = UserPermissions::new(&fx.admin_user, &song_svc.teams);
+        let fetched = song_svc.get_song_for_user(&song_perms, &song.id).await.expect("get song");
+        assert_eq!(fetched.owner, admin_personal, "song must be reassigned to admin's personal team");
+    }
+
+    /// BLC-TEAM-016: collections on a shared team are reassigned on delete.
+    #[tokio::test]
+    async fn blc_team_016_delete_reassigns_collections() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = mk_team_svc(&db);
+        let coll_svc = collection_service(&db);
+
+        // admin_user creates a collection (owned by their personal team).
+        let admin_perms_coll = UserPermissions::new(&fx.admin_user, &coll_svc.teams);
+        let coll = coll_svc
+            .create_collection_for_user(
+                &admin_perms_coll,
+                shared::collection::CreateCollection {
+                    title: "SharedColl".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![],
+                },
+            )
+            .await
+            .expect("coll");
+
+        let admin_perms = UserPermissions::new(&fx.admin_user, &svc.resolver);
+        svc.delete_team_for_user(&admin_perms, &fx.shared_team_id)
+            .await
+            .expect("delete");
+
+        let admin_personal = personal_team_id(&db, &fx.admin_user).await.expect("pt");
+        let fetched = coll_svc
+            .get_collection_for_user(&admin_perms_coll, &coll.id)
+            .await
+            .expect("get coll");
+        assert_eq!(fetched.owner, admin_personal);
+    }
+
+    /// BLC-TEAM-016: non-admin cannot delete the shared team.
+    #[tokio::test]
+    async fn blc_team_016_non_admin_delete_forbidden() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = mk_team_svc(&db);
+        let guest_perms = UserPermissions::new(&fx.guest, &svc.resolver);
+        let r = svc.delete_team_for_user(&guest_perms, &fx.shared_team_id).await;
+        assert!(matches!(r, Err(AppError::Forbidden)));
+    }
+
+    /// BLC-TEAM-018: after shared team is deleted, former members no longer see it in their list.
+    #[tokio::test]
+    async fn blc_team_018_former_member_loses_visibility() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = mk_team_svc(&db);
+
+        let admin_perms = UserPermissions::new(&fx.admin_user, &svc.resolver);
+        svc.delete_team_for_user(&admin_perms, &fx.shared_team_id)
+            .await
+            .expect("delete");
+
+        let guest_teams: Vec<String> = svc
+            .list_teams_for_user(&fx.guest)
+            .await
+            .expect("list")
+            .into_iter()
+            .map(|t| t.id)
+            .collect();
+        assert!(!guest_teams.contains(&fx.shared_team_id));
     }
 
     /// Verify that the DB-filtered `fetch_teams_for_user` path returns the same set of teams

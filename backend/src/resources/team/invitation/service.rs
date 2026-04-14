@@ -745,4 +745,274 @@ mod tests {
         let r = svc.accept_invitation_for_user(&user, "inv1").await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
+
+    mod integration {
+        use crate::error::AppError;
+        use crate::test_helpers::{
+            TeamFixture, create_user, invitation_service, team_service, test_db,
+        };
+
+        /// BLC-TINV-001, BLC-TINV-006, BLC-TINV-007: admin creates invitation; id is non-empty UUID.
+        #[tokio::test]
+        async fn blc_tinv_001_create_shared_team_admin_ok_integration() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let inv = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("create");
+            assert!(!inv.id.is_empty());
+            assert!(inv.id.len() >= 32, "invitation id must be UUID-length");
+        }
+
+        /// BLC-TINV-001: creating invitation for personal team returns InvalidRequest.
+        #[tokio::test]
+        async fn blc_tinv_001_personal_team_rejected_integration() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let r = svc
+                .create_invitation_for_user(&fx.owner, &fx.personal_team_id)
+                .await;
+            assert!(matches!(r, Err(AppError::InvalidRequest(_))));
+        }
+
+        /// BLC-TINV-002: content_maintainer cannot create invitation.
+        #[tokio::test]
+        async fn blc_tinv_002_content_maintainer_forbidden_integration() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let r = svc
+                .create_invitation_for_user(&fx.writer, &fx.shared_team_id)
+                .await;
+            assert!(matches!(r, Err(AppError::Forbidden)));
+        }
+
+        /// BLC-TINV-008: admin can list invitations.
+        #[tokio::test]
+        async fn blc_tinv_008_admin_list_ok_integration() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            svc.create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("create");
+            let list = svc
+                .list_invitations_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("list");
+            assert_eq!(list.len(), 1);
+        }
+
+        /// BLC-TINV-008: admin can get invitation by id.
+        #[tokio::test]
+        async fn blc_tinv_008_admin_get_by_id_integration() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let inv = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("create");
+            let fetched = svc
+                .get_invitation_for_user(&fx.admin_user, &fx.shared_team_id, &inv.id)
+                .await
+                .expect("get");
+            assert_eq!(fetched.id, inv.id);
+        }
+
+        /// BLC-TINV-008: admin GET invitation belonging to different team returns NotFound.
+        #[tokio::test]
+        async fn blc_tinv_008_wrong_team_not_found_integration() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let inv = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("create");
+            let team_svc = team_service(&db);
+            let other_team = team_svc
+                .create_shared_team_for_user(
+                    &fx.admin_user,
+                    shared::team::CreateTeam { name: "Other".into(), members: vec![] },
+                )
+                .await
+                .expect("other team");
+            let r = svc
+                .get_invitation_for_user(&fx.admin_user, &other_team.id, &inv.id)
+                .await;
+            assert!(matches!(r, Err(AppError::NotFound(_))));
+        }
+
+        /// BLC-TINV-004, BLC-TINV-009: admin deletes invitation; subsequent GET returns NotFound.
+        #[tokio::test]
+        async fn blc_tinv_004_delete_removes_invitation() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let inv = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("create");
+            svc.delete_invitation_for_user(&fx.admin_user, &fx.shared_team_id, &inv.id)
+                .await
+                .expect("delete");
+            let r = svc
+                .get_invitation_for_user(&fx.admin_user, &fx.shared_team_id, &inv.id)
+                .await;
+            assert!(matches!(r, Err(AppError::NotFound(_))));
+        }
+
+        /// BLC-TINV-004: deleted invitation cannot be accepted.
+        #[tokio::test]
+        async fn blc_tinv_004_deleted_invitation_accept_not_found() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let inv = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("create");
+            svc.delete_invitation_for_user(&fx.admin_user, &fx.shared_team_id, &inv.id)
+                .await
+                .expect("delete");
+            let new_user = create_user(&db, "tinv004accept@test.local").await.expect("u");
+            let r = svc.accept_invitation_for_user(&new_user, &inv.id).await;
+            assert!(matches!(r, Err(AppError::NotFound(_))));
+        }
+
+        /// BLC-TINV-010: new user accepts invitation and becomes a guest member.
+        #[tokio::test]
+        async fn blc_tinv_010_accept_new_user_becomes_guest_integration() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let new_user = create_user(&db, "tinv010@test.local").await.expect("u");
+            let inv = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("create");
+            let team = svc
+                .accept_invitation_for_user(&new_user, &inv.id)
+                .await
+                .expect("accept");
+            let is_guest = team
+                .members
+                .iter()
+                .any(|m| m.user.id == new_user.id && m.role == shared::team::TeamRole::Guest);
+            assert!(is_guest, "accepted user must be a guest member");
+        }
+
+        /// BLC-TINV-005: invitation still exists after being accepted.
+        #[tokio::test]
+        async fn blc_tinv_005_invitation_survives_accept() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let new_user = create_user(&db, "tinv005@test.local").await.expect("u");
+            let inv = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("create");
+            svc.accept_invitation_for_user(&new_user, &inv.id)
+                .await
+                .expect("accept");
+            let fetched = svc
+                .get_invitation_for_user(&fx.admin_user, &fx.shared_team_id, &inv.id)
+                .await
+                .expect("still exists");
+            assert_eq!(fetched.id, inv.id);
+        }
+
+        /// BLC-TINV-011: accepting when already content_maintainer keeps the existing role.
+        #[tokio::test]
+        async fn blc_tinv_011_content_maintainer_role_unchanged_integration() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let inv = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("create");
+            let team = svc
+                .accept_invitation_for_user(&fx.writer, &inv.id)
+                .await
+                .expect("accept");
+            let role = team
+                .members
+                .iter()
+                .find(|m| m.user.id == fx.writer.id)
+                .map(|m| m.role.clone());
+            assert_eq!(
+                role,
+                Some(shared::team::TeamRole::ContentMaintainer),
+                "content_maintainer must not be downgraded to guest"
+            );
+        }
+
+        /// BLC-TINV-012: guest accepting the same invitation twice results in exactly one entry.
+        #[tokio::test]
+        async fn blc_tinv_012_accept_twice_no_duplicate() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let new_user = create_user(&db, "tinv012@test.local").await.expect("u");
+            let inv = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("create");
+            svc.accept_invitation_for_user(&new_user, &inv.id)
+                .await
+                .expect("accept 1");
+            let team = svc
+                .accept_invitation_for_user(&new_user, &inv.id)
+                .await
+                .expect("accept 2");
+            let count = team.members.iter().filter(|m| m.user.id == new_user.id).count();
+            assert_eq!(count, 1, "must not create duplicate member entries");
+        }
+
+        /// BLC-TINV-013: two different users can accept the same invitation; both become members.
+        #[tokio::test]
+        async fn blc_tinv_013_multiple_users_accept_same_invitation() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let user_a = create_user(&db, "tinv013a@test.local").await.expect("a");
+            let user_b = create_user(&db, "tinv013b@test.local").await.expect("b");
+            let inv = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("create");
+            svc.accept_invitation_for_user(&user_a, &inv.id)
+                .await
+                .expect("a accept");
+            let team = svc
+                .accept_invitation_for_user(&user_b, &inv.id)
+                .await
+                .expect("b accept");
+            assert!(team.members.iter().any(|m| m.user.id == user_a.id));
+            assert!(team.members.iter().any(|m| m.user.id == user_b.id));
+        }
+
+        /// BLC-TINV-006: two invitations for the same team get different IDs.
+        #[tokio::test]
+        async fn blc_tinv_006_two_invitations_different_ids() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let inv1 = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("inv1");
+            let inv2 = svc
+                .create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("inv2");
+            assert_ne!(inv1.id, inv2.id);
+        }
+    }
 }
