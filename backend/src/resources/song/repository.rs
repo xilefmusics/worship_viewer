@@ -21,6 +21,17 @@ pub trait SongRepository: Send + Sync {
 
     async fn create_song(&self, owner: &str, song: CreateSong) -> Result<Song, AppError>;
 
+    /// Update an existing song, or create it if it doesn't yet exist
+    /// (upsert semantics). This supports import/sync workflows where the
+    /// caller specifies the song ID.
+    ///
+    /// - If the song exists and `write_teams` includes its owner, updates
+    ///   and returns the song.
+    /// - If the song exists but the caller lacks write access, returns
+    ///   [`AppError::NotFound`].
+    /// - If the song does not exist and the actor's personal team is in
+    ///   `write_teams`, creates it with the given `id` under that team.
+    /// - Otherwise returns [`AppError::NotFound`].
     async fn update_song(
         &self,
         write_teams: &[Thing],

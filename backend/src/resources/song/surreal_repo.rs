@@ -98,6 +98,10 @@ impl SongRepository for SurrealSongRepo {
             .ok_or_else(|| AppError::database("failed to create song"))
     }
 
+    /// Three-step upsert:
+    /// 1. `UPDATE ... WHERE owner IN $teams` -- fast-path for existing songs the caller owns.
+    /// 2. If empty: `SELECT` by ID -- if it exists the caller has no permission (`NotFound`).
+    /// 3. If missing: `CREATE` with the given ID under the actor's personal team.
     async fn update_song(
         &self,
         write_teams: &[Thing],
