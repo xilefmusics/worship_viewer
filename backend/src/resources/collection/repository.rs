@@ -16,11 +16,7 @@ pub trait CollectionRepository: Send + Sync {
         pagination: ListQuery,
     ) -> Result<Vec<Collection>, AppError>;
 
-    async fn get_collection(
-        &self,
-        read_teams: &[Thing],
-        id: &str,
-    ) -> Result<Collection, AppError>;
+    async fn get_collection(&self, read_teams: &[Thing], id: &str) -> Result<Collection, AppError>;
 
     async fn get_collection_songs(
         &self,

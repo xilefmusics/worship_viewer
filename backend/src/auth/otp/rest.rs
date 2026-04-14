@@ -46,7 +46,8 @@ async fn otp_request(
         .ok_or_else(|| AppError::invalid_request("email is required"))?;
 
     let code = format!("{:06}", rand::thread_rng().gen_range(0..1_000_000));
-    db.remember_otp(&email, &code, &otp_cfg.pepper, otp_cfg.ttl_seconds).await?;
+    db.remember_otp(&email, &code, &otp_cfg.pepper, otp_cfg.ttl_seconds)
+        .await?;
 
     mail.send(
         &email,

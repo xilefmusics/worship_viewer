@@ -10,9 +10,9 @@ use crate::error::AppError;
 
 use super::model::{
     TeamCreatePayload, build_create_shared_members, can_read_team, effective_admin,
-    ensure_shared_team_has_admin_after_update, inputs_to_db_members,
-    member_or_owner_readable, member_self_leave_payload, team_fetched_to_stored,
-    team_resource_or_reject_public, thing_user_id, validate_personal_members_not_owner,
+    ensure_shared_team_has_admin_after_update, inputs_to_db_members, member_or_owner_readable,
+    member_self_leave_payload, team_fetched_to_stored, team_resource_or_reject_public,
+    thing_user_id, validate_personal_members_not_owner,
 };
 use super::repository::TeamRepository;
 use super::resolver::{TeamResolver, UserPermissions};
@@ -75,7 +75,11 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
         let members = build_create_shared_members(&user.id, &payload.members)?;
         let id = self
             .repo
-            .create_team(TeamCreatePayload { name, owner: None, members })
+            .create_team(TeamCreatePayload {
+                name,
+                owner: None,
+                members,
+            })
             .await?;
         self.repo.load_team_display(&id).await
     }
@@ -130,9 +134,7 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
             } else {
                 ensure_shared_team_has_admin_after_update(&new_members)?;
             }
-            self.repo
-                .update_team_members(resource, new_members)
-                .await?;
+            self.repo.update_team_members(resource, new_members).await?;
             return self.repo.load_team_display(id).await;
         }
 
@@ -218,12 +220,17 @@ mod tests {
     #[tokio::test]
     async fn blc_team_shared_create_and_list() {
         let db = test_db().await.expect("db");
-        let u = create_user(&db, "team-creator@test.local").await.expect("u");
+        let u = create_user(&db, "team-creator@test.local")
+            .await
+            .expect("u");
         let svc = team_service(&db);
         let t = svc
             .create_shared_team_for_user(
                 &u,
-                CreateTeam { name: "Band".into(), members: vec![] },
+                CreateTeam {
+                    name: "Band".into(),
+                    members: vec![],
+                },
             )
             .await
             .expect("shared team");
@@ -238,7 +245,9 @@ mod tests {
     #[tokio::test]
     async fn blc_team_personal_cannot_delete() {
         let db = test_db().await.expect("db");
-        let u = create_user(&db, "team-personal@test.local").await.expect("u");
+        let u = create_user(&db, "team-personal@test.local")
+            .await
+            .expect("u");
         let svc = team_service(&db);
         let teams = svc.list_teams_for_user(&u).await.expect("teams");
         let personal = teams
@@ -258,12 +267,17 @@ mod tests {
         let shared = svc
             .create_shared_team_for_user(
                 &u,
-                CreateTeam { name: "ToRemove".into(), members: vec![] },
+                CreateTeam {
+                    name: "ToRemove".into(),
+                    members: vec![],
+                },
             )
             .await
             .expect("shared");
         let perms = UserPermissions::new(&u, &svc.resolver);
-        svc.delete_team_for_user(&perms, &shared.id).await.expect("delete");
+        svc.delete_team_for_user(&perms, &shared.id)
+            .await
+            .expect("delete");
     }
 
     /// Verify that the DB-filtered `fetch_teams_for_user` path returns the same set of teams
@@ -272,14 +286,19 @@ mod tests {
     async fn list_teams_matches_fetch_all_then_filter() {
         let db = test_db().await.expect("db");
         let u = create_user(&db, "team-parity@test.local").await.expect("u");
-        let other = create_user(&db, "team-parity-other@test.local").await.expect("other");
+        let other = create_user(&db, "team-parity-other@test.local")
+            .await
+            .expect("other");
         let svc = team_service(&db);
 
         // Create a shared team that the user belongs to
         let _member_team = svc
             .create_shared_team_for_user(
                 &u,
-                CreateTeam { name: "MemberTeam".into(), members: vec![] },
+                CreateTeam {
+                    name: "MemberTeam".into(),
+                    members: vec![],
+                },
             )
             .await
             .expect("member team");
@@ -288,7 +307,10 @@ mod tests {
         let _other_team = svc
             .create_shared_team_for_user(
                 &other,
-                CreateTeam { name: "OtherTeam".into(), members: vec![] },
+                CreateTeam {
+                    name: "OtherTeam".into(),
+                    members: vec![],
+                },
             )
             .await
             .expect("other team");
@@ -317,6 +339,9 @@ mod tests {
             .map(|row| row.id.id.to_string())
             .collect();
 
-        assert_eq!(new_path_ids, old_path_ids, "DB-filtered list must match Rust-side filter");
+        assert_eq!(
+            new_path_ids, old_path_ids,
+            "DB-filtered list must match Rust-side filter"
+        );
     }
 }

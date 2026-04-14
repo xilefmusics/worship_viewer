@@ -155,7 +155,8 @@ async fn callback(
     let session = session_svc
         .create_session(Session::new(user, cookie_cfg.session_ttl_seconds as i64))
         .await?;
-    let redirect_target = resolve_frontend_redirect(&cookie_cfg.post_login_path, redirect_to.as_deref());
+    let redirect_target =
+        resolve_frontend_redirect(&cookie_cfg.post_login_path, redirect_to.as_deref());
 
     Ok(HttpResponse::Found()
         .append_header((header::LOCATION, redirect_target))

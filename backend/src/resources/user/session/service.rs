@@ -54,7 +54,9 @@ impl<S: SessionRepository, U: UserRepository> SessionService<S, U> {
         ttl_seconds: i64,
     ) -> Result<Session, AppError> {
         let user = self.user_repo.get_user(user_id).await?;
-        self.repo.create_session(Session::new(user, ttl_seconds)).await
+        self.repo
+            .create_session(Session::new(user, ttl_seconds))
+            .await
     }
 }
 

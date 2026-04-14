@@ -15,7 +15,11 @@ pub trait TeamRepository: Send + Sync {
 
     /// Fetch teams visible to a user: all non-public teams for admins, or only teams where the
     /// user is the owner or a member for regular users. Filtering is pushed to the database.
-    async fn fetch_teams_for_user(&self, user_id: &str, is_admin: bool) -> Result<Vec<TeamFetched>, AppError>;
+    async fn fetch_teams_for_user(
+        &self,
+        user_id: &str,
+        is_admin: bool,
+    ) -> Result<Vec<TeamFetched>, AppError>;
 
     /// Fetch a single team by ID (accepts plain ID or `team:id` format), with FETCHed users.
     async fn fetch_team(&self, id: &str) -> Result<Option<TeamFetched>, AppError>;
@@ -24,7 +28,11 @@ pub trait TeamRepository: Send + Sync {
     async fn create_team(&self, payload: TeamCreatePayload) -> Result<String, AppError>;
 
     /// Update only the name field of a team.
-    async fn update_team_name(&self, resource: (String, String), name: &str) -> Result<(), AppError>;
+    async fn update_team_name(
+        &self,
+        resource: (String, String),
+        name: &str,
+    ) -> Result<(), AppError>;
 
     /// Replace the member list of a team.
     async fn update_team_members(

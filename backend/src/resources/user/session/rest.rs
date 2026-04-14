@@ -111,8 +111,10 @@ pub async fn create_session_for_user(
     path: Path<UserIdPath>,
 ) -> Result<HttpResponse, AppError> {
     let ttl = cookie_cfg.session_ttl_seconds as i64;
-    Ok(HttpResponse::Created()
-        .json(svc.create_session_for_user_by_id(&path.user_id, ttl).await?))
+    Ok(HttpResponse::Created().json(
+        svc.create_session_for_user_by_id(&path.user_id, ttl)
+            .await?,
+    ))
 }
 
 #[utoipa::path(

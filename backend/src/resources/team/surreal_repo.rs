@@ -8,7 +8,10 @@ use shared::team::Team;
 use crate::database::Database;
 use crate::error::AppError;
 
-use super::model::{DbTeamMember, TeamCreatePayload, TeamFetched, TeamIdRow, team_resource_or_reject_public, user_thing};
+use super::model::{
+    DbTeamMember, TeamCreatePayload, TeamFetched, TeamIdRow, team_resource_or_reject_public,
+    user_thing,
+};
 use super::repository::TeamRepository;
 
 #[derive(Clone)]
@@ -39,7 +42,11 @@ impl TeamRepository for SurrealTeamRepo {
             .take::<Vec<TeamFetched>>(0)?)
     }
 
-    async fn fetch_teams_for_user(&self, user_id: &str, is_admin: bool) -> Result<Vec<TeamFetched>, AppError> {
+    async fn fetch_teams_for_user(
+        &self,
+        user_id: &str,
+        is_admin: bool,
+    ) -> Result<Vec<TeamFetched>, AppError> {
         let public_thing = super::model::public_team_thing();
         let db = self.inner();
         if is_admin {
@@ -77,18 +84,17 @@ impl TeamRepository for SurrealTeamRepo {
     }
 
     async fn create_team(&self, payload: TeamCreatePayload) -> Result<String, AppError> {
-        let created: Option<TeamIdRow> = self
-            .inner()
-            .db
-            .create("team")
-            .content(payload)
-            .await?;
+        let created: Option<TeamIdRow> = self.inner().db.create("team").content(payload).await?;
         created
             .ok_or_else(|| AppError::database("failed to create team"))
             .map(|row| row.id.id.to_string())
     }
 
-    async fn update_team_name(&self, resource: (String, String), name: &str) -> Result<(), AppError> {
+    async fn update_team_name(
+        &self,
+        resource: (String, String),
+        name: &str,
+    ) -> Result<(), AppError> {
         self.inner()
             .db
             .query("UPDATE $tid SET name = $name")

@@ -1,13 +1,13 @@
 //! Criterion benchmarks for team resolution and setlist repository (in-memory SurrealDB).
 use std::sync::Arc;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use tokio::runtime::Runtime;
 
 use backend::database::Database;
+use backend::resources::User;
 use backend::resources::setlist::{SetlistRepository, SurrealSetlistRepo};
 use backend::resources::team::content_read_team_things;
-use backend::resources::User;
 use backend::resources::user::UserServiceHandle;
 use shared::api::ListQuery;
 
@@ -51,8 +51,7 @@ fn bench_repo_hot_paths(c: &mut Criterion) {
     c.bench_function("get_setlists_empty", |b| {
         b.iter(|| {
             rt.block_on(async {
-                repo
-                    .get_setlists(black_box(teams.clone()), black_box(ListQuery::default()))
+                repo.get_setlists(black_box(teams.clone()), black_box(ListQuery::default()))
                     .await
                     .unwrap();
             });

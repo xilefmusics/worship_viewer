@@ -96,7 +96,8 @@ async fn create_team(
     payload: Json<CreateTeam>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Created().json(
-        svc.create_shared_team_for_user(&user, payload.into_inner()).await?,
+        svc.create_shared_team_for_user(&user, payload.into_inner())
+            .await?,
     ))
 }
 
@@ -130,7 +131,8 @@ async fn update_team(
     payload: Json<UpdateTeam>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        svc.update_team_for_user(&user, &id, payload.into_inner()).await?,
+        svc.update_team_for_user(&user, &id, payload.into_inner())
+            .await?,
     ))
 }
 

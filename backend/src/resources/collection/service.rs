@@ -54,10 +54,8 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         id: &str,
     ) -> Result<Player, AppError> {
         let user_id = perms.user().id.clone();
-        let (liked_set, read_teams) = tokio::try_join!(
-            self.likes.liked_song_ids(&user_id),
-            perms.read_teams()
-        )?;
+        let (liked_set, read_teams) =
+            tokio::try_join!(self.likes.liked_song_ids(&user_id), perms.read_teams())?;
         let links = self.repo.get_collection_songs(read_teams, id).await?;
         player_from_song_links(liked_set, links)
     }
@@ -86,10 +84,8 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         id: &str,
     ) -> Result<Vec<Song>, AppError> {
         let user_id = perms.user().id.clone();
-        let (liked_set, read_teams) = tokio::try_join!(
-            self.likes.liked_song_ids(&user_id),
-            perms.read_teams()
-        )?;
+        let (liked_set, read_teams) =
+            tokio::try_join!(self.likes.liked_song_ids(&user_id), perms.read_teams())?;
         Ok(self
             .repo
             .get_collection_songs(read_teams, id)
@@ -108,7 +104,9 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         perms: &UserPermissions<'_, T>,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
-        self.repo.create_collection(&perms.user().id, collection).await
+        self.repo
+            .create_collection(&perms.user().id, collection)
+            .await
     }
 
     pub async fn update_collection_for_user(
@@ -118,7 +116,9 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
         let write_teams = perms.write_teams().await?;
-        self.repo.update_collection(write_teams, id, collection).await
+        self.repo
+            .update_collection(write_teams, id, collection)
+            .await
     }
 
     pub async fn delete_collection_for_user(

@@ -4,6 +4,7 @@ use anyhow::Result as AnyResult;
 use chordlib::types::Song as SongData;
 
 use crate::database::Database;
+use crate::resources::User;
 use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::collection::service::CollectionServiceHandle;
 use crate::resources::setlist::{SetlistService, SetlistServiceHandle, SurrealSetlistRepo};
@@ -12,7 +13,6 @@ use crate::resources::team::invitation::InvitationServiceHandle;
 use crate::resources::team::{SurrealTeamResolver, TeamServiceHandle, UserPermissions};
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
-use crate::resources::User;
 use shared::setlist::CreateSetlist;
 use shared::song::CreateSong;
 use shared::team::{TeamMemberInput, TeamRole, TeamUserRef, UpdateTeam};
@@ -25,7 +25,9 @@ pub async fn test_db() -> AnyResult<Arc<Database>> {
 }
 
 pub async fn seed_user(db: &Arc<Database>) -> AnyResult<User> {
-    Ok(user_service(db).create_user(User::new("smoke@test.local")).await?)
+    Ok(user_service(db)
+        .create_user(User::new("smoke@test.local"))
+        .await?)
 }
 
 pub async fn create_user(db: &Arc<Database>, email: &str) -> AnyResult<User> {

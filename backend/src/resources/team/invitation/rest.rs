@@ -52,7 +52,8 @@ async fn create_team_invitation(
     team_id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Created().json(
-        svc.create_invitation_for_user(&user, team_id.as_str()).await?,
+        svc.create_invitation_for_user(&user, team_id.as_str())
+            .await?,
     ))
 }
 
@@ -82,7 +83,8 @@ async fn list_team_invitations(
     team_id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        svc.list_invitations_for_user(&user, team_id.as_str()).await?,
+        svc.list_invitations_for_user(&user, team_id.as_str())
+            .await?,
     ))
 }
 
@@ -114,7 +116,8 @@ async fn get_team_invitation(
 ) -> Result<HttpResponse, AppError> {
     let (team_id, invitation_id) = path.into_inner();
     Ok(HttpResponse::Ok().json(
-        svc.get_invitation_for_user(&user, &team_id, &invitation_id).await?,
+        svc.get_invitation_for_user(&user, &team_id, &invitation_id)
+            .await?,
     ))
 }
 
@@ -145,7 +148,8 @@ async fn delete_team_invitation(
     path: Path<(String, String)>,
 ) -> Result<HttpResponse, AppError> {
     let (team_id, invitation_id) = path.into_inner();
-    svc.delete_invitation_for_user(&user, &team_id, &invitation_id).await?;
+    svc.delete_invitation_for_user(&user, &team_id, &invitation_id)
+        .await?;
     Ok(HttpResponse::NoContent().finish())
 }
 
@@ -174,6 +178,7 @@ async fn accept_team_invitation(
     invitation_id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
-        svc.accept_invitation_for_user(&user, invitation_id.as_str()).await?,
+        svc.accept_invitation_for_user(&user, invitation_id.as_str())
+            .await?,
     ))
 }

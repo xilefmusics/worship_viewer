@@ -255,7 +255,9 @@ mod tests {
         let db = test_db().await.expect("test db");
         let user = seed_user(&db).await.expect("user");
         let dbref: &Database = db.as_ref();
-        let a = content_read_team_things(dbref, &user).await.expect("sql read");
+        let a = content_read_team_things(dbref, &user)
+            .await
+            .expect("sql read");
         let b = naive_read_teams(dbref, &user).await.expect("rust read");
         assert_eq!(thing_key_set(&a), thing_key_set(&b));
     }
@@ -265,7 +267,9 @@ mod tests {
         let db = test_db().await.expect("test db");
         let user = seed_user(&db).await.expect("user");
         let dbref: &Database = db.as_ref();
-        let a = content_write_team_things(dbref, &user).await.expect("sql write");
+        let a = content_write_team_things(dbref, &user)
+            .await
+            .expect("sql write");
         let b = naive_write_teams(dbref, &user).await.expect("rust write");
         assert_eq!(thing_key_set(&a), thing_key_set(&b));
     }
@@ -276,7 +280,9 @@ mod tests {
         let mut user = seed_user(&db).await.expect("user");
         user.role = UserRole::Admin;
         let dbref: &Database = db.as_ref();
-        let a = content_read_team_things(dbref, &user).await.expect("sql read");
+        let a = content_read_team_things(dbref, &user)
+            .await
+            .expect("sql read");
         let b = naive_read_teams(dbref, &user).await.expect("rust read");
         assert_eq!(thing_key_set(&a), thing_key_set(&b));
     }

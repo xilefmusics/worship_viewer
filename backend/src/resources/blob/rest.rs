@@ -106,7 +106,8 @@ async fn create_blob(
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Created().json(
-        svc.create_blob_for_user(&perms, payload.into_inner()).await?,
+        svc.create_blob_for_user(&perms, payload.into_inner())
+            .await?,
     ))
 }
 

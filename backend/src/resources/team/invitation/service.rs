@@ -13,7 +13,7 @@ use super::model::{invitation_thing, team_things_match};
 use super::repository::TeamInvitationRepository;
 use super::surreal_repo::SurrealTeamInvitationRepo;
 use crate::resources::team::model::{
-    DbTeamMember, is_public_resource, member_or_owner_readable, effective_admin,
+    DbTeamMember, effective_admin, is_public_resource, member_or_owner_readable,
     team_fetched_to_stored, team_resource_or_reject_public, thing_user_id, user_thing,
 };
 use crate::resources::team::repository::TeamRepository;
@@ -28,7 +28,10 @@ pub struct InvitationService<R, IR> {
 
 impl<R, IR> InvitationService<R, IR> {
     pub fn new(team_repo: R, inv_repo: IR) -> Self {
-        Self { team_repo, inv_repo }
+        Self {
+            team_repo,
+            inv_repo,
+        }
     }
 }
 
@@ -120,7 +123,10 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
             .ok_or_else(|| AppError::NotFound("invitation not found".into()))?;
 
         let team_row = row.team;
-        let res = (team_row.id.tb.clone(), crate::database::record_id_string(&team_row.id));
+        let res = (
+            team_row.id.tb.clone(),
+            crate::database::record_id_string(&team_row.id),
+        );
         if is_public_resource(&res) {
             return Err(AppError::NotFound("invitation not found".into()));
         }
@@ -148,11 +154,19 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
 
         map.insert(
             uid.clone(),
-            DbTeamMember { user: user_thing(&uid), role: "guest".to_owned() },
+            DbTeamMember {
+                user: user_thing(&uid),
+                role: "guest".to_owned(),
+            },
         );
         let members: Vec<DbTeamMember> = map.into_values().collect();
-        let resource = (team_row.id.tb.clone(), crate::database::record_id_string(&team_row.id));
-        self.team_repo.update_team_members(resource, members).await?;
+        let resource = (
+            team_row.id.tb.clone(),
+            crate::database::record_id_string(&team_row.id),
+        );
+        self.team_repo
+            .update_team_members(resource, members)
+            .await?;
 
         self.team_repo.load_team_display(&team_id_str).await
     }

@@ -13,8 +13,8 @@ use crate::resources::collection::CreateCollection;
 use crate::resources::collection::service::CollectionServiceHandle;
 #[allow(unused_imports)]
 use crate::resources::song::{Format, QueryParams, Song};
-use crate::settings::PrinterConfig;
 use crate::resources::team::UserPermissions;
+use crate::settings::PrinterConfig;
 use shared::api::ListQuery;
 #[allow(unused_imports)]
 use shared::player::Player;

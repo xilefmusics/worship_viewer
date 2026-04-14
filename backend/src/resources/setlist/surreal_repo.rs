@@ -144,8 +144,7 @@ impl SetlistRepository for SurrealSetlistRepo {
             .await?;
 
         let rows: Vec<SetlistRecord> = response.take(0)?;
-        rows
-            .into_iter()
+        rows.into_iter()
             .next()
             .map(SetlistRecord::into_setlist)
             .ok_or_else(|| AppError::NotFound("setlist not found".into()))
@@ -156,17 +155,14 @@ impl SetlistRepository for SurrealSetlistRepo {
         let (tb, sid) = resource_id("setlist", id)?;
         let mut response = db
             .db
-            .query(
-                "DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE",
-            )
+            .query("DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
             .bind(("teams", write_teams.to_vec()))
             .await?;
 
         let rows: Vec<SetlistRecord> = response.take(0)?;
-        rows
-            .into_iter()
+        rows.into_iter()
             .next()
             .map(SetlistRecord::into_setlist)
             .ok_or_else(|| AppError::NotFound("setlist not found".into()))

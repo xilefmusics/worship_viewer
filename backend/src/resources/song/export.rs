@@ -83,7 +83,11 @@ fn export_chord_pro(
         let bytes = songs[0]
             .format_chord_pro(None, None, None, worship_pro_features)
             .into_bytes();
-        return Ok(ExportResult { bytes, content_type, filename });
+        return Ok(ExportResult {
+            bytes,
+            content_type,
+            filename,
+        });
     }
 
     let mut buffer = Cursor::new(Vec::<u8>::new());

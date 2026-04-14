@@ -12,15 +12,15 @@ use crate::error::AppError;
 use crate::resources::collection::CollectionRepository;
 
 use crate::resources::team::{TeamResolver, UserPermissions};
-use crate::resources::user::surreal_repo::SurrealUserRepo;
 use crate::resources::user::UserRepository;
+use crate::resources::user::surreal_repo::SurrealUserRepo;
 use shared::collection::CreateCollection;
 
-use crate::settings::PrinterConfig;
 use super::export::{ExportResult, Format, export};
 use super::liked::LikedSongIds;
 use super::repository::SongRepository;
 use super::surreal_repo::SurrealSongRepo;
+use crate::settings::PrinterConfig;
 
 /// Abstraction over updating a user's default collection reference.
 #[async_trait]
@@ -39,7 +39,9 @@ impl UserCollectionUpdater for Arc<SurrealUserRepo> {
         user_id: &str,
         collection_id: &str,
     ) -> Result<(), AppError> {
-        (**self).set_default_collection(user_id, collection_id).await
+        (**self)
+            .set_default_collection(user_id, collection_id)
+            .await
     }
 }
 
@@ -55,7 +57,13 @@ pub struct SongService<R, T, L, C, U> {
 
 impl<R, T, L, C, U> SongService<R, T, L, C, U> {
     pub fn new(repo: R, teams: T, likes: L, collections: C, user_updater: U) -> Self {
-        Self { repo, teams, likes, collections, user_updater }
+        Self {
+            repo,
+            teams,
+            likes,
+            collections,
+            user_updater,
+        }
     }
 }
 
@@ -73,10 +81,8 @@ impl<
         pagination: ListQuery,
     ) -> Result<Vec<Song>, AppError> {
         let user_id = perms.user().id.clone();
-        let (liked_set, read_teams) = tokio::try_join!(
-            self.likes.liked_song_ids(&user_id),
-            perms.read_teams()
-        )?;
+        let (liked_set, read_teams) =
+            tokio::try_join!(self.likes.liked_song_ids(&user_id), perms.read_teams())?;
         Ok(self
             .repo
             .get_songs(read_teams, pagination)
@@ -95,10 +101,8 @@ impl<
         id: &str,
     ) -> Result<Song, AppError> {
         let user_id = perms.user().id.clone();
-        let (liked_set, read_teams) = tokio::try_join!(
-            self.likes.liked_song_ids(&user_id),
-            perms.read_teams()
-        )?;
+        let (liked_set, read_teams) =
+            tokio::try_join!(self.likes.liked_song_ids(&user_id), perms.read_teams())?;
         let mut song = self.repo.get_song(read_teams, id).await?;
         song.user_specific_addons.liked = liked_set.contains(&song.id);
         Ok(song)
@@ -114,7 +118,10 @@ impl<
             song: self.repo.get_song(read_teams, id).await?,
             nr: None,
             key: None,
-            liked: self.repo.get_song_like(read_teams, &perms.user().id, id).await?,
+            liked: self
+                .repo
+                .get_song_like(read_teams, &perms.user().id, id)
+                .await?,
         }))
     }
 
@@ -181,7 +188,9 @@ impl<
         song: CreateSong,
     ) -> Result<Song, AppError> {
         let write_teams = perms.write_teams().await?;
-        self.repo.update_song(write_teams, &perms.user().id, id, song).await
+        self.repo
+            .update_song(write_teams, &perms.user().id, id, song)
+            .await
     }
 
     pub async fn delete_song_for_user(
@@ -199,7 +208,10 @@ impl<
         id: &str,
     ) -> Result<LikeStatus, AppError> {
         let read_teams = perms.read_teams().await?;
-        let liked = self.repo.get_song_like(read_teams, &perms.user().id, id).await?;
+        let liked = self
+            .repo
+            .get_song_like(read_teams, &perms.user().id, id)
+            .await?;
         Ok(LikeStatus { liked })
     }
 
@@ -210,7 +222,10 @@ impl<
         liked: bool,
     ) -> Result<LikeStatus, AppError> {
         let read_teams = perms.read_teams().await?;
-        let liked = self.repo.set_song_like(read_teams, &perms.user().id, id, liked).await?;
+        let liked = self
+            .repo
+            .set_song_like(read_teams, &perms.user().id, id, liked)
+            .await?;
         Ok(LikeStatus { liked })
     }
 }
@@ -305,7 +320,9 @@ mod tests {
             .expect("like status");
         assert!(st.liked);
 
-        svc.delete_song_for_user(&owner_p, &s1.id).await.expect("del");
+        svc.delete_song_for_user(&owner_p, &s1.id)
+            .await
+            .expect("del");
     }
 
     #[tokio::test]

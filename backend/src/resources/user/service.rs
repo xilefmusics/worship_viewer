@@ -10,9 +10,9 @@ use crate::resources::team::model::TeamCreatePayload;
 use crate::resources::team::model::user_thing;
 use crate::resources::team::surreal_repo::SurrealTeamRepo;
 
+use super::CreateUserRequest;
 use super::repository::UserRepository;
 use super::surreal_repo::SurrealUserRepo;
-use super::CreateUserRequest;
 
 /// Application service for user management: creates users with personal teams.
 #[derive(Clone)]
@@ -76,7 +76,9 @@ impl<R: UserRepository, T: TeamRepository> UserService<R, T> {
         user_id: &str,
         collection_id: &str,
     ) -> Result<(), AppError> {
-        self.repo.set_default_collection(user_id, collection_id).await
+        self.repo
+            .set_default_collection(user_id, collection_id)
+            .await
     }
 }
 

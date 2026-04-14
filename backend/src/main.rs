@@ -14,6 +14,7 @@ use backend::docs;
 use backend::frontend;
 use backend::mail::MailService;
 use backend::resources;
+use backend::resources::Session;
 use backend::resources::blob::service::BlobServiceHandle;
 use backend::resources::collection::service::CollectionServiceHandle;
 use backend::resources::setlist::{SetlistService, SurrealSetlistRepo};
@@ -23,7 +24,6 @@ use backend::resources::team::{SurrealTeamResolver, TeamServiceHandle};
 use backend::resources::user::service::UserServiceHandle;
 use backend::resources::user::session::service::SessionServiceHandle;
 use backend::resources::user::{Role as UserRole, User};
-use backend::resources::Session;
 use backend::settings::Settings;
 
 #[actix_web::main]
@@ -44,7 +44,10 @@ async fn main() -> AnyResult<()> {
 
     let mail_service = MailService::new(
         settings.gmail_from.clone(),
-        Credentials::new(settings.gmail_from.clone(), settings.gmail_app_password.clone()),
+        Credentials::new(
+            settings.gmail_from.clone(),
+            settings.gmail_app_password.clone(),
+        ),
     )?;
 
     let db = Arc::new(
@@ -65,36 +68,35 @@ async fn main() -> AnyResult<()> {
     let session_service = SessionServiceHandle::build(db.clone());
 
     if let Some(email) = settings.initial_admin_user_email.as_ref() {
-        let (admin, created_initial_admin) =
-            if let Some(user) = user_service
-                .get_user_by_email(email)
+        let (admin, created_initial_admin) = if let Some(user) = user_service
+            .get_user_by_email(email)
+            .await
+            .context("failed to look up initial admin user by email")?
+        {
+            info!(
+                "Initial admin user already exists ({}), not creating: {}",
+                user.id, user.email
+            );
+            (user, false)
+        } else {
+            let admin = user_service
+                .create_user(User {
+                    id: String::new(),
+                    email: email.to_owned(),
+                    role: UserRole::Admin,
+                    default_collection: None,
+                    created_at: Utc::now(),
+                    last_login_at: None,
+                    request_count: 0,
+                })
                 .await
-                .context("failed to look up initial admin user by email")?
-            {
-                info!(
-                    "Initial admin user already exists ({}), not creating: {}",
-                    user.id, user.email
-                );
-                (user, false)
-            } else {
-                let admin = user_service
-                    .create_user(User {
-                        id: String::new(),
-                        email: email.to_owned(),
-                        role: UserRole::Admin,
-                        default_collection: None,
-                        created_at: Utc::now(),
-                        last_login_at: None,
-                        request_count: 0,
-                    })
-                    .await
-                    .context("failed to create admin user")?;
-                info!(
-                    "Created admin user {} with email: {}",
-                    admin.id, admin.email
-                );
-                (admin, true)
-            };
+                .context("failed to create admin user")?;
+            info!(
+                "Created admin user {} with email: {}",
+                admin.id, admin.email
+            );
+            (admin, true)
+        };
 
         if settings.initial_admin_user_test_session {
             if created_initial_admin {

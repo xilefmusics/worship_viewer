@@ -11,8 +11,8 @@ use crate::resources::team::{TeamResolver, UserPermissions};
 
 use super::repository::BlobRepository;
 use super::storage::BlobStorage;
-use super::surreal_repo::SurrealBlobRepo;
 use super::storage::FsBlobStorage;
+use super::surreal_repo::SurrealBlobRepo;
 
 /// Application service: team resolution, authorization, and orchestration for blobs.
 #[derive(Clone)]
@@ -24,7 +24,11 @@ pub struct BlobService<R, T, S> {
 
 impl<R, T, S> BlobService<R, T, S> {
     pub fn new(repo: R, teams: T, storage: S) -> Self {
-        Self { repo, teams, storage }
+        Self {
+            repo,
+            teams,
+            storage,
+        }
     }
 }
 
@@ -92,11 +96,8 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
 }
 
 /// Production type alias used in HTTP wiring.
-pub type BlobServiceHandle = BlobService<
-    SurrealBlobRepo,
-    crate::resources::team::SurrealTeamResolver,
-    FsBlobStorage,
->;
+pub type BlobServiceHandle =
+    BlobService<SurrealBlobRepo, crate::resources::team::SurrealTeamResolver, FsBlobStorage>;
 
 impl BlobServiceHandle {
     pub fn build(db: Arc<Database>, blob_dir: String) -> Self {
@@ -138,11 +139,7 @@ mod tests {
             Ok(self.blobs.clone())
         }
 
-        async fn get_blob(
-            &self,
-            _read_teams: &[Thing],
-            _id: &str,
-        ) -> Result<Blob, AppError> {
+        async fn get_blob(&self, _read_teams: &[Thing], _id: &str) -> Result<Blob, AppError> {
             self.blobs
                 .first()
                 .cloned()
@@ -172,11 +169,7 @@ mod tests {
                 .ok_or_else(|| AppError::NotFound("blob not found".into()))
         }
 
-        async fn delete_blob(
-            &self,
-            _write_teams: &[Thing],
-            _id: &str,
-        ) -> Result<Blob, AppError> {
+        async fn delete_blob(&self, _write_teams: &[Thing], _id: &str) -> Result<Blob, AppError> {
             self.blobs
                 .first()
                 .cloned()
@@ -243,7 +236,12 @@ mod tests {
         let r = svc
             .create_blob_for_user(
                 &perms,
-                CreateBlob { file_type: FileType::PNG, width: 1, height: 1, ocr: String::new() },
+                CreateBlob {
+                    file_type: FileType::PNG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
             )
             .await;
         assert!(r.is_ok());
@@ -304,12 +302,18 @@ mod tests {
             .expect("list");
         assert!(list.iter().any(|x| x.id == b.id));
 
-        svc.get_blob_for_user(&owner_perms, &b.id).await.expect("get");
-        svc.get_blob_for_user(&other_perms, &b.id).await.expect("guest read");
+        svc.get_blob_for_user(&owner_perms, &b.id)
+            .await
+            .expect("get");
+        svc.get_blob_for_user(&other_perms, &b.id)
+            .await
+            .expect("guest read");
 
         let miss = svc.get_blob_for_user(&other_perms, "never-created").await;
         assert!(matches!(miss, Err(AppError::NotFound(_))));
 
-        svc.delete_blob_for_user(&owner_perms, &b.id).await.expect("delete");
+        svc.delete_blob_for_user(&owner_perms, &b.id)
+            .await
+            .expect("delete");
     }
 }

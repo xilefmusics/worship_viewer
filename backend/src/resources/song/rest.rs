@@ -13,8 +13,8 @@ use crate::resources::song::Song;
 use crate::resources::song::service::SongServiceHandle;
 #[allow(unused_imports)]
 use crate::resources::song::{Format, QueryParams};
-use crate::settings::PrinterConfig;
 use crate::resources::team::UserPermissions;
+use crate::settings::PrinterConfig;
 use shared::api::ListQuery;
 use shared::like::LikeStatus;
 #[allow(unused_imports)]
@@ -184,7 +184,8 @@ async fn create_song(
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Created().json(
-        svc.create_song_for_user(&perms, payload.into_inner()).await?,
+        svc.create_song_for_user(&perms, payload.into_inner())
+            .await?,
     ))
 }
 

@@ -9,8 +9,8 @@ use futures_util::future::LocalBoxFuture;
 use super::authorization_bearer;
 use crate::error::AppError;
 use crate::resources::User;
+use crate::resources::user::Role as UserRole;
 use crate::resources::user::session::service::SessionServiceHandle;
-use crate::resources::user::{Role as UserRole};
 use crate::settings::CookieConfig;
 
 #[derive(Clone, Default)]
@@ -80,10 +80,7 @@ where
                 })
                 .ok_or_else(AppError::unauthorized)?;
 
-            let user = match svc
-                .validate_session_and_update_metrics(&session_id)
-                .await
-            {
+            let user = match svc.validate_session_and_update_metrics(&session_id).await {
                 Ok(Some(session)) => session.user,
                 Ok(None) => return Err(AppError::unauthorized().into()),
                 Err(err) => return Err(err.into()),

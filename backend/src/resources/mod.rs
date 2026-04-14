@@ -18,6 +18,6 @@ pub mod team;
 
 pub mod user;
 pub use user::CreateUserRequest;
-pub use user::User;
 pub use user::Role as UserRole;
+pub use user::User;
 pub use user::session::Session;

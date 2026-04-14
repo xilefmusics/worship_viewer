@@ -126,9 +126,7 @@ async fn create_user(
     svc: Data<UserServiceHandle>,
     payload: Json<CreateUserRequest>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(
-        svc.create_user_from_request(payload.into_inner()).await?,
-    ))
+    Ok(HttpResponse::Created().json(svc.create_user_from_request(payload.into_inner()).await?))
 }
 
 #[utoipa::path(

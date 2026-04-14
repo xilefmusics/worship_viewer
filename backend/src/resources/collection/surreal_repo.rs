@@ -71,14 +71,9 @@ impl CollectionRepository for SurrealCollectionRepo {
             .collect())
     }
 
-    async fn get_collection(
-        &self,
-        read_teams: &[Thing],
-        id: &str,
-    ) -> Result<Collection, AppError> {
+    async fn get_collection(&self, read_teams: &[Thing], id: &str) -> Result<Collection, AppError> {
         let db = self.inner();
-        let record: Option<CollectionRecord> =
-            db.db.select(resource_id("collection", id)?).await?;
+        let record: Option<CollectionRecord> = db.db.select(resource_id("collection", id)?).await?;
         match record {
             Some(r) if belongs_to(&r.owner, &read_teams) => Ok(r.into_collection()),
             _ => Err(AppError::NotFound("collection not found".into())),

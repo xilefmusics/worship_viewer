@@ -74,8 +74,11 @@ impl TeamInvitationRepository for SurrealTeamInvitationRepo {
     async fn delete_invitation(&self, inv_id: &str) -> Result<bool, AppError> {
         let inv_thing = invitation_thing_from_id(inv_id)?;
         let key = crate::database::record_id_string(&inv_thing);
-        let deleted: Option<InvitationDeleteRow> =
-            self.inner().db.delete(("team_invitation", key.as_str())).await?;
+        let deleted: Option<InvitationDeleteRow> = self
+            .inner()
+            .db
+            .delete(("team_invitation", key.as_str()))
+            .await?;
         Ok(deleted.is_some())
     }
 
@@ -98,7 +101,9 @@ impl TeamInvitationRepository for SurrealTeamInvitationRepo {
 fn invitation_thing_from_id(id: &str) -> Result<Thing, crate::error::AppError> {
     let id = id.trim();
     if id.is_empty() {
-        return Err(crate::error::AppError::NotFound("invitation not found".into()));
+        return Err(crate::error::AppError::NotFound(
+            "invitation not found".into(),
+        ));
     }
     if let Ok(thing) = id.parse::<Thing>()
         && thing.tb == "team_invitation"
