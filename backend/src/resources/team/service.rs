@@ -39,14 +39,11 @@ impl<R, IR, TR> TeamService<R, IR, TR> {
 impl<R: TeamRepository, IR: TeamInvitationRepository, TR: TeamResolver> TeamService<R, IR, TR> {
     pub async fn list_teams_for_user(&self, user: &User) -> Result<Vec<Team>, AppError> {
         let app_admin = user.role == UserRole::Admin;
-        let rows = self.repo.fetch_all_teams().await?;
+        let rows = self.repo.fetch_teams_for_user(&user.id, app_admin).await?;
         let mut by_id: BTreeMap<String, Team> = BTreeMap::new();
         for row in rows {
-            let stored = team_fetched_to_stored(&row)?;
-            if can_read_team(&user.id, &stored, app_admin) {
-                let team = row.into_team()?;
-                by_id.insert(team.id.clone(), team);
-            }
+            let team = row.into_team()?;
+            by_id.insert(team.id.clone(), team);
         }
         let mut list: Vec<Team> = by_id.into_values().collect();
         list.sort_by(|a, b| match (a.owner.is_some(), b.owner.is_some()) {
@@ -433,5 +430,59 @@ mod tests {
             .expect("shared");
         let perms = UserPermissions::new(&u, &svc.resolver);
         svc.delete_team_for_user(&perms, &shared.id).await.expect("delete");
+    }
+
+    /// Verify that the DB-filtered `fetch_teams_for_user` path returns the same set of teams
+    /// as the old fetch-all-then-filter-in-Rust path that it replaces.
+    #[tokio::test]
+    async fn list_teams_matches_fetch_all_then_filter() {
+        let db = test_db().await.expect("db");
+        let u = create_user(&db, "team-parity@test.local").await.expect("u");
+        let other = create_user(&db, "team-parity-other@test.local").await.expect("other");
+        let svc = team_service(&db);
+
+        // Create a shared team that the user belongs to
+        let _member_team = svc
+            .create_shared_team_for_user(
+                &u,
+                CreateTeam { name: "MemberTeam".into(), members: vec![] },
+            )
+            .await
+            .expect("member team");
+
+        // Create another shared team that the user does NOT belong to
+        let _other_team = svc
+            .create_shared_team_for_user(
+                &other,
+                CreateTeam { name: "OtherTeam".into(), members: vec![] },
+            )
+            .await
+            .expect("other team");
+
+        // New path: DB-filtered
+        let new_path_ids: std::collections::BTreeSet<String> = svc
+            .list_teams_for_user(&u)
+            .await
+            .expect("list new")
+            .into_iter()
+            .map(|t| t.id)
+            .collect();
+
+        // Old path: fetch all, filter in Rust
+        let app_admin = u.role == shared::user::Role::Admin;
+        let old_path_ids: std::collections::BTreeSet<String> = svc
+            .repo
+            .fetch_all_teams()
+            .await
+            .expect("fetch all")
+            .into_iter()
+            .filter(|row| {
+                let stored = team_fetched_to_stored(row).expect("stored");
+                can_read_team(&u.id, &stored, app_admin)
+            })
+            .map(|row| row.id.id.to_string())
+            .collect();
+
+        assert_eq!(new_path_ids, old_path_ids, "DB-filtered list must match Rust-side filter");
     }
 }

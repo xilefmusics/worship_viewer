@@ -8,7 +8,7 @@ use shared::team::Team;
 use crate::database::Database;
 use crate::error::AppError;
 
-use super::model::{DbTeamMember, TeamCreatePayload, TeamFetched, TeamIdRow, team_resource_or_reject_public};
+use super::model::{DbTeamMember, TeamCreatePayload, TeamFetched, TeamIdRow, team_resource_or_reject_public, user_thing};
 use super::repository::TeamRepository;
 
 #[derive(Clone)]
@@ -37,6 +37,32 @@ impl TeamRepository for SurrealTeamRepo {
             .bind(("public", public_thing))
             .await?
             .take::<Vec<TeamFetched>>(0)?)
+    }
+
+    async fn fetch_teams_for_user(&self, user_id: &str, is_admin: bool) -> Result<Vec<TeamFetched>, AppError> {
+        let public_thing = super::model::public_team_thing();
+        let db = self.inner();
+        if is_admin {
+            Ok(db
+                .db
+                .query("SELECT * FROM team WHERE id != $public FETCH owner, members.user")
+                .bind(("public", public_thing))
+                .await?
+                .take::<Vec<TeamFetched>>(0)?)
+        } else {
+            let ut = user_thing(user_id);
+            Ok(db
+                .db
+                .query(
+                    "SELECT * FROM team WHERE id != $public \
+                     AND (owner = $user OR array::len(members[WHERE user = $user]) > 0) \
+                     FETCH owner, members.user",
+                )
+                .bind(("public", public_thing))
+                .bind(("user", ut))
+                .await?
+                .take::<Vec<TeamFetched>>(0)?)
+        }
     }
 
     async fn fetch_team(&self, id: &str) -> Result<Option<TeamFetched>, AppError> {

@@ -13,6 +13,10 @@ pub trait TeamRepository: Send + Sync {
     /// Fetch all non-public teams, with owner and member user records populated via FETCH.
     async fn fetch_all_teams(&self) -> Result<Vec<TeamFetched>, AppError>;
 
+    /// Fetch teams visible to a user: all non-public teams for admins, or only teams where the
+    /// user is the owner or a member for regular users. Filtering is pushed to the database.
+    async fn fetch_teams_for_user(&self, user_id: &str, is_admin: bool) -> Result<Vec<TeamFetched>, AppError>;
+
     /// Fetch a single team by ID (accepts plain ID or `team:id` format), with FETCHed users.
     async fn fetch_team(&self, id: &str) -> Result<Option<TeamFetched>, AppError>;
 
