@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use actix_web::HttpResponse;
-
 use shared::api::ListQuery;
 use shared::collection::{Collection, CreateCollection};
 use shared::player::Player;
@@ -10,7 +8,7 @@ use shared::song::Song;
 use crate::database::Database;
 use crate::error::AppError;
 use crate::resources::common::player_from_song_links;
-use crate::resources::song::{Format, LikedSongIds, export};
+use crate::resources::song::{ExportResult, Format, LikedSongIds, export};
 use crate::resources::team::{TeamResolver, UserPermissions};
 
 use super::repository::CollectionRepository;
@@ -68,7 +66,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         perms: &UserPermissions<'_, T>,
         id: &str,
         format: Format,
-    ) -> Result<HttpResponse, AppError> {
+    ) -> Result<ExportResult, AppError> {
         let read_teams = perms.read_teams().await?;
         let songs: Vec<Song> = self
             .repo

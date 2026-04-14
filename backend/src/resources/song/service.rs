@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use actix_web::HttpResponse;
 use async_trait::async_trait;
 
 use shared::api::ListQuery;
@@ -17,7 +16,7 @@ use crate::resources::user::surreal_repo::SurrealUserRepo;
 use crate::resources::user::UserRepository;
 use shared::collection::CreateCollection;
 
-use super::export::{Format, export};
+use super::export::{ExportResult, Format, export};
 use super::liked::LikedSongIds;
 use super::repository::SongRepository;
 use super::surreal_repo::SurrealSongRepo;
@@ -123,7 +122,7 @@ impl<
         perms: &UserPermissions<'_, T>,
         id: &str,
         format: Format,
-    ) -> Result<HttpResponse, AppError> {
+    ) -> Result<ExportResult, AppError> {
         let read_teams = perms.read_teams().await?;
         let song = self.repo.get_song(read_teams, id).await?;
         export(vec![song], format).await

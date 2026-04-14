@@ -29,13 +29,31 @@ pub struct QueryParams {
     pub format: Format,
 }
 
+pub struct ExportResult {
+    pub bytes: Vec<u8>,
+    pub content_type: &'static str,
+    pub filename: String,
+}
+
+impl From<ExportResult> for HttpResponse {
+    fn from(r: ExportResult) -> Self {
+        HttpResponse::Ok()
+            .insert_header((header::CONTENT_TYPE, r.content_type))
+            .insert_header((
+                header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{}\"", r.filename),
+            ))
+            .body(r.bytes)
+    }
+}
+
 fn sanitize_filename(s: &str) -> String {
     s.chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect()
 }
 
-pub async fn export(songs: Vec<Song>, format: Format) -> Result<HttpResponse, AppError> {
+pub async fn export(songs: Vec<Song>, format: Format) -> Result<ExportResult, AppError> {
     match format {
         Format::Zip => export_chord_pro(songs, true, true),
         Format::WorshipPro => export_chord_pro(songs, true, false),
@@ -48,25 +66,20 @@ fn export_chord_pro(
     songs: Vec<Song>,
     worship_pro_features: bool,
     force_zip: bool,
-) -> Result<HttpResponse, AppError> {
+) -> Result<ExportResult, AppError> {
     let ending = if worship_pro_features { "wp" } else { "chopro" };
 
     if songs.len() == 1 && !force_zip {
-        let content_type = if worship_pro_features {
+        let content_type: &'static str = if worship_pro_features {
             "text/x-worshippro"
         } else {
             "text/x-chordpro"
         };
-        return Ok(HttpResponse::Ok()
-            .insert_header((header::CONTENT_TYPE, content_type))
-            .insert_header((
-                header::CONTENT_DISPOSITION,
-                format!(
-                    "attachment; filename=\"{0}.{ending}\"",
-                    sanitize_filename(songs[0].data.title()),
-                ),
-            ))
-            .body(songs[0].format_chord_pro(None, None, None, worship_pro_features)));
+        let filename = format!("{}.{ending}", sanitize_filename(songs[0].data.title()));
+        let bytes = songs[0]
+            .format_chord_pro(None, None, None, worship_pro_features)
+            .into_bytes();
+        return Ok(ExportResult { bytes, content_type, filename });
     }
 
     let mut buffer = Cursor::new(Vec::<u8>::new());
@@ -93,16 +106,14 @@ fn export_chord_pro(
         .map_err(|err| AppError::Internal(err.to_string()))?;
     let bytes = buffer.into_inner();
 
-    Ok(HttpResponse::Ok()
-        .insert_header((header::CONTENT_TYPE, "application/zip"))
-        .insert_header((
-            header::CONTENT_DISPOSITION,
-            "attachment; filename=\"songs.zip\"".to_string(),
-        ))
-        .body(bytes))
+    Ok(ExportResult {
+        bytes,
+        content_type: "application/zip",
+        filename: "songs.zip".to_string(),
+    })
 }
 
-async fn export_pdf(songs: Vec<Song>) -> Result<HttpResponse, AppError> {
+async fn export_pdf(songs: Vec<Song>) -> Result<ExportResult, AppError> {
     let css = songs
         .first()
         .map(|song| song.format_html(None, None, None, None).1)
@@ -140,13 +151,11 @@ async fn export_pdf(songs: Vec<Song>) -> Result<HttpResponse, AppError> {
         )));
     }
 
-    let bytes = resp.bytes().await.map_err(AppError::from)?;
+    let bytes = resp.bytes().await.map_err(AppError::from)?.to_vec();
 
-    Ok(HttpResponse::Ok()
-        .insert_header((header::CONTENT_TYPE, "application/pdf"))
-        .insert_header((
-            header::CONTENT_DISPOSITION,
-            "attachment; filename=\"songs.pdf\"",
-        ))
-        .body(bytes))
+    Ok(ExportResult {
+        bytes,
+        content_type: "application/pdf",
+        filename: "songs.pdf".to_string(),
+    })
 }

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use actix_web::HttpResponse;
 use shared::api::ListQuery;
 use shared::player::Player;
 use shared::setlist::{CreateSetlist, Setlist};
@@ -8,7 +7,7 @@ use shared::song::Song;
 
 use crate::error::AppError;
 use crate::resources::song::LikedSongIds;
-use crate::resources::song::{Format, export};
+use crate::resources::song::{ExportResult, Format, export};
 use crate::resources::team::{TeamResolver, UserPermissions};
 
 use crate::resources::common::player_from_song_links;
@@ -66,7 +65,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         perms: &UserPermissions<'_, T>,
         id: &str,
         format: Format,
-    ) -> Result<HttpResponse, AppError> {
+    ) -> Result<ExportResult, AppError> {
         let read_teams = perms.read_teams().await?;
         let songs: Vec<Song> = self
             .repo

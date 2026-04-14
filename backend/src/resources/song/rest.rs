@@ -152,8 +152,10 @@ async fn get_song_export(
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
-    svc.export_song_for_user(&perms, &id, query.into_inner().format)
-        .await
+    Ok(svc
+        .export_song_for_user(&perms, &id, query.into_inner().format)
+        .await?
+        .into())
 }
 
 #[utoipa::path(
