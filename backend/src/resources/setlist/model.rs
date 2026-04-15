@@ -32,11 +32,7 @@ impl SetlistRecord {
         }
     }
 
-    pub fn from_payload(
-        id: Option<Thing>,
-        owner: Option<Thing>,
-        setlist: CreateSetlist,
-    ) -> Self {
+    pub fn from_payload(id: Option<Thing>, owner: Option<Thing>, setlist: CreateSetlist) -> Self {
         Self {
             id,
             owner,

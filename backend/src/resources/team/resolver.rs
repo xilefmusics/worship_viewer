@@ -81,7 +81,8 @@ impl<'a, T: TeamResolver> UserPermissions<'a, T> {
         let resolver = self.resolver;
         self.personal_team
             .get_or_try_init(|| async move { resolver.personal_team(&user_id).await })
-            .await.cloned()
+            .await
+            .cloned()
     }
 }
 

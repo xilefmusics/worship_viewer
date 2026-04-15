@@ -4,8 +4,8 @@ use shared::user::Session;
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::user::UserRepository;
 use crate::resources::user::SurrealUserRepo;
+use crate::resources::user::UserRepository;
 
 use super::repository::SessionRepository;
 use super::surreal_repo::SurrealSessionRepo;

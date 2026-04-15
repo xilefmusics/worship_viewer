@@ -58,9 +58,7 @@ pub async fn get_session_for_current_user(
     user: ReqData<User>,
     path: Path<SessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(
-        svc.get_session_for_user(&path.id, &user.id).await?,
-    ))
+    Ok(HttpResponse::Ok().json(svc.get_session_for_user(&path.id, &user.id).await?))
 }
 
 #[utoipa::path(

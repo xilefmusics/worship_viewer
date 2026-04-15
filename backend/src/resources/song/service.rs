@@ -12,8 +12,8 @@ use crate::error::AppError;
 use crate::resources::collection::CollectionRepository;
 
 use crate::resources::team::{TeamResolver, UserPermissions};
-use crate::resources::user::UserRepository;
 use crate::resources::user::SurrealUserRepo;
+use crate::resources::user::UserRepository;
 use shared::collection::CreateCollection;
 
 use super::export::{ExportResult, Format, export};

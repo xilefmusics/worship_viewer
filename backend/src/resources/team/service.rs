@@ -210,8 +210,8 @@ mod tests {
     use crate::error::AppError;
     use crate::resources::team::UserPermissions;
     use crate::test_helpers::{
-        TeamFixture, collection_service, create_song_with_title, create_user,
-        personal_team_id, team_service as mk_team_svc, test_db,
+        TeamFixture, collection_service, create_song_with_title, create_user, personal_team_id,
+        team_service as mk_team_svc, test_db,
     };
 
     use super::*;

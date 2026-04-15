@@ -54,9 +54,7 @@ pub fn build_create_shared_members(
     Ok(members)
 }
 
-pub fn inputs_to_db_members(
-    inputs: &[TeamMemberInput],
-) -> Result<Vec<DbTeamMember>, AppError> {
+pub fn inputs_to_db_members(inputs: &[TeamMemberInput]) -> Result<Vec<DbTeamMember>, AppError> {
     let mut map: BTreeMap<String, DbTeamMember> = BTreeMap::new();
     for m in inputs {
         let uid = member_user_id(&m.user)?;
@@ -91,9 +89,7 @@ pub fn validate_shared_has_admin(members: &[DbTeamMember]) -> Result<(), AppErro
 }
 
 /// After a membership update on an existing shared team (PUT), missing any admin is a conflict (e.g. sole admin leaving).
-pub fn ensure_shared_team_has_admin_after_update(
-    members: &[DbTeamMember],
-) -> Result<(), AppError> {
+pub fn ensure_shared_team_has_admin_after_update(members: &[DbTeamMember]) -> Result<(), AppError> {
     if !members.iter().any(|m| m.role == "admin") {
         return Err(AppError::conflict(
             "cannot leave team as the sole admin; promote another admin or delete the team",
