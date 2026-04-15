@@ -627,12 +627,7 @@ mod session_admin_gates {
 
     /// BLC-SESS-004: GET /users/me/sessions/{other_user_session} should return 404.
     ///
-    /// Currently **ignored**: the `get_session_for_current_user` handler fetches by ID
-    /// without checking that the session belongs to the requesting user (returns 200).
-    /// Enabling this test requires implementing user-scoped session lookup in the
-    /// session service / repository.
     #[actix_web::test]
-    #[ignore = "BLC-SESS-004 user-scoping not yet implemented: /me/sessions/{id} does not verify ownership"]
     async fn blc_sess_004_get_other_users_session_via_me_returns_404() {
         let db = test_db().await.unwrap();
         let user_a = create_user(&db, "sess-scope-a@test.local").await.unwrap();

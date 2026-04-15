@@ -310,3 +310,50 @@ testcases:
           Authorization: "Bearer {{.ti-create-guest-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 404
+
+  # Teardown: remove team first to avoid dangling member references.
+  - name: ti-cleanup-delete-shared-team
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/teams/{{.ti-lead-create-shared.shared_team_id}}"
+        headers:
+          Authorization: "Bearer {{.ti-create-lead-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
+  # Teardown: keep suites isolated regardless of file execution order.
+  - name: ti-cleanup-delete-maintainer-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.ti-create-maintainer-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.ti-create-maintainer-user.userid}}"
+
+  # Teardown: remove invited guest user and related memberships/sessions.
+  - name: ti-cleanup-delete-guest-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.ti-create-guest-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.ti-create-guest-user.userid}}"
+
+  # Teardown: remove lead user and any remaining invitation suite artifacts.
+  - name: ti-cleanup-delete-lead-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.ti-create-lead-user.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.ti-create-lead-user.userid}}"

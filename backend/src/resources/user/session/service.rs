@@ -28,6 +28,10 @@ impl<S: SessionRepository, U: UserRepository> SessionService<S, U> {
         self.repo.get_session(id).await
     }
 
+    pub async fn get_session_for_user(&self, id: &str, user_id: &str) -> Result<Session, AppError> {
+        self.repo.get_session_for_user(id, user_id).await
+    }
+
     pub async fn create_session(&self, session: Session) -> Result<Session, AppError> {
         self.repo.create_session(session).await
     }
@@ -137,6 +141,14 @@ mod tests {
             self.sessions
                 .iter()
                 .find(|s| s.id == id)
+                .cloned()
+                .ok_or_else(|| AppError::NotFound("session not found".into()))
+        }
+
+        async fn get_session_for_user(&self, id: &str, user_id: &str) -> Result<Session, AppError> {
+            self.sessions
+                .iter()
+                .find(|s| s.id == id && s.user.id == user_id)
                 .cloned()
                 .ok_or_else(|| AppError::NotFound("session not found".into()))
         }

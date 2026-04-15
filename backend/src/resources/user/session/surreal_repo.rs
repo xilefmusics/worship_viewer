@@ -39,6 +39,18 @@ impl SessionRepository for SurrealSessionRepo {
             .ok_or(AppError::NotFound("session not found".into()))
     }
 
+    async fn get_session_for_user(&self, id: &str, user_id: &str) -> Result<Session, AppError> {
+        self.inner()
+            .db
+            .query("SELECT * FROM session WHERE id = $id AND user = $user FETCH user")
+            .bind(("id", Thing::from(("session".to_owned(), id.to_string()))))
+            .bind(("user", Thing::from(("user".to_owned(), user_id.to_owned()))))
+            .await?
+            .take::<Option<SessionRecord>>(0)?
+            .map(SessionRecord::into_session)
+            .ok_or(AppError::NotFound("session not found".into()))
+    }
+
     async fn create_session(&self, session: Session) -> Result<Session, AppError> {
         let record: SessionIdRecord = self
             .inner()

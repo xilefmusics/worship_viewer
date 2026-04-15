@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use serde::Deserialize;
 use surrealdb::sql::Thing;
 
 use crate::database::Database;
@@ -8,6 +9,12 @@ use crate::error::AppError;
 
 use super::model::{InvitationAcceptRow, InvitationCreate, InvitationRow};
 use super::repository::TeamInvitationRepository;
+
+#[derive(Deserialize)]
+struct InvitationCreated {
+    #[allow(dead_code)]
+    id: Thing,
+}
 
 #[derive(Clone)]
 pub struct SurrealTeamInvitationRepo {
@@ -33,7 +40,7 @@ impl TeamInvitationRepository for SurrealTeamInvitationRepo {
         inv_id: &str,
     ) -> Result<(), AppError> {
         let create = InvitationCreate { team, created_by };
-        let created: Option<serde_json::Value> = self
+        let created: Option<InvitationCreated> = self
             .inner()
             .db
             .create(("team_invitation", inv_id))
@@ -72,7 +79,7 @@ impl TeamInvitationRepository for SurrealTeamInvitationRepo {
     async fn delete_invitation(&self, inv_id: &str) -> Result<bool, AppError> {
         let inv_thing = invitation_thing_from_id(inv_id)?;
         let key = crate::database::record_id_string(&inv_thing);
-        let deleted: Option<serde_json::Value> = self
+        let deleted: Option<InvitationCreated> = self
             .inner()
             .db
             .delete(("team_invitation", key.as_str()))
