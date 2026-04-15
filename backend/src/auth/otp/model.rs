@@ -3,15 +3,26 @@ use serde::Deserialize;
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::settings::Settings;
 
 pub trait Model {
-    async fn remember_otp(&self, email: &str, code: &str) -> Result<(), AppError>;
-    async fn validate_otp(&self, email: &str, code: &str) -> Result<(), AppError>;
+    async fn remember_otp(
+        &self,
+        email: &str,
+        code: &str,
+        pepper: &str,
+        ttl_seconds: u64,
+    ) -> Result<(), AppError>;
+    async fn validate_otp(&self, email: &str, code: &str, pepper: &str) -> Result<(), AppError>;
 }
 
 impl Model for Database {
-    async fn remember_otp(&self, email: &str, code: &str) -> Result<(), AppError> {
+    async fn remember_otp(
+        &self,
+        email: &str,
+        code: &str,
+        pepper: &str,
+        ttl_seconds: u64,
+    ) -> Result<(), AppError> {
         self.db
             .query(
                 r#"
@@ -26,14 +37,14 @@ impl Model for Database {
                 "#,
             )
             .bind(("email", email.to_owned()))
-            .bind(("code", otp_hmac(email, code)))
-            .bind(("ttl_secs", Settings::global().otp_ttl_seconds as i64))
+            .bind(("code", otp_hmac(email, code, pepper)))
+            .bind(("ttl_secs", ttl_seconds as i64))
             .await
             .map_err(AppError::database)?;
         Ok(())
     }
 
-    async fn validate_otp(&self, email: &str, code: &str) -> Result<(), AppError> {
+    async fn validate_otp(&self, email: &str, code: &str, pepper: &str) -> Result<(), AppError> {
         #[derive(Deserialize)]
         struct Outcome {
             exists: i64,
@@ -52,7 +63,7 @@ impl Model for Database {
                 "#
             )
             .bind(("email", email.to_owned()))
-            .bind(("code", otp_hmac(email, code)))
+            .bind(("code", otp_hmac(email, code, pepper)))
             .await
             .map_err(AppError::database)?
             .take::<Option<Outcome>>(5).map_err(AppError::database)?
@@ -68,8 +79,8 @@ impl Model for Database {
     }
 }
 
-fn otp_hmac(email: &str, code: &str) -> String {
-    let key = hmac::Key::new(hmac::HMAC_SHA256, Settings::global().otp_pepper.as_bytes());
+fn otp_hmac(email: &str, code: &str, pepper: &str) -> String {
+    let key = hmac::Key::new(hmac::HMAC_SHA256, pepper.as_bytes());
     let data = format!("{}:{}", email, code);
     let tag = hmac::sign(&key, data.as_bytes());
     hex::encode(tag.as_ref())

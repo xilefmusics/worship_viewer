@@ -8,7 +8,6 @@ use surrealdb::opt::auth::Database as DbAuth;
 use surrealdb::sql::{Id, Thing};
 
 use crate::error::AppError;
-use crate::settings::Settings;
 
 #[derive(Deserialize)]
 struct TeamIdOnly {
@@ -16,7 +15,7 @@ struct TeamIdOnly {
 }
 
 /// Stable string id for a `Thing` (matches API / legacy `id_to_plain_string` behavior).
-pub(crate) fn record_id_string(thing: &Thing) -> String {
+pub fn record_id_string(thing: &Thing) -> String {
     match &thing.id {
         Id::String(value) => value.clone(),
         Id::Number(number) => format!("{number}"),
@@ -30,18 +29,22 @@ pub struct Database {
 }
 
 impl Database {
-    pub async fn new() -> AnyResult<Self> {
-        let settings = Settings::global();
+    pub async fn connect(
+        address: &str,
+        namespace: &str,
+        database: &str,
+        username: Option<&str>,
+        password: Option<&str>,
+    ) -> AnyResult<Self> {
+        let db = connect(address)
+            .await
+            .with_context(|| format!("failed to connect to SurrealDB at {address}"))?;
 
-        let db = connect(&settings.db_address).await.with_context(|| {
-            format!("failed to connect to SurrealDB at {}", settings.db_address)
-        })?;
-
-        match (&settings.db_username, &settings.db_password) {
+        match (username, password) {
             (Some(username), Some(password)) => {
                 db.signin(DbAuth {
-                    namespace: &settings.db_namespace,
-                    database: &settings.db_database,
+                    namespace,
+                    database,
                     username,
                     password,
                 })
@@ -56,22 +59,20 @@ impl Database {
             }
         }
 
-        db.use_ns(&settings.db_namespace)
-            .use_db(&settings.db_database)
+        db.use_ns(namespace)
+            .use_db(database)
             .await
             .with_context(|| {
                 format!(
-                    "failed to select SurrealDB namespace '{}' and database '{}'",
-                    settings.db_namespace, settings.db_database
+                    "failed to select SurrealDB namespace '{namespace}' and database '{database}'"
                 )
             })?;
 
         Ok(Self { db })
     }
 
-    pub async fn migrate(&self) -> AnyResult<()> {
-        let settings = Settings::global();
-        migrations::run(&self.db, &settings.db_migration_path).await
+    pub async fn migrate(&self, migration_path: &str) -> AnyResult<()> {
+        migrations::run(&self.db, migration_path).await
     }
 
     /// The `team` row where `owner` is this user (their personal team).

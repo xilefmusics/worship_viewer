@@ -7,10 +7,11 @@ use actix_web::{Error, HttpMessage};
 use futures_util::future::LocalBoxFuture;
 
 use super::authorization_bearer;
-use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::{SessionModel, User, UserRole};
-use crate::settings::Settings;
+use crate::resources::User;
+use crate::resources::user::Role as UserRole;
+use crate::resources::user::session::service::SessionServiceHandle;
+use crate::settings::CookieConfig;
 
 #[derive(Clone, Default)]
 pub struct RequireUser;
@@ -49,32 +50,37 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        let db = req
-            .app_data::<Data<Database>>()
+        let svc = req
+            .app_data::<Data<SessionServiceHandle>>()
             .cloned()
-            .ok_or_else(|| AppError::Internal("database handle missing".into()))
+            .ok_or_else(|| AppError::Internal("session service handle missing".into()))
             .map_err(Error::from);
 
-        let cookie_name = Settings::global().cookie_name.clone();
+        let cookie_cfg = req
+            .app_data::<Data<CookieConfig>>()
+            .cloned()
+            .ok_or_else(|| AppError::Internal("cookie config missing".into()))
+            .map_err(Error::from);
         let service = Rc::clone(&self.service);
 
         Box::pin(async move {
-            let db = match db {
+            let svc = match svc {
+                Ok(data) => data,
+                Err(err) => return Err(err),
+            };
+            let cookie_cfg = match cookie_cfg {
                 Ok(data) => data,
                 Err(err) => return Err(err),
             };
 
             let session_id = authorization_bearer(&req)
                 .or_else(|| {
-                    req.cookie(&cookie_name)
+                    req.cookie(&cookie_cfg.name)
                         .map(|cookie| cookie.value().to_owned())
                 })
                 .ok_or_else(AppError::unauthorized)?;
 
-            let user = match db
-                .get_session_and_update_user_metrics_or_delete_if_exipired(&session_id)
-                .await
-            {
+            let user = match svc.validate_session_and_update_metrics(&session_id).await {
                 Ok(Some(session)) => session.user,
                 Ok(None) => return Err(AppError::unauthorized().into()),
                 Err(err) => return Err(err.into()),

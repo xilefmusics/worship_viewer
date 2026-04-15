@@ -1,7 +1,24 @@
-use once_cell::sync::OnceCell;
 use serde::Deserialize;
 
-static SETTINGS: OnceCell<Settings> = OnceCell::new();
+#[derive(Clone, Debug)]
+pub struct CookieConfig {
+    pub name: String,
+    pub secure: bool,
+    pub session_ttl_seconds: u64,
+    pub post_login_path: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct OtpConfig {
+    pub ttl_seconds: u64,
+    pub pepper: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct PrinterConfig {
+    pub address: String,
+    pub api_key: String,
+}
 
 #[derive(Deserialize, Debug)]
 #[serde(default)]
@@ -93,18 +110,30 @@ impl Default for Settings {
 }
 
 impl Settings {
-    fn read() -> Result<Self, envy::Error> {
-        let settings = envy::from_env::<Self>()?;
-        Ok(settings)
+    pub fn from_env() -> Result<Self, envy::Error> {
+        envy::from_env::<Self>()
     }
 
-    pub fn init() -> Result<&'static Self, envy::Error> {
-        SETTINGS.get_or_try_init(Self::read)
+    pub fn cookie_config(&self) -> CookieConfig {
+        CookieConfig {
+            name: self.cookie_name.clone(),
+            secure: self.cookie_secure,
+            session_ttl_seconds: self.session_ttl_seconds,
+            post_login_path: self.post_login_path.clone(),
+        }
     }
 
-    pub fn global() -> &'static Self {
-        SETTINGS
-            .get()
-            .expect("Settings::global called before initialization")
+    pub fn otp_config(&self) -> OtpConfig {
+        OtpConfig {
+            ttl_seconds: self.otp_ttl_seconds,
+            pepper: self.otp_pepper.clone(),
+        }
+    }
+
+    pub fn printer_config(&self) -> PrinterConfig {
+        PrinterConfig {
+            address: self.printer_address.clone(),
+            api_key: self.printer_api_key.clone(),
+        }
     }
 }

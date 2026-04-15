@@ -3,7 +3,6 @@ use actix_web::{
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
-use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
@@ -11,8 +10,11 @@ use crate::resources::User;
 use crate::resources::setlist::CreateSetlist;
 #[allow(unused_imports)]
 use crate::resources::setlist::Setlist;
+use crate::resources::setlist::SetlistServiceHandle;
 #[allow(unused_imports)]
 use crate::resources::song::{Format, QueryParams, Song};
+use crate::resources::team::UserPermissions;
+use crate::settings::PrinterConfig;
 use shared::api::ListQuery;
 #[allow(unused_imports)]
 use shared::player::Player;
@@ -50,11 +52,15 @@ pub fn scope() -> Scope {
 )]
 #[get("")]
 async fn get_setlists(
-    db: Data<Database>,
+    svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.list_setlists_for_user(&user, query.into_inner()).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(
+        svc.list_setlists_for_user(&perms, query.into_inner())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -78,11 +84,12 @@ async fn get_setlists(
 )]
 #[get("/{id}")]
 async fn get_setlist(
-    db: Data<Database>,
+    svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_setlist_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.get_setlist_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -106,11 +113,12 @@ async fn get_setlist(
 )]
 #[get("/{id}/player")]
 async fn get_setlist_player(
-    db: Data<Database>,
+    svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.setlist_player_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.setlist_player_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -140,13 +148,17 @@ async fn get_setlist_player(
 )]
 #[get("/{id}/export")]
 async fn get_setlist_export(
-    db: Data<Database>,
+    svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
+    printer: Data<PrinterConfig>,
     id: Path<String>,
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
-    db.export_setlist_for_user(&user, &id, query.into_inner().format)
-        .await
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(svc
+        .export_setlist_for_user(&perms, &id, query.into_inner().format, &printer)
+        .await?
+        .into())
 }
 
 #[utoipa::path(
@@ -170,11 +182,12 @@ async fn get_setlist_export(
 )]
 #[get("/{id}/songs")]
 async fn get_setlist_songs(
-    db: Data<Database>,
+    svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.setlist_songs_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.setlist_songs_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -195,12 +208,13 @@ async fn get_setlist_songs(
 )]
 #[post("")]
 async fn create_setlist(
-    db: Data<Database>,
+    svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
     payload: Json<CreateSetlist>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Created().json(
-        db.create_setlist_for_user(&user, payload.into_inner())
+        svc.create_setlist_for_user(&perms, payload.into_inner())
             .await?,
     ))
 }
@@ -226,13 +240,14 @@ async fn create_setlist(
 )]
 #[put("/{id}")]
 async fn update_setlist(
-    db: Data<Database>,
+    svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
     payload: Json<CreateSetlist>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
-        db.update_setlist_for_user(&user, &id, payload.into_inner())
+        svc.update_setlist_for_user(&perms, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -258,9 +273,10 @@ async fn update_setlist(
 )]
 #[delete("/{id}")]
 async fn delete_setlist(
-    db: Data<Database>,
+    svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_setlist_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.delete_setlist_for_user(&perms, &id).await?))
 }

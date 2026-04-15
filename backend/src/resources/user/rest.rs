@@ -1,9 +1,9 @@
-use super::{CreateUserRequest, Model, User, session};
+use super::{CreateUserRequest, User, session};
 use crate::auth::middleware::RequireAdmin;
-use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
+use crate::resources::user::service::UserServiceHandle;
 use actix_web::{
     HttpResponse, Scope, delete, get, post,
     web::{self, Data, Json, Path, Query, ReqData},
@@ -69,8 +69,11 @@ async fn get_users_me(user: ReqData<User>) -> HttpResponse {
     )
 )]
 #[get("/{id}")]
-async fn get_user(db: Data<Database>, id: Path<String>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_user(&id).await?))
+async fn get_user(
+    svc: Data<UserServiceHandle>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(svc.get_user(&id).await?))
 }
 
 #[utoipa::path(
@@ -93,9 +96,11 @@ async fn get_user(db: Data<Database>, id: Path<String>) -> Result<HttpResponse, 
     )
 )]
 #[get("")]
-async fn get_users(db: Data<Database>, query: Query<ListQuery>) -> Result<HttpResponse, AppError> {
-    let list_query = query.into_inner();
-    Ok(HttpResponse::Ok().json(db.get_users(list_query).await?))
+async fn get_users(
+    svc: Data<UserServiceHandle>,
+    query: Query<ListQuery>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(svc.get_users(query.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -118,10 +123,10 @@ async fn get_users(db: Data<Database>, query: Query<ListQuery>) -> Result<HttpRe
 )]
 #[post("")]
 async fn create_user(
-    db: Data<Database>,
+    svc: Data<UserServiceHandle>,
     payload: Json<CreateUserRequest>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(db.create_user_from_request(payload.into_inner()).await?))
+    Ok(HttpResponse::Created().json(svc.create_user_from_request(payload.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -144,6 +149,9 @@ async fn create_user(
     )
 )]
 #[delete("/{id}")]
-async fn delete_user(db: Data<Database>, id: Path<String>) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_user(&id).await?))
+async fn delete_user(
+    svc: Data<UserServiceHandle>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(svc.delete_user(&id).await?))
 }

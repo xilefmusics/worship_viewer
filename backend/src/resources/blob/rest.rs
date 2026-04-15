@@ -4,7 +4,6 @@ use actix_web::{
     web::{self, Data, Json, Path as PathParam, Query, ReqData},
 };
 
-use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
@@ -12,6 +11,8 @@ use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::blob::Blob;
 use crate::resources::blob::CreateBlob;
+use crate::resources::blob::service::BlobServiceHandle;
+use crate::resources::team::UserPermissions;
 use shared::api::ListQuery;
 
 pub fn scope() -> Scope {
@@ -44,11 +45,12 @@ pub fn scope() -> Scope {
 )]
 #[get("")]
 async fn get_blobs(
-    db: Data<Database>,
+    svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.list_blobs_for_user(&user, query.into_inner()).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.list_blobs_for_user(&perms, query.into_inner()).await?))
 }
 
 #[utoipa::path(
@@ -72,11 +74,12 @@ async fn get_blobs(
 )]
 #[get("/{id}")]
 async fn get_blob(
-    db: Data<Database>,
+    svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_blob_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.get_blob_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -97,11 +100,15 @@ async fn get_blob(
 )]
 #[post("")]
 async fn create_blob(
-    db: Data<Database>,
+    svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(db.create_blob_for_user(&user, payload.into_inner()).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Created().json(
+        svc.create_blob_for_user(&perms, payload.into_inner())
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -126,13 +133,14 @@ async fn create_blob(
 )]
 #[put("/{id}")]
 async fn update_blob(
-    db: Data<Database>,
+    svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     id: PathParam<String>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
-        db.update_blob_for_user(&user, &id, payload.into_inner())
+        svc.update_blob_for_user(&perms, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -158,11 +166,12 @@ async fn update_blob(
 )]
 #[delete("/{id}")]
 async fn delete_blob(
-    db: Data<Database>,
+    svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_blob_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.delete_blob_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -186,10 +195,11 @@ async fn delete_blob(
 )]
 #[get("/{id}/data")]
 async fn download_blob_image(
-    db: Data<Database>,
+    svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<NamedFile, AppError> {
-    db.open_blob_data_file_for_user(&user, &id.into_inner())
+    let perms = UserPermissions::new(&user, &svc.teams);
+    svc.open_blob_data_file_for_user(&perms, &id.into_inner())
         .await
 }

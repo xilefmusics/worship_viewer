@@ -3,7 +3,6 @@ use actix_web::{
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
-use crate::database::Database;
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
@@ -11,8 +10,11 @@ use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::collection::Collection;
 use crate::resources::collection::CreateCollection;
+use crate::resources::collection::service::CollectionServiceHandle;
 #[allow(unused_imports)]
 use crate::resources::song::{Format, QueryParams, Song};
+use crate::resources::team::UserPermissions;
+use crate::settings::PrinterConfig;
 use shared::api::ListQuery;
 #[allow(unused_imports)]
 use shared::player::Player;
@@ -50,12 +52,13 @@ pub fn scope() -> Scope {
 )]
 #[get("")]
 async fn get_collections(
-    db: Data<Database>,
+    svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
-        db.list_collections_for_user(&user, query.into_inner())
+        svc.list_collections_for_user(&perms, query.into_inner())
             .await?,
     ))
 }
@@ -81,11 +84,12 @@ async fn get_collections(
 )]
 #[get("/{id}")]
 async fn get_collection(
-    db: Data<Database>,
+    svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.get_collection_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.get_collection_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -109,11 +113,12 @@ async fn get_collection(
 )]
 #[get("/{id}/player")]
 async fn get_collection_player(
-    db: Data<Database>,
+    svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.collection_player_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.collection_player_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -143,13 +148,17 @@ async fn get_collection_player(
 )]
 #[get("/{id}/export")]
 async fn get_collection_export(
-    db: Data<Database>,
+    svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
+    printer: Data<PrinterConfig>,
     id: Path<String>,
     query: Query<QueryParams>,
 ) -> Result<HttpResponse, AppError> {
-    db.export_collection_for_user(&user, &id, query.into_inner().format)
-        .await
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(svc
+        .export_collection_for_user(&perms, &id, query.into_inner().format, &printer)
+        .await?
+        .into())
 }
 
 #[utoipa::path(
@@ -173,11 +182,12 @@ async fn get_collection_export(
 )]
 #[get("/{id}/songs")]
 async fn get_collection_songs(
-    db: Data<Database>,
+    svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.collection_songs_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.collection_songs_for_user(&perms, &id).await?))
 }
 
 #[utoipa::path(
@@ -198,12 +208,13 @@ async fn get_collection_songs(
 )]
 #[post("")]
 async fn create_collection(
-    db: Data<Database>,
+    svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Created().json(
-        db.create_collection_for_user(&user, payload.into_inner())
+        svc.create_collection_for_user(&perms, payload.into_inner())
             .await?,
     ))
 }
@@ -230,13 +241,14 @@ async fn create_collection(
 )]
 #[put("/{id}")]
 async fn update_collection(
-    db: Data<Database>,
+    svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
     payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
-        db.update_collection_for_user(&user, &id, payload.into_inner())
+        svc.update_collection_for_user(&perms, &id, payload.into_inner())
             .await?,
     ))
 }
@@ -262,9 +274,10 @@ async fn update_collection(
 )]
 #[delete("/{id}")]
 async fn delete_collection(
-    db: Data<Database>,
+    svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(db.delete_collection_for_user(&user, &id).await?))
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(svc.delete_collection_for_user(&perms, &id).await?))
 }
