@@ -1,0 +1,1 @@
+DEFINE FIELD OVERWRITE failed_attempts ON otp TYPE int DEFAULT 0;

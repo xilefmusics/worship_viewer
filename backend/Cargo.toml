@@ -43,6 +43,7 @@ lettre = { version = "0.11.21", features = ["tokio1-native-tls"] }
 ring = "0.17.14"
 hex = "0.4.3"
 actix-files = "0.6.10"
+actix-governor = "0.10"
 shared = { path = "../shared", features = ["backend"] }
 chordlib = { version = "0.8.1", features = ["html"] }
 zip = "6.0.0"

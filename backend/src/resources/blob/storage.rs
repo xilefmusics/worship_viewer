@@ -9,6 +9,7 @@ use crate::error::AppError;
 /// Abstracts blob file I/O. Enables mocking in tests.
 pub trait BlobStorage: Send + Sync {
     fn write_blob_file(&self, blob: &Blob) -> Result<(), AppError>;
+    fn write_blob_bytes(&self, blob: &Blob, data: &[u8]) -> Result<(), AppError>;
     fn delete_blob_file(&self, blob: &Blob);
     fn open_blob_data_file(&self, blob: &Blob) -> Result<NamedFile, AppError>;
 }
@@ -27,6 +28,10 @@ impl FsBlobStorage {
 
 impl BlobStorage for FsBlobStorage {
     fn write_blob_file(&self, blob: &Blob) -> Result<(), AppError> {
+        self.write_blob_bytes(blob, &[])
+    }
+
+    fn write_blob_bytes(&self, blob: &Blob, data: &[u8]) -> Result<(), AppError> {
         let file_name = blob
             .file_name()
             .ok_or_else(|| AppError::Internal("blob has no id".into()))?;
@@ -34,7 +39,7 @@ impl BlobStorage for FsBlobStorage {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir).map_err(|e| AppError::Internal(e.to_string()))?;
         }
-        std::fs::write(&path, []).map_err(|e| AppError::Internal(e.to_string()))
+        std::fs::write(&path, data).map_err(|e| AppError::Internal(e.to_string()))
     }
 
     fn delete_blob_file(&self, blob: &Blob) {

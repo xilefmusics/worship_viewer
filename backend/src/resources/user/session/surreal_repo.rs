@@ -69,6 +69,12 @@ impl SessionRepository for SurrealSessionRepo {
         Ok(session)
     }
 
+    async fn delete_session_for_user(&self, id: &str, user_id: &str) -> Result<Session, AppError> {
+        let session = self.get_session_for_user(id, user_id).await?;
+        let _: Option<SessionIdRecord> = self.inner().db.delete(("session", id)).await?;
+        Ok(session)
+    }
+
     async fn get_sessions_by_user_id(&self, user_id: &str) -> Result<Vec<Session>, AppError> {
         Ok(self
             .inner()

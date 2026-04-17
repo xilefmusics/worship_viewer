@@ -1,8 +1,9 @@
+use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{
     HttpRequest, HttpResponse,
     cookie::{Cookie, SameSite},
     post,
-    web::Data,
+    web::{self, Data},
 };
 use time::Duration as CookieDuration;
 use tracing::warn;
@@ -12,13 +13,24 @@ use super::{oidc, otp};
 use crate::resources::user::session::service::SessionServiceHandle;
 use crate::settings::CookieConfig;
 
-pub fn scope() -> actix_web::Scope {
+pub fn scope(auth_rate_limit_rps: u64, auth_rate_limit_burst: u32) -> actix_web::Scope {
+    let governor_conf = GovernorConfigBuilder::default()
+        .requests_per_second(auth_rate_limit_rps)
+        .burst_size(auth_rate_limit_burst)
+        .finish()
+        .expect("valid rate-limit configuration");
+
     actix_web::web::scope("/auth")
-        .service(oidc::rest::login)
+        // OIDC callback is not rate-limited — it is initiated by the provider and must not block.
         .service(oidc::rest::callback)
-        .service(otp::rest::otp_request)
-        .service(otp::rest::otp_verify)
-        .service(logout)
+        .service(
+            web::scope("")
+                .wrap(Governor::new(&governor_conf))
+                .service(oidc::rest::login)
+                .service(otp::rest::otp_request)
+                .service(otp::rest::otp_verify)
+                .service(logout),
+        )
 }
 
 #[utoipa::path(

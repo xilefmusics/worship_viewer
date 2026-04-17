@@ -16,6 +16,8 @@ pub enum AppError {
     InvalidRequest(String),
     #[error("{0}")]
     Conflict(String),
+    #[error("too many requests: {0}")]
+    TooManyRequests(String),
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -51,6 +53,10 @@ impl AppError {
 
     pub fn conflict<T: Into<String>>(msg: T) -> Self {
         Self::Conflict(msg.into())
+    }
+
+    pub fn too_many_requests<T: Into<String>>(msg: T) -> Self {
+        Self::TooManyRequests(msg.into())
     }
 }
 
@@ -106,6 +112,7 @@ impl ResponseError for AppError {
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::InvalidRequest(_) => StatusCode::BAD_REQUEST,
             AppError::Conflict(_) => StatusCode::CONFLICT,
+            AppError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

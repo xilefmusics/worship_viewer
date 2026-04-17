@@ -149,9 +149,12 @@ async fn main() -> AnyResult<()> {
             .app_data(cookie_config.clone())
             .app_data(otp_config.clone())
             .wrap(Logger::default())
-            .service(auth::rest::scope())
+            .service(auth::rest::scope(
+                settings.auth_rate_limit_rps,
+                settings.auth_rate_limit_burst,
+            ))
             .service(docs::rest::scope())
-            .service(resources::rest::scope())
+            .service(resources::rest::scope(settings.blob_upload_max_bytes))
             .service(frontend::rest::scope(&static_dir))
     })
     .bind((settings.host.clone(), settings.port))?

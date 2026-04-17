@@ -27,6 +27,7 @@ use crate::settings::{CookieConfig, OtpConfig};
     responses(
         (status = 204, description = "OTP generated and delivered out-of-band"),
         (status = 400, description = "Email missing or invalid", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded; slow down and retry", body = ErrorResponse),
         (status = 500, description = "Failed to persist or deliver OTP", body = ErrorResponse)
     ),
     tag = "Auth"
@@ -65,6 +66,7 @@ async fn otp_request(
     responses(
         (status = 200, description = "OTP verified successfully; session cookie issued", body = Session),
         (status = 400, description = "OTP verification failed", body = ErrorResponse),
+        (status = 429, description = "Too many incorrect attempts; request a new code", body = ErrorResponse),
         (status = 500, description = "Failed to create session", body = ErrorResponse)
     ),
     tag = "Auth"
@@ -92,7 +94,8 @@ async fn otp_verify(
         .ok_if(|value| !value.is_empty())
         .ok_or_else(|| AppError::invalid_request("otp code is required"))?;
 
-    db.validate_otp(&email, &code, &otp_cfg.pepper).await?;
+    db.validate_otp(&email, &code, &otp_cfg.pepper, otp_cfg.max_attempts)
+        .await?;
 
     let user = user_svc.get_user_by_email_or_create(&email).await?;
     let session = session_svc

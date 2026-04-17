@@ -12,6 +12,7 @@ pub struct CookieConfig {
 pub struct OtpConfig {
     pub ttl_seconds: u64,
     pub pepper: String,
+    pub max_attempts: u32,
 }
 
 #[derive(Deserialize, Debug)]
@@ -26,6 +27,7 @@ pub struct Settings {
 
     pub otp_ttl_seconds: u64,
     pub otp_pepper: String,
+    pub otp_max_attempts: u32,
 
     pub db_address: String,
     pub db_namespace: String,
@@ -59,6 +61,14 @@ pub struct Settings {
 
     pub static_dir: String,
     pub blob_dir: String,
+    /// Maximum allowed size (in bytes) for binary blob uploads via `PUT /blobs/{id}/data`.
+    /// Default: 20 MiB.
+    pub blob_upload_max_bytes: usize,
+
+    /// Requests per second allowed per IP on sensitive auth endpoints (OTP + login).
+    /// Default: 1 request per second with a burst of 5.
+    pub auth_rate_limit_rps: u64,
+    pub auth_rate_limit_burst: u32,
 }
 
 impl Default for Settings {
@@ -72,6 +82,7 @@ impl Default for Settings {
             session_ttl_seconds: 31536000,
             otp_ttl_seconds: 300,
             otp_pepper: "changeme".into(),
+            otp_max_attempts: 5,
             db_address: "mem://".into(),
             db_namespace: "app".into(),
             db_database: "app".into(),
@@ -94,6 +105,9 @@ impl Default for Settings {
             gmail_from: String::new(),
             static_dir: "static".into(),
             blob_dir: "blobs".into(),
+            blob_upload_max_bytes: 20 * 1024 * 1024,
+            auth_rate_limit_rps: 1,
+            auth_rate_limit_burst: 5,
         }
     }
 }
@@ -116,6 +130,7 @@ impl Settings {
         OtpConfig {
             ttl_seconds: self.otp_ttl_seconds,
             pepper: self.otp_pepper.clone(),
+            max_attempts: self.otp_max_attempts,
         }
     }
 }

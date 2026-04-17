@@ -950,6 +950,62 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # Blob data upload — PUT /blobs/{id}/data
+  - name: upload-blob-data-missing-token
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}/data"
+        body: "hello"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  - name: upload-blob-data-no-permission
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}/data"
+        headers:
+          Authorization: "Bearer {{.create-blob-noperm-session.sessionid}}"
+          Content-Type: application/octet-stream
+        body: "hello"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: upload-blob-data-read-only
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success-for-read.blobid}}/data"
+        headers:
+          Authorization: "Bearer {{.create-blob-read-session.sessionid}}"
+          Content-Type: application/octet-stream
+        body: "hello"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: upload-blob-data-success
+    steps:
+      - type: http
+        method: PUT
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}/data"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+          Content-Type: application/octet-stream
+        body: "PNG-binary-content"
+        assertions:
+          - result.statuscode ShouldEqual 204
+
+  - name: download-blob-data-after-upload
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/blobs/{{.post-blob-success.blobid}}/data"
+        headers:
+          Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
   # Cleanup: remove users
   # BLC: BLC-USER-011
   - name: delete-blob-owner-user
