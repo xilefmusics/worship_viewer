@@ -33,6 +33,7 @@ pub mod rest {
 
 #[derive(OpenApi)]
 #[openapi(
+    info(title = "Worship Viewer API"),
     paths(
         crate::auth::oidc::rest::login,
         crate::auth::oidc::rest::callback,
