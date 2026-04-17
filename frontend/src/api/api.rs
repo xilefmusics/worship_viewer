@@ -225,7 +225,7 @@ impl Api {
     pub async fn get_songs(&self) -> Result<Vec<Song>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
-            .get_songs(ListQuery::default())
+            .get_songs(ListQuery::default().into())
             .await
             .map_err(|e| self.handle_error(e))
     }

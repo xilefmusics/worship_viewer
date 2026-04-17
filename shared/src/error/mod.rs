@@ -14,6 +14,30 @@ pub struct ErrorResponse {
     pub error: String,
 }
 
+/// [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) problem document (`application/problem+json`).
+///
+/// Includes `code` and `error` alongside `detail` so older clients that only read `error` keep working.
+#[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ProblemDetails {
+    /// URI reference identifying the problem type; `about:blank` when omitted in responses.
+    #[serde(rename = "type")]
+    pub type_uri: String,
+    /// Short, stable summary of the problem class.
+    pub title: String,
+    /// HTTP status code.
+    pub status: u16,
+    /// Human-readable explanation (same value as [`Self::error`]).
+    pub detail: String,
+    /// Optional URI reference that identifies the specific occurrence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub instance: Option<String>,
+    /// Stable machine-readable code (extension member).
+    pub code: String,
+    /// Same as `detail` (legacy alias).
+    pub error: String,
+}
+
 #[derive(Clone, Debug, Error)]
 pub enum NetworkClientError {
     #[error("request failed (status: {status:?}): {message}")]

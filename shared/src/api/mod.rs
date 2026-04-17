@@ -17,7 +17,10 @@ use crate::user::{CreateUserRequest, Session, User};
 use std::vec::Vec;
 
 mod list_query;
+mod song_list_query;
+
 pub use list_query::ListQuery;
+pub use song_list_query::{SongListQuery, SongSort};
 pub struct ApiClient<C: HttpClient> {
     client: C,
 }
@@ -190,7 +193,7 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn get_songs(&self, query: ListQuery) -> Result<Vec<Song>, NetworkClientError> {
+    pub async fn get_songs(&self, query: SongListQuery) -> Result<Vec<Song>, NetworkClientError> {
         let path = format!("api/v1/songs{}", query.to_query_string());
         self.client.get(&path).await
     }

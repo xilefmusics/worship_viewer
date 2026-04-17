@@ -12,7 +12,7 @@ use crate::resources::{
 };
 use shared::auth::otp::{OtpRequest, OtpVerify};
 use shared::blob::FileType;
-pub use shared::error::ErrorResponse;
+pub use shared::error::{ErrorResponse, ProblemDetails};
 use shared::like::LikeStatus;
 use shared::player::{Orientation, Player, PlayerItem, ScrollType, TocItem};
 use shared::song::{Link as SongLink, SongUserSpecificAddons};
@@ -34,9 +34,15 @@ pub mod rest {
 #[openapi(
     info(
         title = "Worship Viewer API",
+        version = "1.0.0",
         description = "Versioned REST API under `/api/v1`. Authentication flows live at `/auth/*` (unversioned); clients should treat that split as stable for this major API generation.\n\n\
             **CSRF:** Cookie sessions use `SameSite=Lax`; state-changing methods are `POST`/`PUT`/`PATCH`/`DELETE` (not `GET`). Cross-site simple requests cannot mutate state via cookies under typical browser rules; API clients using bearer tokens should still avoid exposing tokens to third-party origins.\n\n\
-            **Examples:** See schema `example` fields on core DTOs in the components section."
+            **Errors:** Error responses use `application/problem+json` ([RFC 7807](https://www.rfc-editor.org/rfc/rfc7807)) with `type`, `title`, `status`, `detail`, and `code`.\n\n\
+            **Examples:** See schema `example` fields on core DTOs in the components section.",
+        license(name = "MIT", url = "https://opensource.org/licenses/MIT")
+    ),
+    servers(
+        (url = "/", description = "Same origin as the web app (override per deployment).")
     ),
     paths(
         crate::auth::oidc::rest::login,
@@ -111,6 +117,7 @@ pub mod rest {
             OtpRequest,
             OtpVerify,
             ErrorResponse,
+            ProblemDetails,
             Song,
             CreateSong,
             PatchSong,

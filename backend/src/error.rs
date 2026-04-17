@@ -1,9 +1,10 @@
 use actix_web::http::StatusCode;
 use actix_web::web::JsonConfig;
 use actix_web::{HttpResponse, ResponseError};
-use serde_json::json;
 use thiserror::Error;
 use tracing::error;
+
+use shared::error::ProblemDetails;
 
 #[derive(Debug, Error)]
 pub enum AppError {
@@ -19,6 +20,8 @@ pub enum AppError {
     Conflict(String),
     #[error("too many requests: {0}")]
     TooManyRequests(String),
+    #[error("not acceptable: {0}")]
+    NotAcceptable(String),
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -53,6 +56,10 @@ impl AppError {
 
     pub fn invalid_state() -> Self {
         Self::InvalidRequest("login state missing or expired".into())
+    }
+
+    pub fn not_acceptable<T: Into<String>>(msg: T) -> Self {
+        Self::NotAcceptable(msg.into())
     }
 
     pub fn oidc<E: std::fmt::Display>(err: E) -> Self {
@@ -134,8 +141,37 @@ impl AppError {
             AppError::InvalidRequest(_) => "invalid_request",
             AppError::Conflict(_) => "conflict",
             AppError::TooManyRequests(_) => "too_many_requests",
+            AppError::NotAcceptable(_) => "not_acceptable",
             AppError::Internal(_) => "internal",
         }
+    }
+
+    fn problem_type_uri(&self) -> String {
+        format!("https://worship-viewer.invalid/problems/{}", self.code())
+    }
+
+    fn detail_message(&self) -> String {
+        if matches!(self, AppError::Internal(_)) {
+            return "internal server error".to_owned();
+        }
+        match self {
+            AppError::NotAcceptable(msg) => msg.clone(),
+            _ => self.to_string(),
+        }
+    }
+}
+
+fn http_status_title(status: u16) -> &'static str {
+    match status {
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        403 => "Forbidden",
+        404 => "Not Found",
+        406 => "Not Acceptable",
+        409 => "Conflict",
+        429 => "Too Many Requests",
+        500 => "Internal Server Error",
+        _ => "Error",
     }
 }
 
@@ -148,6 +184,7 @@ impl ResponseError for AppError {
             AppError::InvalidRequest(_) => StatusCode::BAD_REQUEST,
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
+            AppError::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -156,13 +193,19 @@ impl ResponseError for AppError {
         if matches!(self, AppError::Internal(_)) {
             error!("{}", self);
         }
-        // For Internal errors, strip the internal detail from the client response.
-        let message = if matches!(self, AppError::Internal(_)) {
-            "internal server error".to_owned()
-        } else {
-            self.to_string()
+        let status = self.status_code().as_u16();
+        let detail = self.detail_message();
+        let problem = ProblemDetails {
+            type_uri: self.problem_type_uri(),
+            title: http_status_title(status).to_string(),
+            status,
+            detail: detail.clone(),
+            instance: None,
+            code: self.code().to_string(),
+            error: detail,
         };
         HttpResponse::build(self.status_code())
-            .json(json!({ "code": self.code(), "error": message }))
+            .content_type("application/problem+json")
+            .json(problem)
     }
 }

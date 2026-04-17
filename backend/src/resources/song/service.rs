@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use shared::api::ListQuery;
+use shared::api::SongListQuery;
 use shared::like::LikeStatus;
 use shared::patch::Patch;
 use shared::player::Player;
@@ -126,14 +126,14 @@ impl<
     pub async fn list_songs_for_user(
         &self,
         perms: &UserPermissions<'_, T>,
-        pagination: ListQuery,
+        query: SongListQuery,
     ) -> Result<Vec<Song>, AppError> {
         let user_id = perms.user().id.clone();
         let (liked_set, read_teams) =
             tokio::try_join!(self.likes.liked_song_ids(&user_id), perms.read_teams())?;
         Ok(self
             .repo
-            .get_songs(read_teams, pagination)
+            .get_songs(read_teams, query)
             .await?
             .into_iter()
             .map(|mut song| {
@@ -146,10 +146,10 @@ impl<
     pub async fn count_songs_for_user(
         &self,
         perms: &UserPermissions<'_, T>,
-        q: Option<&str>,
+        query: &SongListQuery,
     ) -> Result<u64, AppError> {
         let read_teams = perms.read_teams().await?;
-        self.repo.count_songs(read_teams, q).await
+        self.repo.count_songs(read_teams, query).await
     }
 
     pub async fn get_song_for_user(
@@ -354,13 +354,13 @@ mod tests {
         let other_p = UserPermissions::new(&other, &svc.teams);
 
         let list = svc
-            .list_songs_for_user(&owner_p, ListQuery::default())
+            .list_songs_for_user(&owner_p, ListQuery::default().into())
             .await
             .expect("list");
         assert!(list.len() >= 2);
 
         let q = svc
-            .list_songs_for_user(&owner_p, ListQuery::new().with_q("Alpha"))
+            .list_songs_for_user(&owner_p, ListQuery::new().with_q("Alpha").into())
             .await
             .expect("search");
         assert_eq!(q.len(), 1);
@@ -560,7 +560,7 @@ mod tests {
             .expect("without artist");
 
         let results = svc
-            .list_songs_for_user(&owner_p, ListQuery::new().with_q("UniqueArtistZZZ"))
+            .list_songs_for_user(&owner_p, ListQuery::new().with_q("UniqueArtistZZZ").into())
             .await
             .expect("search artist");
         assert_eq!(results.len(), 1, "only the song with the artist must match");
