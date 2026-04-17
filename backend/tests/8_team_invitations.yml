@@ -320,7 +320,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.ti-create-lead-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # Teardown: keep suites isolated regardless of file execution order.
   - name: ti-cleanup-delete-maintainer-user
@@ -331,8 +331,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.ti-create-maintainer-user.userid}}"
+          - result.statuscode ShouldEqual 204
 
   # Teardown: remove invited guest user and related memberships/sessions.
   - name: ti-cleanup-delete-guest-user
@@ -343,8 +342,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.ti-create-guest-user.userid}}"
+          - result.statuscode ShouldEqual 204
 
   # Teardown: remove lead user and any remaining invitation suite artifacts.
   - name: ti-cleanup-delete-lead-user
@@ -355,5 +353,4 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.ti-create-lead-user.userid}}"
+          - result.statuscode ShouldEqual 204

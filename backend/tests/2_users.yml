@@ -24,7 +24,7 @@ testcases:
         headers:
           Authorization: "{{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 401
 
   # BLC: BLC-AUTH-002
   - name: get-users-me-invalid-token
@@ -219,15 +219,14 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.__Len__ ShouldBeGreaterThanOrEqualTo 2
+          - result.statuscode ShouldEqual 400
 
   # BLC: BLC-LP-007
   - name: get-users-admin-page-only
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/users?page=1"
+        url: "{{.base_url}}/api/v1/users?page=0"
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
@@ -244,7 +243,7 @@ testcases:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson.__Len__ ShouldBeGreaterThanOrEqualTo 2
+          - result.bodyjson.__Len__ ShouldEqual 1
 
   # BLC: BLC-LP-008
   - name: get-users-admin-page-beyond-range
@@ -581,10 +580,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.post-users.userid}}"
-          - result.bodyjson.email ShouldEqual "anormaluser@test.com"
-          - result.bodyjson.role ShouldEqual "default"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-013
   - name: get-default-user-session-after-delete

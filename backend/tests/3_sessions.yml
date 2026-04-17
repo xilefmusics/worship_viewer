@@ -197,8 +197,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.create-session-secondary.sessionid_secondary}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-SESS-003, BLC-USER-010
   - name: get-me-sessions-after-delete
@@ -446,7 +445,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-SESS-006, BLC-USER-011
   - name: delete-session-for-user-admin
@@ -457,8 +456,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.create-session-primary.sessionid_primary}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-AUTH-002
   - name: delete-session-for-user-admin-invalid-token
@@ -491,7 +489,5 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.create-session-user.userid}}"
-          - result.bodyjson.email ShouldEqual "sessionuser@test.com"
+          - result.statuscode ShouldEqual 204
 

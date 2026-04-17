@@ -468,15 +468,14 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 2
+          - result.statuscode ShouldEqual 400
 
   # BLC: BLC-LP-007, BLC-SETL-010, BLC-SETL-005, BLC-LP-001, BLC-LP-002
   - name: get-setlists-owner-page-only
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/setlists?page=1"
+        url: "{{.base_url}}/api/v1/setlists?page=0"
         headers:
           Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
         assertions:
@@ -493,7 +492,7 @@ testcases:
           Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 2
+          - result.bodyjson ShouldHaveLength 1
 
   # BLC: BLC-LP-008, BLC-SETL-010, BLC-SETL-005, BLC-LP-001, BLC-LP-002
   - name: get-setlists-owner-page-beyond-range
@@ -1017,8 +1016,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-setlist-write-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.post-setlist-for-delete-by-write.setlistid}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-SETL-008, BLC-SETL-012
   - name: delete-setlist-success
@@ -1029,8 +1027,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-setlist-owner-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.post-setlist-success.setlistid}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-HTTP-002
   - name: delete-setlist-again
@@ -1053,7 +1050,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-011
   - name: cleanup-delete-setlist-read-user
@@ -1064,7 +1061,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-011
   - name: cleanup-delete-setlist-write-user
@@ -1075,7 +1072,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-011
   - name: cleanup-delete-setlist-noperm-user
@@ -1086,5 +1083,5 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
