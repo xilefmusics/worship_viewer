@@ -158,7 +158,7 @@ impl Api {
     pub async fn get_sessions_for_current_user(&self) -> Result<Vec<Session>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
-            .list_my_sessions()
+            .list_my_sessions(ListQuery::default())
             .await
             .map_err(|e| self.handle_error(e))
     }
@@ -185,7 +185,7 @@ impl Api {
     pub async fn get_sessions_for_user(&self, user_id: &str) -> Result<Vec<Session>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
-            .list_sessions_for_user(user_id)
+            .list_sessions_for_user(user_id, ListQuery::default())
             .await
             .map_err(|e| self.handle_error(e))
     }
@@ -286,7 +286,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn update_song_like_status(&self, id: &str, liked: bool) -> Result<bool, ApiError> {
+    pub async fn update_song_like_status(&self, id: &str, liked: bool) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .update_song_like_status(id, liked)
@@ -316,7 +316,7 @@ impl Api {
     pub async fn get_collection_songs(&self, id: &str) -> Result<Vec<Song>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
-            .get_collection_songs(id)
+            .get_collection_songs(id, ListQuery::default())
             .await
             .map_err(|e| self.handle_error(e))
     }
@@ -330,7 +330,6 @@ impl Api {
             .map_err(|e| self.handle_error(e))
     }
 
-    #[allow(dead_code)]
     #[allow(dead_code)]
     pub async fn create_collection(
         &self,
@@ -387,7 +386,7 @@ impl Api {
     pub async fn get_setlist_songs(&self, id: &str) -> Result<Vec<Song>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
-            .get_setlist_songs(id)
+            .get_setlist_songs(id, ListQuery::default())
             .await
             .map_err(|e| self.handle_error(e))
     }

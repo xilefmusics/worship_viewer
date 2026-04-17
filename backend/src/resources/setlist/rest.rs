@@ -1,12 +1,13 @@
 use actix_web::http::header;
 use actix_web::{
-    HttpResponse, Scope, delete, get, patch, post, put,
+    HttpRequest, HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
+use crate::http_cache::{if_none_match_matches, weak_etag_json};
 use crate::resources::User;
 use crate::resources::setlist::CreateSetlist;
 use crate::resources::setlist::PatchSetlist;
@@ -83,7 +84,8 @@ async fn get_setlists(
         ("id" = String, Path, description = "Setlist identifier")
     ),
     responses(
-        (status = 200, description = "Return a single setlist", body = Setlist),
+        (status = 200, description = "Return a single setlist (weak `ETag`; `If-None-Match` supported)", body = Setlist),
+        (status = 304, description = "Not modified"),
         (status = 400, description = "Invalid setlist identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Setlist not found", body = ErrorResponse),
@@ -97,12 +99,22 @@ async fn get_setlists(
 )]
 #[get("/{id}")]
 async fn get_setlist(
+    req: HttpRequest,
     svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(svc.get_setlist_for_user(&perms, &id).await?))
+    let setlist = svc.get_setlist_for_user(&perms, &id).await?;
+    let etag = weak_etag_json(&setlist).map_err(|e| AppError::Internal(e.to_string()))?;
+    if if_none_match_matches(&req, &etag) {
+        return Ok(HttpResponse::NotModified()
+            .insert_header((header::ETAG, etag))
+            .finish());
+    }
+    Ok(HttpResponse::Ok()
+        .insert_header((header::ETAG, etag))
+        .json(setlist))
 }
 
 #[utoipa::path(
@@ -138,11 +150,14 @@ async fn get_setlist_player(
     get,
     path = "/api/v1/setlists/{id}/songs",
     params(
-        ("id" = String, Path, description = "Setlist identifier")
+        ("id" = String, Path, description = "Setlist identifier"),
+        ("page" = Option<u32>, Query, description = "Page index, zero-based. Omit with `page_size` for full list."),
+        ("page_size" = Option<u32>, Query, description = "Items per page (1–500). Omit with `page` for full list."),
+        ("q" = Option<String>, Query, description = "Reserved; not used for this sub-resource.")
     ),
     responses(
-        (status = 200, description = "Return the songs for a setlist", body = [Song]),
-        (status = 400, description = "Invalid setlist identifier", body = ErrorResponse),
+        (status = 200, description = "Return the songs for a setlist. `X-Total-Count` is the total before paging.", body = [Song]),
+        (status = 400, description = "Invalid setlist identifier or pagination", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Setlist not found", body = ErrorResponse),
         (status = 500, description = "Failed to fetch setlist songs", body = ErrorResponse)
@@ -158,9 +173,17 @@ async fn get_setlist_songs(
     svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
+    query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
+    let query = query
+        .into_inner()
+        .validate()
+        .map_err(AppError::invalid_request)?;
     let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(svc.setlist_songs_for_user(&perms, &id).await?))
+    let (songs, total) = svc.setlist_songs_for_user(&perms, &id, query).await?;
+    Ok(HttpResponse::Ok()
+        .insert_header((header::HeaderName::from_static("x-total-count"), total.to_string()))
+        .json(songs))
 }
 
 #[utoipa::path(

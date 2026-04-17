@@ -204,4 +204,24 @@ impl HttpClient for WasmHttpClient {
 
         Ok(())
     }
+
+    async fn put_no_content(&self, path: &str) -> Result<(), NetworkClientError> {
+        let url = self.make_url(path);
+
+        let response = gloo_net::http::Request::put(&url)
+            .credentials(RequestCredentials::Include)
+            .send()
+            .await?;
+        let status = response.status();
+
+        if !(200..300).contains(&status) {
+            let text = response.text().await.unwrap_or_default();
+            return Err(NetworkClientError::RequestFailed {
+                status: Some(status as u16),
+                message: text,
+            });
+        }
+
+        Ok(())
+    }
 }

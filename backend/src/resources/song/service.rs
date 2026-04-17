@@ -1104,8 +1104,8 @@ mod tests {
 
         // The "Default" collection must contain the newly created song.
         let coll = default_coll.unwrap();
-        let songs = coll_svc
-            .collection_songs_for_user(&fresh_perms, &coll.id)
+        let (songs, _) = coll_svc
+            .collection_songs_for_user(&fresh_perms, &coll.id, ListQuery::default())
             .await
             .expect("songs");
         assert!(
@@ -1188,8 +1188,8 @@ mod tests {
             1,
             "must still have exactly one collection"
         );
-        let songs = coll_svc
-            .collection_songs_for_user(&fresh_perms, &collections[0].id)
+        let (songs, _) = coll_svc
+            .collection_songs_for_user(&fresh_perms, &collections[0].id, ListQuery::default())
             .await
             .expect("songs");
         let song_ids: Vec<&str> = songs.iter().map(|s| s.id.as_str()).collect();

@@ -48,6 +48,9 @@ pub trait HttpClient: Send + Sync {
 
     /// Send a DELETE request and treat `204 No Content` (empty body) as success.
     async fn delete_no_content(&self, path: &str) -> Result<(), NetworkClientError>;
+
+    /// Send a PUT with no body and treat `204 No Content` as success.
+    async fn put_no_content(&self, path: &str) -> Result<(), NetworkClientError>;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -82,6 +85,9 @@ pub trait HttpClient: Send + Sync {
 
     /// Send a DELETE request and treat `204 No Content` (empty body) as success.
     async fn delete_no_content(&self, path: &str) -> Result<(), NetworkClientError>;
+
+    /// Send a PUT with no body and treat `204 No Content` as success.
+    async fn put_no_content(&self, path: &str) -> Result<(), NetworkClientError>;
 }
 
 #[cfg(all(feature = "cli", not(target_arch = "wasm32")))]

@@ -32,7 +32,12 @@ pub mod rest {
 
 #[derive(OpenApi)]
 #[openapi(
-    info(title = "Worship Viewer API"),
+    info(
+        title = "Worship Viewer API",
+        description = "Versioned REST API under `/api/v1`. Authentication flows live at `/auth/*` (unversioned); clients should treat that split as stable for this major API generation.\n\n\
+            **CSRF:** Cookie sessions use `SameSite=Lax`; state-changing methods are `POST`/`PUT`/`PATCH`/`DELETE` (not `GET`). Cross-site simple requests cannot mutate state via cookies under typical browser rules; API clients using bearer tokens should still avoid exposing tokens to third-party origins.\n\n\
+            **Examples:** See schema `example` fields on core DTOs in the components section."
+    ),
     paths(
         crate::auth::oidc::rest::login,
         crate::auth::oidc::rest::callback,
@@ -59,7 +64,8 @@ pub mod rest {
         crate::resources::song::rest::patch_song,
         crate::resources::song::rest::delete_song,
         crate::resources::song::rest::get_song_like_status,
-        crate::resources::song::rest::update_song_like_status,
+        crate::resources::song::rest::put_song_like,
+        crate::resources::song::rest::delete_song_like,
         crate::resources::collection::rest::get_collections,
         crate::resources::collection::rest::get_collection,
         crate::resources::collection::rest::get_collection_player,

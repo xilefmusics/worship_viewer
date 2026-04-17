@@ -1,13 +1,13 @@
-use actix_files::NamedFile;
 use actix_web::http::header;
 use actix_web::{
-    HttpResponse, Scope, delete, get, patch, post, put,
+    HttpRequest, HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Bytes, Data, Json, Path as PathParam, Query, ReqData},
 };
 
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
+use crate::http_cache::{if_none_match_matches, weak_etag_json};
 use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::blob::Blob;
@@ -80,7 +80,8 @@ async fn get_blobs(
         ("id" = String, Path, description = "Blob identifier")
     ),
     responses(
-        (status = 200, description = "Return a single blob", body = Blob),
+        (status = 200, description = "Return a single blob (weak `ETag`; `If-None-Match` supported)", body = Blob),
+        (status = 304, description = "Not modified"),
         (status = 400, description = "Invalid blob identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Blob not found", body = ErrorResponse),
@@ -94,12 +95,22 @@ async fn get_blobs(
 )]
 #[get("/{id}")]
 async fn get_blob(
+    req: HttpRequest,
     svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(svc.get_blob_for_user(&perms, &id).await?))
+    let blob = svc.get_blob_for_user(&perms, &id).await?;
+    let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
+    if if_none_match_matches(&req, &etag) {
+        return Ok(HttpResponse::NotModified()
+            .insert_header((header::ETAG, etag))
+            .finish());
+    }
+    Ok(HttpResponse::Ok()
+        .insert_header((header::ETAG, etag))
+        .json(blob))
 }
 
 #[utoipa::path(
@@ -256,13 +267,21 @@ async fn delete_blob(
 )]
 #[get("/{id}/data")]
 async fn download_blob_image(
+    req: HttpRequest,
     svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     id: PathParam<String>,
-) -> Result<NamedFile, AppError> {
+) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
-    svc.open_blob_data_file_for_user(&perms, &id.into_inner())
-        .await
+    let file = svc
+        .open_blob_data_file_for_user(&perms, &id.into_inner())
+        .await?;
+    let mut res = file.into_response(&req);
+    res.headers_mut().insert(
+        header::CACHE_CONTROL,
+        header::HeaderValue::from_static("private, max-age=3600, immutable"),
+    );
+    Ok(res)
 }
 
 #[utoipa::path(
