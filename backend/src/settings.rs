@@ -118,5 +118,4 @@ impl Settings {
             pepper: self.otp_pepper.clone(),
         }
     }
-
 }
