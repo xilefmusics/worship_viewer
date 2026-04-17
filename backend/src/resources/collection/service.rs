@@ -72,11 +72,12 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         &self,
         perms: &UserPermissions<'_, T>,
         id: &str,
-    ) -> Result<Vec<Song>, AppError> {
+        pagination: ListQuery,
+    ) -> Result<(Vec<Song>, u64), AppError> {
         let user_id = perms.user().id.clone();
         let (liked_set, read_teams) =
             tokio::try_join!(self.likes.liked_song_ids(&user_id), perms.read_teams())?;
-        Ok(self
+        let songs: Vec<Song> = self
             .repo
             .get_collection_songs(read_teams, id)
             .await?
@@ -86,7 +87,10 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
                 song.user_specific_addons.liked = liked_set.contains(&song.id);
                 song
             })
-            .collect())
+            .collect();
+        let total = songs.len() as u64;
+        let (page, _) = ListQuery::paginate_nested_vec(songs, &pagination);
+        Ok((page, total))
     }
 
     pub async fn create_collection_for_user(
@@ -505,8 +509,8 @@ mod tests {
             )
             .await
             .expect("create");
-        let songs = svc
-            .collection_songs_for_user(&owner_p, &col.id)
+        let (songs, _) = svc
+            .collection_songs_for_user(&owner_p, &col.id, ListQuery::default())
             .await
             .expect("songs");
         assert!(songs.iter().any(|s| s.id == song.id));
@@ -690,7 +694,9 @@ mod tests {
             .create_collection_for_user(&owner_p, make_collection("SecretColl"))
             .await
             .expect("create");
-        let r = svc.collection_songs_for_user(&nm_p, &col.id).await;
+        let r = svc
+            .collection_songs_for_user(&nm_p, &col.id, ListQuery::default())
+            .await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
 }

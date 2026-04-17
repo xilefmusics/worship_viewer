@@ -72,6 +72,30 @@ impl ListQuery {
         }
     }
 
+    /// Slice `items` to the page described by `query` (call after [`validate`]).
+    /// Returns the page and the total number of items before paging.
+    pub fn paginate_vec<T>(items: Vec<T>, query: &Self) -> (Vec<T>, u64) {
+        let total = items.len() as u64;
+        let (offset, limit) = query.effective_offset_limit();
+        let page: Vec<T> = items
+            .into_iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .collect();
+        (page, total)
+    }
+
+    /// For nested collection routes: when both `page` and `page_size` are absent, returns all
+    /// items (backward compatible). When either is set, applies [`paginate_vec`] after
+    /// [`validate`].
+    pub fn paginate_nested_vec<T>(items: Vec<T>, query: &Self) -> (Vec<T>, u64) {
+        let total = items.len() as u64;
+        if query.page.is_none() && query.page_size.is_none() {
+            return (items, total);
+        }
+        Self::paginate_vec(items, query)
+    }
+
     pub fn to_query_string(&self) -> String {
         let mut parts = Vec::new();
         if let Some(page) = self.page {

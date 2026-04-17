@@ -1,8 +1,11 @@
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, delete, get, post,
-    web::{Data, Path, ReqData},
+    web::{Data, Path, Query, ReqData},
 };
 use serde::Deserialize;
+
+use shared::api::ListQuery;
 
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
@@ -15,8 +18,14 @@ use super::service::SessionServiceHandle;
 #[utoipa::path(
     get,
     path = "/api/v1/users/me/sessions",
+    params(
+        ("page" = Option<u32>, Query, description = "Page index, zero-based. Omit with `page_size` for full list."),
+        ("page_size" = Option<u32>, Query, description = "Items per page (1–500). Omit with `page` for full list."),
+        ("q" = Option<String>, Query, description = "Reserved.")
+    ),
     responses(
-        (status = 200, description = "Returns active sessions for the current user", body = [Session]),
+        (status = 200, description = "Returns active sessions for the current user. `X-Total-Count` is the total before paging.", body = [Session]),
+        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 500, description = "Failed to list sessions for current user", body = ErrorResponse)
     ),
@@ -30,8 +39,20 @@ use super::service::SessionServiceHandle;
 pub async fn get_sessions_for_current_user(
     svc: Data<SessionServiceHandle>,
     user: ReqData<User>,
+    query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.get_sessions_by_user_id(&user.id).await?))
+    let query = query
+        .into_inner()
+        .validate()
+        .map_err(AppError::invalid_request)?;
+    let sessions = svc.get_sessions_by_user_id(&user.id).await?;
+    let (page, total) = ListQuery::paginate_nested_vec(sessions, &query);
+    Ok(HttpResponse::Ok()
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
+        .json(page))
 }
 
 #[utoipa::path(
@@ -124,10 +145,14 @@ pub async fn create_session_for_user(
     get,
     path = "/api/v1/users/{user_id}/sessions",
     params(
-        ("user_id" = String, Path, description = "User identifier")
+        ("user_id" = String, Path, description = "User identifier"),
+        ("page" = Option<u32>, Query, description = "Page index, zero-based. Omit with `page_size` for full list."),
+        ("page_size" = Option<u32>, Query, description = "Items per page (1–500). Omit with `page` for full list."),
+        ("q" = Option<String>, Query, description = "Reserved.")
     ),
     responses(
-        (status = 200, description = "Returns active sessions for the specified user", body = [Session]),
+        (status = 200, description = "Returns active sessions for the specified user. `X-Total-Count` is the total before paging.", body = [Session]),
+        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 403, description = "Admin role required", body = ErrorResponse),
         (status = 500, description = "Failed to list sessions", body = ErrorResponse)
@@ -142,8 +167,20 @@ pub async fn create_session_for_user(
 pub async fn get_sessions_for_user(
     svc: Data<SessionServiceHandle>,
     path: Path<UserIdPath>,
+    query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.get_sessions_by_user_id(&path.user_id).await?))
+    let query = query
+        .into_inner()
+        .validate()
+        .map_err(AppError::invalid_request)?;
+    let sessions = svc.get_sessions_by_user_id(&path.user_id).await?;
+    let (page, total) = ListQuery::paginate_nested_vec(sessions, &query);
+    Ok(HttpResponse::Ok()
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
+        .json(page))
 }
 
 #[utoipa::path(

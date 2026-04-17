@@ -2,10 +2,13 @@
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, Scope, delete, get, post,
-    web::{self, Data, Path, ReqData},
+    web::{self, Data, Path, Query, ReqData},
 };
+
+use shared::api::ListQuery;
 #[allow(unused_imports)]
 use shared::team::Team;
 #[allow(unused_imports)]
@@ -61,10 +64,14 @@ async fn create_team_invitation(
     get,
     path = "/api/v1/teams/{team_id}/invitations",
     params(
-        ("team_id" = String, Path, description = "Shared team identifier")
+        ("team_id" = String, Path, description = "Shared team identifier"),
+        ("page" = Option<u32>, Query, description = "Page index, zero-based. Omit with `page_size` for full list."),
+        ("page_size" = Option<u32>, Query, description = "Items per page (1–500). Omit with `page` for full list."),
+        ("q" = Option<String>, Query, description = "Reserved.")
     ),
     responses(
-        (status = 200, description = "Invitations for the team", body = [TeamInvitation]),
+        (status = 200, description = "Invitations for the team. `X-Total-Count` is the total before paging.", body = [TeamInvitation]),
+        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 403, description = "Not a team admin", body = ErrorResponse),
         (status = 404, description = "Team not found", body = ErrorResponse),
@@ -81,11 +88,21 @@ async fn list_team_invitations(
     svc: Data<InvitationServiceHandle>,
     user: ReqData<User>,
     team_id: Path<String>,
+    query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(
-        svc.list_invitations_for_user(&user, team_id.as_str())
-            .await?,
-    ))
+    let query = query
+        .into_inner()
+        .validate()
+        .map_err(AppError::invalid_request)?;
+    let (invitations, total) = svc
+        .list_invitations_for_user(&user, team_id.as_str(), query)
+        .await?;
+    Ok(HttpResponse::Ok()
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
+        .json(invitations))
 }
 
 #[utoipa::path(

@@ -1675,17 +1675,11 @@ testcases:
     steps:
       - type: http
         method: PUT
-        url: "{{.base_url}}/api/v1/songs/{{.put-song-cascade-target.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.put-song-cascade-target.songid}}/like"
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
-          Content-Type: application/json
-        body: |
-          {
-            "liked": true
-          }
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.liked ShouldEqual true
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-SONG-015, BLC-SETL-014, BLC-COLL-019
   - name: delete-song-cascade-target
@@ -1749,20 +1743,20 @@ testcases:
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/songs/{{.put-song-cascade-target.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.put-song-cascade-target.songid}}/like"
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.liked ShouldEqual false
 
-  # GET /api/v1/songs/{id}/likes tests
+  # GET /api/v1/songs/{id}/like tests
   # BLC: BLC-SONG-004
   - name: get-song-likes-success-not-liked
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/like"
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
         assertions:
@@ -1774,7 +1768,7 @@ testcases:
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-read-permission.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-read-permission.songid}}/like"
         headers:
           Authorization: "Bearer {{.create-read-user-session.sessionid}}"
         assertions:
@@ -1786,7 +1780,7 @@ testcases:
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/songs/user:invalid/likes"
+        url: "{{.base_url}}/api/v1/songs/user:invalid/like"
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
         assertions:
@@ -1797,7 +1791,7 @@ testcases:
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/like"
         assertions:
           - result.statuscode ShouldEqual 401
 
@@ -1806,7 +1800,7 @@ testcases:
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/like"
         headers:
           Authorization: "Bearer invalid"
         assertions:
@@ -1817,7 +1811,7 @@ testcases:
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/songs/likes-never-created/likes"
+        url: "{{.base_url}}/api/v1/songs/like-never-created/like"
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
         assertions:
@@ -1828,13 +1822,13 @@ testcases:
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/like"
         headers:
           Authorization: "Bearer {{.create-no-permission-user-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 404
 
-  # PUT /api/v1/songs/{id}/likes tests
+  # PUT / DELETE /api/v1/songs/{id}/like tests
   # BLC: BLC-SONG-004
   - name: post-song-for-likes
     steps:
@@ -1864,24 +1858,18 @@ testcases:
     steps:
       - type: http
         method: PUT
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-likes.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-likes.songid}}/like"
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
-          Content-Type: application/json
-        body: |
-          {
-            "liked": true
-          }
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.liked ShouldEqual true
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-SONG-004
   - name: get-song-likes-success-liked
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-likes.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-likes.songid}}/like"
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
         assertions:
@@ -1892,63 +1880,32 @@ testcases:
   - name: put-song-likes-unlike
     steps:
       - type: http
-        method: PUT
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-likes.songid}}/likes"
+        method: DELETE
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-for-likes.songid}}/like"
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
-          Content-Type: application/json
-        body: |
-          {
-            "liked": false
-          }
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.liked ShouldEqual false
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-SONG-004
   - name: put-song-likes-with-read-permission
     steps:
       - type: http
         method: PUT
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-read-permission.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success-for-read-permission.songid}}/like"
         headers:
           Authorization: "Bearer {{.create-read-user-session.sessionid}}"
-          Content-Type: application/json
-        body: |
-          {
-            "liked": true
-          }
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.liked ShouldEqual true
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-SONG-004, BLC-HTTP-001
   - name: put-song-likes-invalid-id
     steps:
       - type: http
         method: PUT
-        url: "{{.base_url}}/api/v1/songs/user:invalid/likes"
+        url: "{{.base_url}}/api/v1/songs/user:invalid/like"
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
-          Content-Type: application/json
-        body: |
-          {
-            "liked": true
-          }
-        assertions:
-          - result.statuscode ShouldEqual 400
-
-  # BLC: BLC-SONG-004
-  - name: put-song-likes-invalid-payload-missing-liked
-    steps:
-      - type: http
-        method: PUT
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
-        headers:
-          Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
-          Content-Type: application/json
-        body: |
-          {}
         assertions:
           - result.statuscode ShouldEqual 400
 
@@ -1957,13 +1914,9 @@ testcases:
     steps:
       - type: http
         method: PUT
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/like"
         headers:
           Content-Type: application/json
-        body: |
-          {
-            "liked": true
-          }
         assertions:
           - result.statuscode ShouldEqual 401
 
@@ -1972,14 +1925,10 @@ testcases:
     steps:
       - type: http
         method: PUT
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/like"
         headers:
           Authorization: "Bearer invalid"
           Content-Type: application/json
-        body: |
-          {
-            "liked": true
-          }
         assertions:
           - result.statuscode ShouldEqual 401
 
@@ -1988,14 +1937,9 @@ testcases:
     steps:
       - type: http
         method: PUT
-        url: "{{.base_url}}/api/v1/songs/likes-never-created/likes"
+        url: "{{.base_url}}/api/v1/songs/like-never-created/like"
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
-          Content-Type: application/json
-        body: |
-          {
-            "liked": true
-          }
         assertions:
           - result.statuscode ShouldEqual 404
 
@@ -2004,14 +1948,9 @@ testcases:
     steps:
       - type: http
         method: PUT
-        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.post-song-success.songid}}/like"
         headers:
           Authorization: "Bearer {{.create-no-permission-user-session.sessionid}}"
-          Content-Type: application/json
-        body: |
-          {
-            "liked": true
-          }
         assertions:
           - result.statuscode ShouldEqual 404
 

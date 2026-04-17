@@ -2,11 +2,12 @@
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
-use crate::resources::team::UserPermissions;
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, Scope, delete, get, patch, post, put,
-    web::{self, Data, Json, Path, ReqData},
+    web::{self, Data, Json, Path, Query, ReqData},
 };
+use shared::api::ListQuery;
 #[allow(unused_imports)]
 use shared::team::Team;
 use shared::team::{CreateTeam, PatchTeam, UpdateTeam};
@@ -28,8 +29,14 @@ pub fn scope() -> Scope {
 #[utoipa::path(
     get,
     path = "/api/v1/teams",
+    params(
+        ("page" = Option<u32>, Query, description = "Page index, zero-based. Omit with `page_size` for full list (see nested pagination)."),
+        ("page_size" = Option<u32>, Query, description = "Items per page (1–500). Omit with `page` for full list."),
+        ("q" = Option<String>, Query, description = "Reserved; not used for teams.")
+    ),
     responses(
-        (status = 200, description = "Teams readable by the current user; platform admins receive all teams (except internal public)", body = [Team]),
+        (status = 200, description = "Teams readable by the current user; platform admins receive all teams (except internal public). `X-Total-Count` is the total before paging.", body = [Team]),
+        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 500, description = "Failed to list teams", body = ErrorResponse)
     ),
@@ -43,8 +50,21 @@ pub fn scope() -> Scope {
 async fn get_teams(
     svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
+    query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.list_teams_for_user(&user).await?))
+    let query = query
+        .into_inner()
+        .validate()
+        .map_err(AppError::invalid_request)?;
+    let teams = svc.list_teams_for_user(&user).await?;
+    let total = teams.len() as u64;
+    let (page, _) = ListQuery::paginate_nested_vec(teams, &query);
+    Ok(HttpResponse::Ok()
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
+        .json(page))
 }
 
 #[utoipa::path(
@@ -197,7 +217,6 @@ async fn delete_team(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.resolver);
-    svc.delete_team_for_user(&perms, &id).await?;
+    svc.delete_team_for_user(&user, &id).await?;
     Ok(HttpResponse::NoContent().finish())
 }

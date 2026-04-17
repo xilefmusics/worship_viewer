@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use shared::api::ListQuery;
 use shared::team::{Team, TeamInvitation};
 use shared::user::User;
 
@@ -53,12 +54,16 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         &self,
         user: &User,
         team_id: &str,
-    ) -> Result<Vec<TeamInvitation>, AppError> {
+        pagination: ListQuery,
+    ) -> Result<(Vec<TeamInvitation>, u64), AppError> {
         let team_thing = self.assert_shared_team_admin(&user.id, team_id).await?;
         let rows = self.inv_repo.list_invitations(team_thing).await?;
-        rows.into_iter()
+        let invitations: Vec<TeamInvitation> = rows
+            .into_iter()
             .map(|r| r.into_invitation())
-            .collect::<Result<Vec<_>, _>>()
+            .collect::<Result<Vec<_>, _>>()?;
+        let (page, total) = ListQuery::paginate_nested_vec(invitations, &pagination);
+        Ok((page, total))
     }
 
     pub async fn get_invitation_for_user(
@@ -220,6 +225,7 @@ mod tests {
     use async_trait::async_trait;
     use surrealdb::sql::{Datetime, Thing};
 
+    use shared::api::ListQuery;
     use shared::team::Team;
     use shared::user::User;
 
@@ -542,9 +548,11 @@ mod tests {
             MockTeamRepo::with(team),
             MockInvRepo::with_list(vec![inv_row("inv1", "t1")]),
         );
-        let r = svc.list_invitations_for_user(&user, "t1").await;
+        let r = svc
+            .list_invitations_for_user(&user, "t1", ListQuery::default())
+            .await;
         assert!(r.is_ok());
-        assert_eq!(r.unwrap().len(), 1);
+        assert_eq!(r.unwrap().0.len(), 1);
     }
 
     /// BLC-TINV-002: non-admin (guest) cannot list invitations.
@@ -553,7 +561,9 @@ mod tests {
         let user = make_user("u1");
         let team = shared_team("t1", vec![member_fetched("u1", "guest")]);
         let svc = make_svc(MockTeamRepo::with(team), MockInvRepo::empty());
-        let r = svc.list_invitations_for_user(&user, "t1").await;
+        let r = svc
+            .list_invitations_for_user(&user, "t1", ListQuery::default())
+            .await;
         assert!(matches!(r, Err(AppError::Forbidden)));
     }
 
@@ -746,6 +756,7 @@ mod tests {
         use crate::test_helpers::{
             TeamFixture, create_user, invitation_service, team_service, test_db,
         };
+        use shared::api::ListQuery;
 
         /// BLC-TINV-001, BLC-TINV-006, BLC-TINV-007: admin creates invitation; id is non-empty UUID.
         #[tokio::test]
@@ -794,8 +805,8 @@ mod tests {
             svc.create_invitation_for_user(&fx.admin_user, &fx.shared_team_id)
                 .await
                 .expect("create");
-            let list = svc
-                .list_invitations_for_user(&fx.admin_user, &fx.shared_team_id)
+            let (list, _) = svc
+                .list_invitations_for_user(&fx.admin_user, &fx.shared_team_id, ListQuery::default())
                 .await
                 .expect("list");
             assert_eq!(list.len(), 1);

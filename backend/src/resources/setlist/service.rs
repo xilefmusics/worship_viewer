@@ -70,11 +70,12 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         &self,
         perms: &UserPermissions<'_, T>,
         id: &str,
-    ) -> Result<Vec<Song>, AppError> {
+        pagination: ListQuery,
+    ) -> Result<(Vec<Song>, u64), AppError> {
         let user_id = perms.user().id.clone();
         let (liked_set, read_teams) =
             tokio::try_join!(self.likes.liked_song_ids(&user_id), perms.read_teams())?;
-        Ok(self
+        let songs: Vec<Song> = self
             .repo
             .get_setlist_songs(read_teams, id)
             .await?
@@ -84,7 +85,10 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
                 song.user_specific_addons.liked = liked_set.contains(&song.id);
                 song
             })
-            .collect())
+            .collect();
+        let total = songs.len() as u64;
+        let (page, _) = ListQuery::paginate_nested_vec(songs, &pagination);
+        Ok((page, total))
     }
 
     pub async fn create_setlist_for_user(
@@ -668,26 +672,30 @@ mod tests {
             .await
             .expect("create");
 
-        let songs = sl
-            .setlist_songs_for_user(&owner_p, &created.id)
+        let (songs, _) = sl
+            .setlist_songs_for_user(&owner_p, &created.id, ListQuery::default())
             .await
             .expect("songs owner");
         assert_eq!(songs.len(), 2);
 
-        let songs_read = sl
-            .setlist_songs_for_user(&read_p, &created.id)
+        let (songs_read, _) = sl
+            .setlist_songs_for_user(&read_p, &created.id, ListQuery::default())
             .await
             .expect("songs reader");
         assert_eq!(songs_read.len(), 2);
 
-        let songs_noperm = sl.setlist_songs_for_user(&noperm_p, &created.id).await;
+        let songs_noperm = sl
+            .setlist_songs_for_user(&noperm_p, &created.id, ListQuery::default())
+            .await;
         assert!(matches!(songs_noperm, Err(AppError::NotFound(_))));
 
-        let songs_bad = sl.setlist_songs_for_user(&owner_p, "song:invalid").await;
+        let songs_bad = sl
+            .setlist_songs_for_user(&owner_p, "song:invalid", ListQuery::default())
+            .await;
         assert!(matches!(songs_bad, Err(AppError::InvalidRequest(_))));
 
         let songs_nf = sl
-            .setlist_songs_for_user(&owner_p, "never-created-setlist")
+            .setlist_songs_for_user(&owner_p, "never-created-setlist", ListQuery::default())
             .await;
         assert!(matches!(songs_nf, Err(AppError::NotFound(_))));
     }

@@ -5,7 +5,7 @@
 - **BLC-SONG-001:** Every song belongs to exactly one **owning team** (**`owner`** in responses).
 - **BLC-SONG-002:** Listing, single-song **GET**, player, and like endpoints require **read** access to that team’s library; **PUT** and **DELETE** require **library edit** access. Platform **admin** does **not** gain song edit solely by role.
 - **BLC-SONG-003:** **`PUT`** MUST NOT change **`owner`** except where the API explicitly allows ownership moves.
-- **BLC-SONG-004:** **Like** state IS per **current user** and **song**; anyone who may read the song MAY read or update likes via **GET**/**PUT** `/songs/{id}/likes`.
+- **BLC-SONG-004:** **Like** state IS per **current user** and **song**; anyone who may read the song MAY read like status via **GET** `/songs/{id}/like`, set liked via **PUT** `/songs/{id}/like` (204), or remove like via **DELETE** `/songs/{id}/like` (204).
 
 ## List pagination and search
 

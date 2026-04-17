@@ -103,16 +103,22 @@ pub async fn handle_songs(
         SongsCommand::UpdateLikeStatus { id, liked } => {
             validate_resource_id(&id)?;
             if dry_run {
-                let planned = serde_json::json!({
-                    "method": "PUT",
-                    "path": format!("api/v1/songs/{id}/likes"),
-                    "body": { "liked": liked },
-                });
+                let planned = if *liked {
+                    serde_json::json!({
+                        "method": "PUT",
+                        "path": format!("api/v1/songs/{id}/like"),
+                    })
+                } else {
+                    serde_json::json!({
+                        "method": "DELETE",
+                        "path": format!("api/v1/songs/{id}/like"),
+                    })
+                };
                 output::print_json(&planned, &output)?;
                 return Ok(());
             }
-            let new_status = client.update_song_like_status(&id, *liked).await?;
-            output::print_json(&serde_json::json!({ "liked": new_status }), &output)
+            client.update_song_like_status(&id, *liked).await?;
+            output::print_json(&serde_json::json!({ "liked": liked }), &output)
         }
     }
 }

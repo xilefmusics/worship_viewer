@@ -1,4 +1,4 @@
-use shared::api::ApiClient;
+use shared::api::{ApiClient, ListQuery};
 use shared::net::DefaultHttpClient;
 use shared::team::{CreateTeam, UpdateTeam};
 
@@ -14,7 +14,7 @@ pub async fn handle_teams(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
         TeamsCommand::List => {
-            let teams = client.list_teams().await?;
+            let teams = client.list_teams(ListQuery::default()).await?;
             match output::effective_output_format(&output) {
                 OutputFormat::Ndjson => output::print_ndjson_list(&teams),
                 _ => output::print_json(&teams, &output),

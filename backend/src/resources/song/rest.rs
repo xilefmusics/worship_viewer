@@ -1,12 +1,13 @@
 use actix_web::http::header;
 use actix_web::{
-    HttpResponse, Scope, delete, get, patch, post, put,
+    HttpRequest, HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
+use crate::http_cache::{if_none_match_matches, weak_etag_json};
 use crate::resources::User;
 use crate::resources::song::CreateSong;
 use crate::resources::song::PatchSong;
@@ -15,7 +16,6 @@ use crate::resources::song::Song;
 use crate::resources::song::service::SongServiceHandle;
 use crate::resources::team::UserPermissions;
 use shared::api::ListQuery;
-use shared::like::LikeStatus;
 #[allow(unused_imports)]
 use shared::player::Player;
 
@@ -29,7 +29,8 @@ pub fn scope() -> Scope {
         .service(patch_song)
         .service(delete_song)
         .service(get_song_like_status)
-        .service(update_song_like_status)
+        .service(put_song_like)
+        .service(delete_song_like)
 }
 
 #[utoipa::path(
@@ -81,7 +82,8 @@ async fn get_songs(
         ("id" = String, Path, description = "Song identifier")
     ),
     responses(
-        (status = 200, description = "Return a single song", body = Song),
+        (status = 200, description = "Return a single song. Response includes a weak `ETag`; send `If-None-Match` for conditional requests.", body = Song),
+        (status = 304, description = "Not modified (when `If-None-Match` matches the current ETag)"),
         (status = 400, description = "Invalid song identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Song not found", body = ErrorResponse),
@@ -95,12 +97,22 @@ async fn get_songs(
 )]
 #[get("/{id}")]
 async fn get_song(
+    req: HttpRequest,
     svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(svc.get_song_for_user(&perms, &id).await?))
+    let song = svc.get_song_for_user(&perms, &id).await?;
+    let etag = weak_etag_json(&song).map_err(|e| AppError::Internal(e.to_string()))?;
+    if if_none_match_matches(&req, &etag) {
+        return Ok(HttpResponse::NotModified()
+            .insert_header((header::ETAG, etag))
+            .finish());
+    }
+    Ok(HttpResponse::Ok()
+        .insert_header((header::ETAG, etag))
+        .json(song))
 }
 
 #[utoipa::path(
@@ -137,7 +149,7 @@ async fn get_song_player(
     path = "/api/v1/songs",
     request_body = CreateSong,
     responses(
-        (status = 201, description = "Create a new song", body = Song),
+        (status = 201, description = "Create a new song. If the user has no default collection yet, the server may create a system \"Default\" collection and set it as `user.default_collection` (BLC-SONG-010).", body = Song),
         (status = 400, description = "Invalid song payload", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 500, description = "Failed to create song", body = ErrorResponse)
@@ -169,7 +181,7 @@ async fn create_song(
     ),
     request_body = CreateSong,
     responses(
-        (status = 200, description = "Update an existing song", body = Song),
+        (status = 200, description = "Update an existing song, or upsert: if the id does not exist, creates the song (same as POST) on the caller's writable context (BLC upsert tests).", body = Song),
         (status = 400, description = "Invalid song identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Song not found", body = ErrorResponse),
@@ -261,12 +273,12 @@ async fn delete_song(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/songs/{id}/likes",
+    path = "/api/v1/songs/{id}/like",
     params(
         ("id" = String, Path, description = "Song identifier")
     ),
     responses(
-        (status = 200, description = "Return like status for a song", body = LikeStatus),
+        (status = 200, description = "Whether the current user likes this song", body = LikeStatus),
         (status = 400, description = "Invalid song identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Song not found", body = ErrorResponse),
@@ -278,7 +290,7 @@ async fn delete_song(
         ("SessionToken" = [])
     )
 )]
-#[get("/{id}/likes")]
+#[get("/{id}/like")]
 async fn get_song_like_status(
     svc: Data<SongServiceHandle>,
     user: ReqData<User>,
@@ -290,13 +302,12 @@ async fn get_song_like_status(
 
 #[utoipa::path(
     put,
-    path = "/api/v1/songs/{id}/likes",
+    path = "/api/v1/songs/{id}/like",
     params(
         ("id" = String, Path, description = "Song identifier")
     ),
-    request_body = LikeStatus,
     responses(
-        (status = 200, description = "Update like status for a song", body = LikeStatus),
+        (status = 204, description = "Current user now likes this song"),
         (status = 400, description = "Invalid song identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Song not found", body = ErrorResponse),
@@ -308,16 +319,44 @@ async fn get_song_like_status(
         ("SessionToken" = [])
     )
 )]
-#[put("/{id}/likes")]
-async fn update_song_like_status(
+#[put("/{id}/like")]
+async fn put_song_like(
     svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
-    payload: Json<LikeStatus>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(
-        svc.set_song_like_status_for_user(&perms, &id, payload.into_inner().liked)
-            .await?,
-    ))
+    svc.set_song_like_status_for_user(&perms, &id, true).await?;
+    Ok(HttpResponse::NoContent().finish())
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/songs/{id}/like",
+    params(
+        ("id" = String, Path, description = "Song identifier")
+    ),
+    responses(
+        (status = 204, description = "Current user no longer likes this song"),
+        (status = 400, description = "Invalid song identifier", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Song not found", body = ErrorResponse),
+        (status = 500, description = "Failed to update like status for a song", body = ErrorResponse)
+    ),
+    tag = "Songs",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[delete("/{id}/like")]
+async fn delete_song_like(
+    svc: Data<SongServiceHandle>,
+    user: ReqData<User>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
+    svc.set_song_like_status_for_user(&perms, &id, false)
+        .await?;
+    Ok(HttpResponse::NoContent().finish())
 }

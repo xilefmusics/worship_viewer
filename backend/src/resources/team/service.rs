@@ -73,6 +73,11 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
         if name.is_empty() {
             return Err(AppError::invalid_request("team name must not be empty"));
         }
+        if name.len() > 256 {
+            return Err(AppError::invalid_request(
+                "team name is too long (max 256 characters)",
+            ));
+        }
         let members = build_create_shared_members(&user.id, &payload.members)?;
         let id = self
             .repo
@@ -95,6 +100,11 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
         let name_trim = payload.name.trim().to_owned();
         if name_trim.is_empty() {
             return Err(AppError::invalid_request("team name must not be empty"));
+        }
+        if name_trim.len() > 256 {
+            return Err(AppError::invalid_request(
+                "team name is too long (max 256 characters)",
+            ));
         }
 
         let row = self
@@ -182,11 +192,8 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
             .await
     }
 
-    pub async fn delete_team_for_user(
-        &self,
-        perms: &UserPermissions<'_, TR>,
-        id: &str,
-    ) -> Result<Team, AppError> {
+    pub async fn delete_team_for_user(&self, user: &User, id: &str) -> Result<Team, AppError> {
+        let perms = UserPermissions::new(user, &self.resolver);
         let resource = team_resource_or_reject_public(id)?;
 
         let row = self
@@ -279,8 +286,7 @@ mod tests {
             .iter()
             .find(|t| t.owner.as_ref().map(|o| o.id == u.id).unwrap_or(false))
             .expect("personal");
-        let perms = UserPermissions::new(&u, &svc.resolver);
-        let err = svc.delete_team_for_user(&perms, &personal.id).await;
+        let err = svc.delete_team_for_user(&u, &personal.id).await;
         assert!(matches!(err, Err(AppError::Forbidden)));
     }
 
@@ -299,8 +305,7 @@ mod tests {
             )
             .await
             .expect("shared");
-        let perms = UserPermissions::new(&u, &svc.resolver);
-        svc.delete_team_for_user(&perms, &shared.id)
+        svc.delete_team_for_user(&u, &shared.id)
             .await
             .expect("delete");
     }
@@ -717,8 +722,7 @@ mod tests {
             .await
             .expect("song");
 
-        let admin_perms = UserPermissions::new(&fx.admin_user, &svc.resolver);
-        svc.delete_team_for_user(&admin_perms, &fx.shared_team_id)
+        svc.delete_team_for_user(&fx.admin_user, &fx.shared_team_id)
             .await
             .expect("delete shared team");
 
@@ -757,8 +761,7 @@ mod tests {
             .await
             .expect("coll");
 
-        let admin_perms = UserPermissions::new(&fx.admin_user, &svc.resolver);
-        svc.delete_team_for_user(&admin_perms, &fx.shared_team_id)
+        svc.delete_team_for_user(&fx.admin_user, &fx.shared_team_id)
             .await
             .expect("delete");
 
@@ -776,9 +779,8 @@ mod tests {
         let db = test_db().await.expect("db");
         let fx = TeamFixture::build(&db).await.expect("fixture");
         let svc = mk_team_svc(&db);
-        let guest_perms = UserPermissions::new(&fx.guest, &svc.resolver);
         let r = svc
-            .delete_team_for_user(&guest_perms, &fx.shared_team_id)
+            .delete_team_for_user(&fx.guest, &fx.shared_team_id)
             .await;
         assert!(matches!(r, Err(AppError::Forbidden)));
     }
@@ -790,8 +792,7 @@ mod tests {
         let fx = TeamFixture::build(&db).await.expect("fixture");
         let svc = mk_team_svc(&db);
 
-        let admin_perms = UserPermissions::new(&fx.admin_user, &svc.resolver);
-        svc.delete_team_for_user(&admin_perms, &fx.shared_team_id)
+        svc.delete_team_for_user(&fx.admin_user, &fx.shared_team_id)
             .await
             .expect("delete");
 

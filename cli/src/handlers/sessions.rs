@@ -1,4 +1,4 @@
-use shared::api::ApiClient;
+use shared::api::{ApiClient, ListQuery};
 use shared::net::DefaultHttpClient;
 
 use crate::commands::SessionsCommand;
@@ -13,7 +13,7 @@ pub async fn handle_sessions(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
         SessionsCommand::ListMine => {
-            let sessions = client.list_my_sessions().await?;
+            let sessions = client.list_my_sessions(ListQuery::default()).await?;
             match output::effective_output_format(&output) {
                 OutputFormat::Ndjson => output::print_ndjson_list(&sessions),
                 _ => output::print_json(&sessions, &output),
@@ -53,7 +53,9 @@ pub async fn handle_sessions(
         }
         SessionsCommand::ListForUser { user_id } => {
             validate_resource_id(&user_id)?;
-            let sessions = client.list_sessions_for_user(&user_id).await?;
+            let sessions = client
+                .list_sessions_for_user(&user_id, ListQuery::default())
+                .await?;
             match output::effective_output_format(&output) {
                 OutputFormat::Ndjson => output::print_ndjson_list(&sessions),
                 _ => output::print_json(&sessions, &output),

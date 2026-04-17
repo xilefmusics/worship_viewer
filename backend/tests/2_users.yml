@@ -496,17 +496,11 @@ testcases:
     steps:
       - type: http
         method: PUT
-        url: "{{.base_url}}/api/v1/songs/{{.create-default-user-song.songid}}/likes"
+        url: "{{.base_url}}/api/v1/songs/{{.create-default-user-song.songid}}/like"
         headers:
           Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
-          Content-Type: application/json
-        body: |
-          {
-            "liked": true
-          }
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.liked ShouldEqual true
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-005
   - name: get-users-me-default

@@ -5,6 +5,7 @@ pub mod database;
 pub mod docs;
 pub mod error;
 pub mod frontend;
+pub mod http_cache;
 pub mod mail;
 pub mod request_id;
 pub mod resources;

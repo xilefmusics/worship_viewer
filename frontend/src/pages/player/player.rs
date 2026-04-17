@@ -105,12 +105,12 @@ pub fn player_page() -> Html {
                     let current_liked = player.is_liked(&id);
                     let api = api.clone();
                     wasm_bindgen_futures::spawn_local(async move {
-                        let like = api
-                            .update_song_like_status(&id, !current_liked)
+                        let new_liked = !current_liked;
+                        api.update_song_like_status(&id, new_liked)
                             .await
                             .unwrap();
-                        player_handle.set(Some(player.set_like(&id, like)));
-                        if like {
+                        player_handle.set(Some(player.set_like(&id, new_liked)));
+                        if new_liked {
                             show_heart.set(true);
                             Timeout::new(1000, move || show_heart.set(false)).forget();
                         } else {

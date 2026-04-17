@@ -87,8 +87,12 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn list_my_sessions(&self) -> Result<Vec<Session>, NetworkClientError> {
-        self.client.get("api/v1/users/me/sessions").await
+    pub async fn list_my_sessions(
+        &self,
+        query: ListQuery,
+    ) -> Result<Vec<Session>, NetworkClientError> {
+        let path = format!("api/v1/users/me/sessions{}", query.to_query_string());
+        self.client.get(&path).await
     }
 
     pub async fn get_my_session(&self, id: &str) -> Result<Session, NetworkClientError> {
@@ -118,10 +122,10 @@ impl<C: HttpClient> ApiClient<C> {
     pub async fn list_sessions_for_user(
         &self,
         user_id: &str,
+        query: ListQuery,
     ) -> Result<Vec<Session>, NetworkClientError> {
-        self.client
-            .get(&format!("api/v1/users/{user_id}/sessions"))
-            .await
+        let path = format!("api/v1/users/{user_id}/sessions{}", query.to_query_string());
+        self.client.get(&path).await
     }
 
     pub async fn get_session_for_user(
@@ -144,8 +148,9 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn list_teams(&self) -> Result<Vec<Team>, NetworkClientError> {
-        self.client.get("api/v1/teams").await
+    pub async fn list_teams(&self, query: ListQuery) -> Result<Vec<Team>, NetworkClientError> {
+        let path = format!("api/v1/teams{}", query.to_query_string());
+        self.client.get(&path).await
     }
 
     pub async fn get_team(&self, id: &str) -> Result<Team, NetworkClientError> {
@@ -227,7 +232,7 @@ impl<C: HttpClient> ApiClient<C> {
 
     pub async fn get_song_like_status(&self, id: &str) -> Result<bool, NetworkClientError> {
         self.client
-            .get(&format!("api/v1/songs/{id}/likes"))
+            .get(&format!("api/v1/songs/{id}/like"))
             .await
             .map(|like: LikeStatus| like.liked)
     }
@@ -236,11 +241,16 @@ impl<C: HttpClient> ApiClient<C> {
         &self,
         id: &str,
         liked: bool,
-    ) -> Result<bool, NetworkClientError> {
-        self.client
-            .put(&format!("api/v1/songs/{id}/likes"), &LikeStatus { liked })
-            .await
-            .map(|like: LikeStatus| like.liked)
+    ) -> Result<(), NetworkClientError> {
+        if liked {
+            self.client
+                .put_no_content(&format!("api/v1/songs/{id}/like"))
+                .await
+        } else {
+            self.client
+                .delete_no_content(&format!("api/v1/songs/{id}/like"))
+                .await
+        }
     }
 
     pub async fn list_collections(
@@ -255,10 +265,13 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.get(&format!("api/v1/collections/{id}")).await
     }
 
-    pub async fn get_collection_songs(&self, id: &str) -> Result<Vec<Song>, NetworkClientError> {
-        self.client
-            .get(&format!("api/v1/collections/{id}/songs"))
-            .await
+    pub async fn get_collection_songs(
+        &self,
+        id: &str,
+        query: ListQuery,
+    ) -> Result<Vec<Song>, NetworkClientError> {
+        let path = format!("api/v1/collections/{id}/songs{}", query.to_query_string());
+        self.client.get(&path).await
     }
 
     pub async fn get_collection_player(&self, id: &str) -> Result<Player, NetworkClientError> {
@@ -312,10 +325,13 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.get(&format!("api/v1/setlists/{id}")).await
     }
 
-    pub async fn get_setlist_songs(&self, id: &str) -> Result<Vec<Song>, NetworkClientError> {
-        self.client
-            .get(&format!("api/v1/setlists/{id}/songs"))
-            .await
+    pub async fn get_setlist_songs(
+        &self,
+        id: &str,
+        query: ListQuery,
+    ) -> Result<Vec<Song>, NetworkClientError> {
+        let path = format!("api/v1/setlists/{id}/songs{}", query.to_query_string());
+        self.client.get(&path).await
     }
 
     pub async fn get_setlist_player(&self, id: &str) -> Result<Player, NetworkClientError> {

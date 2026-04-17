@@ -35,7 +35,9 @@ pub async fn handle_collections(
         }
         CollectionsCommand::Songs { id } => {
             validate_resource_id(&id)?;
-            let songs = client.get_collection_songs(&id).await?;
+            let songs = client
+                .get_collection_songs(&id, ListQuery::default())
+                .await?;
             match output::effective_output_format(&output) {
                 OutputFormat::Ndjson => output::print_ndjson_list(&songs),
                 _ => output::print_json(&songs, &output),
