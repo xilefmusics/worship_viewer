@@ -2,11 +2,11 @@
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, Scope, delete, get, post,
     web::{self, Data, Path, Query, ReqData},
 };
-use actix_web::http::header;
 
 use shared::api::ListQuery;
 #[allow(unused_imports)]
@@ -98,7 +98,10 @@ async fn list_team_invitations(
         .list_invitations_for_user(&user, team_id.as_str(), query)
         .await?;
     Ok(HttpResponse::Ok()
-        .insert_header((header::HeaderName::from_static("x-total-count"), total.to_string()))
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
         .json(invitations))
 }
 

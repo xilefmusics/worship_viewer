@@ -74,7 +74,9 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
             return Err(AppError::invalid_request("team name must not be empty"));
         }
         if name.len() > 256 {
-            return Err(AppError::invalid_request("team name is too long (max 256 characters)"));
+            return Err(AppError::invalid_request(
+                "team name is too long (max 256 characters)",
+            ));
         }
         let members = build_create_shared_members(&user.id, &payload.members)?;
         let id = self
@@ -100,7 +102,9 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
             return Err(AppError::invalid_request("team name must not be empty"));
         }
         if name_trim.len() > 256 {
-            return Err(AppError::invalid_request("team name is too long (max 256 characters)"));
+            return Err(AppError::invalid_request(
+                "team name is too long (max 256 characters)",
+            ));
         }
 
         let row = self

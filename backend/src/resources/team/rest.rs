@@ -2,12 +2,12 @@
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
-use shared::api::ListQuery;
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
 };
-use actix_web::http::header;
+use shared::api::ListQuery;
 #[allow(unused_imports)]
 use shared::team::Team;
 use shared::team::{CreateTeam, PatchTeam, UpdateTeam};
@@ -60,7 +60,10 @@ async fn get_teams(
     let total = teams.len() as u64;
     let (page, _) = ListQuery::paginate_nested_vec(teams, &query);
     Ok(HttpResponse::Ok()
-        .insert_header((header::HeaderName::from_static("x-total-count"), total.to_string()))
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
         .json(page))
 }
 

@@ -180,11 +180,12 @@ async fn get_collection_songs(
         .validate()
         .map_err(AppError::invalid_request)?;
     let perms = UserPermissions::new(&user, &svc.teams);
-    let (songs, total) = svc
-        .collection_songs_for_user(&perms, &id, query)
-        .await?;
+    let (songs, total) = svc.collection_songs_for_user(&perms, &id, query).await?;
     Ok(HttpResponse::Ok()
-        .insert_header((header::HeaderName::from_static("x-total-count"), total.to_string()))
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
         .json(songs))
 }
 

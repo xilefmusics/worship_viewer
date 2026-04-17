@@ -1,8 +1,8 @@
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, delete, get, post,
     web::{Data, Path, Query, ReqData},
 };
-use actix_web::http::header;
 use serde::Deserialize;
 
 use shared::api::ListQuery;
@@ -48,7 +48,10 @@ pub async fn get_sessions_for_current_user(
     let sessions = svc.get_sessions_by_user_id(&user.id).await?;
     let (page, total) = ListQuery::paginate_nested_vec(sessions, &query);
     Ok(HttpResponse::Ok()
-        .insert_header((header::HeaderName::from_static("x-total-count"), total.to_string()))
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
         .json(page))
 }
 
@@ -173,7 +176,10 @@ pub async fn get_sessions_for_user(
     let sessions = svc.get_sessions_by_user_id(&path.user_id).await?;
     let (page, total) = ListQuery::paginate_nested_vec(sessions, &query);
     Ok(HttpResponse::Ok()
-        .insert_header((header::HeaderName::from_static("x-total-count"), total.to_string()))
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
         .json(page))
 }
 

@@ -182,7 +182,10 @@ async fn get_setlist_songs(
     let perms = UserPermissions::new(&user, &svc.teams);
     let (songs, total) = svc.setlist_songs_for_user(&perms, &id, query).await?;
     Ok(HttpResponse::Ok()
-        .insert_header((header::HeaderName::from_static("x-total-count"), total.to_string()))
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
         .json(songs))
 }
 

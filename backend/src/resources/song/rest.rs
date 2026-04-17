@@ -356,6 +356,7 @@ async fn delete_song_like(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
-    svc.set_song_like_status_for_user(&perms, &id, false).await?;
+    svc.set_song_like_status_for_user(&perms, &id, false)
+        .await?;
     Ok(HttpResponse::NoContent().finish())
 }
