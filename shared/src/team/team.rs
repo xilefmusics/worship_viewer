@@ -48,6 +48,7 @@ pub struct Team {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct CreateTeam {
     pub name: String,
@@ -57,6 +58,7 @@ pub struct CreateTeam {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct UpdateTeam {
     pub name: String,

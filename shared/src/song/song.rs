@@ -28,6 +28,7 @@ pub struct Song {
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct CreateSong {
     pub not_a_song: bool,

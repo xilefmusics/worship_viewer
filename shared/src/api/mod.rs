@@ -81,8 +81,10 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.post("api/v1/users", &payload).await
     }
 
-    pub async fn delete_user(&self, id: &str) -> Result<User, NetworkClientError> {
-        self.client.delete(&format!("api/v1/users/{id}")).await
+    pub async fn delete_user(&self, id: &str) -> Result<(), NetworkClientError> {
+        self.client
+            .delete_no_content(&format!("api/v1/users/{id}"))
+            .await
     }
 
     pub async fn list_my_sessions(&self) -> Result<Vec<Session>, NetworkClientError> {
@@ -95,9 +97,9 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn delete_my_session(&self, id: &str) -> Result<Session, NetworkClientError> {
+    pub async fn delete_my_session(&self, id: &str) -> Result<(), NetworkClientError> {
         self.client
-            .delete(&format!("api/v1/users/me/sessions/{id}"))
+            .delete_no_content(&format!("api/v1/users/me/sessions/{id}"))
             .await
     }
 
@@ -136,9 +138,9 @@ impl<C: HttpClient> ApiClient<C> {
         &self,
         user_id: &str,
         id: &str,
-    ) -> Result<Session, NetworkClientError> {
+    ) -> Result<(), NetworkClientError> {
         self.client
-            .delete(&format!("api/v1/users/{user_id}/sessions/{id}"))
+            .delete_no_content(&format!("api/v1/users/{user_id}/sessions/{id}"))
             .await
     }
 
@@ -164,8 +166,10 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn delete_team(&self, id: &str) -> Result<Team, NetworkClientError> {
-        self.client.delete(&format!("api/v1/teams/{id}")).await
+    pub async fn delete_team(&self, id: &str) -> Result<(), NetworkClientError> {
+        self.client
+            .delete_no_content(&format!("api/v1/teams/{id}"))
+            .await
     }
 
     pub async fn patch_team(
@@ -205,8 +209,10 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn delete_song(&self, id: &str) -> Result<Song, NetworkClientError> {
-        self.client.delete(&format!("api/v1/songs/{id}")).await
+    pub async fn delete_song(&self, id: &str) -> Result<(), NetworkClientError> {
+        self.client
+            .delete_no_content(&format!("api/v1/songs/{id}"))
+            .await
     }
 
     pub async fn patch_song(
@@ -278,9 +284,9 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn delete_collection(&self, id: &str) -> Result<Collection, NetworkClientError> {
+    pub async fn delete_collection(&self, id: &str) -> Result<(), NetworkClientError> {
         self.client
-            .delete(&format!("api/v1/collections/{id}"))
+            .delete_no_content(&format!("api/v1/collections/{id}"))
             .await
     }
 
@@ -335,8 +341,10 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn delete_setlist(&self, id: &str) -> Result<Setlist, NetworkClientError> {
-        self.client.delete(&format!("api/v1/setlists/{id}")).await
+    pub async fn delete_setlist(&self, id: &str) -> Result<(), NetworkClientError> {
+        self.client
+            .delete_no_content(&format!("api/v1/setlists/{id}"))
+            .await
     }
 
     pub async fn patch_setlist(
@@ -372,8 +380,10 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn delete_blob(&self, id: &str) -> Result<Blob, NetworkClientError> {
-        self.client.delete(&format!("api/v1/blobs/{id}")).await
+    pub async fn delete_blob(&self, id: &str) -> Result<(), NetworkClientError> {
+        self.client
+            .delete_no_content(&format!("api/v1/blobs/{id}"))
+            .await
     }
 
     pub async fn patch_blob(

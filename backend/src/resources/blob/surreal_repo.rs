@@ -4,6 +4,8 @@ use async_trait::async_trait;
 use chrono::Utc;
 use surrealdb::sql::Thing;
 
+use serde::Deserialize;
+
 use shared::api::ListQuery;
 use shared::blob::{Blob, CreateBlob};
 
@@ -37,23 +39,44 @@ impl BlobRepository for SurrealBlobRepo {
         pagination: ListQuery,
     ) -> Result<Vec<Blob>, AppError> {
         let db = self.inner();
-        let mut query = String::from("SELECT * FROM blob WHERE owner IN $teams");
-        if pagination.to_offset_limit().is_some() {
-            query.push_str(" LIMIT $limit START $start");
-        }
+        let (offset, limit) = pagination.effective_offset_limit();
+        let query = String::from(
+            "SELECT * FROM blob WHERE owner IN $teams LIMIT $limit START $start",
+        );
 
-        let mut request = db.db.query(query).bind(("teams", read_teams.to_vec()));
-        if let Some((offset, limit)) = pagination.to_offset_limit() {
-            request = request.bind(("limit", limit)).bind(("start", offset));
-        }
-
-        let mut response = request.await.map_err(AppError::database)?;
+        let mut response = db
+            .db
+            .query(query)
+            .bind(("teams", read_teams.to_vec()))
+            .bind(("limit", limit))
+            .bind(("start", offset))
+            .await
+            .map_err(AppError::database)?;
 
         Ok(response
             .take::<Vec<BlobRecord>>(0)?
             .into_iter()
             .map(BlobRecord::into_blob)
             .collect())
+    }
+
+    async fn count_blobs(&self, read_teams: &[Thing]) -> Result<u64, AppError> {
+        #[derive(Deserialize)]
+        struct CountResult {
+            count: u64,
+        }
+        let mut response = self
+            .inner()
+            .db
+            .query("SELECT count() FROM blob WHERE owner IN $teams GROUP ALL")
+            .bind(("teams", read_teams.to_vec()))
+            .await?;
+        Ok(response
+            .take::<Vec<CountResult>>(0)?
+            .into_iter()
+            .next()
+            .map(|r| r.count)
+            .unwrap_or(0))
     }
 
     async fn get_blob(&self, read_teams: &[Thing], id: &str) -> Result<Blob, AppError> {

@@ -135,6 +135,8 @@ async fn main() -> AnyResult<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(backend::request_id::RequestId)
+            .app_data(backend::error::json_config())
             .app_data(db_data.clone())
             .app_data(Data::new(mail_service.clone()))
             .app_data(Data::new(blob_service.clone()))

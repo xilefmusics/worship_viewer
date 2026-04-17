@@ -137,7 +137,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn delete_user(&self, id: &str) -> Result<User, ApiError> {
+    pub async fn delete_user(&self, id: &str) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .delete_user(id)
@@ -173,7 +173,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn delete_session_for_current_user(&self, id: &str) -> Result<Session, ApiError> {
+    pub async fn delete_session_for_current_user(&self, id: &str) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .delete_my_session(id)
@@ -213,7 +213,7 @@ impl Api {
         &self,
         user_id: &str,
         id: &str,
-    ) -> Result<Session, ApiError> {
+    ) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .delete_session_for_user(user_id, id)
@@ -268,7 +268,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn delete_song(&self, id: &str) -> Result<Song, ApiError> {
+    pub async fn delete_song(&self, id: &str) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .delete_song(id)
@@ -357,7 +357,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn delete_collection(&self, id: &str) -> Result<Collection, ApiError> {
+    pub async fn delete_collection(&self, id: &str) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .delete_collection(id)
@@ -425,7 +425,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn delete_setlist(&self, id: &str) -> Result<Setlist, ApiError> {
+    pub async fn delete_setlist(&self, id: &str) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .delete_setlist(id)
@@ -470,7 +470,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn delete_blob(&self, id: &str) -> Result<Blob, ApiError> {
+    pub async fn delete_blob(&self, id: &str) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .delete_blob(id)

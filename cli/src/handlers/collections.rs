@@ -100,8 +100,8 @@ pub async fn handle_collections(
                 output::print_json(&planned, &output)?;
                 return Ok(());
             }
-            let collection = client.delete_collection(&id).await?;
-            output::print_json(&collection, &output)
+            client.delete_collection(&id).await?;
+            output::print_json(&serde_json::json!({"deleted": true}), &output)
         }
     }
 }

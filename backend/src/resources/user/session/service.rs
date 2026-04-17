@@ -230,6 +230,10 @@ mod tests {
             unreachable!("not used in session tests")
         }
 
+        async fn count_users(&self) -> Result<u64, AppError> {
+            unreachable!("not used in session tests")
+        }
+
         async fn get_user_by_email(&self, _email: &str) -> Result<Option<User>, AppError> {
             unreachable!("not used in session tests")
         }

@@ -15,6 +15,9 @@ pub trait BlobRepository: Send + Sync {
         pagination: ListQuery,
     ) -> Result<Vec<Blob>, AppError>;
 
+    /// Count all blobs visible to `read_teams`.
+    async fn count_blobs(&self, read_teams: &[Thing]) -> Result<u64, AppError>;
+
     async fn get_blob(&self, read_teams: &[Thing], id: &str) -> Result<Blob, AppError>;
 
     async fn create_blob(&self, owner: &str, blob: CreateBlob) -> Result<Blob, AppError>;

@@ -160,4 +160,20 @@ impl HttpClient for DesktopHttpClient {
 
         Ok(value)
     }
+
+    async fn delete_no_content(&self, path: &str) -> Result<(), NetworkClientError> {
+        let url = self.make_url(path);
+
+        let mut request = self.client.delete(url);
+        if let Some(cookie) = &self.config.session_cookie {
+            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
+        }
+        if let Some(token) = &self.config.bearer_token {
+            request = request.bearer_auth(token);
+        }
+
+        let response = request.send().await?;
+        response.error_for_status()?;
+        Ok(())
+    }
 }

@@ -79,8 +79,8 @@ pub async fn handle_teams(
                 output::print_json(&planned, &output)?;
                 return Ok(());
             }
-            let team = client.delete_team(&id).await?;
-            output::print_json(&team, &output)
+            client.delete_team(&id).await?;
+            output::print_json(&serde_json::json!({"deleted": true}), &output)
         }
     }
 }

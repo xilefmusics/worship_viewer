@@ -16,6 +16,9 @@ pub trait SetlistRepository: Send + Sync {
         pagination: ListQuery,
     ) -> Result<Vec<Setlist>, AppError>;
 
+    /// Count all setlists visible to `read_teams`, optionally filtered by `q`.
+    async fn count_setlists(&self, read_teams: &[Thing], q: Option<&str>) -> Result<u64, AppError>;
+
     async fn get_setlist(&self, read_teams: &[Thing], id: &str) -> Result<Setlist, AppError>;
 
     async fn get_setlist_songs(

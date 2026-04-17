@@ -12,18 +12,16 @@ pub fn authorization_bearer(msg: &impl HttpMessage) -> Option<String> {
         return None;
     }
 
-    let (scheme, token) = match value.split_once(' ') {
-        Some(pair) => pair,
-        None => return Some(value.to_owned()),
-    };
+    let (scheme, token) = value.split_once(' ')?;
 
     if !scheme.eq_ignore_ascii_case("bearer") {
         return None;
     }
 
-    if token.trim().is_empty() {
+    let token = token.trim();
+    if token.is_empty() {
         None
     } else {
-        Some(token.trim().to_owned())
+        Some(token.to_owned())
     }
 }

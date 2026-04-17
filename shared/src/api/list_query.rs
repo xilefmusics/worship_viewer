@@ -1,5 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+/// Default page size when `page_size` is not supplied.
+pub const PAGE_SIZE_DEFAULT: u32 = 50;
+/// Hard cap on `page_size`; requests above this are rejected with 400.
+pub const PAGE_SIZE_MAX: u32 = 500;
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ListQuery {
     pub page: Option<u32>,
@@ -25,6 +30,36 @@ impl ListQuery {
     pub fn with_q(mut self, q: impl Into<String>) -> Self {
         self.q = Some(q.into());
         self
+    }
+
+    /// Validate the query parameters and return `Err` with a human-readable
+    /// message when they are out of range.
+    ///
+    /// - `page_size = 0` is rejected (non-standard and a DoS footgun).
+    /// - `page_size > PAGE_SIZE_MAX` is rejected.
+    pub fn validate(self) -> Result<Self, String> {
+        if let Some(ps) = self.page_size {
+            if ps == 0 {
+                return Err("page_size must be greater than 0".into());
+            }
+            if ps > PAGE_SIZE_MAX {
+                return Err(format!("page_size must not exceed {PAGE_SIZE_MAX}"));
+            }
+        }
+        Ok(self)
+    }
+
+    /// Return `(offset, limit)`, applying [`PAGE_SIZE_DEFAULT`] and page 0
+    /// when either parameter is absent.  Always returns a finite pair;
+    /// callers should run [`validate`] first to ensure the stored values are
+    /// in range.
+    pub fn effective_offset_limit(&self) -> (u32, u32) {
+        let page = self.page.unwrap_or(0);
+        let page_size = match self.page_size {
+            Some(0) | None => PAGE_SIZE_DEFAULT,
+            Some(ps) => ps,
+        };
+        (page.saturating_mul(page_size), page_size)
     }
 
     pub fn to_offset_limit(&self) -> Option<(u32, u32)> {

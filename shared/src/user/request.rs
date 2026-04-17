@@ -8,6 +8,7 @@ use super::User;
 
 #[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct CreateUserRequest {
     pub email: String,
     #[serde(default)]

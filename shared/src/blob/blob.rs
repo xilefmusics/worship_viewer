@@ -26,6 +26,7 @@ impl Blob {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct CreateBlob {
     pub file_type: FileType,

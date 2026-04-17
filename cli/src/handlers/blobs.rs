@@ -87,8 +87,8 @@ pub async fn handle_blobs(
                 output::print_json(&planned, &output)?;
                 return Ok(());
             }
-            let blob = client.delete_blob(&id).await?;
-            output::print_json(&blob, &output)
+            client.delete_blob(&id).await?;
+            output::print_json(&serde_json::json!({"deleted": true}), &output)
         }
         BlobsCommand::DownloadUrl { id } => {
             validate_resource_id(&id)?;

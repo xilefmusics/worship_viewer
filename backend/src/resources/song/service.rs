@@ -143,6 +143,15 @@ impl<
             .collect())
     }
 
+    pub async fn count_songs_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        q: Option<&str>,
+    ) -> Result<u64, AppError> {
+        let read_teams = perms.read_teams().await?;
+        self.repo.count_songs(read_teams, q).await
+    }
+
     pub async fn get_song_for_user(
         &self,
         perms: &UserPermissions<'_, T>,

@@ -45,6 +45,9 @@ pub trait HttpClient: Send + Sync {
     async fn delete<T>(&self, path: &str) -> Result<T, NetworkClientError>
     where
         T: DeserializeOwned + Send + 'static;
+
+    /// Send a DELETE request and treat `204 No Content` (empty body) as success.
+    async fn delete_no_content(&self, path: &str) -> Result<(), NetworkClientError>;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -76,6 +79,9 @@ pub trait HttpClient: Send + Sync {
     async fn delete<T>(&self, path: &str) -> Result<T, NetworkClientError>
     where
         T: DeserializeOwned + Send + 'static;
+
+    /// Send a DELETE request and treat `204 No Content` (empty body) as success.
+    async fn delete_no_content(&self, path: &str) -> Result<(), NetworkClientError>;
 }
 
 #[cfg(all(feature = "cli", not(target_arch = "wasm32")))]

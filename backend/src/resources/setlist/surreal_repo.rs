@@ -3,6 +3,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use surrealdb::sql::Thing;
 
+use serde::Deserialize;
+
 use shared::api::ListQuery;
 use shared::setlist::{CreateSetlist, Setlist};
 use shared::song::LinkOwned as SongLinkOwned;
@@ -49,9 +51,8 @@ impl SetlistRepository for SurrealSetlistRepo {
         if q_nonempty {
             query.push_str(" AND title @0@ $q ORDER BY score DESC");
         }
-        if pagination.to_offset_limit().is_some() {
-            query.push_str(" LIMIT $limit START $start");
-        }
+        let (offset, limit) = pagination.effective_offset_limit();
+        query.push_str(" LIMIT $limit START $start");
 
         let mut request = db.db.query(query).bind(("teams", read_teams.to_vec()));
         if let Some(ref q) = pagination.q
@@ -59,9 +60,7 @@ impl SetlistRepository for SurrealSetlistRepo {
         {
             request = request.bind(("q", q.trim().to_string()));
         }
-        if let Some((offset, limit)) = pagination.to_offset_limit() {
-            request = request.bind(("limit", limit)).bind(("start", offset));
-        }
+        request = request.bind(("limit", limit)).bind(("start", offset));
 
         let mut response = request.await?;
         Ok(response
@@ -69,6 +68,40 @@ impl SetlistRepository for SurrealSetlistRepo {
             .into_iter()
             .map(SetlistRecord::into_setlist)
             .collect())
+    }
+
+    async fn count_setlists(
+        &self,
+        read_teams: &[Thing],
+        q: Option<&str>,
+    ) -> Result<u64, AppError> {
+        #[derive(Deserialize)]
+        struct CountResult {
+            count: u64,
+        }
+        let q_nonempty = q.is_some_and(|s| !s.trim().is_empty());
+        let mut query =
+            String::from("SELECT count() FROM setlist WHERE owner IN $teams");
+        if q_nonempty {
+            query.push_str(" AND title @0@ $q");
+        }
+        query.push_str(" GROUP ALL");
+
+        let mut request = self
+            .inner()
+            .db
+            .query(query)
+            .bind(("teams", read_teams.to_vec()));
+        if q_nonempty {
+            request = request.bind(("q", q.unwrap().trim().to_string()));
+        }
+        let mut response = request.await?;
+        Ok(response
+            .take::<Vec<CountResult>>(0)?
+            .into_iter()
+            .next()
+            .map(|r| r.count)
+            .unwrap_or(0))
     }
 
     async fn get_setlist(&self, read_teams: &[Thing], id: &str) -> Result<Setlist, AppError> {

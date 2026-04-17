@@ -100,8 +100,8 @@ pub async fn handle_setlists(
                 output::print_json(&planned, &output)?;
                 return Ok(());
             }
-            let setlist = client.delete_setlist(&id).await?;
-            output::print_json(&setlist, &output)
+            client.delete_setlist(&id).await?;
+            output::print_json(&serde_json::json!({"deleted": true}), &output)
         }
     }
 }

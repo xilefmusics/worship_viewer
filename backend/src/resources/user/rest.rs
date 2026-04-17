@@ -8,6 +8,7 @@ use actix_web::{
     HttpResponse, Scope, delete, get, post,
     web::{self, Data, Json, Path, Query, ReqData},
 };
+use actix_web::http::header;
 use shared::api::ListQuery;
 
 pub fn scope() -> Scope {
@@ -80,11 +81,12 @@ async fn get_user(
     get,
     path = "/api/v1/users",
     params(
-        ("page" = Option<u32>, Query, description = "Optional page index (zero-based)"),
-        ("page_size" = Option<u32>, Query, description = "Optional page size (number of items per page)")
+        ("page" = Option<u32>, Query, description = "Page index, zero-based. Defaults to 0."),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50.")
     ),
     responses(
-        (status = 200, description = "Returns list of all users", body = [User]),
+        (status = 200, description = "Returns list of all users. `X-Total-Count` header contains the total user count.", body = [User]),
+        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 403, description = "Admin role required", body = ErrorResponse),
         (status = 500, description = "Failed to list users", body = ErrorResponse)
@@ -100,7 +102,15 @@ async fn get_users(
     svc: Data<UserServiceHandle>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.get_users(query.into_inner()).await?))
+    let query = query
+        .into_inner()
+        .validate()
+        .map_err(AppError::invalid_request)?;
+    let users = svc.get_users(query).await?;
+    let total = svc.count_users().await?;
+    Ok(HttpResponse::Ok()
+        .insert_header((header::HeaderName::from_static("x-total-count"), total.to_string()))
+        .json(users))
 }
 
 #[utoipa::path(
@@ -136,7 +146,7 @@ async fn create_user(
         ("id" = String, Path, description = "User identifier")
     ),
     responses(
-        (status = 200, description = "Deletes the provided user", body = User),
+        (status = 204, description = "User deleted"),
         (status = 400, description = "Invalid user identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 403, description = "Admin role required", body = ErrorResponse),
@@ -153,5 +163,6 @@ async fn delete_user(
     svc: Data<UserServiceHandle>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.delete_user(&id).await?))
+    svc.delete_user(&id).await?;
+    Ok(HttpResponse::NoContent().finish())
 }

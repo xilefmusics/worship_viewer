@@ -168,7 +168,7 @@ impl Modify for SessionSecurity {
             "SessionToken",
             SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                 "Authorization",
-                "Optional session override using `Authorization` header (raw value or `Bearer <session>`)",
+                "Session override using `Authorization: Bearer <session>` header",
             ))),
         );
     }

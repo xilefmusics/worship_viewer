@@ -70,6 +70,7 @@ fn build_app(
     });
 
     App::new()
+        .wrap(crate::request_id::RequestId)
         .app_data(Data::from(db.clone()))
         .app_data(Data::new(blob_service(&db, blob_dir)))
         .app_data(Data::new(collection_service(&db)))
@@ -80,6 +81,7 @@ fn build_app(
         .app_data(Data::new(user_service(&db)))
         .app_data(Data::new(session_service(&db)))
         .app_data(cookie_cfg)
+        .app_data(crate::error::json_config())
         .service(docs::rest::scope())
         .service(resources::rest::scope(20 * 1024 * 1024))
 }
@@ -281,9 +283,9 @@ mod http_contract {
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
-    /// BLC-HTTP-001: correct table prefix is accepted (not 400).
+    /// Table prefix form (`table:id`) is rejected with 400 at the HTTP edge.
     #[actix_web::test]
-    async fn blc_http_001_correct_table_prefix_not_400() {
+    async fn blc_http_001_table_prefix_form_returns_400() {
         let db = test_db().await.unwrap();
         let token = authed_token(&db, "http-contract-c@test.local").await;
         let app = test::init_service(build_app(db.clone())).await;
@@ -292,7 +294,7 @@ mod http_contract {
             .insert_header(("Authorization", format!("Bearer {token}")))
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert_ne!(resp.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
     /// BLC-HTTP-001: plain ID (no table prefix) is accepted (not 400).
@@ -327,7 +329,7 @@ mod http_contract {
             .insert_header(("Authorization", format!("Bearer {token}")))
             .to_request();
         let first_resp = test::call_service(&app, first).await;
-        assert_eq!(first_resp.status(), StatusCode::OK);
+        assert_eq!(first_resp.status(), StatusCode::NO_CONTENT);
 
         let second = test::TestRequest::delete()
             .uri(&format!("/api/v1/songs/{song_id}"))
@@ -415,10 +417,9 @@ mod user_admin_gates {
         assert_eq!(resp_b["id"], user_b.id);
     }
 
-    /// BLC-USER-006: raw token (no Bearer prefix) on GET /users/me returns 200.
-    /// The `authorization_bearer` function accepts raw tokens (no scheme) on all routes.
+    /// Raw token (no Bearer prefix) on GET /users/me returns 401 — only `Bearer <token>` is accepted.
     #[actix_web::test]
-    async fn blc_user_006_raw_token_on_me_returns_200() {
+    async fn blc_user_006_raw_token_on_me_returns_401() {
         let db = test_db().await.unwrap();
         let user = create_user(&db, "raw-token@test.local").await.unwrap();
         let token = create_session_token(&db, user).await.unwrap();
@@ -427,6 +428,20 @@ mod user_admin_gates {
         let req = test::TestRequest::get()
             .uri("/api/v1/users/me")
             .insert_header(("Authorization", token.clone()));
+        assert_eq!(call_status!(app, req), StatusCode::UNAUTHORIZED);
+    }
+
+    /// Bearer token (with prefix) on GET /users/me returns 200.
+    #[actix_web::test]
+    async fn blc_user_006b_bearer_token_on_me_returns_200() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "bearer-token@test.local").await.unwrap();
+        let token = create_session_token(&db, user).await.unwrap();
+
+        let app = test::init_service(build_app(db.clone())).await;
+        let req = test::TestRequest::get()
+            .uri("/api/v1/users/me")
+            .insert_header(("Authorization", format!("Bearer {token}")));
         assert_eq!(call_status!(app, req), StatusCode::OK);
     }
 
@@ -616,7 +631,7 @@ mod session_admin_gates {
             .insert_header(("Authorization", format!("Bearer {token}")))
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
     }
 
     /// BLC-SESS-004: GET /users/me/sessions/{other_user_session} should return 404.
@@ -704,9 +719,9 @@ mod session_admin_gates {
         assert_eq!(resp.status(), StatusCode::CREATED);
     }
 
-    /// BLC-SESS-006: admin DELETE /users/{user_id}/sessions/{id} returns 200.
+    /// BLC-SESS-006: admin DELETE /users/{user_id}/sessions/{id} returns 204.
     #[actix_web::test]
-    async fn blc_sess_006_admin_delete_other_session_returns_200() {
+    async fn blc_sess_006_admin_delete_other_session_returns_204() {
         let db = test_db().await.unwrap();
         let (_, admin_token) = make_admin(&db, "admin-ds@test.local").await;
         let other = create_user(&db, "admin-ds-other@test.local").await.unwrap();
@@ -721,7 +736,7 @@ mod session_admin_gates {
             .insert_header(("Authorization", format!("Bearer {admin_token}")))
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
     }
 
     /// BLC-SESS-009: deleted session token on an authenticated route returns 401.
@@ -855,24 +870,18 @@ mod list_pagination {
         );
     }
 
-    /// BLC-LP-006: page_size=0 returns all items.
+    /// page_size=0 is now rejected with 400 (BLC-LP-004a).
     #[actix_web::test]
-    async fn blc_lp_006_page_size_zero_returns_all() {
+    async fn blc_lp_006_page_size_zero_returns_400() {
         let db = test_db().await.unwrap();
-        let (user, token) = authed_user_and_token(&db, "lp006@test.local").await;
-        for i in 0..3 {
-            create_song_with_title(&db, &user, &format!("LP006 Song {i}"))
-                .await
-                .unwrap();
-        }
-
+        let (_, token) = authed_user_and_token(&db, "lp006@test.local").await;
         let app = test::init_service(build_app(db.clone())).await;
         let req = test::TestRequest::get()
             .uri("/api/v1/songs?page_size=0")
             .insert_header(("Authorization", format!("Bearer {token}")))
             .to_request();
-        let resp: serde_json::Value = test::call_and_read_body_json(&app, req).await;
-        assert_eq!(resp.as_array().unwrap().len(), 3);
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
     /// BLC-LP-007: only `page` supplied (no page_size) returns 200.

@@ -3,6 +3,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use surrealdb::sql::Thing;
 
+use serde::Deserialize;
+
 use shared::api::ListQuery;
 use shared::user::User;
 
@@ -30,30 +32,37 @@ impl SurrealUserRepo {
 #[async_trait]
 impl UserRepository for SurrealUserRepo {
     async fn get_users(&self, pagination: ListQuery) -> Result<Vec<User>, AppError> {
-        if let Some((offset, limit)) = pagination.to_offset_limit() {
-            let mut response = self
-                .inner()
-                .db
-                .query("SELECT * FROM user LIMIT $limit START $start")
-                .bind(("limit", limit))
-                .bind(("start", offset))
-                .await?;
+        let (offset, limit) = pagination.effective_offset_limit();
+        let mut response = self
+            .inner()
+            .db
+            .query("SELECT * FROM user LIMIT $limit START $start")
+            .bind(("limit", limit))
+            .bind(("start", offset))
+            .await?;
+        Ok(response
+            .take::<Vec<UserRecord>>(0)?
+            .into_iter()
+            .map(UserRecord::into_user)
+            .collect())
+    }
 
-            Ok(response
-                .take::<Vec<UserRecord>>(0)?
-                .into_iter()
-                .map(UserRecord::into_user)
-                .collect())
-        } else {
-            Ok(self
-                .inner()
-                .db
-                .select("user")
-                .await?
-                .into_iter()
-                .map(UserRecord::into_user)
-                .collect())
+    async fn count_users(&self) -> Result<u64, AppError> {
+        #[derive(Deserialize)]
+        struct CountResult {
+            count: u64,
         }
+        let mut response = self
+            .inner()
+            .db
+            .query("SELECT count() FROM user GROUP ALL")
+            .await?;
+        Ok(response
+            .take::<Vec<CountResult>>(0)?
+            .into_iter()
+            .next()
+            .map(|r| r.count)
+            .unwrap_or(0))
     }
 
     async fn get_user(&self, id: &str) -> Result<User, AppError> {

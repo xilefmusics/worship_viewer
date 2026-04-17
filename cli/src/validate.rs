@@ -28,10 +28,10 @@ pub fn validate_resource_id(id: &str) -> Result<&str, ValidationError> {
 
     if id
         .chars()
-        .any(|c| c.is_control() || c == '?' || c == '#' || c == '%')
+        .any(|c| c.is_control() || c == '?' || c == '#' || c == '%' || c == ':')
     {
         return Err(ValidationError::new(
-            "id contains forbidden characters (control, '?', '#', '%')",
+            "id contains forbidden characters (control, '?', '#', '%', ':')",
         ));
     }
 
