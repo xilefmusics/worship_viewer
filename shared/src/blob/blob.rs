@@ -34,6 +34,17 @@ pub struct CreateBlob {
     pub ocr: String,
 }
 
+/// Partial update for a blob. Absent fields are left unchanged.
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct PatchBlob {
+    pub file_type: Option<FileType>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub ocr: Option<String>,
+}
+
 impl From<Blob> for CreateBlob {
     fn from(value: Blob) -> Self {
         Self {

@@ -1,3 +1,3 @@
 mod collection;
 
-pub use collection::{Collection, CreateCollection};
+pub use collection::{Collection, CreateCollection, PatchCollection};

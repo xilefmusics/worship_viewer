@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use shared::api::ListQuery;
 use shared::player::Player;
-use shared::setlist::{CreateSetlist, Setlist};
+use shared::setlist::{CreateSetlist, PatchSetlist, Setlist};
 use shared::song::Song;
 
 use crate::error::AppError;
@@ -114,6 +114,20 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
     ) -> Result<Setlist, AppError> {
         let write_teams = perms.write_teams().await?;
         self.repo.update_setlist(write_teams, id, setlist).await
+    }
+
+    pub async fn patch_setlist_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+        patch: PatchSetlist,
+    ) -> Result<Setlist, AppError> {
+        let current = self.get_setlist_for_user(perms, id).await?;
+        let merged = CreateSetlist {
+            title: patch.title.unwrap_or(current.title),
+            songs: patch.songs.unwrap_or(current.songs),
+        };
+        self.update_setlist_for_user(perms, id, merged).await
     }
 
     pub async fn delete_setlist_for_user(
@@ -891,6 +905,162 @@ mod tests {
             )
             .await;
         assert!(matches!(put_nf, Err(AppError::NotFound(_))));
+    }
+
+    /// PATCH-SETL-001: patch with only title changes title, songs remain unchanged.
+    #[tokio::test]
+    async fn patch_setlist_title_only_leaves_songs_unchanged() {
+        use shared::setlist::PatchSetlist;
+        let (db, owner, _read_u, _write_u, _noperm, _team_id) = four_user_setlist_fixture().await;
+        let sl = setlist_service(&db);
+        let s1 = create_song_with_title(&db, &owner, "Song One")
+            .await
+            .expect("s1");
+        let owner_p = UserPermissions::new(&owner, &sl.teams);
+
+        let created = sl
+            .create_setlist_for_user(
+                &owner_p,
+                setlist_with_songs("Original Title", &[(s1.id.as_str(), Some("1"))]),
+            )
+            .await
+            .expect("create");
+
+        let patched = sl
+            .patch_setlist_for_user(
+                &owner_p,
+                &created.id,
+                PatchSetlist {
+                    title: Some("New Title".into()),
+                    songs: None,
+                },
+            )
+            .await
+            .expect("patch");
+
+        assert_eq!(patched.title, "New Title");
+        assert_eq!(
+            patched.songs.len(),
+            created.songs.len(),
+            "songs must be unchanged"
+        );
+    }
+
+    /// PATCH-SETL-002: PATCH on non-existent setlist returns NotFound.
+    #[tokio::test]
+    async fn patch_setlist_not_found() {
+        use shared::setlist::PatchSetlist;
+        let (db, owner, _read_u, _write_u, _noperm, _team_id) = four_user_setlist_fixture().await;
+        let sl = setlist_service(&db);
+        let owner_p = UserPermissions::new(&owner, &sl.teams);
+        let r = sl
+            .patch_setlist_for_user(
+                &owner_p,
+                "never-existed-setlist",
+                PatchSetlist {
+                    title: Some("x".into()),
+                    songs: None,
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    /// PATCH-SETL-003: read-only guest cannot PATCH a setlist.
+    #[tokio::test]
+    async fn patch_setlist_guest_cannot_patch() {
+        use shared::setlist::PatchSetlist;
+        let (db, owner, read_u, _write_u, _noperm, _team_id) = four_user_setlist_fixture().await;
+        let sl = setlist_service(&db);
+        let s1 = create_song_with_title(&db, &owner, "Song")
+            .await
+            .expect("s");
+        let owner_p = UserPermissions::new(&owner, &sl.teams);
+        let read_p = UserPermissions::new(&read_u, &sl.teams);
+        let created = sl
+            .create_setlist_for_user(
+                &owner_p,
+                setlist_with_songs("Title", &[(s1.id.as_str(), None)]),
+            )
+            .await
+            .expect("create");
+        let r = sl
+            .patch_setlist_for_user(
+                &read_p,
+                &created.id,
+                PatchSetlist {
+                    title: Some("Hacked".into()),
+                    songs: None,
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn patch_setlist_all_field_combinations() {
+        use shared::setlist::PatchSetlist;
+
+        let (db, owner, _read_u, _write_u, _noperm, _team_id) = four_user_setlist_fixture().await;
+        let sl = setlist_service(&db);
+        let s1 = create_song_with_title(&db, &owner, "Song One")
+            .await
+            .expect("s1");
+        let s2 = create_song_with_title(&db, &owner, "Song Two")
+            .await
+            .expect("s2");
+        let owner_p = UserPermissions::new(&owner, &sl.teams);
+
+        for mask in 0u8..4 {
+            let created = sl
+                .create_setlist_for_user(
+                    &owner_p,
+                    setlist_with_songs("BaseTitle", &[(s1.id.as_str(), Some("1"))]),
+                )
+                .await
+                .expect("create");
+
+            let include_title = (mask & 0b01) != 0;
+            let include_songs = (mask & 0b10) != 0;
+
+            let patched = sl
+                .patch_setlist_for_user(
+                    &owner_p,
+                    &created.id,
+                    PatchSetlist {
+                        title: include_title.then_some("PatchedTitle".into()),
+                        songs: include_songs.then_some(vec![shared::song::Link {
+                            id: s2.id.clone(),
+                            nr: Some("9".into()),
+                            key: None,
+                        }]),
+                    },
+                )
+                .await
+                .expect("patch");
+
+            let expected_title = if include_title {
+                "PatchedTitle"
+            } else {
+                "BaseTitle"
+            };
+            assert_eq!(
+                patched.title, expected_title,
+                "mask={mask:02b}: title mismatch"
+            );
+            if include_songs {
+                assert_eq!(patched.songs.len(), 1, "mask={mask:02b}: expected 1 song");
+                assert_eq!(
+                    patched.songs[0].id, s2.id,
+                    "mask={mask:02b}: songs replacement mismatch"
+                );
+            } else {
+                assert_eq!(
+                    patched.songs[0].id, s1.id,
+                    "mask={mask:02b}: songs should remain unchanged"
+                );
+            }
+        }
     }
 
     /// BLC-SETL-009j: delete is rejected for noperm and wrong-table id; write user can

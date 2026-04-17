@@ -50,9 +50,7 @@ pub fn print_json<T: Serialize>(
     Ok(())
 }
 
-pub fn print_ndjson_list<T: Serialize>(
-    values: &[T],
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn print_ndjson_list<T: Serialize>(values: &[T]) -> Result<(), Box<dyn std::error::Error>> {
     for v in values {
         let json = serde_json::to_string(v)?;
         println!("{json}");

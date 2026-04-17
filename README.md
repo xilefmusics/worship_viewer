@@ -52,9 +52,9 @@ cd backend && \
 
 Notes:
 
-- The initial admin session has the ID: \`admin\`
+- The initial admin session has the ID: admin
 - Authentication can be done via:
-  - Cookie: \`sso_session\`
+  - Cookie: sso_session
   - Bearer token
 
 ### Start the Frontend
@@ -140,19 +140,16 @@ The CLI can be configured via a small config file, environment variables, or fla
 4. Built-in defaults
 
 - **Config file (optional)**  
-  Location: `~/.worshipviewer/config.toml`
-
+Location: `~/.worshipviewer/config.toml`
   ```toml
   base_url = "http://127.0.0.1:8080"
   sso_session = "admin"
   ```
-
 - **Base URL** (backend address)
   - Flag: `--base-url`
   - Env: `WORSHIP_VIEWER_BASE_URL`
   - Config: `base_url` in `~/.worshipviewer/config.toml`
   - Default: `http://127.0.0.1:8080`
-
 - **Authentication**
   - Cookie-based (recommended for local dev):
     - Backend uses the `sso_session` cookie.
@@ -164,7 +161,6 @@ The CLI can be configured via a small config file, environment variables, or fla
     - Flag: `--bearer-token`
     - Env: `WORSHIP_VIEWER_BEARER_TOKEN`
     - The CLI sends `Authorization: Bearer <WORSHIP_VIEWER_BEARER_TOKEN>`.
-
 - **Timeout**
   - Env: `WORSHIP_VIEWER_TIMEOUT_SECS`
   - Flag: `--timeout-secs`
@@ -235,4 +231,4 @@ worship-viewer songs list --output json
 
 ## License
 
-[![AGPL-3.0](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
+[AGPL-3.0](LICENSE)

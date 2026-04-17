@@ -3,7 +3,11 @@ use clap::{Args, Parser, Subcommand};
 use crate::output::OutputFormat;
 
 #[derive(Debug, Parser)]
-#[command(name = "worship-viewer", version, about = "CLI for the Worship Viewer REST API")]
+#[command(
+    name = "worship-viewer",
+    version,
+    about = "CLI for the Worship Viewer REST API"
+)]
 pub struct Cli {
     #[arg(long, global = true)]
     pub base_url: Option<String>,
@@ -14,7 +18,12 @@ pub struct Cli {
     #[arg(long, env = "WORSHIP_VIEWER_BEARER_TOKEN", global = true)]
     pub bearer_token: Option<String>,
 
-    #[arg(long, env = "WORSHIP_VIEWER_OUTPUT", default_value = "auto", global = true)]
+    #[arg(
+        long,
+        env = "WORSHIP_VIEWER_OUTPUT",
+        default_value = "auto",
+        global = true
+    )]
     pub output: OutputFormat,
 
     #[arg(long, global = true)]
@@ -75,10 +84,7 @@ pub struct SchemaArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum SchemaCommand {
-    Inspect {
-        domain: String,
-        action: String,
-    },
+    Inspect { domain: String, action: String },
 }
 
 #[derive(Debug, Subcommand)]
@@ -119,26 +125,12 @@ pub enum UsersCommand {
 #[derive(Debug, Subcommand)]
 pub enum SessionsCommand {
     ListMine,
-    GetMine {
-        id: String,
-    },
-    DeleteMine {
-        id: String,
-    },
-    CreateForUser {
-        user_id: String,
-    },
-    ListForUser {
-        user_id: String,
-    },
-    GetForUser {
-        user_id: String,
-        id: String,
-    },
-    DeleteForUser {
-        user_id: String,
-        id: String,
-    },
+    GetMine { id: String },
+    DeleteMine { id: String },
+    CreateForUser { user_id: String },
+    ListForUser { user_id: String },
+    GetForUser { user_id: String, id: String },
+    DeleteForUser { user_id: String, id: String },
 }
 
 #[derive(Debug, Subcommand)]
@@ -166,6 +158,11 @@ pub enum SongsCommand {
         json: String,
     },
     Update {
+        id: String,
+        #[arg(long)]
+        json: String,
+    },
+    Patch {
         id: String,
         #[arg(long)]
         json: String,
@@ -214,6 +211,11 @@ pub enum CollectionsCommand {
         #[arg(long)]
         json: String,
     },
+    Patch {
+        id: String,
+        #[arg(long)]
+        json: String,
+    },
     Delete {
         id: String,
     },
@@ -251,6 +253,11 @@ pub enum SetlistsCommand {
         #[arg(long)]
         json: String,
     },
+    Patch {
+        id: String,
+        #[arg(long)]
+        json: String,
+    },
     Delete {
         id: String,
     },
@@ -269,6 +276,11 @@ pub enum TeamsCommand {
         json: String,
     },
     Update {
+        id: String,
+        #[arg(long)]
+        json: String,
+    },
+    Patch {
         id: String,
         #[arg(long)]
         json: String,
@@ -296,6 +308,11 @@ pub enum BlobsCommand {
         json: String,
     },
     Update {
+        id: String,
+        #[arg(long)]
+        json: String,
+    },
+    Patch {
         id: String,
         #[arg(long)]
         json: String,

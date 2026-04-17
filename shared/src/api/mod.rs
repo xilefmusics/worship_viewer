@@ -168,6 +168,16 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.delete(&format!("api/v1/teams/{id}")).await
     }
 
+    pub async fn patch_team(
+        &self,
+        id: &str,
+        payload: serde_json::Value,
+    ) -> Result<Team, NetworkClientError> {
+        self.client
+            .patch(&format!("api/v1/teams/{id}"), &payload)
+            .await
+    }
+
     pub async fn get_songs(&self, query: ListQuery) -> Result<Vec<Song>, NetworkClientError> {
         let path = format!("api/v1/songs{}", query.to_query_string());
         self.client.get(&path).await
@@ -201,6 +211,16 @@ impl<C: HttpClient> ApiClient<C> {
 
     pub async fn delete_song(&self, id: &str) -> Result<Song, NetworkClientError> {
         self.client.delete(&format!("api/v1/songs/{id}")).await
+    }
+
+    pub async fn patch_song(
+        &self,
+        id: &str,
+        payload: serde_json::Value,
+    ) -> Result<Song, NetworkClientError> {
+        self.client
+            .patch(&format!("api/v1/songs/{id}"), &payload)
+            .await
     }
 
     pub async fn get_song_like_status(&self, id: &str) -> Result<bool, NetworkClientError> {
@@ -272,6 +292,16 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
+    pub async fn patch_collection(
+        &self,
+        id: &str,
+        payload: serde_json::Value,
+    ) -> Result<Collection, NetworkClientError> {
+        self.client
+            .patch(&format!("api/v1/collections/{id}"), &payload)
+            .await
+    }
+
     pub async fn list_setlists(
         &self,
         query: ListQuery,
@@ -321,6 +351,16 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.delete(&format!("api/v1/setlists/{id}")).await
     }
 
+    pub async fn patch_setlist(
+        &self,
+        id: &str,
+        payload: serde_json::Value,
+    ) -> Result<Setlist, NetworkClientError> {
+        self.client
+            .patch(&format!("api/v1/setlists/{id}"), &payload)
+            .await
+    }
+
     pub async fn list_blobs(&self, query: ListQuery) -> Result<Vec<Blob>, NetworkClientError> {
         let path = format!("api/v1/blobs{}", query.to_query_string());
         self.client.get(&path).await
@@ -346,6 +386,16 @@ impl<C: HttpClient> ApiClient<C> {
 
     pub async fn delete_blob(&self, id: &str) -> Result<Blob, NetworkClientError> {
         self.client.delete(&format!("api/v1/blobs/{id}")).await
+    }
+
+    pub async fn patch_blob(
+        &self,
+        id: &str,
+        payload: serde_json::Value,
+    ) -> Result<Blob, NetworkClientError> {
+        self.client
+            .patch(&format!("api/v1/blobs/{id}"), &payload)
+            .await
     }
 
     pub async fn download_blob_image_url(&self, id: &str) -> String {

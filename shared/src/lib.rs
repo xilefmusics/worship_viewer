@@ -1,10 +1,12 @@
 pub mod api;
 pub mod auth;
 pub mod blob;
+pub use patch::Patch;
 pub mod collection;
 pub mod error;
 pub mod like;
 pub mod net;
+pub mod patch;
 pub mod player;
 pub mod setlist;
 pub mod song;

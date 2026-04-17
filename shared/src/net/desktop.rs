@@ -98,6 +98,28 @@ impl HttpClient for DesktopHttpClient {
         Ok(value)
     }
 
+    async fn patch<B, T>(&self, path: &str, body: &B) -> Result<T, NetworkClientError>
+    where
+        B: Serialize + Send + Sync,
+        T: DeserializeOwned + Send + 'static,
+    {
+        let url = self.make_url(path);
+
+        let mut request = self.client.patch(url).json(body);
+        if let Some(cookie) = &self.config.session_cookie {
+            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
+        }
+        if let Some(token) = &self.config.bearer_token {
+            request = request.bearer_auth(token);
+        }
+
+        let response = request.send().await?;
+        let response = response.error_for_status()?;
+        let value = response.json::<T>().await?;
+
+        Ok(value)
+    }
+
     async fn post_no_response<B>(&self, path: &str, body: &B) -> Result<(), NetworkClientError>
     where
         B: Serialize + Send + Sync,

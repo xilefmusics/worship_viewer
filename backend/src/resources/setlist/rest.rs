@@ -1,5 +1,5 @@
 use actix_web::{
-    HttpResponse, Scope, delete, get, post, put,
+    HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
@@ -8,6 +8,7 @@ use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
 use crate::resources::setlist::CreateSetlist;
+use crate::resources::setlist::PatchSetlist;
 #[allow(unused_imports)]
 use crate::resources::setlist::Setlist;
 use crate::resources::setlist::SetlistServiceHandle;
@@ -28,6 +29,7 @@ pub fn scope() -> Scope {
         .service(get_setlist_export)
         .service(create_setlist)
         .service(update_setlist)
+        .service(patch_setlist)
         .service(delete_setlist)
 }
 
@@ -248,6 +250,40 @@ async fn update_setlist(
     let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
         svc.update_setlist_for_user(&perms, &id, payload.into_inner())
+            .await?,
+    ))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/v1/setlists/{id}",
+    params(
+        ("id" = String, Path, description = "Setlist identifier")
+    ),
+    request_body = PatchSetlist,
+    responses(
+        (status = 200, description = "Partially update an existing setlist", body = Setlist),
+        (status = 400, description = "Invalid setlist identifier or payload", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Setlist not found", body = ErrorResponse),
+        (status = 500, description = "Failed to patch setlist", body = ErrorResponse)
+    ),
+    tag = "Setlists",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[patch("/{id}")]
+async fn patch_setlist(
+    svc: Data<SetlistServiceHandle>,
+    user: ReqData<User>,
+    id: Path<String>,
+    payload: Json<PatchSetlist>,
+) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(
+        svc.patch_setlist_for_user(&perms, &id, payload.into_inner())
             .await?,
     ))
 }

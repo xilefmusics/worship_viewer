@@ -3,5 +3,6 @@ mod team;
 
 pub use invitation::TeamInvitation;
 pub use team::{
-    CreateTeam, Team, TeamMember, TeamMemberInput, TeamRole, TeamUser, TeamUserRef, UpdateTeam,
+    CreateTeam, PatchTeam, Team, TeamMember, TeamMemberInput, TeamRole, TeamUser, TeamUserRef,
+    UpdateTeam,
 };

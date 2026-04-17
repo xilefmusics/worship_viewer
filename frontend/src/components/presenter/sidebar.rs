@@ -19,7 +19,7 @@ pub fn sidebar(props: &SidebarProps) -> Html {
             })
         };
         html! {
-            <button 
+            <button
                 class={classes!{"material-symbols-outlined", if *current_index == index { "selected" } else { "" }}}
                 onclick={onclick}
             >

@@ -1,5 +1,5 @@
 use actix_web::{
-    HttpResponse, Scope, delete, get, post, put,
+    HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
@@ -10,6 +10,7 @@ use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::collection::Collection;
 use crate::resources::collection::CreateCollection;
+use crate::resources::collection::PatchCollection;
 use crate::resources::collection::service::CollectionServiceHandle;
 #[allow(unused_imports)]
 use crate::resources::song::{Format, QueryParams, Song};
@@ -28,6 +29,7 @@ pub fn scope() -> Scope {
         .service(get_collection_export)
         .service(create_collection)
         .service(update_collection)
+        .service(patch_collection)
         .service(delete_collection)
 }
 
@@ -249,6 +251,40 @@ async fn update_collection(
     let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
         svc.update_collection_for_user(&perms, &id, payload.into_inner())
+            .await?,
+    ))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/v1/collections/{id}",
+    params(
+        ("id" = String, Path, description = "Collection identifier")
+    ),
+    request_body = PatchCollection,
+    responses(
+        (status = 200, description = "Partially update an existing collection", body = Collection),
+        (status = 400, description = "Invalid collection identifier or payload", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Collection not found", body = ErrorResponse),
+        (status = 500, description = "Failed to patch collection", body = ErrorResponse)
+    ),
+    tag = "Collections",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[patch("/{id}")]
+async fn patch_collection(
+    svc: Data<CollectionServiceHandle>,
+    user: ReqData<User>,
+    id: Path<String>,
+    payload: Json<PatchCollection>,
+) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(
+        svc.patch_collection_for_user(&perms, &id, payload.into_inner())
             .await?,
     ))
 }

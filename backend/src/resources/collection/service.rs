@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use shared::api::ListQuery;
-use shared::collection::{Collection, CreateCollection};
+use shared::collection::{Collection, CreateCollection, PatchCollection};
 use shared::player::Player;
 use shared::song::Song;
 
@@ -119,6 +119,21 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         self.repo
             .update_collection(write_teams, id, collection)
             .await
+    }
+
+    pub async fn patch_collection_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+        patch: PatchCollection,
+    ) -> Result<Collection, AppError> {
+        let current = self.get_collection_for_user(perms, id).await?;
+        let merged = CreateCollection {
+            title: patch.title.unwrap_or(current.title),
+            cover: patch.cover.unwrap_or(current.cover),
+            songs: patch.songs.unwrap_or(current.songs),
+        };
+        self.update_collection_for_user(perms, id, merged).await
     }
 
     pub async fn delete_collection_for_user(
@@ -505,6 +520,173 @@ mod tests {
             .await
             .expect("songs");
         assert!(songs.iter().any(|s| s.id == song.id));
+    }
+
+    /// PATCH-COLL-001: patch with only title changes title; cover and songs remain unchanged.
+    #[tokio::test]
+    async fn patch_collection_title_only_leaves_cover_and_songs_unchanged() {
+        use shared::collection::PatchCollection;
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+
+        let col = svc
+            .create_collection_for_user(&owner_p, make_collection("Old Title"))
+            .await
+            .expect("create");
+
+        let patched = svc
+            .patch_collection_for_user(
+                &owner_p,
+                &col.id,
+                PatchCollection {
+                    title: Some("New Title".into()),
+                    cover: None,
+                    songs: None,
+                },
+            )
+            .await
+            .expect("patch");
+
+        assert_eq!(patched.title, "New Title");
+        assert_eq!(patched.cover, col.cover, "cover must be unchanged");
+        assert_eq!(
+            patched.songs.len(),
+            col.songs.len(),
+            "songs must be unchanged"
+        );
+    }
+
+    /// PATCH-COLL-002: patch with only cover changes cover; title and songs remain unchanged.
+    #[tokio::test]
+    async fn patch_collection_cover_only_leaves_title_and_songs_unchanged() {
+        use shared::collection::PatchCollection;
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+
+        let col = svc
+            .create_collection_for_user(&owner_p, make_collection("Title"))
+            .await
+            .expect("create");
+
+        let patched = svc
+            .patch_collection_for_user(
+                &owner_p,
+                &col.id,
+                PatchCollection {
+                    title: None,
+                    cover: Some("newheart".into()),
+                    songs: None,
+                },
+            )
+            .await
+            .expect("patch");
+
+        assert_eq!(patched.cover, "newheart");
+        assert_eq!(patched.title, col.title, "title must be unchanged");
+    }
+
+    /// PATCH-COLL-003: PATCH on a non-existent collection returns NotFound.
+    #[tokio::test]
+    async fn patch_collection_not_found() {
+        use shared::collection::PatchCollection;
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let r = svc
+            .patch_collection_for_user(
+                &owner_p,
+                "never-existed-collection",
+                PatchCollection {
+                    title: Some("x".into()),
+                    cover: None,
+                    songs: None,
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn patch_collection_all_field_combinations() {
+        use shared::collection::PatchCollection;
+
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let s1 = create_song_with_title(&db, &owner, "Song One")
+            .await
+            .expect("s1");
+        let s2 = create_song_with_title(&db, &owner, "Song Two")
+            .await
+            .expect("s2");
+
+        for mask in 0u8..8 {
+            let created = svc
+                .create_collection_for_user(
+                    &owner_p,
+                    CreateCollection {
+                        title: "BaseTitle".into(),
+                        cover: "mysongs".into(),
+                        songs: vec![shared::song::Link {
+                            id: s1.id.clone(),
+                            nr: Some("1".into()),
+                            key: None,
+                        }],
+                    },
+                )
+                .await
+                .expect("create");
+
+            let include_title = (mask & 0b001) != 0;
+            let include_cover = (mask & 0b010) != 0;
+            let include_songs = (mask & 0b100) != 0;
+
+            let patched = svc
+                .patch_collection_for_user(
+                    &owner_p,
+                    &created.id,
+                    PatchCollection {
+                        title: include_title.then_some("PatchedTitle".into()),
+                        cover: include_cover.then_some("newheart".into()),
+                        songs: include_songs.then_some(vec![shared::song::Link {
+                            id: s2.id.clone(),
+                            nr: Some("9".into()),
+                            key: None,
+                        }]),
+                    },
+                )
+                .await
+                .expect("patch");
+
+            let expected_title = if include_title {
+                "PatchedTitle"
+            } else {
+                "BaseTitle"
+            };
+            let expected_cover = if include_cover { "newheart" } else { "mysongs" };
+
+            assert_eq!(
+                patched.title, expected_title,
+                "mask={mask:03b}: title mismatch"
+            );
+            assert_eq!(
+                patched.cover, expected_cover,
+                "mask={mask:03b}: cover mismatch"
+            );
+            if include_songs {
+                assert_eq!(
+                    patched.songs[0].id, s2.id,
+                    "mask={mask:03b}: songs mismatch"
+                );
+            } else {
+                assert_eq!(
+                    patched.songs[0].id, s1.id,
+                    "mask={mask:03b}: songs should remain unchanged"
+                );
+            }
+        }
     }
 
     /// BLC-COLL-011: unauthorized user cannot access collection songs sub-route.

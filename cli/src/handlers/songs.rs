@@ -77,6 +77,21 @@ pub async fn handle_songs(
             let song = client.update_song(&id, payload).await?;
             output::print_json(&song, &output)
         }
+        SongsCommand::Patch { id, json } => {
+            validate_resource_id(&id)?;
+            let payload: serde_json::Value = serde_json::from_str(&json)?;
+            if dry_run {
+                let planned = serde_json::json!({
+                    "method": "PATCH",
+                    "path": format!("api/v1/songs/{id}"),
+                    "body": payload,
+                });
+                output::print_json(&planned, &output)?;
+                return Ok(());
+            }
+            let song = client.patch_song(&id, payload).await?;
+            output::print_json(&song, &output)
+        }
         SongsCommand::Delete { id } => {
             validate_resource_id(&id)?;
             if dry_run {

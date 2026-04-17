@@ -62,6 +62,21 @@ pub async fn handle_blobs(
             let blob = client.update_blob(&id, payload).await?;
             output::print_json(&blob, &output)
         }
+        BlobsCommand::Patch { id, json } => {
+            validate_resource_id(&id)?;
+            let payload: serde_json::Value = serde_json::from_str(&json)?;
+            if dry_run {
+                let planned = serde_json::json!({
+                    "method": "PATCH",
+                    "path": format!("api/v1/blobs/{id}"),
+                    "body": payload,
+                });
+                output::print_json(&planned, &output)?;
+                return Ok(());
+            }
+            let blob = client.patch_blob(&id, payload).await?;
+            output::print_json(&blob, &output)
+        }
         BlobsCommand::Delete { id } => {
             validate_resource_id(&id)?;
             if dry_run {
