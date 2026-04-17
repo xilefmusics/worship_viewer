@@ -85,6 +85,21 @@ pub async fn handle_collections(
             let collection = client.update_collection(&id, payload).await?;
             output::print_json(&collection, &output)
         }
+        CollectionsCommand::Patch { id, json } => {
+            validate_resource_id(&id)?;
+            let payload: serde_json::Value = serde_json::from_str(&json)?;
+            if dry_run {
+                let planned = serde_json::json!({
+                    "method": "PATCH",
+                    "path": format!("api/v1/collections/{id}"),
+                    "body": payload,
+                });
+                output::print_json(&planned, &output)?;
+                return Ok(());
+            }
+            let collection = client.patch_collection(&id, payload).await?;
+            output::print_json(&collection, &output)
+        }
         CollectionsCommand::Delete { id } => {
             validate_resource_id(&id)?;
             if dry_run {

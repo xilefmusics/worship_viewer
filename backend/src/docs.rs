@@ -2,6 +2,10 @@ use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
 use crate::resources::song::Format;
+use crate::resources::blob::PatchBlob;
+use crate::resources::collection::PatchCollection;
+use crate::resources::setlist::PatchSetlist;
+use crate::resources::song::{PatchSong, PatchSongData};
 use crate::resources::user::Role;
 use crate::resources::{
     Blob, Collection, CreateBlob, CreateCollection, CreateSetlist, CreateSong, CreateUserRequest,
@@ -14,8 +18,8 @@ use shared::like::LikeStatus;
 use shared::player::{Orientation, Player, PlayerItem, ScrollType, TocItem};
 use shared::song::{Link as SongLink, SongUserSpecificAddons};
 use shared::team::{
-    CreateTeam, Team, TeamInvitation, TeamMember, TeamMemberInput, TeamRole, TeamUser, TeamUserRef,
-    UpdateTeam,
+    CreateTeam, PatchTeam, Team, TeamInvitation, TeamMember, TeamMemberInput, TeamRole, TeamUser,
+    TeamUserRef, UpdateTeam,
 };
 
 pub mod rest {
@@ -53,6 +57,7 @@ pub mod rest {
         crate::resources::song::rest::get_song_export,
         crate::resources::song::rest::create_song,
         crate::resources::song::rest::update_song,
+        crate::resources::song::rest::patch_song,
         crate::resources::song::rest::delete_song,
         crate::resources::song::rest::get_song_like_status,
         crate::resources::song::rest::update_song_like_status,
@@ -63,11 +68,13 @@ pub mod rest {
         crate::resources::collection::rest::get_collection_songs,
         crate::resources::collection::rest::create_collection,
         crate::resources::collection::rest::update_collection,
+        crate::resources::collection::rest::patch_collection,
         crate::resources::collection::rest::delete_collection,
         crate::resources::blob::rest::get_blobs,
         crate::resources::blob::rest::get_blob,
         crate::resources::blob::rest::create_blob,
         crate::resources::blob::rest::update_blob,
+        crate::resources::blob::rest::patch_blob,
         crate::resources::blob::rest::delete_blob,
         crate::resources::blob::rest::download_blob_image,
         crate::resources::setlist::rest::get_setlists,
@@ -77,11 +84,13 @@ pub mod rest {
         crate::resources::setlist::rest::get_setlist_songs,
         crate::resources::setlist::rest::create_setlist,
         crate::resources::setlist::rest::update_setlist,
+        crate::resources::setlist::rest::patch_setlist,
         crate::resources::setlist::rest::delete_setlist,
         crate::resources::team::rest::get_teams,
         crate::resources::team::rest::get_team,
         crate::resources::team::rest::create_team,
         crate::resources::team::rest::update_team,
+        crate::resources::team::rest::patch_team,
         crate::resources::team::rest::delete_team,
         crate::resources::team::invitation::rest::create_team_invitation,
         crate::resources::team::invitation::rest::list_team_invitations,
@@ -100,13 +109,18 @@ pub mod rest {
             ErrorResponse,
             Song,
             CreateSong,
+            PatchSong,
+            PatchSongData,
             SongUserSpecificAddons,
             Collection,
             CreateCollection,
+            PatchCollection,
             Setlist,
             CreateSetlist,
+            PatchSetlist,
             Blob,
             CreateBlob,
+            PatchBlob,
             FileType,
             SongLink,
             LikeStatus,
@@ -123,6 +137,7 @@ pub mod rest {
             TeamUserRef,
             CreateTeam,
             UpdateTeam,
+            PatchTeam,
             TeamMemberInput,
             TeamInvitation
         )

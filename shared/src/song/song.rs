@@ -1,6 +1,8 @@
 use chordlib::inputs::chord_pro;
 use chordlib::outputs::{FormatChordPro, FormatHTML};
-use chordlib::types::{ChordRepresentation, SimpleChord, Song as SongData};
+use chordlib::types::{ChordRepresentation, Section, SimpleChord, Song as SongData};
+use std::collections::BTreeMap;
+use crate::patch::Patch;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -32,6 +34,51 @@ pub struct CreateSong {
     pub blobs: Vec<String>,
     #[cfg_attr(feature = "backend", schema(value_type = Object, additional_properties = true))]
     pub data: SongData,
+}
+
+/// Partial update for a song. Absent fields are left unchanged.
+#[derive(Deserialize, Debug, Default, PartialEq, Clone)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct PatchSong {
+    pub not_a_song: Option<bool>,
+    pub blobs: Option<Vec<String>>,
+    #[cfg_attr(feature = "backend", schema(value_type = PatchSongData))]
+    pub data: Option<PatchSongData>,
+}
+
+/// Partial update for song metadata.
+///
+/// `Patch<T>` fields preserve 3-state behavior for nullable members:
+/// - `Missing`: keep existing value
+/// - `Null`: clear the value
+/// - `Value(v)`: set a new value
+#[derive(Deserialize, Debug, Default, PartialEq, Clone)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct PatchSongData {
+    pub titles: Option<Vec<String>>,
+    #[serde(default)]
+    #[cfg_attr(feature = "backend", schema(value_type = Option<String>))]
+    pub subtitle: Patch<String>,
+    #[serde(default)]
+    #[cfg_attr(feature = "backend", schema(value_type = Option<String>))]
+    pub copyright: Patch<String>,
+    #[serde(default)]
+    #[cfg_attr(feature = "backend", schema(value_type = Option<String>))]
+    pub key: Patch<SimpleChord>,
+    pub artists: Option<Vec<String>>,
+    pub languages: Option<Vec<String>>,
+    #[serde(default)]
+    #[cfg_attr(feature = "backend", schema(value_type = Option<u32>))]
+    pub tempo: Patch<u32>,
+    #[serde(default)]
+    #[cfg_attr(feature = "backend", schema(value_type = Option<[u32; 2]>))]
+    pub time: Patch<(u32, u32)>,
+    #[cfg_attr(feature = "backend", schema(value_type = Option<Object>, additional_properties = true))]
+    pub tags: Option<BTreeMap<String, String>>,
+    #[cfg_attr(feature = "backend", schema(value_type = Option<Vec<Object>>))]
+    pub sections: Option<Vec<Section>>,
 }
 
 impl TryFrom<&str> for CreateSong {

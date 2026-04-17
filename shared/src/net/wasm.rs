@@ -106,6 +106,35 @@ impl HttpClient for WasmHttpClient {
         Ok(value)
     }
 
+    async fn patch<B, T>(&self, path: &str, body: &B) -> Result<T, NetworkClientError>
+    where
+        B: Serialize + Send + Sync,
+        T: DeserializeOwned + Send + 'static,
+    {
+        let url = self.make_url(path);
+
+        let payload = serde_json::to_string(body)?;
+        let response = gloo_net::http::Request::patch(&url)
+            .header("Content-Type", "application/json")
+            .credentials(RequestCredentials::Include)
+            .body(payload)?
+            .send()
+            .await?;
+
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+
+        if !(200..300).contains(&status) {
+            return Err(NetworkClientError::RequestFailed {
+                status: Some(status as u16),
+                message: text,
+            });
+        }
+
+        let value = serde_json::from_str::<T>(&text)?;
+        Ok(value)
+    }
+
     async fn post_no_response<B>(&self, path: &str, body: &B) -> Result<(), NetworkClientError>
     where
         B: Serialize + Send + Sync,

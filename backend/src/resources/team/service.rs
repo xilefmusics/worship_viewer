@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use std::sync::Arc;
 
-use shared::team::{CreateTeam, Team, UpdateTeam};
+use shared::patch::Patch;
+use shared::team::{CreateTeam, PatchTeam, Team, UpdateTeam};
 use shared::user::{Role as UserRole, User};
 
 use crate::database::Database;
@@ -158,6 +159,27 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
         }
 
         self.repo.load_team_display(id).await
+    }
+
+    pub async fn patch_team_for_user(
+        &self,
+        user: &User,
+        id: &str,
+        patch: PatchTeam,
+    ) -> Result<Team, AppError> {
+        let current = self.get_team_for_user(user, id).await?;
+        let name = patch.name.unwrap_or(current.name);
+        let members = match patch.members {
+            Patch::Missing => None,
+            Patch::Null => {
+                return Err(AppError::invalid_request(
+                    "members cannot be set to null; omit the field to leave them unchanged",
+                ));
+            }
+            Patch::Value(v) => Some(v),
+        };
+        self.update_team_for_user(user, id, UpdateTeam { name, members })
+            .await
     }
 
     pub async fn delete_team_for_user(
@@ -781,6 +803,184 @@ mod tests {
             .map(|t| t.id)
             .collect();
         assert!(!guest_teams.contains(&fx.shared_team_id));
+    }
+
+    /// PATCH-TEAM-001: patch with only name changes name, members left unchanged.
+    #[tokio::test]
+    async fn patch_team_name_only_leaves_members_unchanged() {
+        use shared::team::PatchTeam;
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+
+        let before = svc
+            .get_team_for_user(&fx.admin_user, &fx.shared_team_id)
+            .await
+            .expect("before");
+        let member_count = before.members.len();
+
+        let updated = svc
+            .patch_team_for_user(
+                &fx.admin_user,
+                &fx.shared_team_id,
+                PatchTeam {
+                    name: Some("Renamed via PATCH".into()),
+                    members: shared::patch::Patch::Missing,
+                },
+            )
+            .await
+            .expect("patch name");
+
+        assert_eq!(updated.name, "Renamed via PATCH");
+        assert_eq!(
+            updated.members.len(),
+            member_count,
+            "members must be unchanged"
+        );
+    }
+
+    /// PATCH-TEAM-002: patch with explicit null for members is rejected.
+    #[tokio::test]
+    async fn patch_team_null_members_rejected() {
+        use shared::team::PatchTeam;
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+        let r = svc
+            .patch_team_for_user(
+                &fx.admin_user,
+                &fx.shared_team_id,
+                PatchTeam {
+                    name: None,
+                    members: shared::patch::Patch::Null,
+                },
+            )
+            .await;
+        assert!(
+            matches!(r, Err(AppError::InvalidRequest(_))),
+            "expected InvalidRequest for Patch::Null members, got {r:?}"
+        );
+    }
+
+    /// PATCH-TEAM-003: patch with neither name nor members is a name-preserving no-op.
+    #[tokio::test]
+    async fn patch_team_empty_body_preserves_name() {
+        use shared::team::PatchTeam;
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = team_service(&db);
+
+        let before = svc
+            .get_team_for_user(&fx.admin_user, &fx.shared_team_id)
+            .await
+            .expect("before");
+
+        let after = svc
+            .patch_team_for_user(
+                &fx.admin_user,
+                &fx.shared_team_id,
+                PatchTeam {
+                    name: None,
+                    members: shared::patch::Patch::Missing,
+                },
+            )
+            .await
+            .expect("empty patch");
+
+        assert_eq!(after.name, before.name, "name must be preserved");
+    }
+
+    /// PATCH-TEAM-004: non-existent team returns NotFound.
+    #[tokio::test]
+    async fn patch_team_not_found() {
+        use shared::team::PatchTeam;
+        let db = test_db().await.expect("db");
+        let u = create_user(&db, "patch-team-nf@test.local")
+            .await
+            .expect("u");
+        let svc = team_service(&db);
+        let r = svc
+            .patch_team_for_user(
+                &u,
+                "never-existed-team",
+                PatchTeam {
+                    name: Some("x".into()),
+                    members: shared::patch::Patch::Missing,
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn patch_team_all_field_combinations() {
+        use shared::patch::Patch;
+        use shared::team::PatchTeam;
+
+        for mask in 0u8..4 {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = team_service(&db);
+
+            let before = svc
+                .get_team_for_user(&fx.admin_user, &fx.shared_team_id)
+                .await
+                .expect("before");
+
+            let include_name = (mask & 0b01) != 0;
+            let include_members = (mask & 0b10) != 0;
+            let replacement_members = vec![
+                TeamMemberInput {
+                    user: TeamUserRef {
+                        id: fx.admin_user.id.clone(),
+                    },
+                    role: TeamRole::Admin,
+                },
+                TeamMemberInput {
+                    user: TeamUserRef {
+                        id: fx.writer.id.clone(),
+                    },
+                    role: TeamRole::ContentMaintainer,
+                },
+            ];
+
+            let patched = svc
+                .patch_team_for_user(
+                    &fx.admin_user,
+                    &fx.shared_team_id,
+                    PatchTeam {
+                        name: include_name.then_some("PatchedName".into()),
+                        members: if include_members {
+                            Patch::Value(replacement_members.clone())
+                        } else {
+                            Patch::Missing
+                        },
+                    },
+                )
+                .await
+                .expect("patch");
+
+            let expected_name = if include_name {
+                "PatchedName"
+            } else {
+                before.name.as_str()
+            };
+            assert_eq!(patched.name, expected_name, "mask={mask:02b}: name mismatch");
+
+            if include_members {
+                assert_eq!(patched.members.len(), 2, "mask={mask:02b}: members mismatch");
+                assert!(
+                    patched.members.iter().all(|m| m.user.id != fx.guest.id),
+                    "mask={mask:02b}: guest should be removed from member list"
+                );
+            } else {
+                assert_eq!(
+                    patched.members.len(),
+                    before.members.len(),
+                    "mask={mask:02b}: members should remain unchanged"
+                );
+            }
+        }
     }
 
     /// Verify that the DB-filtered `fetch_teams_for_user` path returns the same set of teams

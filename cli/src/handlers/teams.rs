@@ -54,6 +54,21 @@ pub async fn handle_teams(
             let team = client.update_team(&id, payload).await?;
             output::print_json(&team, &output)
         }
+        TeamsCommand::Patch { id, json } => {
+            validate_resource_id(&id)?;
+            let payload: serde_json::Value = serde_json::from_str(&json)?;
+            if dry_run {
+                let planned = serde_json::json!({
+                    "method": "PATCH",
+                    "path": format!("api/v1/teams/{id}"),
+                    "body": payload,
+                });
+                output::print_json(&planned, &output)?;
+                return Ok(());
+            }
+            let team = client.patch_team(&id, payload).await?;
+            output::print_json(&team, &output)
+        }
         TeamsCommand::Delete { id } => {
             validate_resource_id(&id)?;
             if dry_run {

@@ -20,6 +20,15 @@ pub struct CreateSetlist {
     pub songs: Vec<SongLink>,
 }
 
+/// Partial update for a setlist. Absent fields are left unchanged.
+#[derive(Deserialize, Debug, Default, PartialEq, Clone)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct PatchSetlist {
+    pub title: Option<String>,
+    pub songs: Option<Vec<SongLink>>,
+}
+
 impl From<Setlist> for CreateSetlist {
     fn from(value: Setlist) -> Self {
         Self {

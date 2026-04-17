@@ -1,5 +1,5 @@
 use actix_web::{
-    HttpResponse, Scope, delete, get, post, put,
+    HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
@@ -8,6 +8,7 @@ use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::User;
 use crate::resources::song::CreateSong;
+use crate::resources::song::PatchSong;
 #[allow(unused_imports)]
 use crate::resources::song::Song;
 use crate::resources::song::service::SongServiceHandle;
@@ -28,6 +29,7 @@ pub fn scope() -> Scope {
         .service(get_song_export)
         .service(create_song)
         .service(update_song)
+        .service(patch_song)
         .service(delete_song)
         .service(get_song_like_status)
         .service(update_song_like_status)
@@ -219,6 +221,40 @@ async fn update_song(
     let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
         svc.update_song_for_user(&perms, &id, payload.into_inner())
+            .await?,
+    ))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/v1/songs/{id}",
+    params(
+        ("id" = String, Path, description = "Song identifier")
+    ),
+    request_body = PatchSong,
+    responses(
+        (status = 200, description = "Partially update an existing song", body = Song),
+        (status = 400, description = "Invalid song identifier or payload", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Song not found", body = ErrorResponse),
+        (status = 500, description = "Failed to patch song", body = ErrorResponse)
+    ),
+    tag = "Songs",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[patch("/{id}")]
+async fn patch_song(
+    svc: Data<SongServiceHandle>,
+    user: ReqData<User>,
+    id: Path<String>,
+    payload: Json<PatchSong>,
+) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(
+        svc.patch_song_for_user(&perms, &id, payload.into_inner())
             .await?,
     ))
 }

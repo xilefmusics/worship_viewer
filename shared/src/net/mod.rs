@@ -33,6 +33,11 @@ pub trait HttpClient: Send + Sync {
         B: Serialize + Send + Sync,
         T: DeserializeOwned + Send + 'static;
 
+    async fn patch<B, T>(&self, path: &str, body: &B) -> Result<T, NetworkClientError>
+    where
+        B: Serialize + Send + Sync,
+        T: DeserializeOwned + Send + 'static;
+
     async fn post_no_response<B>(&self, path: &str, body: &B) -> Result<(), NetworkClientError>
     where
         B: Serialize + Send + Sync;
@@ -55,6 +60,11 @@ pub trait HttpClient: Send + Sync {
         T: DeserializeOwned + Send + 'static;
 
     async fn put<B, T>(&self, path: &str, body: &B) -> Result<T, NetworkClientError>
+    where
+        B: Serialize + Send + Sync,
+        T: DeserializeOwned + Send + 'static;
+
+    async fn patch<B, T>(&self, path: &str, body: &B) -> Result<T, NetworkClientError>
     where
         B: Serialize + Send + Sync,
         T: DeserializeOwned + Send + 'static;

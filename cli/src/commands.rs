@@ -170,6 +170,11 @@ pub enum SongsCommand {
         #[arg(long)]
         json: String,
     },
+    Patch {
+        id: String,
+        #[arg(long)]
+        json: String,
+    },
     Delete {
         id: String,
     },
@@ -214,6 +219,11 @@ pub enum CollectionsCommand {
         #[arg(long)]
         json: String,
     },
+    Patch {
+        id: String,
+        #[arg(long)]
+        json: String,
+    },
     Delete {
         id: String,
     },
@@ -251,6 +261,11 @@ pub enum SetlistsCommand {
         #[arg(long)]
         json: String,
     },
+    Patch {
+        id: String,
+        #[arg(long)]
+        json: String,
+    },
     Delete {
         id: String,
     },
@@ -269,6 +284,11 @@ pub enum TeamsCommand {
         json: String,
     },
     Update {
+        id: String,
+        #[arg(long)]
+        json: String,
+    },
+    Patch {
         id: String,
         #[arg(long)]
         json: String,
@@ -296,6 +316,11 @@ pub enum BlobsCommand {
         json: String,
     },
     Update {
+        id: String,
+        #[arg(long)]
+        json: String,
+    },
+    Patch {
         id: String,
         #[arg(long)]
         json: String,

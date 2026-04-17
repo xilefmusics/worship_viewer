@@ -1,4 +1,4 @@
-pub use shared::setlist::{CreateSetlist, Setlist};
+pub use shared::setlist::{CreateSetlist, PatchSetlist, Setlist};
 
 mod model;
 mod repository;

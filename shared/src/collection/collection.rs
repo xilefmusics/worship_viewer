@@ -22,6 +22,16 @@ pub struct CreateCollection {
     pub songs: Vec<SongLink>,
 }
 
+/// Partial update for a collection. Absent fields are left unchanged.
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct PatchCollection {
+    pub title: Option<String>,
+    pub cover: Option<String>,
+    pub songs: Option<Vec<SongLink>>,
+}
+
 impl From<Collection> for CreateCollection {
     fn from(value: Collection) -> Self {
         Self {

@@ -5,7 +5,10 @@ use async_trait::async_trait;
 use shared::api::ListQuery;
 use shared::like::LikeStatus;
 use shared::player::Player;
-use shared::song::{CreateSong, Link as SongLink, LinkOwned as SongLinkOwned, Song};
+use shared::patch::Patch;
+use shared::song::{
+    CreateSong, Link as SongLink, LinkOwned as SongLinkOwned, PatchSong, PatchSongData, Song,
+};
 
 use crate::database::Database;
 use crate::error::AppError;
@@ -75,6 +78,50 @@ impl<
     U: UserCollectionUpdater,
 > SongService<R, T, L, C, U>
 {
+    fn merge_song_data(mut current: chordlib::types::Song, patch: PatchSongData) -> chordlib::types::Song {
+        if let Some(v) = patch.titles {
+            current.titles = v;
+        }
+        match patch.subtitle {
+            Patch::Missing => {}
+            Patch::Null => current.subtitle = None,
+            Patch::Value(v) => current.subtitle = Some(v),
+        }
+        match patch.copyright {
+            Patch::Missing => {}
+            Patch::Null => current.copyright = None,
+            Patch::Value(v) => current.copyright = Some(v),
+        }
+        match patch.key {
+            Patch::Missing => {}
+            Patch::Null => current.key = None,
+            Patch::Value(v) => current.key = Some(v),
+        }
+        if let Some(v) = patch.artists {
+            current.artists = v;
+        }
+        if let Some(v) = patch.languages {
+            current.languages = v;
+        }
+        match patch.tempo {
+            Patch::Missing => {}
+            Patch::Null => current.tempo = None,
+            Patch::Value(v) => current.tempo = Some(v),
+        }
+        match patch.time {
+            Patch::Missing => {}
+            Patch::Null => current.time = None,
+            Patch::Value(v) => current.time = Some(v),
+        }
+        if let Some(v) = patch.tags {
+            current.tags = v;
+        }
+        if let Some(v) = patch.sections {
+            current.sections = v;
+        }
+        current
+    }
+
     pub async fn list_songs_for_user(
         &self,
         perms: &UserPermissions<'_, T>,
@@ -191,6 +238,24 @@ impl<
         self.repo
             .update_song(write_teams, &perms.user().id, id, song)
             .await
+    }
+
+    pub async fn patch_song_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+        patch: PatchSong,
+    ) -> Result<Song, AppError> {
+        let current = self.get_song_for_user(perms, id).await?;
+        let merged = CreateSong {
+            not_a_song: patch.not_a_song.unwrap_or(current.not_a_song),
+            blobs: patch.blobs.unwrap_or(current.blobs),
+            data: patch
+                .data
+                .map(|song_data_patch| Self::merge_song_data(current.data.clone(), song_data_patch))
+                .unwrap_or(current.data),
+        };
+        self.update_song_for_user(perms, id, merged).await
     }
 
     pub async fn delete_song_for_user(
@@ -605,7 +670,377 @@ mod tests {
         );
     }
 
-    /// BLC-SONG-018: PUT with a brand-new ID as guest on someone else's team creates the song on
+    /// PATCH-SONG-001: partial update only changes supplied fields; omitted fields keep their values.
+    #[tokio::test]
+    async fn patch_song_partial_update_only_changes_supplied_fields() {
+        use shared::song::PatchSong;
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
+        let svc = SongServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+
+        let song = create_song_with_title(&db, &owner, "OriginalTitle")
+            .await
+            .expect("song");
+        assert!(!song.not_a_song);
+
+        // Patch only not_a_song; title (data) must remain unchanged.
+        let patched = svc
+            .patch_song_for_user(
+                &owner_p,
+                &song.id,
+                PatchSong {
+                    not_a_song: Some(true),
+                    blobs: None,
+                    data: None,
+                },
+            )
+            .await
+            .expect("patch");
+
+        assert!(patched.not_a_song, "not_a_song must be updated");
+        assert_eq!(
+            patched.data.title(),
+            song.data.title(),
+            "title must remain unchanged"
+        );
+        assert_eq!(patched.blobs, song.blobs, "blobs must remain unchanged");
+    }
+
+    /// PATCH-SONG-002: guest cannot PATCH a song (same ACL as PUT).
+    #[tokio::test]
+    async fn patch_song_guest_cannot_patch() {
+        use shared::song::PatchSong;
+        let (db, owner, _cm, guest_u, _nm, _tid) = four_user_song_fixture().await;
+        let svc = SongServiceHandle::build(db.clone());
+        let guest_p = UserPermissions::new(&guest_u, &svc.teams);
+        let song = create_song_with_title(&db, &owner, "GuestPatchSong")
+            .await
+            .expect("song");
+        let r = svc
+            .patch_song_for_user(
+                &guest_p,
+                &song.id,
+                PatchSong {
+                    not_a_song: Some(true),
+                    blobs: None,
+                    data: None,
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(crate::error::AppError::NotFound(_))));
+    }
+
+    /// PATCH-SONG-003: PATCH on non-existent song returns NotFound.
+    #[tokio::test]
+    async fn patch_song_not_found() {
+        use shared::song::PatchSong;
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
+        let svc = SongServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let r = svc
+            .patch_song_for_user(
+                &owner_p,
+                "never-existed-song",
+                PatchSong {
+                    not_a_song: Some(true),
+                    blobs: None,
+                    data: None,
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(crate::error::AppError::NotFound(_))));
+    }
+
+    /// PATCH-SONG-004: empty PATCH body leaves all fields unchanged.
+    #[tokio::test]
+    async fn patch_song_empty_body_is_noop() {
+        use shared::song::PatchSong;
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
+        let svc = SongServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let song = create_song_with_title(&db, &owner, "NoopSong")
+            .await
+            .expect("song");
+        let patched = svc
+            .patch_song_for_user(
+                &owner_p,
+                &song.id,
+                PatchSong {
+                    not_a_song: None,
+                    blobs: None,
+                    data: None,
+                },
+            )
+            .await
+            .expect("noop patch");
+        assert_eq!(patched.not_a_song, song.not_a_song);
+        assert_eq!(patched.data.title(), song.data.title());
+    }
+
+    #[tokio::test]
+    async fn patch_song_all_field_combinations() {
+        use shared::song::{CreateSong, PatchSong, PatchSongData};
+
+        let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
+        let svc = SongServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+
+        let mut base_data = crate::test_helpers::minimal_song_data();
+        base_data.titles = vec!["BaseTitle".into()];
+        let patch_data = PatchSongData {
+            titles: Some(vec!["PatchedTitle".into()]),
+            ..PatchSongData::default()
+        };
+
+        for mask in 0u8..8 {
+            let created = svc
+                .create_song_for_user(
+                    &owner_p,
+                    CreateSong {
+                        not_a_song: false,
+                        blobs: vec!["base_blob".into()],
+                        data: base_data.clone(),
+                    },
+                )
+                .await
+                .expect("create");
+
+            let include_not_a_song = (mask & 0b001) != 0;
+            let include_blobs = (mask & 0b010) != 0;
+            let include_data = (mask & 0b100) != 0;
+            let expected_not_a_song = if include_not_a_song { true } else { false };
+            let expected_blobs = if include_blobs {
+                vec!["patched_blob".to_string()]
+            } else {
+                vec!["base_blob".to_string()]
+            };
+            let expected_title = if include_data {
+                "PatchedTitle"
+            } else {
+                "BaseTitle"
+            };
+
+            let patched = svc
+                .patch_song_for_user(
+                    &owner_p,
+                    &created.id,
+                    PatchSong {
+                        not_a_song: include_not_a_song.then_some(true),
+                        blobs: include_blobs.then_some(vec!["patched_blob".into()]),
+                        data: include_data.then_some(patch_data.clone()),
+                    },
+                )
+                .await
+                .expect("patch");
+
+            assert_eq!(
+                patched.not_a_song, expected_not_a_song,
+                "mask={mask:03b}: not_a_song mismatch"
+            );
+            assert_eq!(
+                patched.blobs, expected_blobs,
+                "mask={mask:03b}: blobs mismatch"
+            );
+            assert_eq!(
+                patched.data.title(),
+                expected_title,
+                "mask={mask:03b}: data.title mismatch"
+            );
+        }
+    }
+
+    #[test]
+    fn patch_song_data_all_field_combinations() {
+        use std::collections::BTreeMap;
+
+        use chordlib::types::SimpleChord;
+        use shared::patch::Patch;
+        use shared::song::PatchSongData;
+
+        let c: SimpleChord = SimpleChord::new(3);
+        let d: SimpleChord = SimpleChord::new(5);
+
+        let mut base_tags = BTreeMap::new();
+        base_tags.insert("base".to_string(), "value".to_string());
+        let mut patch_tags = BTreeMap::new();
+        patch_tags.insert("patched".to_string(), "yes".to_string());
+
+        let base = chordlib::types::Song {
+            titles: vec!["base-title".into()],
+            subtitle: Some("base-sub".into()),
+            copyright: Some("base-copyright".into()),
+            key: Some(c.clone()),
+            artists: vec!["base-artist".into()],
+            languages: vec!["en".into()],
+            tempo: Some(100),
+            time: Some((4, 4)),
+            tags: base_tags.clone(),
+            sections: vec![],
+        };
+
+        for mask in 0u16..1024 {
+            let include_titles = (mask & (1 << 0)) != 0;
+            let include_subtitle = (mask & (1 << 1)) != 0;
+            let include_copyright = (mask & (1 << 2)) != 0;
+            let include_key = (mask & (1 << 3)) != 0;
+            let include_artists = (mask & (1 << 4)) != 0;
+            let include_languages = (mask & (1 << 5)) != 0;
+            let include_tempo = (mask & (1 << 6)) != 0;
+            let include_time = (mask & (1 << 7)) != 0;
+            let include_tags = (mask & (1 << 8)) != 0;
+            let include_sections = (mask & (1 << 9)) != 0;
+
+            let patch = PatchSongData {
+                titles: include_titles.then_some(vec!["patched-title".into()]),
+                subtitle: if include_subtitle {
+                    Patch::Value("patched-sub".into())
+                } else {
+                    Patch::Missing
+                },
+                copyright: if include_copyright {
+                    Patch::Value("patched-copyright".into())
+                } else {
+                    Patch::Missing
+                },
+                key: if include_key {
+                    Patch::Value(d.clone())
+                } else {
+                    Patch::Missing
+                },
+                artists: include_artists.then_some(vec!["patched-artist".into()]),
+                languages: include_languages.then_some(vec!["de".into()]),
+                tempo: if include_tempo {
+                    Patch::Value(128)
+                } else {
+                    Patch::Missing
+                },
+                time: if include_time {
+                    Patch::Value((3, 4))
+                } else {
+                    Patch::Missing
+                },
+                tags: include_tags.then_some(patch_tags.clone()),
+                sections: include_sections.then_some(vec![]),
+            };
+
+            let merged = SongServiceHandle::merge_song_data(base.clone(), patch);
+
+            assert_eq!(
+                merged.titles,
+                if include_titles {
+                    vec!["patched-title".to_string()]
+                } else {
+                    vec!["base-title".to_string()]
+                },
+                "mask={mask:010b}: titles mismatch"
+            );
+            assert_eq!(
+                merged.subtitle.as_deref(),
+                Some(if include_subtitle {
+                    "patched-sub"
+                } else {
+                    "base-sub"
+                }),
+                "mask={mask:010b}: subtitle mismatch"
+            );
+            assert_eq!(
+                merged.copyright.as_deref(),
+                Some(if include_copyright {
+                    "patched-copyright"
+                } else {
+                    "base-copyright"
+                }),
+                "mask={mask:010b}: copyright mismatch"
+            );
+            assert_eq!(
+                merged.key,
+                Some(if include_key { d.clone() } else { c.clone() }),
+                "mask={mask:010b}: key mismatch"
+            );
+            assert_eq!(
+                merged.artists,
+                if include_artists {
+                    vec!["patched-artist".to_string()]
+                } else {
+                    vec!["base-artist".to_string()]
+                },
+                "mask={mask:010b}: artists mismatch"
+            );
+            assert_eq!(
+                merged.languages,
+                if include_languages {
+                    vec!["de".to_string()]
+                } else {
+                    vec!["en".to_string()]
+                },
+                "mask={mask:010b}: languages mismatch"
+            );
+            assert_eq!(
+                merged.tempo,
+                Some(if include_tempo { 128 } else { 100 }),
+                "mask={mask:010b}: tempo mismatch"
+            );
+            assert_eq!(
+                merged.time,
+                Some(if include_time { (3, 4) } else { (4, 4) }),
+                "mask={mask:010b}: time mismatch"
+            );
+            assert_eq!(
+                merged.tags,
+                if include_tags {
+                    patch_tags.clone()
+                } else {
+                    base_tags.clone()
+                },
+                "mask={mask:010b}: tags mismatch"
+            );
+            assert_eq!(
+                merged.sections,
+                vec![],
+                "mask={mask:010b}: sections mismatch"
+            );
+        }
+    }
+
+    #[test]
+    fn patch_song_data_null_clears_nullable_fields() {
+        use shared::patch::Patch;
+        use shared::song::PatchSongData;
+
+        let c: chordlib::types::SimpleChord = chordlib::types::SimpleChord::new(3);
+        let base = chordlib::types::Song {
+            titles: vec!["base-title".into()],
+            subtitle: Some("base-sub".into()),
+            copyright: Some("base-copyright".into()),
+            key: Some(c),
+            artists: vec!["base-artist".into()],
+            languages: vec!["en".into()],
+            tempo: Some(100),
+            time: Some((4, 4)),
+            tags: Default::default(),
+            sections: vec![],
+        };
+
+        let merged = SongServiceHandle::merge_song_data(
+            base,
+            PatchSongData {
+                subtitle: Patch::Null,
+                copyright: Patch::Null,
+                key: Patch::Null,
+                tempo: Patch::Null,
+                time: Patch::Null,
+                ..PatchSongData::default()
+            },
+        );
+
+        assert_eq!(merged.subtitle, None);
+        assert_eq!(merged.copyright, None);
+        assert_eq!(merged.key, None);
+        assert_eq!(merged.tempo, None);
+        assert_eq!(merged.time, None);
+    }
+
+    /// PATCH-SONG-018: PUT with a brand-new ID as guest on someone else's team creates the song on
     /// the caller's own personal team (upsert; owner determined by caller, not team membership).
     #[tokio::test]
     async fn blc_song_018_put_new_id_as_guest_creates_on_own_team() {

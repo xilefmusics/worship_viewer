@@ -3,7 +3,7 @@ use std::sync::Arc;
 use actix_files::NamedFile;
 
 use shared::api::ListQuery;
-use shared::blob::{Blob, CreateBlob};
+use shared::blob::{Blob, CreateBlob, PatchBlob};
 
 use crate::database::Database;
 use crate::error::AppError;
@@ -71,6 +71,22 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         let updated = self.repo.update_blob(write_teams, id, blob).await?;
         self.storage.write_blob_file(&updated)?;
         Ok(updated)
+    }
+
+    pub async fn patch_blob_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+        patch: PatchBlob,
+    ) -> Result<Blob, AppError> {
+        let current = self.get_blob_for_user(perms, id).await?;
+        let merged = CreateBlob {
+            file_type: patch.file_type.unwrap_or(current.file_type),
+            width: patch.width.unwrap_or(current.width),
+            height: patch.height.unwrap_or(current.height),
+            ocr: patch.ocr.unwrap_or(current.ocr),
+        };
+        self.update_blob_for_user(perms, id, merged).await
     }
 
     pub async fn delete_blob_for_user(
@@ -639,5 +655,149 @@ mod tests {
             .await
             .expect("nm list");
         assert!(!nm_list.iter().any(|x| x.id == b.id));
+    }
+
+    /// PATCH-BLOB-001: patch only ocr; file_type, width, height remain unchanged.
+    #[tokio::test]
+    async fn patch_blob_ocr_only_leaves_dimensions_unchanged() {
+        use shared::blob::{FileType, PatchBlob};
+
+        use crate::test_helpers::{
+            blob_service, configure_personal_team_members, create_user, personal_team_id, test_db,
+        };
+
+        let blob_dir = tempfile::tempdir().expect("tempdir");
+        let db = test_db().await.expect("db");
+        let svc = blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let owner = create_user(&db, "blob-patch-owner@test.local")
+            .await
+            .expect("u");
+        let _team_id = personal_team_id(&db, &owner).await.expect("team");
+        configure_personal_team_members(&db, &owner, &_team_id, vec![])
+            .await
+            .expect("acl");
+
+        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let blob = svc
+            .create_blob_for_user(
+                &owner_p,
+                CreateBlob {
+                    file_type: FileType::PNG,
+                    width: 100,
+                    height: 200,
+                    ocr: "original".into(),
+                },
+            )
+            .await
+            .expect("create");
+
+        let patched = svc
+            .patch_blob_for_user(
+                &owner_p,
+                &blob.id,
+                PatchBlob {
+                    file_type: None,
+                    width: None,
+                    height: None,
+                    ocr: Some("updated".into()),
+                },
+            )
+            .await
+            .expect("patch");
+
+        assert_eq!(patched.ocr, "updated");
+        assert_eq!(patched.file_type, blob.file_type, "file_type must be unchanged");
+        assert_eq!(patched.width, blob.width, "width must be unchanged");
+        assert_eq!(patched.height, blob.height, "height must be unchanged");
+    }
+
+    /// PATCH-BLOB-002: PATCH on a non-existent blob returns NotFound.
+    #[tokio::test]
+    async fn patch_blob_not_found() {
+        use shared::blob::PatchBlob;
+
+        let user = test_user();
+        let svc = BlobService::new(MockBlobRepo { blobs: vec![] }, MockTeams, NullStorage);
+        let perms = UserPermissions::new(&user, &svc.teams);
+        let r = svc
+            .patch_blob_for_user(
+                &perms,
+                "missing",
+                PatchBlob {
+                    file_type: None,
+                    width: None,
+                    height: None,
+                    ocr: Some("x".into()),
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(crate::error::AppError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn patch_blob_all_field_combinations() {
+        use shared::blob::{FileType, PatchBlob};
+        use crate::test_helpers::{blob_service, create_user, test_db};
+
+        let blob_dir = tempfile::tempdir().expect("tempdir");
+        let db = test_db().await.expect("db");
+        let svc = blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let owner = create_user(&db, "blob-patch-combos@test.local")
+            .await
+            .expect("owner");
+        let perms = UserPermissions::new(&owner, &svc.teams);
+
+        for mask in 0u8..16 {
+            let include_file_type = (mask & 0b0001) != 0;
+            let include_width = (mask & 0b0010) != 0;
+            let include_height = (mask & 0b0100) != 0;
+            let include_ocr = (mask & 0b1000) != 0;
+            let created = svc
+                .create_blob_for_user(
+                    &perms,
+                    CreateBlob {
+                        file_type: FileType::PNG,
+                        width: 100,
+                        height: 200,
+                        ocr: "base".into(),
+                    },
+                )
+                .await
+                .expect("create");
+
+            let patched = svc
+                .patch_blob_for_user(
+                    &perms,
+                    &created.id,
+                    PatchBlob {
+                        file_type: include_file_type.then_some(FileType::JPEG),
+                        width: include_width.then_some(111),
+                        height: include_height.then_some(222),
+                        ocr: include_ocr.then_some("patched".into()),
+                    },
+                )
+                .await
+                .expect("patch");
+
+            let expected_file_type = if include_file_type {
+                FileType::JPEG
+            } else {
+                FileType::PNG
+            };
+            let expected_width = if include_width { 111 } else { 100 };
+            let expected_height = if include_height { 222 } else { 200 };
+            let expected_ocr = if include_ocr { "patched" } else { "base" };
+
+            assert_eq!(
+                patched.file_type, expected_file_type,
+                "mask={mask:04b}: file_type mismatch"
+            );
+            assert_eq!(patched.width, expected_width, "mask={mask:04b}: width mismatch");
+            assert_eq!(
+                patched.height, expected_height,
+                "mask={mask:04b}: height mismatch"
+            );
+            assert_eq!(patched.ocr, expected_ocr, "mask={mask:04b}: ocr mismatch");
+        }
     }
 }

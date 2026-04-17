@@ -1,6 +1,8 @@
 pub mod api;
 pub mod auth;
 pub mod blob;
+pub use patch::Patch;
+pub mod patch;
 pub mod collection;
 pub mod error;
 pub mod like;

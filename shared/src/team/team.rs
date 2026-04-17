@@ -1,3 +1,4 @@
+use crate::patch::Patch;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "backend")]
@@ -70,4 +71,20 @@ pub struct UpdateTeam {
 pub struct TeamMemberInput {
     pub user: TeamUserRef,
     pub role: TeamRole,
+}
+
+/// Partial update for a team. Absent fields are left unchanged.
+///
+/// `members` uses three-state semantics:
+/// - absent → members list is not modified
+/// - `null` → rejected (a team must always have members)
+/// - `[…]` → replaces the entire members list
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct PatchTeam {
+    pub name: Option<String>,
+    #[serde(default)]
+    #[cfg_attr(feature = "backend", schema(value_type = Option<Vec<TeamMemberInput>>))]
+    pub members: Patch<Vec<TeamMemberInput>>,
 }

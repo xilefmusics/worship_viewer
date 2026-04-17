@@ -4,12 +4,12 @@ use crate::error::AppError;
 use crate::resources::User;
 use crate::resources::team::UserPermissions;
 use actix_web::{
-    HttpResponse, Scope, delete, get, post, put,
+    HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, ReqData},
 };
 #[allow(unused_imports)]
 use shared::team::Team;
-use shared::team::{CreateTeam, UpdateTeam};
+use shared::team::{CreateTeam, PatchTeam, UpdateTeam};
 
 use super::invitation;
 use super::service::TeamServiceHandle;
@@ -21,6 +21,7 @@ pub fn scope() -> Scope {
         .service(get_team)
         .service(create_team)
         .service(update_team)
+        .service(patch_team)
         .service(delete_team)
 }
 
@@ -132,6 +133,41 @@ async fn update_team(
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
         svc.update_team_for_user(&user, &id, payload.into_inner())
+            .await?,
+    ))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/v1/teams/{id}",
+    params(
+        ("id" = String, Path, description = "Team identifier")
+    ),
+    request_body = PatchTeam,
+    responses(
+        (status = 200, description = "Team partially updated", body = Team),
+        (status = 400, description = "Invalid request", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 403, description = "Insufficient team role", body = ErrorResponse),
+        (status = 404, description = "Team not found", body = ErrorResponse),
+        (status = 409, description = "Sole admin cannot remove all admins", body = ErrorResponse),
+        (status = 500, description = "Failed to update team", body = ErrorResponse)
+    ),
+    tag = "Teams",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[patch("/{id}")]
+async fn patch_team(
+    svc: Data<TeamServiceHandle>,
+    user: ReqData<User>,
+    id: Path<String>,
+    payload: Json<PatchTeam>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(
+        svc.patch_team_for_user(&user, &id, payload.into_inner())
             .await?,
     ))
 }
