@@ -40,7 +40,6 @@ async fn main() -> AnyResult<()> {
 
     let cookie_config = Data::new(settings.cookie_config());
     let otp_config = Data::new(settings.otp_config());
-    let printer_config = Data::new(settings.printer_config());
 
     let mail_service = MailService::new(
         settings.gmail_from.clone(),
@@ -149,7 +148,6 @@ async fn main() -> AnyResult<()> {
             .app_data(oidc_clients.clone())
             .app_data(cookie_config.clone())
             .app_data(otp_config.clone())
-            .app_data(printer_config.clone())
             .wrap(Logger::default())
             .service(auth::rest::scope())
             .service(docs::rest::scope())

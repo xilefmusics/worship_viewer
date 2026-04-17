@@ -14,12 +14,6 @@ pub struct OtpConfig {
     pub pepper: String,
 }
 
-#[derive(Clone, Debug)]
-pub struct PrinterConfig {
-    pub address: String,
-    pub api_key: String,
-}
-
 #[derive(Deserialize, Debug)]
 #[serde(default)]
 pub struct Settings {
@@ -65,9 +59,6 @@ pub struct Settings {
 
     pub static_dir: String,
     pub blob_dir: String,
-
-    pub printer_address: String,
-    pub printer_api_key: String,
 }
 
 impl Default for Settings {
@@ -103,8 +94,6 @@ impl Default for Settings {
             gmail_from: String::new(),
             static_dir: "static".into(),
             blob_dir: "blobs".into(),
-            printer_address: "http://localhost:3000".into(),
-            printer_api_key: "changeme".into(),
         }
     }
 }
@@ -127,13 +116,6 @@ impl Settings {
         OtpConfig {
             ttl_seconds: self.otp_ttl_seconds,
             pepper: self.otp_pepper.clone(),
-        }
-    }
-
-    pub fn printer_config(&self) -> PrinterConfig {
-        PrinterConfig {
-            address: self.printer_address.clone(),
-            api_key: self.printer_api_key.clone(),
         }
     }
 }

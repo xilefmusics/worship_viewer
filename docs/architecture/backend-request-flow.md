@@ -272,11 +272,9 @@ rather than JSON.
 | `liked.rs` | `trait LikedSongIds` |
 | `service.rs` | `SongService<R, T, L, C, U>` |
 | `rest.rs` | `/songs` scope |
-| `export.rs` | `Format`, `QueryParams`, `export()` |
 
 Most interconnected service: creating a song auto-adds it to the user's
 default collection via `CollectionRepository` and `UserCollectionUpdater`.
-`export.rs` is reused by setlist and collection rest handlers.
 
 ### `collection/` — Groupings of songs
 
@@ -289,7 +287,7 @@ default collection via `CollectionRepository` and `UserCollectionUpdater`.
 | `rest.rs` | `/collections` scope |
 
 `CollectionRepository` is also a dependency of `SongService` for the
-default-collection auto-add. Uses `LikedSongIds` and `song::export`.
+default-collection auto-add. Uses `LikedSongIds`.
 
 ### `setlist/` — Ordered song lists for worship sessions
 
@@ -367,13 +365,13 @@ teams on user registration.
                           ├───────────────┘
                           │
                           ▼
-                   ┌─────────────┐    ┌─────────────┐
-                   │LikedSongIds │    │ song::export │
-                   └──────┬──────┘    └──────┬───────┘
-                          │                  │
-          ┌───────────────┤    ┌─────────────┤
-          ▼               ▼    ▼             ▼
-   CollectionService  SetlistService   (song + setlist rest handlers)
+                   ┌─────────────┐
+                   │LikedSongIds │
+                   └──────┬──────┘
+                          │
+          ┌───────────────┤
+          ▼               ▼
+   CollectionService  SetlistService
 
 
    ┌─────────────┐          ┌─────────────────┐
@@ -397,5 +395,5 @@ teams on user registration.
 | **Surreal impl** | `SurrealBlobRepo` | `SurrealSongRepo` | `SurrealCollectionRepo` | `SurrealSetlistRepo` | `SurrealTeamRepo` + `SurrealTeamInvitationRepo` | `SurrealUserRepo` | `SurrealSessionRepo` |
 | **Service** | `BlobService<R,T,S>` | `SongService<R,T,L,C,U>` | `CollectionService<R,T,L>` | `SetlistService<R,T,L>` | `TeamService<R,IR,TR>` | `UserService<R,T>` | `SessionService<S,U>` |
 | **Team-scoped** | yes | yes | yes | yes | own ACL | no | no |
-| **Extra files** | `storage.rs` | `liked.rs`, `export.rs` | — | — | `resolver.rs`, `invitation_model.rs`, `invitation_repository.rs`, `invitation_surreal_repo.rs` | — | — |
-| **Extra dependencies** | `BlobStorage` | `LikedSongIds`, `CollectionRepo`, `UserCollectionUpdater` | `LikedSongIds`, `song::export` | `LikedSongIds`, `song::export` | `TeamResolver` | `TeamRepository` | `UserRepository` |
+| **Extra files** | `storage.rs` | `liked.rs` | — | — | `resolver.rs`, `invitation_model.rs`, `invitation_repository.rs`, `invitation_surreal_repo.rs` | — | — |
+| **Extra dependencies** | `BlobStorage` | `LikedSongIds`, `CollectionRepo`, `UserCollectionUpdater` | `LikedSongIds` | `LikedSongIds` | `TeamResolver` | `TeamRepository` | `UserRepository` |

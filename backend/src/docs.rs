@@ -4,7 +4,6 @@ use utoipa::{Modify, OpenApi};
 use crate::resources::blob::PatchBlob;
 use crate::resources::collection::PatchCollection;
 use crate::resources::setlist::PatchSetlist;
-use crate::resources::song::Format;
 use crate::resources::song::{PatchSong, PatchSongData};
 use crate::resources::user::Role;
 use crate::resources::{
@@ -55,7 +54,6 @@ pub mod rest {
         crate::resources::song::rest::get_songs,
         crate::resources::song::rest::get_song,
         crate::resources::song::rest::get_song_player,
-        crate::resources::song::rest::get_song_export,
         crate::resources::song::rest::create_song,
         crate::resources::song::rest::update_song,
         crate::resources::song::rest::patch_song,
@@ -65,7 +63,6 @@ pub mod rest {
         crate::resources::collection::rest::get_collections,
         crate::resources::collection::rest::get_collection,
         crate::resources::collection::rest::get_collection_player,
-        crate::resources::collection::rest::get_collection_export,
         crate::resources::collection::rest::get_collection_songs,
         crate::resources::collection::rest::create_collection,
         crate::resources::collection::rest::update_collection,
@@ -81,7 +78,6 @@ pub mod rest {
         crate::resources::setlist::rest::get_setlists,
         crate::resources::setlist::rest::get_setlist,
         crate::resources::setlist::rest::get_setlist_player,
-        crate::resources::setlist::rest::get_setlist_export,
         crate::resources::setlist::rest::get_setlist_songs,
         crate::resources::setlist::rest::create_setlist,
         crate::resources::setlist::rest::update_setlist,
@@ -130,7 +126,6 @@ pub mod rest {
             TocItem,
             ScrollType,
             Orientation,
-            Format,
             Team,
             TeamMember,
             TeamRole,

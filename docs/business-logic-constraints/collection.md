@@ -3,7 +3,7 @@
 ## Static
 
 - **BLC-COLL-001:** Every collection belongs to exactly one **owning team** (**`owner`** in responses).
-- **BLC-COLL-002:** Read paths (metadata, songs list, player, export) require **read** access to that team’s library; create/update/delete require **library edit** access. Platform **admin** MAY read but MUST NOT mutate collections solely by admin role.
+- **BLC-COLL-002:** Read paths (metadata, songs list, player) require **read** access to that team’s library; create/update/delete require **library edit** access. Platform **admin** MAY read but MUST NOT mutate collections solely by admin role.
 - **BLC-COLL-003:** **`PUT`** MUST NOT change **`owner`**; it replaces **title**, **cover** (blob id), and the ordered **songs** list.
 - **BLC-COLL-004:** **POST**/**PUT** MAY accept **song** ids the caller cannot read or ids that do not exist; the API MAY still return **201**/**200** and persist those references.
 
@@ -18,7 +18,7 @@
 - **BLC-COLL-008:** WHEN the caller is the personal-team **owner**, or **admin** / **content_maintainer** on the owning team, THEN mutations are allowed (subject to validation).
 - **BLC-COLL-009:** WHEN **POST** creates a collection THEN **`owner`** IS ALWAYS the caller’s **personal** team.
 - **BLC-COLL-010:** WHEN **GET /collections** runs THEN only collections whose **`owner`** team the caller may read are returned; optional **`q`** filters by **title**.
-- **BLC-COLL-011:** WHEN **GET /collections/{id}**, **…/songs**, **…/player**, or **…/export** runs THEN visibility matches **GET /collections/{id}**.
+- **BLC-COLL-011:** WHEN **GET /collections/{id}**, **…/songs**, or **…/player** runs THEN visibility matches **GET /collections/{id}**.
 - **BLC-COLL-012:** WHEN **GET …/songs** runs AND a stored song id does not resolve THEN the API MAY respond **500** rather than a partial list.
 - **BLC-COLL-013:** WHEN **PUT** includes a **song** id that does not exist THEN the API MAY still return **200** and persist the slot; clients SHOULD validate ids.
 - **BLC-COLL-014:** WHEN **GET …/songs** includes an entry pointing at a song the caller cannot read THEN the collection **owner** MAY still receive **200** with an entry while per-song detail MAY be incomplete.

@@ -7,9 +7,7 @@ use shared::song::Song;
 
 use crate::error::AppError;
 use crate::resources::song::LikedSongIds;
-use crate::resources::song::{ExportResult, Format, export};
 use crate::resources::team::{TeamResolver, UserPermissions};
-use crate::settings::PrinterConfig;
 
 use super::repository::SetlistRepository;
 use crate::resources::common::player_from_song_links;
@@ -57,24 +55,6 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
             tokio::try_join!(self.likes.liked_song_ids(&user_id), perms.read_teams())?;
         let links = self.repo.get_setlist_songs(read_teams, id).await?;
         player_from_song_links(liked_set, links)
-    }
-
-    pub async fn export_setlist_for_user(
-        &self,
-        perms: &UserPermissions<'_, T>,
-        id: &str,
-        format: Format,
-        printer: &PrinterConfig,
-    ) -> Result<ExportResult, AppError> {
-        let read_teams = perms.read_teams().await?;
-        let songs: Vec<Song> = self
-            .repo
-            .get_setlist_songs(read_teams, id)
-            .await?
-            .into_iter()
-            .map(|l| l.song)
-            .collect();
-        export(songs, format, printer).await
     }
 
     pub async fn setlist_songs_for_user(
@@ -163,9 +143,8 @@ mod tests {
     use crate::database::Database;
     use crate::error::AppError;
     use crate::resources::User;
-    use crate::resources::song::{Format, LikedSongIds};
+    use crate::resources::song::LikedSongIds;
     use crate::resources::team::{TeamResolver, UserPermissions};
-    use crate::settings::PrinterConfig;
     use crate::test_helpers::{
         configure_personal_team_members, create_song_with_title, create_user, personal_team_id,
         setlist_service, setlist_with_songs, test_db,
@@ -311,13 +290,6 @@ mod tests {
         .await
         .expect("acl");
         (db, owner, read_u, write_u, noperm, team_id)
-    }
-
-    fn test_printer() -> PrinterConfig {
-        PrinterConfig {
-            address: "http://127.0.0.1:9".into(),
-            api_key: "test".into(),
-        }
     }
 
     /// BLC-SETL-006: missing setlist → NotFound
@@ -749,63 +721,6 @@ mod tests {
             .setlist_player_for_user(&owner_p, "never-created-setlist")
             .await;
         assert!(matches!(pl_nf, Err(AppError::NotFound(_))));
-    }
-
-    /// BLC-SETL-009h: export succeeds for owner and reader; NotFound for noperm,
-    /// InvalidRequest for wrong-table id, NotFound for non-existent id.
-    #[tokio::test]
-    async fn blc_setl_export_acl() {
-        let (db, owner, read_u, _write_u, noperm, _team_id) = four_user_setlist_fixture().await;
-        let sl = setlist_service(&db);
-        let s1 = create_song_with_title(&db, &owner, "Song One")
-            .await
-            .expect("s1");
-        let s2 = create_song_with_title(&db, &owner, "Song Two")
-            .await
-            .expect("s2");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
-        let read_p = UserPermissions::new(&read_u, &sl.teams);
-        let noperm_p = UserPermissions::new(&noperm, &sl.teams);
-        let printer = test_printer();
-
-        let created = sl
-            .create_setlist_for_user(
-                &owner_p,
-                setlist_with_songs(
-                    "Sunday Set",
-                    &[(s1.id.as_str(), Some("1")), (s2.id.as_str(), Some("2"))],
-                ),
-            )
-            .await
-            .expect("create");
-
-        sl.export_setlist_for_user(&owner_p, &created.id, Format::WorshipPro, &printer)
-            .await
-            .expect("export owner");
-
-        sl.export_setlist_for_user(&read_p, &created.id, Format::WorshipPro, &printer)
-            .await
-            .expect("export reader");
-
-        let ex_noperm = sl
-            .export_setlist_for_user(&noperm_p, &created.id, Format::WorshipPro, &printer)
-            .await;
-        assert!(matches!(ex_noperm, Err(AppError::NotFound(_))));
-
-        let ex_bad = sl
-            .export_setlist_for_user(&owner_p, "song:invalid", Format::WorshipPro, &printer)
-            .await;
-        assert!(matches!(ex_bad, Err(AppError::InvalidRequest(_))));
-
-        let ex_nf = sl
-            .export_setlist_for_user(
-                &owner_p,
-                "never-created-setlist",
-                Format::WorshipPro,
-                &printer,
-            )
-            .await;
-        assert!(matches!(ex_nf, Err(AppError::NotFound(_))));
     }
 
     /// BLC-SETL-009i: update succeeds for owner (title changes) and for write user;
