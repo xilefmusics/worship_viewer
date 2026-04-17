@@ -372,41 +372,8 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 403
 
-  # BLC: BLC-SESS-006, BLC-USER-011
-  - name: delete-session-for-user-admin
-    steps:
-      - type: http
-        method: DELETE
-        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
-        headers:
-          Authorization: "Bearer {{.token_admin}}"
-        assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.create-session-primary.sessionid_primary}}"
-
-  # BLC: BLC-AUTH-002
-  - name: delete-session-for-user-admin-invalid-token
-    steps:
-      - type: http
-        method: DELETE
-        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-secondary.sessionid_secondary}}"
-        headers:
-          Authorization: "Bearer invalid"
-        assertions:
-          - result.statuscode ShouldEqual 401
-
-  # BLC: BLC-SESS-006, BLC-USER-011
-  - name: delete-session-for-user-admin-notfound
-    steps:
-      - type: http
-        method: DELETE
-        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
-        headers:
-          Authorization: "Bearer {{.token_admin}}"
-        assertions:
-          - result.statuscode ShouldEqual 404
-
   # Security: BLC-SESS-004 — caller may not delete another user's session via /me (IDOR check)
+  # Must run while create-session-primary.sessionid_primary is still valid (before admin deletes it).
   - name: create-idor-other-user
     steps:
       - type: http
@@ -480,6 +447,40 @@ testcases:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
           - result.statuscode ShouldEqual 200
+
+  # BLC: BLC-SESS-006, BLC-USER-011
+  - name: delete-session-for-user-admin
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.create-session-primary.sessionid_primary}}"
+
+  # BLC: BLC-AUTH-002
+  - name: delete-session-for-user-admin-invalid-token
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-secondary.sessionid_secondary}}"
+        headers:
+          Authorization: "Bearer invalid"
+        assertions:
+          - result.statuscode ShouldEqual 401
+
+  # BLC: BLC-SESS-006, BLC-USER-011
+  - name: delete-session-for-user-admin-notfound
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-session-primary.sessionid_primary}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
 
   # BLC: BLC-USER-011, BLC-SESS-006
   - name: delete-session-user
