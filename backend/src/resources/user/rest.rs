@@ -9,7 +9,6 @@ use actix_web::{
     HttpResponse, Scope, delete, get, post,
     web::{self, Data, Json, Path, Query, ReqData},
 };
-use actix_web::http::header;
 use shared::api::ListQuery;
 
 pub fn scope() -> Scope {
