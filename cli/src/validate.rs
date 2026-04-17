@@ -37,4 +37,3 @@ pub fn validate_resource_id(id: &str) -> Result<&str, ValidationError> {
 
     Ok(id)
 }
-

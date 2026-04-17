@@ -706,7 +706,10 @@ mod tests {
             .expect("patch");
 
         assert_eq!(patched.ocr, "updated");
-        assert_eq!(patched.file_type, blob.file_type, "file_type must be unchanged");
+        assert_eq!(
+            patched.file_type, blob.file_type,
+            "file_type must be unchanged"
+        );
         assert_eq!(patched.width, blob.width, "width must be unchanged");
         assert_eq!(patched.height, blob.height, "height must be unchanged");
     }
@@ -736,8 +739,8 @@ mod tests {
 
     #[tokio::test]
     async fn patch_blob_all_field_combinations() {
-        use shared::blob::{FileType, PatchBlob};
         use crate::test_helpers::{blob_service, create_user, test_db};
+        use shared::blob::{FileType, PatchBlob};
 
         let blob_dir = tempfile::tempdir().expect("tempdir");
         let db = test_db().await.expect("db");
@@ -792,7 +795,10 @@ mod tests {
                 patched.file_type, expected_file_type,
                 "mask={mask:04b}: file_type mismatch"
             );
-            assert_eq!(patched.width, expected_width, "mask={mask:04b}: width mismatch");
+            assert_eq!(
+                patched.width, expected_width,
+                "mask={mask:04b}: width mismatch"
+            );
             assert_eq!(
                 patched.height, expected_height,
                 "mask={mask:04b}: height mismatch"

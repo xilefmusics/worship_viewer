@@ -21,15 +21,11 @@ pub async fn dispatch(
     match &cli.command {
         Command::Schema(args) => match &args.command {
             Some(SchemaCommand::Inspect { domain, action }) => {
-                schema::handle_schema_inspect(
-                    client,
-                    cli.output.clone(),
-                    domain,
-                    action,
-                )
-                .await
+                schema::handle_schema_inspect(client, cli.output.clone(), domain, action).await
             }
-            None => schema::handle_schema(client, cli.output.clone(), args.path_prefix.clone()).await,
+            None => {
+                schema::handle_schema(client, cli.output.clone(), args.path_prefix.clone()).await
+            }
         },
         Command::Auth { command } => {
             auth::handle_auth(client, cli.output.clone(), cli.dry_run, command).await

@@ -1051,14 +1051,12 @@ mod tests {
             if include_songs {
                 assert_eq!(patched.songs.len(), 1, "mask={mask:02b}: expected 1 song");
                 assert_eq!(
-                    patched.songs[0].id,
-                    s2.id,
+                    patched.songs[0].id, s2.id,
                     "mask={mask:02b}: songs replacement mismatch"
                 );
             } else {
                 assert_eq!(
-                    patched.songs[0].id,
-                    s1.id,
+                    patched.songs[0].id, s1.id,
                     "mask={mask:02b}: songs should remain unchanged"
                 );
             }

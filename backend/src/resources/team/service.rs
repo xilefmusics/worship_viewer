@@ -965,10 +965,17 @@ mod tests {
             } else {
                 before.name.as_str()
             };
-            assert_eq!(patched.name, expected_name, "mask={mask:02b}: name mismatch");
+            assert_eq!(
+                patched.name, expected_name,
+                "mask={mask:02b}: name mismatch"
+            );
 
             if include_members {
-                assert_eq!(patched.members.len(), 2, "mask={mask:02b}: members mismatch");
+                assert_eq!(
+                    patched.members.len(),
+                    2,
+                    "mask={mask:02b}: members mismatch"
+                );
                 assert!(
                     patched.members.iter().all(|m| m.user.id != fx.guest.id),
                     "mask={mask:02b}: guest should be removed from member list"

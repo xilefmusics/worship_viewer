@@ -1,10 +1,10 @@
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
-use crate::resources::song::Format;
 use crate::resources::blob::PatchBlob;
 use crate::resources::collection::PatchCollection;
 use crate::resources::setlist::PatchSetlist;
+use crate::resources::song::Format;
 use crate::resources::song::{PatchSong, PatchSongData};
 use crate::resources::user::Role;
 use crate::resources::{

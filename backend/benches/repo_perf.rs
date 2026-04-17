@@ -51,7 +51,7 @@ fn bench_repo_hot_paths(c: &mut Criterion) {
     c.bench_function("get_setlists_empty", |b| {
         b.iter(|| {
             rt.block_on(async {
-                repo.get_setlists(black_box(teams.clone()), black_box(ListQuery::default()))
+                repo.get_setlists(black_box(teams.as_slice()), black_box(ListQuery::default()))
                     .await
                     .unwrap();
             });

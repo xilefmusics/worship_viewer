@@ -1,9 +1,9 @@
+use crate::patch::Patch;
 use chordlib::inputs::chord_pro;
 use chordlib::outputs::{FormatChordPro, FormatHTML};
 use chordlib::types::{ChordRepresentation, Section, SimpleChord, Song as SongData};
-use std::collections::BTreeMap;
-use crate::patch::Patch;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 #[cfg(feature = "backend")]

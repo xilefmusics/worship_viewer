@@ -4,8 +4,8 @@ use async_trait::async_trait;
 
 use shared::api::ListQuery;
 use shared::like::LikeStatus;
-use shared::player::Player;
 use shared::patch::Patch;
+use shared::player::Player;
 use shared::song::{
     CreateSong, Link as SongLink, LinkOwned as SongLinkOwned, PatchSong, PatchSongData, Song,
 };
@@ -78,7 +78,10 @@ impl<
     U: UserCollectionUpdater,
 > SongService<R, T, L, C, U>
 {
-    fn merge_song_data(mut current: chordlib::types::Song, patch: PatchSongData) -> chordlib::types::Song {
+    fn merge_song_data(
+        mut current: chordlib::types::Song,
+        patch: PatchSongData,
+    ) -> chordlib::types::Song {
         if let Some(v) = patch.titles {
             current.titles = v;
         }
@@ -808,7 +811,7 @@ mod tests {
             let include_not_a_song = (mask & 0b001) != 0;
             let include_blobs = (mask & 0b010) != 0;
             let include_data = (mask & 0b100) != 0;
-            let expected_not_a_song = if include_not_a_song { true } else { false };
+            let expected_not_a_song = include_not_a_song;
             let expected_blobs = if include_blobs {
                 vec!["patched_blob".to_string()]
             } else {

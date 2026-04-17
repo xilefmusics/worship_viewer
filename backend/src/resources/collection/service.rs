@@ -550,7 +550,11 @@ mod tests {
 
         assert_eq!(patched.title, "New Title");
         assert_eq!(patched.cover, col.cover, "cover must be unchanged");
-        assert_eq!(patched.songs.len(), col.songs.len(), "songs must be unchanged");
+        assert_eq!(
+            patched.songs.len(),
+            col.songs.len(),
+            "songs must be unchanged"
+        );
     }
 
     /// PATCH-COLL-002: patch with only cover changes cover; title and songs remain unchanged.
@@ -672,11 +676,13 @@ mod tests {
                 "mask={mask:03b}: cover mismatch"
             );
             if include_songs {
-                assert_eq!(patched.songs[0].id, s2.id, "mask={mask:03b}: songs mismatch");
+                assert_eq!(
+                    patched.songs[0].id, s2.id,
+                    "mask={mask:03b}: songs mismatch"
+                );
             } else {
                 assert_eq!(
-                    patched.songs[0].id,
-                    s1.id,
+                    patched.songs[0].id, s1.id,
                     "mask={mask:03b}: songs should remain unchanged"
                 );
             }
