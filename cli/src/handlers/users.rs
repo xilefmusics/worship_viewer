@@ -56,8 +56,8 @@ pub async fn handle_users(
                 output::print_json(&planned, &output)?;
                 return Ok(());
             }
-            let user = client.delete_user(&id).await?;
-            output::print_json(&user, &output)
+            client.delete_user(&id).await?;
+            output::print_json(&serde_json::json!({"deleted": true}), &output)
         }
     }
 }

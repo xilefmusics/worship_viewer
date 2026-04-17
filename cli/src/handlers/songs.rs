@@ -92,8 +92,8 @@ pub async fn handle_songs(
                 output::print_json(&planned, &output)?;
                 return Ok(());
             }
-            let song = client.delete_song(&id).await?;
-            output::print_json(&song, &output)
+            client.delete_song(&id).await?;
+            output::print_json(&serde_json::json!({"deleted": true}), &output)
         }
         SongsCommand::LikeStatus { id } => {
             validate_resource_id(&id)?;

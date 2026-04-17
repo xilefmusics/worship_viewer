@@ -1,4 +1,5 @@
 use actix_web::http::StatusCode;
+use actix_web::web::JsonConfig;
 use actix_web::{HttpResponse, ResponseError};
 use serde_json::json;
 use thiserror::Error;
@@ -20,6 +21,21 @@ pub enum AppError {
     TooManyRequests(String),
     #[error("internal error: {0}")]
     Internal(String),
+}
+
+/// Return an actix-web `JsonConfig` that maps deserialization errors
+/// (including unknown fields from `deny_unknown_fields`) to a well-formed
+/// 400 `AppError::InvalidRequest` response instead of the default plain-text
+/// 400 from actix-web.
+pub fn json_config() -> JsonConfig {
+    JsonConfig::default().error_handler(|err, _req| {
+        let message = err.to_string();
+        actix_web::error::InternalError::from_response(
+            err,
+            AppError::InvalidRequest(message).error_response(),
+        )
+        .into()
+    })
 }
 
 impl AppError {
@@ -79,7 +95,11 @@ impl From<surrealdb::Error> for AppError {
                 | surrealdb::error::Db::InvalidUrl { .. }
                 | surrealdb::error::Db::SetCheck { .. }
                 | surrealdb::error::Db::TableCheck { .. } => {
-                    AppError::invalid_request(dberr.to_string())
+                    // Log the raw DB error (contains internal field/index names) and
+                    // return a sanitized message so database internals are not leaked
+                    // to clients.
+                    error!("database validation error: {dberr}");
+                    AppError::invalid_request("invalid request")
                 }
                 surrealdb::error::Db::NoRecordFound | surrealdb::error::Db::IdNotFound { .. } => {
                     AppError::NotFound("record not found".into())
@@ -104,6 +124,21 @@ impl From<reqwest::Error> for AppError {
     }
 }
 
+impl AppError {
+    /// Stable machine-readable code for this error variant.
+    pub fn code(&self) -> &'static str {
+        match self {
+            AppError::Unauthorized => "unauthorized",
+            AppError::Forbidden => "forbidden",
+            AppError::NotFound(_) => "not_found",
+            AppError::InvalidRequest(_) => "invalid_request",
+            AppError::Conflict(_) => "conflict",
+            AppError::TooManyRequests(_) => "too_many_requests",
+            AppError::Internal(_) => "internal",
+        }
+    }
+}
+
 impl ResponseError for AppError {
     fn status_code(&self) -> StatusCode {
         match self {
@@ -121,6 +156,13 @@ impl ResponseError for AppError {
         if matches!(self, AppError::Internal(_)) {
             error!("{}", self);
         }
-        HttpResponse::build(self.status_code()).json(json!({ "error": self.to_string() }))
+        // For Internal errors, strip the internal detail from the client response.
+        let message = if matches!(self, AppError::Internal(_)) {
+            "internal server error".to_owned()
+        } else {
+            self.to_string()
+        };
+        HttpResponse::build(self.status_code())
+            .json(json!({ "code": self.code(), "error": message }))
     }
 }

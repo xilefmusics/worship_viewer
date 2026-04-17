@@ -15,6 +15,7 @@ pub struct Collection {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct CreateCollection {
     pub title: String,

@@ -6,6 +6,7 @@ pub mod docs;
 pub mod error;
 pub mod frontend;
 pub mod mail;
+pub mod request_id;
 pub mod resources;
 pub mod settings;
 

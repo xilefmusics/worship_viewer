@@ -42,6 +42,14 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         self.repo.get_blobs(read_teams, pagination).await
     }
 
+    pub async fn count_blobs_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+    ) -> Result<u64, AppError> {
+        let read_teams = perms.read_teams().await?;
+        self.repo.count_blobs(read_teams).await
+    }
+
     pub async fn get_blob_for_user(
         &self,
         perms: &UserPermissions<'_, T>,
@@ -170,6 +178,10 @@ mod tests {
             _pagination: ListQuery,
         ) -> Result<Vec<Blob>, AppError> {
             Ok(self.blobs.clone())
+        }
+
+        async fn count_blobs(&self, _read_teams: &[Thing]) -> Result<u64, AppError> {
+            Ok(self.blobs.len() as u64)
         }
 
         async fn get_blob(&self, _read_teams: &[Thing], _id: &str) -> Result<Blob, AppError> {

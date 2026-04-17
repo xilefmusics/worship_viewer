@@ -11,13 +11,10 @@ use crate::resources::song::SongRecord;
 
 /// Parse and validate a resource ID for the given table.
 ///
-/// Accepts both plain IDs (`"abc"`) and `Thing` strings (`"setlist:abc"`).
-/// Returns an error when the parsed table prefix does not match `table`.
+/// Accepts only plain IDs (`"abc"`). The `table:id` form is rejected with a `400` error
+/// to prevent two distinct URLs from mapping to the same resource.
 pub fn resource_id(table: &str, id: &str) -> Result<(String, String), AppError> {
-    if let Ok(thing) = id.parse::<Thing>() {
-        if thing.tb == table {
-            return Ok((thing.tb, thing.id.to_string()));
-        }
+    if id.contains(':') {
         return Err(AppError::invalid_request(format!("invalid {table} id")));
     }
     Ok((table.to_owned(), id.to_owned()))
@@ -145,15 +142,13 @@ mod tests {
     }
 
     #[test]
-    fn resource_id_thing_string_matching_table() {
-        assert_eq!(
-            resource_id("setlist", "setlist:myid").unwrap(),
-            ("setlist".to_owned(), "myid".to_owned())
-        );
+    fn resource_id_rejects_table_colon_id() {
+        let err = resource_id("setlist", "setlist:myid").unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
     }
 
     #[test]
-    fn resource_id_thing_string_wrong_table() {
+    fn resource_id_rejects_any_colon_form() {
         let err = resource_id("setlist", "song:foo").unwrap_err();
         assert!(matches!(err, AppError::InvalidRequest(_)));
     }
@@ -161,11 +156,11 @@ mod tests {
     #[test]
     fn resource_id_works_for_different_tables() {
         assert_eq!(
-            resource_id("song", "song:s1").unwrap(),
+            resource_id("song", "s1").unwrap(),
             ("song".to_owned(), "s1".to_owned())
         );
         assert_eq!(
-            resource_id("blob", "blob:b1").unwrap(),
+            resource_id("blob", "b1").unwrap(),
             ("blob".to_owned(), "b1".to_owned())
         );
     }

@@ -11,6 +11,7 @@ pub struct Like {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct LikeStatus {
     pub liked: bool,

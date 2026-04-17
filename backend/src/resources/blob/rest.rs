@@ -1,4 +1,5 @@
 use actix_files::NamedFile;
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Bytes, Data, Json, Path as PathParam, Query, ReqData},
@@ -36,11 +37,12 @@ pub fn scope(blob_upload_max_bytes: usize) -> Scope {
     get,
     path = "/api/v1/blobs",
     params(
-        ("page" = Option<u32>, Query, description = "Optional page index (zero-based)"),
-        ("page_size" = Option<u32>, Query, description = "Optional page size (number of items per page)")
+        ("page" = Option<u32>, Query, description = "Page index, zero-based. Defaults to 0."),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50.")
     ),
     responses(
-        (status = 200, description = "Return all blobs", body = [Blob]),
+        (status = 200, description = "Return all blobs. `X-Total-Count` header contains the total number of blobs.", body = [Blob]),
+        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 500, description = "Failed to fetch blobs", body = ErrorResponse)
     ),
@@ -56,8 +58,19 @@ async fn get_blobs(
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
+    let query = query
+        .into_inner()
+        .validate()
+        .map_err(AppError::invalid_request)?;
     let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(svc.list_blobs_for_user(&perms, query.into_inner()).await?))
+    let blobs = svc.list_blobs_for_user(&perms, query).await?;
+    let total = svc.count_blobs_for_user(&perms).await?;
+    Ok(HttpResponse::Ok()
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
+        .json(blobs))
 }
 
 #[utoipa::path(
@@ -193,7 +206,7 @@ async fn patch_blob(
         ("id" = String, Path, description = "Blob identifier")
     ),
     responses(
-        (status = 200, description = "Delete a blob", body = Blob),
+        (status = 204, description = "Blob deleted"),
         (status = 400, description = "Invalid blob identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Blob not found", body = ErrorResponse),
@@ -212,7 +225,8 @@ async fn delete_blob(
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(svc.delete_blob_for_user(&perms, &id).await?))
+    svc.delete_blob_for_user(&perms, &id).await?;
+    Ok(HttpResponse::NoContent().finish())
 }
 
 #[utoipa::path(
@@ -222,7 +236,13 @@ async fn delete_blob(
         ("id" = String, Path, description = "Blob identifier")
     ),
     responses(
-        (status = 200, description = "Download the blob image", body = Vec<u8>),
+        (
+            status = 200,
+            description = "Binary image data. `Content-Type` reflects the stored file type \
+                           (`image/png`, `image/jpeg`, or `image/svg`).",
+            content_type = "image/*",
+            body = Vec<u8>
+        ),
         (status = 400, description = "Invalid blob identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Blob not found", body = ErrorResponse),

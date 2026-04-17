@@ -521,15 +521,14 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 3
+          - result.statuscode ShouldEqual 400
 
   # BLC: BLC-LP-007, BLC-COLL-010, BLC-COLL-005, BLC-LP-001, BLC-LP-002
   - name: get-collections-owner-page-only
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/collections?page=1"
+        url: "{{.base_url}}/api/v1/collections?page=0"
         headers:
           Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
         assertions:
@@ -546,7 +545,7 @@ testcases:
           Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldHaveLength 3
+          - result.bodyjson ShouldHaveLength 1
 
   # BLC: BLC-LP-008, BLC-COLL-010, BLC-COLL-005, BLC-LP-001, BLC-LP-002
   - name: get-collections-owner-page-beyond-range
@@ -1145,8 +1144,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.post-collection-for-delete.collectionid}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-COLL-008, BLC-COLL-015, BLC-USER-011
   - name: delete-collection-success-write-user
@@ -1157,8 +1155,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-collection-write-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.post-collection-for-delete-write.collectionid}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-HTTP-001
   - name: delete-collection-invalid-id
@@ -1233,8 +1230,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-collection-owner-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.post-collection-cover-blob.blobid}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-BLOB-014, BLC-COLL-017
   - name: get-collection-after-cover-delete
@@ -1257,7 +1253,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-COLL-007, BLC-COLL-006, BLC-USER-011
   - name: delete-collection-read-user
@@ -1268,7 +1264,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-011
   - name: delete-collection-write-user
@@ -1279,7 +1275,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-COLL-007, BLC-COLL-006, BLC-USER-011
   - name: delete-collection-noperm-user
@@ -1290,5 +1286,5 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 

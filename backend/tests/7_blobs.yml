@@ -460,7 +460,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 400
 
   # BLC: BLC-LP-007
   - name: get-blobs-owner-page-only
@@ -860,8 +860,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-blob-owner-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.post-blob-for-delete.blobid}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-BLOB-008, BLC-BLOB-013
   - name: delete-blob-success-write
@@ -872,8 +871,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-blob-write-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.post-blob-for-delete-write.blobid}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-HTTP-001
   - name: delete-blob-invalid-id
@@ -1016,7 +1014,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-011
   - name: delete-blob-read-user
@@ -1027,7 +1025,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-011
   - name: delete-blob-write-user
@@ -1038,7 +1036,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-011
   - name: delete-blob-noperm-user
@@ -1049,5 +1047,5 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 

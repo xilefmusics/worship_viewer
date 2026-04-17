@@ -68,7 +68,7 @@ pub async fn get_session_for_current_user(
         ("id" = String, Path, description = "Session identifier")
     ),
     responses(
-        (status = 200, description = "Deletes a session for the current user", body = Session),
+        (status = 204, description = "Session deleted"),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Session not found for current user", body = ErrorResponse),
         (status = 500, description = "Failed to delete session", body = ErrorResponse)
@@ -85,7 +85,8 @@ pub async fn delete_session_for_current_user(
     user: ReqData<User>,
     path: Path<SessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.delete_session_for_user(&path.id, &user.id).await?))
+    svc.delete_session_for_user(&path.id, &user.id).await?;
+    Ok(HttpResponse::NoContent().finish())
 }
 
 #[utoipa::path(
@@ -181,7 +182,7 @@ pub async fn get_session_for_user(
         ("id" = String, Path, description = "Session identifier")
     ),
     responses(
-        (status = 200, description = "Deletes a session for the specified user", body = Session),
+        (status = 204, description = "Session deleted"),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 403, description = "Admin role required", body = ErrorResponse),
         (status = 404, description = "Session not found for specified user", body = ErrorResponse),
@@ -198,7 +199,8 @@ pub async fn delete_session_for_user(
     svc: Data<SessionServiceHandle>,
     path: Path<UserSessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.delete_session_for_user(&path.id, &path.user_id).await?))
+    svc.delete_session_for_user(&path.id, &path.user_id).await?;
+    Ok(HttpResponse::NoContent().finish())
 }
 
 #[derive(Debug, Deserialize)]

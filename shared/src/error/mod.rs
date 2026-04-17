@@ -1,9 +1,16 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// Standard error envelope returned by all API error responses.
+///
+/// `code` is a stable, machine-readable identifier; `error` is a human-readable
+/// description.
 #[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ErrorResponse {
+    /// Stable machine-readable error code, e.g. `"unauthorized"`, `"not_found"`.
+    pub code: String,
+    /// Human-readable description of the error.
     pub error: String,
 }
 

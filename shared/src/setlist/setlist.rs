@@ -14,6 +14,7 @@ pub struct Setlist {
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct CreateSetlist {
     pub title: String,

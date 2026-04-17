@@ -957,18 +957,19 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 400
 
   # BLC: BLC-LP-007
   - name: get-songs-page-only-admin
     steps:
       - type: http
         method: GET
-        url: "{{.base_url}}/api/v1/songs?page=1"
+        url: "{{.base_url}}/api/v1/songs?page=0"
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
           - result.statuscode ShouldEqual 200
+          - result.bodyjson.__Len__ ShouldBeGreaterThanOrEqualTo 2
 
   # BLC: BLC-LP-007
   - name: get-songs-page-size-only-admin
@@ -980,6 +981,7 @@ testcases:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
           - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
 
   # BLC: BLC-LP-008
   - name: get-songs-page-beyond-range-admin
@@ -1490,8 +1492,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.post-song-for-delete.songid}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-SONG-008, BLC-SONG-014
   - name: delete-song-success-with-write-permission
@@ -1502,8 +1503,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-write-user-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.post-song-for-delete-with-write-permission.songid}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-HTTP-001
   - name: delete-song-invalid-id
@@ -1696,8 +1696,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
-          - result.bodyjson.id ShouldEqual "{{.put-song-cascade-target.songid}}"
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-SONG-015, BLC-SETL-014, BLC-COLL-019
   - name: get-setlist-after-song-delete
@@ -2154,7 +2153,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   - name: delete-song-owner-user
     steps:
@@ -2164,7 +2163,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-011
   - name: delete-read-user
@@ -2175,7 +2174,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-011
   - name: delete-write-user
@@ -2186,7 +2185,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-USER-011
   - name: delete-no-permission-user
@@ -2197,5 +2196,5 @@ testcases:
         headers:
           Authorization: "Bearer {{.token_admin}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 

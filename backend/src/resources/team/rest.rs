@@ -179,7 +179,7 @@ async fn patch_team(
         ("id" = String, Path, description = "Team identifier")
     ),
     responses(
-        (status = 200, description = "Shared team deleted", body = Team),
+        (status = 204, description = "Team deleted"),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 403, description = "Cannot delete personal team or insufficient role", body = ErrorResponse),
         (status = 404, description = "Team not found", body = ErrorResponse),
@@ -198,5 +198,6 @@ async fn delete_team(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.resolver);
-    Ok(HttpResponse::Ok().json(svc.delete_team_for_user(&perms, &id).await?))
+    svc.delete_team_for_user(&perms, &id).await?;
+    Ok(HttpResponse::NoContent().finish())
 }

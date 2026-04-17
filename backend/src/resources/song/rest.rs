@@ -1,3 +1,4 @@
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
@@ -35,12 +36,13 @@ pub fn scope() -> Scope {
     get,
     path = "/api/v1/songs",
     params(
-        ("page" = Option<u32>, Query, description = "Optional page index (zero-based)"),
-        ("page_size" = Option<u32>, Query, description = "Optional page size (number of items per page)"),
+        ("page" = Option<u32>, Query, description = "Page index, zero-based. Defaults to 0."),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50."),
         ("q" = Option<String>, Query, description = "Full-text search query (titles, artists, line lyrics); uses text_search analyzer (stemming)")
     ),
     responses(
-        (status = 200, description = "Return all songs", body = [Song]),
+        (status = 200, description = "Return all songs. `X-Total-Count` header contains the total number of matching songs.", body = [Song]),
+        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 500, description = "Failed to fetch songs", body = ErrorResponse)
     ),
@@ -56,8 +58,20 @@ async fn get_songs(
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
+    let query = query
+        .into_inner()
+        .validate()
+        .map_err(AppError::invalid_request)?;
     let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(svc.list_songs_for_user(&perms, query.into_inner()).await?))
+    let q_ref = query.q.clone();
+    let songs = svc.list_songs_for_user(&perms, query).await?;
+    let total = svc.count_songs_for_user(&perms, q_ref.as_deref()).await?;
+    Ok(HttpResponse::Ok()
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
+        .json(songs))
 }
 
 #[utoipa::path(
@@ -222,7 +236,7 @@ async fn patch_song(
         ("id" = String, Path, description = "Song identifier")
     ),
     responses(
-        (status = 200, description = "Delete a song", body = Song),
+        (status = 204, description = "Song deleted"),
         (status = 400, description = "Invalid song identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Song not found", body = ErrorResponse),
@@ -241,7 +255,8 @@ async fn delete_song(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(svc.delete_song_for_user(&perms, &id).await?))
+    svc.delete_song_for_user(&perms, &id).await?;
+    Ok(HttpResponse::NoContent().finish())
 }
 
 #[utoipa::path(

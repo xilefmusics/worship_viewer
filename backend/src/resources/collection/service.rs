@@ -38,6 +38,15 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         self.repo.get_collections(read_teams, pagination).await
     }
 
+    pub async fn count_collections_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        q: Option<&str>,
+    ) -> Result<u64, AppError> {
+        let read_teams = perms.read_teams().await?;
+        self.repo.count_collections(read_teams, q).await
+    }
+
     pub async fn get_collection_for_user(
         &self,
         perms: &UserPermissions<'_, T>,

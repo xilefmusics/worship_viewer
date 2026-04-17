@@ -34,8 +34,8 @@ pub async fn handle_sessions(
                 output::print_json(&planned, &output)?;
                 return Ok(());
             }
-            let session = client.delete_my_session(&id).await?;
-            output::print_json(&session, &output)
+            client.delete_my_session(&id).await?;
+            output::print_json(&serde_json::json!({"deleted": true}), &output)
         }
         SessionsCommand::CreateForUser { user_id } => {
             validate_resource_id(&user_id)?;
@@ -76,8 +76,8 @@ pub async fn handle_sessions(
                 output::print_json(&planned, &output)?;
                 return Ok(());
             }
-            let session = client.delete_session_for_user(&user_id, &id).await?;
-            output::print_json(&session, &output)
+            client.delete_session_for_user(&user_id, &id).await?;
+            output::print_json(&serde_json::json!({"deleted": true}), &output)
         }
     }
 }

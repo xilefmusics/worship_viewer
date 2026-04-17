@@ -726,7 +726,7 @@ testcases:
         headers:
           Authorization: "Bearer {{.team-create-lead-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 204
 
   # BLC: BLC-TEAM-007, BLC-TEAM-018
   - name: team-lead-get-deleted-shared-not-found

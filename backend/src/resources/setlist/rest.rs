@@ -1,3 +1,4 @@
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
@@ -35,12 +36,13 @@ pub fn scope() -> Scope {
     get,
     path = "/api/v1/setlists",
     params(
-        ("page" = Option<u32>, Query, description = "Optional page index (zero-based)"),
-        ("page_size" = Option<u32>, Query, description = "Optional page size (number of items per page)"),
+        ("page" = Option<u32>, Query, description = "Page index, zero-based. Defaults to 0."),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50."),
         ("q" = Option<String>, Query, description = "Full-text search query (title); uses text_search analyzer (stemming)")
     ),
     responses(
-        (status = 200, description = "Return all setlists", body = [Setlist]),
+        (status = 200, description = "Return all setlists. `X-Total-Count` header contains the total number of matching setlists.", body = [Setlist]),
+        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 500, description = "Failed to fetch setlists", body = ErrorResponse)
     ),
@@ -56,11 +58,22 @@ async fn get_setlists(
     user: ReqData<User>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
+    let query = query
+        .into_inner()
+        .validate()
+        .map_err(AppError::invalid_request)?;
     let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(
-        svc.list_setlists_for_user(&perms, query.into_inner())
-            .await?,
-    ))
+    let q_ref = query.q.clone();
+    let setlists = svc.list_setlists_for_user(&perms, query).await?;
+    let total = svc
+        .count_setlists_for_user(&perms, q_ref.as_deref())
+        .await?;
+    Ok(HttpResponse::Ok()
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
+        .json(setlists))
 }
 
 #[utoipa::path(
@@ -253,7 +266,7 @@ async fn patch_setlist(
         ("id" = String, Path, description = "Setlist identifier")
     ),
     responses(
-        (status = 200, description = "Delete a setlist", body = Setlist),
+        (status = 204, description = "Setlist deleted"),
         (status = 400, description = "Invalid setlist identifier", body = ErrorResponse),
         (status = 401, description = "Authentication required", body = ErrorResponse),
         (status = 404, description = "Setlist not found", body = ErrorResponse),
@@ -272,5 +285,6 @@ async fn delete_setlist(
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(svc.delete_setlist_for_user(&perms, &id).await?))
+    svc.delete_setlist_for_user(&perms, &id).await?;
+    Ok(HttpResponse::NoContent().finish())
 }

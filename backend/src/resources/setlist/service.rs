@@ -36,6 +36,15 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         self.repo.get_setlists(read_teams, pagination).await
     }
 
+    pub async fn count_setlists_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        q: Option<&str>,
+    ) -> Result<u64, AppError> {
+        let read_teams = perms.read_teams().await?;
+        self.repo.count_setlists(read_teams, q).await
+    }
+
     pub async fn get_setlist_for_user(
         &self,
         perms: &UserPermissions<'_, T>,
@@ -166,6 +175,14 @@ mod tests {
             _pagination: ListQuery,
         ) -> Result<Vec<Setlist>, AppError> {
             Ok(self.setlists.clone())
+        }
+
+        async fn count_setlists(
+            &self,
+            _read_teams: &[Thing],
+            _q: Option<&str>,
+        ) -> Result<u64, AppError> {
+            Ok(self.setlists.len() as u64)
         }
 
         async fn get_setlist(&self, _read_teams: &[Thing], _id: &str) -> Result<Setlist, AppError> {
@@ -472,8 +489,9 @@ mod tests {
         assert_eq!(noperm_list.len(), 0);
     }
 
-    /// BLC-SETL-009c: partial pagination parameters (only page or only page_size) and
-    /// zero page_size fall back to returning all results.
+    /// Partial pagination parameters use server defaults:
+    /// - only `page` supplied → page_size defaults to 50
+    /// - only `page_size` supplied → page defaults to 0
     #[tokio::test]
     async fn blc_setl_list_partial_pagination() {
         let (db, owner, _read_u, _write_u, _noperm, _team_id) = four_user_setlist_fixture().await;
@@ -490,27 +508,27 @@ mod tests {
             .await
             .expect("B");
 
+        // page=1 with default page_size=50 → offset=50, but only 2 items exist → empty
         let page_only = sl
             .list_setlists_for_user(&owner_p, ListQuery::new().with_page(1))
             .await
             .expect("page only");
-        assert_eq!(page_only.len(), 2, "page without page_size returns all");
+        assert_eq!(
+            page_only.len(),
+            0,
+            "page=1 with default page_size beyond last page"
+        );
 
+        // page_size=1 with default page=0 → first item only
         let page_size_only = sl
             .list_setlists_for_user(&owner_p, ListQuery::new().with_page_size(1))
             .await
             .expect("page_size only");
         assert_eq!(
             page_size_only.len(),
-            2,
-            "page_size without page returns all"
+            1,
+            "page_size=1 with default page=0 returns 1 item"
         );
-
-        let zero_size = sl
-            .list_setlists_for_user(&owner_p, ListQuery::new().with_page(0).with_page_size(0))
-            .await
-            .expect("zero size");
-        assert_eq!(zero_size.len(), 2, "page_size=0 returns all");
     }
 
     /// BLC-SETL-009d: full-text search with `q` narrows results; blank/whitespace-only q
