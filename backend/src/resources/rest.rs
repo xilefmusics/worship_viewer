@@ -2,10 +2,10 @@ use super::{blob, collection, setlist, song, team, user};
 use crate::auth::middleware::RequireUser;
 use actix_web::{dev::HttpServiceFactory, web};
 
-pub fn scope() -> impl HttpServiceFactory {
+pub fn scope(blob_upload_max_bytes: usize) -> impl HttpServiceFactory {
     web::scope("/api/v1")
         .wrap(RequireUser)
-        .service(blob::rest::scope())
+        .service(blob::rest::scope(blob_upload_max_bytes))
         .service(collection::rest::scope())
         .service(setlist::rest::scope())
         .service(song::rest::scope())

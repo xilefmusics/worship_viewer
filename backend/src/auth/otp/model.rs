@@ -12,7 +12,13 @@ pub trait Model {
         pepper: &str,
         ttl_seconds: u64,
     ) -> Result<(), AppError>;
-    async fn validate_otp(&self, email: &str, code: &str, pepper: &str) -> Result<(), AppError>;
+    async fn validate_otp(
+        &self,
+        email: &str,
+        code: &str,
+        pepper: &str,
+        max_attempts: u32,
+    ) -> Result<(), AppError>;
 }
 
 impl Model for Database {
@@ -32,7 +38,8 @@ impl Model for Database {
                 UPSERT $thing CONTENT {
                   code: $code,
                   expires_at: time::now() + duration::from::secs($ttl_secs),
-                  created_at: time::now()
+                  created_at: time::now(),
+                  failed_attempts: 0
                 };
                 "#,
             )
@@ -44,29 +51,44 @@ impl Model for Database {
         Ok(())
     }
 
-    async fn validate_otp(&self, email: &str, code: &str, pepper: &str) -> Result<(), AppError> {
+    async fn validate_otp(
+        &self,
+        email: &str,
+        code: &str,
+        pepper: &str,
+        max_attempts: u32,
+    ) -> Result<(), AppError> {
         #[derive(Deserialize)]
         struct Outcome {
             exists: i64,
             valid: i64,
+            failed_attempts: i64,
         }
 
-        let outcome = self.db
+        // Query explanation:
+        // 1. Clean up expired OTPs.
+        // 2. On a valid code: delete the row and mark valid=1.
+        // 3. On an invalid code with an active row: increment failed_attempts and return current count.
+        let outcome = self
+            .db
             .query(
                 r#"
             DELETE otp WHERE expires_at <= time::now();
             LET $thing = type::thing('otp', $email);
-            LET $exists = array::len(SELECT * FROM $thing);
-            LET $valid = array::len(SELECT * FROM $thing WHERE code = $code AND expires_at > time::now());
+            LET $exists = array::len(SELECT * FROM $thing WHERE expires_at > time::now());
+            LET $valid  = array::len(SELECT * FROM $thing WHERE code = $code AND expires_at > time::now());
             DELETE $thing WHERE code = $code AND expires_at > time::now() RETURN NONE;
-            RETURN { exists: $exists, valid: $valid };
-                "#
+            UPDATE $thing SET failed_attempts += 1 WHERE code != $code AND expires_at > time::now() RETURN NONE;
+            LET $attempts = (SELECT VALUE failed_attempts FROM $thing WHERE expires_at > time::now())[0] ?? 0;
+            RETURN { exists: $exists, valid: $valid, failed_attempts: $attempts };
+                "#,
             )
             .bind(("email", email.to_owned()))
             .bind(("code", otp_hmac(email, code, pepper)))
             .await
             .map_err(AppError::database)?
-            .take::<Option<Outcome>>(5).map_err(AppError::database)?
+            .take::<Option<Outcome>>(7)
+            .map_err(AppError::database)?
             .ok_or_else(|| AppError::invalid_request("no otp request for that email"))?;
 
         if outcome.valid > 0 {
@@ -74,6 +96,17 @@ impl Model for Database {
         }
         if outcome.exists == 0 {
             return Err(AppError::invalid_request("no otp request for that email"));
+        }
+        if outcome.failed_attempts >= max_attempts as i64 {
+            // The row is still present but locked; delete it so further requests are also rejected.
+            self.db
+                .query("DELETE type::thing('otp', $email)")
+                .bind(("email", email.to_owned()))
+                .await
+                .map_err(AppError::database)?;
+            return Err(AppError::too_many_requests(
+                "too many incorrect otp attempts; request a new code",
+            ));
         }
         Err(AppError::invalid_request("otp code is invalid"))
     }

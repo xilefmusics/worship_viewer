@@ -1,7 +1,7 @@
 use actix_files::NamedFile;
 use actix_web::{
     HttpResponse, Scope, delete, get, patch, post, put,
-    web::{self, Data, Json, Path as PathParam, Query, ReqData},
+    web::{self, Bytes, Data, Json, Path as PathParam, Query, ReqData},
 };
 
 #[allow(unused_imports)]
@@ -16,7 +16,7 @@ use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::team::UserPermissions;
 use shared::api::ListQuery;
 
-pub fn scope() -> Scope {
+pub fn scope(blob_upload_max_bytes: usize) -> Scope {
     web::scope("/blobs")
         .service(get_blobs)
         .service(get_blob)
@@ -25,6 +25,11 @@ pub fn scope() -> Scope {
         .service(patch_blob)
         .service(delete_blob)
         .service(download_blob_image)
+        .service(
+            web::scope("")
+                .app_data(web::PayloadConfig::new(blob_upload_max_bytes))
+                .service(upload_blob_data),
+        )
 }
 
 #[utoipa::path(
@@ -238,4 +243,41 @@ async fn download_blob_image(
     let perms = UserPermissions::new(&user, &svc.teams);
     svc.open_blob_data_file_for_user(&perms, &id.into_inner())
         .await
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/blobs/{id}/data",
+    params(
+        ("id" = String, Path, description = "Blob identifier")
+    ),
+    request_body(
+        content = Vec<u8>,
+        content_type = "application/octet-stream",
+        description = "Raw binary content to store for this blob"
+    ),
+    responses(
+        (status = 204, description = "Blob content uploaded successfully"),
+        (status = 400, description = "Invalid blob identifier", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 404, description = "Blob not found or write access denied", body = ErrorResponse),
+        (status = 413, description = "Payload too large", body = ErrorResponse),
+        (status = 500, description = "Failed to store blob content", body = ErrorResponse)
+    ),
+    tag = "Blobs",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[put("/{id}/data")]
+async fn upload_blob_data(
+    svc: Data<BlobServiceHandle>,
+    user: ReqData<User>,
+    id: PathParam<String>,
+    body: Bytes,
+) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::new(&user, &svc.teams);
+    svc.upload_blob_data_for_user(&perms, &id, &body).await?;
+    Ok(HttpResponse::NoContent().finish())
 }

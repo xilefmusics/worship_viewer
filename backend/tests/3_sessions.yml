@@ -406,6 +406,81 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 404
 
+  # Security: BLC-SESS-004 — caller may not delete another user's session via /me (IDOR check)
+  - name: create-idor-other-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: |
+          {
+            "email": "sessionidor@test.com"
+          }
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          idor_userid:
+            from: result.bodyjson.id
+
+  - name: create-idor-other-session
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.create-idor-other-user.idor_userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          idor_sessionid:
+            from: result.bodyjson.id
+
+  # Caller A (create-session-primary) tries to delete caller B's session via /me — must be 404
+  - name: delete-me-session-cross-user-idor
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/me/sessions/{{.create-idor-other-session.idor_sessionid}}"
+        headers:
+          Authorization: "Bearer {{.create-session-primary.sessionid_primary}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # Admin: wrong user_id in path for an existing session must return 404, not 200
+  - name: get-session-for-wrong-user-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-idor-other-session.idor_sessionid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  - name: delete-session-for-wrong-user-id
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-session-user.userid}}/sessions/{{.create-idor-other-session.idor_sessionid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 404
+
+  # Teardown: clean up the extra user created for IDOR testing
+  - name: delete-idor-other-user
+    steps:
+      - type: http
+        method: DELETE
+        url: "{{.base_url}}/api/v1/users/{{.create-idor-other-user.idor_userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+
   # BLC: BLC-USER-011, BLC-SESS-006
   - name: delete-session-user
     steps:

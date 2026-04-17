@@ -82,9 +82,10 @@ pub async fn get_session_for_current_user(
 #[delete("/me/sessions/{id}")]
 pub async fn delete_session_for_current_user(
     svc: Data<SessionServiceHandle>,
+    user: ReqData<User>,
     path: Path<SessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.delete_session(&path.id).await?))
+    Ok(HttpResponse::Ok().json(svc.delete_session_for_user(&path.id, &user.id).await?))
 }
 
 #[utoipa::path(
@@ -169,7 +170,7 @@ pub async fn get_session_for_user(
     svc: Data<SessionServiceHandle>,
     path: Path<UserSessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.get_session(&path.id).await?))
+    Ok(HttpResponse::Ok().json(svc.get_session_for_user(&path.id, &path.user_id).await?))
 }
 
 #[utoipa::path(
@@ -197,7 +198,7 @@ pub async fn delete_session_for_user(
     svc: Data<SessionServiceHandle>,
     path: Path<UserSessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.delete_session(&path.id).await?))
+    Ok(HttpResponse::Ok().json(svc.delete_session_for_user(&path.id, &path.user_id).await?))
 }
 
 #[derive(Debug, Deserialize)]
@@ -212,7 +213,6 @@ pub struct UserIdPath {
 
 #[derive(Debug, Deserialize)]
 struct UserSessionPath {
-    #[allow(dead_code)]
     user_id: String,
     id: String,
 }

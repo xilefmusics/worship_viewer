@@ -40,6 +40,14 @@ impl<S: SessionRepository, U: UserRepository> SessionService<S, U> {
         self.repo.delete_session(id).await
     }
 
+    pub async fn delete_session_for_user(
+        &self,
+        id: &str,
+        user_id: &str,
+    ) -> Result<Session, AppError> {
+        self.repo.delete_session_for_user(id, user_id).await
+    }
+
     pub async fn get_sessions_by_user_id(&self, user_id: &str) -> Result<Vec<Session>, AppError> {
         self.repo.get_sessions_by_user_id(user_id).await
     }
@@ -161,6 +169,18 @@ mod tests {
             self.sessions
                 .iter()
                 .find(|s| s.id == id)
+                .cloned()
+                .ok_or_else(|| AppError::NotFound("session not found".into()))
+        }
+
+        async fn delete_session_for_user(
+            &self,
+            id: &str,
+            user_id: &str,
+        ) -> Result<Session, AppError> {
+            self.sessions
+                .iter()
+                .find(|s| s.id == id && s.user.id == user_id)
                 .cloned()
                 .ok_or_else(|| AppError::NotFound("session not found".into()))
         }

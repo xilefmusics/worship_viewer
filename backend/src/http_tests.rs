@@ -87,7 +87,7 @@ fn build_app(
         .app_data(cookie_cfg)
         .app_data(printer_cfg)
         .service(docs::rest::scope())
-        .service(resources::rest::scope())
+        .service(resources::rest::scope(20 * 1024 * 1024))
 }
 
 /// Create a session for `user` and return its raw ID (used as Bearer token).

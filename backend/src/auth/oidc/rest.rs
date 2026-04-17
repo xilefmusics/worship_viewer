@@ -34,6 +34,7 @@ use crate::settings::CookieConfig;
     responses(
         (status = 302, description = "Redirect to OIDC provider login page"),
         (status = 400, description = "Invalid login request", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded; slow down and retry", body = ErrorResponse),
         (status = 500, description = "Failed to prepare login flow", body = ErrorResponse)
     ),
     tag = "Auth"

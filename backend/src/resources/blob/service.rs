@@ -100,6 +100,23 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         Ok(deleted)
     }
 
+    pub async fn upload_blob_data_for_user(
+        &self,
+        perms: &UserPermissions<'_, T>,
+        id: &str,
+        data: &[u8],
+    ) -> Result<(), AppError> {
+        // Reuse update_blob for the permission check: it scopes by write_teams and returns
+        // 404 if the caller has no write access, which is exactly the right behavior here.
+        let write_teams = perms.write_teams().await?;
+        let blob = self
+            .repo
+            .get_blob(write_teams, id)
+            .await
+            .map_err(|_| AppError::NotFound("blob not found or write access denied".into()))?;
+        self.storage.write_blob_bytes(&blob, data)
+    }
+
     pub async fn open_blob_data_file_for_user(
         &self,
         perms: &UserPermissions<'_, T>,
@@ -212,6 +229,9 @@ mod tests {
 
     impl BlobStorage for NullStorage {
         fn write_blob_file(&self, _blob: &Blob) -> Result<(), AppError> {
+            Ok(())
+        }
+        fn write_blob_bytes(&self, _blob: &Blob, _data: &[u8]) -> Result<(), AppError> {
             Ok(())
         }
         fn delete_blob_file(&self, _blob: &Blob) {}
