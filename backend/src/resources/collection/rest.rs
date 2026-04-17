@@ -13,9 +13,8 @@ use crate::resources::collection::CreateCollection;
 use crate::resources::collection::PatchCollection;
 use crate::resources::collection::service::CollectionServiceHandle;
 #[allow(unused_imports)]
-use crate::resources::song::{Format, QueryParams, Song};
+use crate::resources::song::Song;
 use crate::resources::team::UserPermissions;
-use crate::settings::PrinterConfig;
 use shared::api::ListQuery;
 #[allow(unused_imports)]
 use shared::player::Player;
@@ -26,7 +25,6 @@ pub fn scope() -> Scope {
         .service(get_collection)
         .service(get_collection_songs)
         .service(get_collection_player)
-        .service(get_collection_export)
         .service(create_collection)
         .service(update_collection)
         .service(patch_collection)
@@ -121,46 +119,6 @@ async fn get_collection_player(
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(svc.collection_player_for_user(&perms, &id).await?))
-}
-
-#[utoipa::path(
-    get,
-    path = "/api/v1/collections/{id}/export",
-    params(
-        ("id" = String, Path, description = "Collection identifier"),
-        ("format" = Format, Query, description = "Optional export format: zip, wp, cp, pdf (defaults to wp)")
-    ),
-    responses(
-        (
-            status = 200,
-            description = "Download exported collection file",
-            body = Vec<u8>,
-            content_type = "application/octet-stream"
-        ),
-        (status = 400, description = "Invalid collection identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Collection not found", body = ErrorResponse),
-        (status = 500, description = "Failed to export collection", body = ErrorResponse)
-    ),
-    tag = "Collections",
-    security(
-        ("SessionCookie" = []),
-        ("SessionToken" = [])
-    )
-)]
-#[get("/{id}/export")]
-async fn get_collection_export(
-    svc: Data<CollectionServiceHandle>,
-    user: ReqData<User>,
-    printer: Data<PrinterConfig>,
-    id: Path<String>,
-    query: Query<QueryParams>,
-) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(svc
-        .export_collection_for_user(&perms, &id, query.into_inner().format, &printer)
-        .await?
-        .into())
 }
 
 #[utoipa::path(

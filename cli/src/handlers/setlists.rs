@@ -10,7 +10,7 @@ pub async fn handle_setlists(
     client: &ApiClient<DefaultHttpClient>,
     output: OutputFormat,
     dry_run: bool,
-    effective_base_url: &str,
+    _effective_base_url: &str,
     cmd: &SetlistsCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
@@ -45,16 +45,6 @@ pub async fn handle_setlists(
             validate_resource_id(&id)?;
             let player = client.get_setlist_player(&id).await?;
             output::print_json(&player, &output)
-        }
-        SetlistsCommand::ExportUrl { id, format } => {
-            validate_resource_id(&id)?;
-            let url_path = client.get_setlist_export_url(&id, &format).await;
-            let full_url = format!(
-                "{}/{}",
-                effective_base_url.trim_end_matches('/'),
-                url_path.trim_start_matches('/')
-            );
-            output::print_json(&serde_json::json!({ "url": full_url }), &output)
         }
         SetlistsCommand::Create { json } => {
             let payload: CreateSetlist = serde_json::from_str(&json)?;

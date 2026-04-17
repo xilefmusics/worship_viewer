@@ -10,7 +10,7 @@ pub async fn handle_songs(
     client: &ApiClient<DefaultHttpClient>,
     output: OutputFormat,
     dry_run: bool,
-    effective_base_url: &str,
+    _effective_base_url: &str,
     cmd: &SongsCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
@@ -37,16 +37,6 @@ pub async fn handle_songs(
             validate_resource_id(&id)?;
             let player = client.get_song_player(&id).await?;
             output::print_json(&player, &output)
-        }
-        SongsCommand::ExportUrl { id, format } => {
-            validate_resource_id(&id)?;
-            let url_path = client.get_song_export_url(&id, &format).await;
-            let full_url = format!(
-                "{}/{}",
-                effective_base_url.trim_end_matches('/'),
-                url_path.trim_start_matches('/')
-            );
-            output::print_json(&serde_json::json!({ "url": full_url }), &output)
         }
         SongsCommand::Create { json } => {
             let payload: CreateSong = serde_json::from_str(&json)?;
