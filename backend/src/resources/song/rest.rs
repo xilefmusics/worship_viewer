@@ -3,7 +3,6 @@ use actix_web::{
     HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
 };
-use actix_web::http::header;
 
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
