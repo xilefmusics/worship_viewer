@@ -17,7 +17,11 @@ pub trait CollectionRepository: Send + Sync {
     ) -> Result<Vec<Collection>, AppError>;
 
     /// Count all collections visible to `read_teams`, optionally filtered by `q`.
-    async fn count_collections(&self, read_teams: &[Thing], q: Option<&str>) -> Result<u64, AppError>;
+    async fn count_collections(
+        &self,
+        read_teams: &[Thing],
+        q: Option<&str>,
+    ) -> Result<u64, AppError>;
 
     async fn get_collection(&self, read_teams: &[Thing], id: &str) -> Result<Collection, AppError>;
 

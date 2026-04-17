@@ -89,8 +89,7 @@ impl SongRepository for SurrealSongRepo {
     async fn count_songs(&self, read_teams: &[Thing], q: Option<&str>) -> Result<u64, AppError> {
         let db = self.inner();
         let q_nonempty = q.is_some_and(|s| !s.trim().is_empty());
-        let mut query =
-            String::from("SELECT count() FROM song WHERE owner IN $teams");
+        let mut query = String::from("SELECT count() FROM song WHERE owner IN $teams");
         if q_nonempty {
             query.push_str(
                 " AND (data.titles @0@ $q OR data.artists @1@ $q OR search_content @2@ $q)",

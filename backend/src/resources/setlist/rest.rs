@@ -1,8 +1,8 @@
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
 };
-use actix_web::http::header;
 
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
@@ -65,9 +65,14 @@ async fn get_setlists(
     let perms = UserPermissions::new(&user, &svc.teams);
     let q_ref = query.q.clone();
     let setlists = svc.list_setlists_for_user(&perms, query).await?;
-    let total = svc.count_setlists_for_user(&perms, q_ref.as_deref()).await?;
+    let total = svc
+        .count_setlists_for_user(&perms, q_ref.as_deref())
+        .await?;
     Ok(HttpResponse::Ok()
-        .insert_header((header::HeaderName::from_static("x-total-count"), total.to_string()))
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
         .json(setlists))
 }
 

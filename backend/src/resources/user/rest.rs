@@ -4,11 +4,11 @@ use crate::auth::middleware::RequireAdmin;
 use crate::docs::ErrorResponse;
 use crate::error::AppError;
 use crate::resources::user::service::UserServiceHandle;
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, Scope, delete, get, post,
     web::{self, Data, Json, Path, Query, ReqData},
 };
-use actix_web::http::header;
 use shared::api::ListQuery;
 
 pub fn scope() -> Scope {
@@ -109,7 +109,10 @@ async fn get_users(
     let users = svc.get_users(query).await?;
     let total = svc.count_users().await?;
     Ok(HttpResponse::Ok()
-        .insert_header((header::HeaderName::from_static("x-total-count"), total.to_string()))
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
         .json(users))
 }
 

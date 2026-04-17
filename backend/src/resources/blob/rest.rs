@@ -1,9 +1,9 @@
 use actix_files::NamedFile;
+use actix_web::http::header;
 use actix_web::{
     HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Bytes, Data, Json, Path as PathParam, Query, ReqData},
 };
-use actix_web::http::header;
 
 #[allow(unused_imports)]
 use crate::docs::ErrorResponse;
@@ -66,7 +66,10 @@ async fn get_blobs(
     let blobs = svc.list_blobs_for_user(&perms, query).await?;
     let total = svc.count_blobs_for_user(&perms).await?;
     Ok(HttpResponse::Ok()
-        .insert_header((header::HeaderName::from_static("x-total-count"), total.to_string()))
+        .insert_header((
+            header::HeaderName::from_static("x-total-count"),
+            total.to_string(),
+        ))
         .json(blobs))
 }
 

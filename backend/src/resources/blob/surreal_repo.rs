@@ -40,9 +40,8 @@ impl BlobRepository for SurrealBlobRepo {
     ) -> Result<Vec<Blob>, AppError> {
         let db = self.inner();
         let (offset, limit) = pagination.effective_offset_limit();
-        let query = String::from(
-            "SELECT * FROM blob WHERE owner IN $teams LIMIT $limit START $start",
-        );
+        let query =
+            String::from("SELECT * FROM blob WHERE owner IN $teams LIMIT $limit START $start");
 
         let mut response = db
             .db

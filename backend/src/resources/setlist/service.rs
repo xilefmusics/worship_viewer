@@ -513,14 +513,22 @@ mod tests {
             .list_setlists_for_user(&owner_p, ListQuery::new().with_page(1))
             .await
             .expect("page only");
-        assert_eq!(page_only.len(), 0, "page=1 with default page_size beyond last page");
+        assert_eq!(
+            page_only.len(),
+            0,
+            "page=1 with default page_size beyond last page"
+        );
 
         // page_size=1 with default page=0 → first item only
         let page_size_only = sl
             .list_setlists_for_user(&owner_p, ListQuery::new().with_page_size(1))
             .await
             .expect("page_size only");
-        assert_eq!(page_size_only.len(), 1, "page_size=1 with default page=0 returns 1 item");
+        assert_eq!(
+            page_size_only.len(),
+            1,
+            "page_size=1 with default page=0 returns 1 item"
+        );
     }
 
     /// BLC-SETL-009d: full-text search with `q` narrows results; blank/whitespace-only q

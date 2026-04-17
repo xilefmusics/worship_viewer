@@ -80,8 +80,7 @@ impl CollectionRepository for SurrealCollectionRepo {
             count: u64,
         }
         let q_nonempty = q.is_some_and(|s| !s.trim().is_empty());
-        let mut query =
-            String::from("SELECT count() FROM collection WHERE owner IN $teams");
+        let mut query = String::from("SELECT count() FROM collection WHERE owner IN $teams");
         if q_nonempty {
             query.push_str(" AND title @0@ $q");
         }

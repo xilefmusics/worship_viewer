@@ -70,18 +70,13 @@ impl SetlistRepository for SurrealSetlistRepo {
             .collect())
     }
 
-    async fn count_setlists(
-        &self,
-        read_teams: &[Thing],
-        q: Option<&str>,
-    ) -> Result<u64, AppError> {
+    async fn count_setlists(&self, read_teams: &[Thing], q: Option<&str>) -> Result<u64, AppError> {
         #[derive(Deserialize)]
         struct CountResult {
             count: u64,
         }
         let q_nonempty = q.is_some_and(|s| !s.trim().is_empty());
-        let mut query =
-            String::from("SELECT count() FROM setlist WHERE owner IN $teams");
+        let mut query = String::from("SELECT count() FROM setlist WHERE owner IN $teams");
         if q_nonempty {
             query.push_str(" AND title @0@ $q");
         }
