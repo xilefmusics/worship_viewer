@@ -149,10 +149,6 @@ pub enum SongsCommand {
     Player {
         id: String,
     },
-    ExportUrl {
-        id: String,
-        format: String,
-    },
     Create {
         #[arg(long)]
         json: String,
@@ -198,10 +194,6 @@ pub enum CollectionsCommand {
     Player {
         id: String,
     },
-    ExportUrl {
-        id: String,
-        format: String,
-    },
     Create {
         #[arg(long)]
         json: String,
@@ -239,10 +231,6 @@ pub enum SetlistsCommand {
     },
     Player {
         id: String,
-    },
-    ExportUrl {
-        id: String,
-        format: String,
     },
     Create {
         #[arg(long)]

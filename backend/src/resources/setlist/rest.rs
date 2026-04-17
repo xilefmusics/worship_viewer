@@ -13,9 +13,8 @@ use crate::resources::setlist::PatchSetlist;
 use crate::resources::setlist::Setlist;
 use crate::resources::setlist::SetlistServiceHandle;
 #[allow(unused_imports)]
-use crate::resources::song::{Format, QueryParams, Song};
+use crate::resources::song::Song;
 use crate::resources::team::UserPermissions;
-use crate::settings::PrinterConfig;
 use shared::api::ListQuery;
 #[allow(unused_imports)]
 use shared::player::Player;
@@ -26,7 +25,6 @@ pub fn scope() -> Scope {
         .service(get_setlist)
         .service(get_setlist_songs)
         .service(get_setlist_player)
-        .service(get_setlist_export)
         .service(create_setlist)
         .service(update_setlist)
         .service(patch_setlist)
@@ -121,46 +119,6 @@ async fn get_setlist_player(
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(svc.setlist_player_for_user(&perms, &id).await?))
-}
-
-#[utoipa::path(
-    get,
-    path = "/api/v1/setlists/{id}/export",
-    params(
-        ("id" = String, Path, description = "Setlist identifier"),
-        ("format" = Format, Query, description = "Optional export format: zip, wp, cp, pdf (defaults to wp)")
-    ),
-    responses(
-        (
-            status = 200,
-            description = "Download exported setlist file",
-            body = Vec<u8>,
-            content_type = "application/octet-stream"
-        ),
-        (status = 400, description = "Invalid setlist identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Setlist not found", body = ErrorResponse),
-        (status = 500, description = "Failed to export setlist", body = ErrorResponse)
-    ),
-    tag = "Setlists",
-    security(
-        ("SessionCookie" = []),
-        ("SessionToken" = [])
-    )
-)]
-#[get("/{id}/export")]
-async fn get_setlist_export(
-    svc: Data<SetlistServiceHandle>,
-    user: ReqData<User>,
-    printer: Data<PrinterConfig>,
-    id: Path<String>,
-    query: Query<QueryParams>,
-) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(svc
-        .export_setlist_for_user(&perms, &id, query.into_inner().format, &printer)
-        .await?
-        .into())
 }
 
 #[utoipa::path(

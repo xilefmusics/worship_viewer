@@ -28,7 +28,7 @@ use crate::database::Database;
 use crate::docs;
 use crate::resources;
 use crate::resources::User;
-use crate::settings::{CookieConfig, PrinterConfig};
+use crate::settings::CookieConfig;
 use crate::test_helpers::{create_song_with_title, create_user, session_service, test_db};
 
 // ─── Slice 4A: test harness helpers ──────────────────────────────────────────
@@ -69,11 +69,6 @@ fn build_app(
         post_login_path: "/".into(),
     });
 
-    let printer_cfg = Data::new(PrinterConfig {
-        address: "http://localhost:3000".into(),
-        api_key: "test".into(),
-    });
-
     App::new()
         .app_data(Data::from(db.clone()))
         .app_data(Data::new(blob_service(&db, blob_dir)))
@@ -85,7 +80,6 @@ fn build_app(
         .app_data(Data::new(user_service(&db)))
         .app_data(Data::new(session_service(&db)))
         .app_data(cookie_cfg)
-        .app_data(printer_cfg)
         .service(docs::rest::scope())
         .service(resources::rest::scope(20 * 1024 * 1024))
 }

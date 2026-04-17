@@ -191,10 +191,6 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.get(&format!("api/v1/songs/{id}/player")).await
     }
 
-    pub async fn get_song_export_url(&self, id: &str, format: &str) -> String {
-        format!("api/v1/songs/{id}/export?format={format}")
-    }
-
     pub async fn create_song(&self, payload: CreateSong) -> Result<Song, NetworkClientError> {
         self.client.post("api/v1/songs", &payload).await
     }
@@ -265,10 +261,6 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn get_collection_export_url(&self, id: &str, format: &str) -> String {
-        format!("api/v1/collections/{id}/export?format={format}")
-    }
-
     pub async fn create_collection(
         &self,
         payload: CreateCollection,
@@ -324,10 +316,6 @@ impl<C: HttpClient> ApiClient<C> {
         self.client
             .get(&format!("api/v1/setlists/{id}/player"))
             .await
-    }
-
-    pub async fn get_setlist_export_url(&self, id: &str, format: &str) -> String {
-        format!("api/v1/setlists/{id}/export?format={format}")
     }
 
     pub async fn create_setlist(

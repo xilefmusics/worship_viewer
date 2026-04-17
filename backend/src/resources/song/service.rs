@@ -19,11 +19,9 @@ use crate::resources::user::SurrealUserRepo;
 use crate::resources::user::UserRepository;
 use shared::collection::CreateCollection;
 
-use super::export::{ExportResult, Format, export};
 use super::liked::LikedSongIds;
 use super::repository::SongRepository;
 use super::surreal_repo::SurrealSongRepo;
-use crate::settings::PrinterConfig;
 
 /// Abstraction over updating a user's default collection reference.
 #[async_trait]
@@ -173,18 +171,6 @@ impl<
                 .get_song_like(read_teams, &perms.user().id, id)
                 .await?,
         }))
-    }
-
-    pub async fn export_song_for_user(
-        &self,
-        perms: &UserPermissions<'_, T>,
-        id: &str,
-        format: Format,
-        printer: &PrinterConfig,
-    ) -> Result<ExportResult, AppError> {
-        let read_teams = perms.read_teams().await?;
-        let song = self.repo.get_song(read_teams, id).await?;
-        export(vec![song], format, printer).await
     }
 
     pub async fn create_song_for_user(

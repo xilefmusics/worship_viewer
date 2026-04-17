@@ -249,11 +249,6 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub fn get_song_export_url(&self, id: &str, format: &str) -> String {
-        Self::build_path(&format!("/api/v1/songs/{}/export?format={}", id, format))
-    }
-
-    #[allow(dead_code)]
     #[allow(dead_code)]
     pub async fn create_song(&self, payload: &CreateSong) -> Result<Song, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
@@ -336,14 +331,6 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub fn get_collection_export_url(&self, id: &str, format: &str) -> String {
-        Self::build_path(&format!(
-            "/api/v1/collections/{}/export?format={}",
-            id, format
-        ))
-    }
-
-    #[allow(dead_code)]
     #[allow(dead_code)]
     pub async fn create_collection(
         &self,
@@ -412,11 +399,6 @@ impl Api {
             .get_setlist_player(id)
             .await
             .map_err(|e| self.handle_error(e))
-    }
-
-    #[allow(dead_code)]
-    pub fn get_setlist_export_url(&self, id: &str, format: &str) -> String {
-        Self::build_path(&format!("/api/v1/setlists/{}/export?format={}", id, format))
     }
 
     #[allow(dead_code)]

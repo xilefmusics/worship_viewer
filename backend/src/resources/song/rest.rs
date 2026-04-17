@@ -12,10 +12,7 @@ use crate::resources::song::PatchSong;
 #[allow(unused_imports)]
 use crate::resources::song::Song;
 use crate::resources::song::service::SongServiceHandle;
-#[allow(unused_imports)]
-use crate::resources::song::{Format, QueryParams};
 use crate::resources::team::UserPermissions;
-use crate::settings::PrinterConfig;
 use shared::api::ListQuery;
 use shared::like::LikeStatus;
 #[allow(unused_imports)]
@@ -26,7 +23,6 @@ pub fn scope() -> Scope {
         .service(get_songs)
         .service(get_song)
         .service(get_song_player)
-        .service(get_song_export)
         .service(create_song)
         .service(update_song)
         .service(patch_song)
@@ -120,46 +116,6 @@ async fn get_song_player(
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(svc.song_player_for_user(&perms, &id).await?))
-}
-
-#[utoipa::path(
-    get,
-    path = "/api/v1/songs/{id}/export",
-    params(
-        ("id" = String, Path, description = "Song identifier"),
-        ("format" = super::Format, Query, description = "Optional export format: zip, wp, cp, pdf (defaults to wp)")
-    ),
-    responses(
-        (
-            status = 200,
-            description = "Download exported song file",
-            body = Vec<u8>,
-            content_type = "application/octet-stream"
-        ),
-        (status = 400, description = "Invalid song identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Song not found", body = ErrorResponse),
-        (status = 500, description = "Failed to export song", body = ErrorResponse)
-    ),
-    tag = "Songs",
-    security(
-        ("SessionCookie" = []),
-        ("SessionToken" = [])
-    )
-)]
-#[get("/{id}/export")]
-async fn get_song_export(
-    svc: Data<SongServiceHandle>,
-    user: ReqData<User>,
-    printer: Data<PrinterConfig>,
-    id: Path<String>,
-    query: Query<QueryParams>,
-) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(svc
-        .export_song_for_user(&perms, &id, query.into_inner().format, &printer)
-        .await?
-        .into())
 }
 
 #[utoipa::path(

@@ -13,6 +13,3 @@ pub use service::{SongService, SongServiceHandle};
 pub use surreal_repo::SurrealSongRepo;
 
 pub mod rest;
-
-mod export;
-pub use export::{ExportResult, Format, QueryParams, export};

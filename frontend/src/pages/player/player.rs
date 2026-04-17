@@ -46,42 +46,6 @@ impl Query {
         }
     }
 
-    //fn export_path(&self, format: &str, api: &Api) -> Option<String> {
-    //    let format = format.to_lowercase();
-    //    if let Some(setlist_id) = &self.setlist {
-    //        Some(api.get_setlist_export_url(setlist_id, &format))
-    //    } else if let Some(collection_id) = &self.collection {
-    //        Some(api.get_collection_export_url(collection_id, &format))
-    //    } else if let Some(id) = &self.id {
-    //        Some(api.get_song_export_url(id, &format))
-    //    } else {
-    //        None
-    //    }
-    //}
-    //
-    //fn export_handler(
-    //    &self,
-    //    format: &str,
-    //    api: Api,
-    //    export_active: UseStateHandle<bool>,
-    //) -> Callback<MouseEvent> {
-    //    if let Some(url) = self.export_path(format, &api) {
-    //        Callback::from(move |_: MouseEvent| {
-    //            let url = url.clone();
-    //            let export_active = export_active.clone();
-    //            wasm_bindgen_futures::spawn_local(async move {
-    //                export_active.set(false);
-    //                web_sys::window()
-    //                    .unwrap()
-    //                    .location()
-    //                    .set_href(&url)
-    //                    .unwrap();
-    //            });
-    //        })
-    //    } else {
-    //        Callback::from(|_: MouseEvent| {})
-    //    }
-    //}
 }
 
 #[function_component(PlayerPage)]

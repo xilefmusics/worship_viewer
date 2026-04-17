@@ -15,12 +15,6 @@ pub struct OtpConfig {
     pub max_attempts: u32,
 }
 
-#[derive(Clone, Debug)]
-pub struct PrinterConfig {
-    pub address: String,
-    pub api_key: String,
-}
-
 #[derive(Deserialize, Debug)]
 #[serde(default)]
 pub struct Settings {
@@ -71,9 +65,6 @@ pub struct Settings {
     /// Default: 20 MiB.
     pub blob_upload_max_bytes: usize,
 
-    pub printer_address: String,
-    pub printer_api_key: String,
-
     /// Requests per second allowed per IP on sensitive auth endpoints (OTP + login).
     /// Default: 1 request per second with a burst of 5.
     pub auth_rate_limit_rps: u64,
@@ -115,8 +106,6 @@ impl Default for Settings {
             static_dir: "static".into(),
             blob_dir: "blobs".into(),
             blob_upload_max_bytes: 20 * 1024 * 1024,
-            printer_address: "http://localhost:3000".into(),
-            printer_api_key: "changeme".into(),
             auth_rate_limit_rps: 1,
             auth_rate_limit_burst: 5,
         }
@@ -142,13 +131,6 @@ impl Settings {
             ttl_seconds: self.otp_ttl_seconds,
             pepper: self.otp_pepper.clone(),
             max_attempts: self.otp_max_attempts,
-        }
-    }
-
-    pub fn printer_config(&self) -> PrinterConfig {
-        PrinterConfig {
-            address: self.printer_address.clone(),
-            api_key: self.printer_api_key.clone(),
         }
     }
 }
