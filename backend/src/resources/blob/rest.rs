@@ -273,10 +273,20 @@ async fn download_blob_image(
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::new(&user, &svc.teams);
-    let file = svc
-        .open_blob_data_file_for_user(&perms, &id.into_inner())
-        .await?;
+    let id = id.into_inner();
+    let (blob, file) = svc.open_blob_data_file_for_user(&perms, &id).await?;
+    let filename = blob
+        .file_name()
+        .unwrap_or_else(|| format!("blob-{}", blob.id));
     let mut res = file.into_response(&req);
+    res.headers_mut().insert(
+        header::CONTENT_DISPOSITION,
+        header::HeaderValue::from_str(&format!(
+            "attachment; filename=\"{}\"",
+            filename.replace('\\', "\\\\").replace('"', "\\\"")
+        ))
+        .map_err(|e| AppError::Internal(e.to_string()))?,
+    );
     res.headers_mut().insert(
         header::CACHE_CONTROL,
         header::HeaderValue::from_static("private, max-age=3600, immutable"),

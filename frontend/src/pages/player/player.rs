@@ -45,7 +45,6 @@ impl Query {
             HashMap::new()
         }
     }
-
 }
 
 #[function_component(PlayerPage)]
@@ -106,9 +105,7 @@ pub fn player_page() -> Html {
                     let api = api.clone();
                     wasm_bindgen_futures::spawn_local(async move {
                         let new_liked = !current_liked;
-                        api.update_song_like_status(&id, new_liked)
-                            .await
-                            .unwrap();
+                        api.update_song_like_status(&id, new_liked).await.unwrap();
                         player_handle.set(Some(player.set_like(&id, new_liked)));
                         if new_liked {
                             show_heart.set(true);

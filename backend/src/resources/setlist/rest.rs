@@ -4,8 +4,9 @@ use actix_web::{
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
+use crate::accept::accepts_worship_player_json;
 #[allow(unused_imports)]
-use crate::docs::ErrorResponse;
+use crate::docs::{ErrorResponse, ProblemDetails};
 use crate::error::AppError;
 use crate::http_cache::{if_none_match_matches, weak_etag_json};
 use crate::resources::User;
@@ -125,10 +126,11 @@ async fn get_setlist(
     ),
     responses(
         (status = 200, description = "Return player metadata for a setlist", body = Player),
-        (status = 400, description = "Invalid setlist identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Setlist not found", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch setlist player data", body = ErrorResponse)
+        (status = 400, description = "Invalid setlist identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Setlist not found", body = ProblemDetails),
+        (status = 406, description = "No supported representation in Accept header", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch setlist player data", body = ProblemDetails)
     ),
     tag = "Setlists",
     security(
@@ -138,10 +140,16 @@ async fn get_setlist(
 )]
 #[get("/{id}/player")]
 async fn get_setlist_player(
+    req: HttpRequest,
     svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
+    if !accepts_worship_player_json(&req) {
+        return Err(AppError::not_acceptable(
+            "supported Accept values include application/json, application/vnd.worship.player+json, and */*",
+        ));
+    }
     let perms = UserPermissions::new(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(svc.setlist_player_for_user(&perms, &id).await?))
 }

@@ -7,7 +7,7 @@ use surrealdb::sql::Thing;
 
 use serde::Deserialize;
 
-use shared::api::ListQuery;
+use shared::api::{SongListQuery, SongSort};
 use shared::song::{CreateSong, Song};
 
 use crate::database::Database;
@@ -19,6 +19,40 @@ use super::repository::SongRepository;
 
 fn owner_thing(user_id: &str) -> Thing {
     Thing::from(("user".to_owned(), user_id.to_owned()))
+}
+
+/// Extra `AND ...` fragments for `lang` / `tag` filters and bound parameter names.
+fn song_extra_filters(query: &SongListQuery) -> (String, Vec<(&'static str, String)>) {
+    let mut s = String::new();
+    let mut binds = Vec::new();
+    if let Some(ref lang) = query.lang {
+        let lang = lang.trim();
+        if !lang.is_empty() {
+            s.push_str(" AND data.languages != NONE AND array::contains(data.languages, $lang_f)");
+            binds.push(("lang_f", lang.to_string()));
+        }
+    }
+    if let Some(ref tag) = query.tag {
+        let tag = tag.trim();
+        if !tag.is_empty() {
+            s.push_str(
+                " AND string::contains(string::lowercase(to_string(data.tags ?? {})), string::lowercase($tag_f))",
+            );
+            binds.push(("tag_f", tag.to_string()));
+        }
+    }
+    (s, binds)
+}
+
+fn song_order_clause(sort: SongSort, q_nonempty: bool) -> &'static str {
+    match sort {
+        SongSort::Relevance if q_nonempty => "ORDER BY score DESC",
+        SongSort::Relevance => "ORDER BY id DESC",
+        SongSort::IdDesc => "ORDER BY id DESC",
+        SongSort::IdAsc => "ORDER BY id ASC",
+        SongSort::TitleAsc => "ORDER BY data.titles[0] ASC",
+        SongSort::TitleDesc => "ORDER BY data.titles[0] DESC",
+    }
 }
 
 #[derive(Clone)]
@@ -41,30 +75,40 @@ impl SongRepository for SurrealSongRepo {
     async fn get_songs(
         &self,
         read_teams: &[Thing],
-        pagination: ListQuery,
+        query: SongListQuery,
     ) -> Result<Vec<Song>, AppError> {
         let db = self.inner();
+        let sort = query.effective_sort();
+        let (extra_where, extra_binds) = song_extra_filters(&query);
+        let pagination = query.list_query();
         let q_nonempty = pagination.q.as_ref().is_some_and(|q| !q.trim().is_empty());
-        let mut query = if q_nonempty {
-            String::from(
-                "SELECT *, ((search::score(0) ?? 0) * 100 + (search::score(1) ?? 0) * 10 + (search::score(2) ?? 0) * 1) AS score FROM song WHERE owner IN $teams",
+
+        let mut sql = if q_nonempty {
+            format!(
+                "SELECT *, ((search::score(0) ?? 0) * 100 + (search::score(1) ?? 0) * 10 + (search::score(2) ?? 0) * 1) AS score FROM song WHERE owner IN $teams{extra_where}",
             )
         } else {
-            String::from("SELECT * FROM song WHERE owner IN $teams")
+            format!("SELECT * FROM song WHERE owner IN $teams{extra_where}")
         };
+
         if q_nonempty {
-            query.push_str(
-                " AND (data.titles @0@ $q OR data.artists @1@ $q OR search_content @2@ $q) ORDER BY score DESC",
+            sql.push_str(
+                " AND (data.titles @0@ $q OR data.artists @1@ $q OR search_content @2@ $q)",
             );
         }
+        sql.push(' ');
+        sql.push_str(song_order_clause(sort, q_nonempty));
         let (offset, limit) = pagination.effective_offset_limit();
-        query.push_str(" LIMIT $limit START $start");
+        sql.push_str(" LIMIT $limit START $start");
 
-        let mut request = db.db.query(query).bind(("teams", read_teams.to_vec()));
+        let mut request = db.db.query(sql).bind(("teams", read_teams.to_vec()));
         if let Some(ref q) = pagination.q
             && !q.trim().is_empty()
         {
             request = request.bind(("q", q.trim().to_string()));
+        }
+        for (k, v) in extra_binds {
+            request = request.bind((k, v));
         }
         request = request.bind(("limit", limit)).bind(("start", offset));
 
@@ -86,20 +130,34 @@ impl SongRepository for SurrealSongRepo {
         }
     }
 
-    async fn count_songs(&self, read_teams: &[Thing], q: Option<&str>) -> Result<u64, AppError> {
+    async fn count_songs(
+        &self,
+        read_teams: &[Thing],
+        query: &SongListQuery,
+    ) -> Result<u64, AppError> {
         let db = self.inner();
-        let q_nonempty = q.is_some_and(|s| !s.trim().is_empty());
-        let mut query = String::from("SELECT count() FROM song WHERE owner IN $teams");
+        let q_nonempty = query.q.as_ref().is_some_and(|s| !s.trim().is_empty());
+        let (extra_where, extra_binds) = song_extra_filters(query);
+
+        let mut query_s = format!("SELECT count() FROM song WHERE owner IN $teams{extra_where}");
         if q_nonempty {
-            query.push_str(
+            query_s.push_str(
                 " AND (data.titles @0@ $q OR data.artists @1@ $q OR search_content @2@ $q)",
             );
         }
-        query.push_str(" GROUP ALL");
+        query_s.push_str(" GROUP ALL");
 
-        let mut request = db.db.query(query).bind(("teams", read_teams.to_vec()));
+        let mut request = db.db.query(query_s).bind(("teams", read_teams.to_vec()));
         if q_nonempty {
-            request = request.bind(("q", q.unwrap().trim().to_string()));
+            let q = query
+                .q
+                .as_ref()
+                .map(|s| s.trim().to_string())
+                .unwrap_or_default();
+            request = request.bind(("q", q));
+        }
+        for (k, v) in extra_binds {
+            request = request.bind((k, v));
         }
 
         #[derive(Deserialize)]

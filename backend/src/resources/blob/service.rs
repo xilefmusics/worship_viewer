@@ -129,10 +129,11 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         &self,
         perms: &UserPermissions<'_, T>,
         id: &str,
-    ) -> Result<NamedFile, AppError> {
+    ) -> Result<(Blob, NamedFile), AppError> {
         let read_teams = perms.read_teams().await?;
         let blob = self.repo.get_blob(read_teams, id).await?;
-        self.storage.open_blob_data_file(&blob)
+        let file = self.storage.open_blob_data_file(&blob)?;
+        Ok((blob, file))
     }
 }
 

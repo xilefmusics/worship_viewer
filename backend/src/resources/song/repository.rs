@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use async_trait::async_trait;
 use surrealdb::sql::Thing;
 
-use shared::api::ListQuery;
+use shared::api::SongListQuery;
 use shared::song::{CreateSong, Song};
 
 use crate::error::AppError;
@@ -14,7 +14,7 @@ pub trait SongRepository: Send + Sync {
     async fn get_songs(
         &self,
         read_teams: &[Thing],
-        pagination: ListQuery,
+        query: SongListQuery,
     ) -> Result<Vec<Song>, AppError>;
 
     async fn get_song(&self, read_teams: &[Thing], id: &str) -> Result<Song, AppError>;
@@ -42,8 +42,12 @@ pub trait SongRepository: Send + Sync {
 
     async fn delete_song(&self, write_teams: &[Thing], id: &str) -> Result<Song, AppError>;
 
-    /// Count all songs visible to `read_teams`, optionally filtered by `q`.
-    async fn count_songs(&self, read_teams: &[Thing], q: Option<&str>) -> Result<u64, AppError>;
+    /// Count songs matching the same filters as [`get_songs`](SongRepository::get_songs).
+    async fn count_songs(
+        &self,
+        read_teams: &[Thing],
+        query: &SongListQuery,
+    ) -> Result<u64, AppError>;
 
     async fn get_song_like(
         &self,

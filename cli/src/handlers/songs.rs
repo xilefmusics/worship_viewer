@@ -22,7 +22,7 @@ pub async fn handle_songs(
             if let Some(ps) = *page_size {
                 query = query.with_page_size(ps);
             }
-            let songs = client.get_songs(query).await?;
+            let songs = client.get_songs(query.into()).await?;
             match output::effective_output_format(&output) {
                 OutputFormat::Ndjson => output::print_ndjson_list(&songs),
                 _ => output::print_json(&songs, &output),

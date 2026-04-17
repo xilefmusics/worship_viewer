@@ -209,11 +209,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn delete_session_for_user(
-        &self,
-        user_id: &str,
-        id: &str,
-    ) -> Result<(), ApiError> {
+    pub async fn delete_session_for_user(&self, user_id: &str, id: &str) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .delete_session_for_user(user_id, id)
@@ -225,7 +221,7 @@ impl Api {
     pub async fn get_songs(&self) -> Result<Vec<Song>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
-            .get_songs(ListQuery::default())
+            .get_songs(ListQuery::default().into())
             .await
             .map_err(|e| self.handle_error(e))
     }
