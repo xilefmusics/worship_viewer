@@ -3,7 +3,6 @@ use actix_web::{
     HttpResponse, delete, get, post,
     web::{Data, Path, Query, ReqData},
 };
-use actix_web::http::header;
 use serde::Deserialize;
 
 use shared::api::ListQuery;
