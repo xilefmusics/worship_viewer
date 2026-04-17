@@ -60,10 +60,7 @@ impl SongListQuery {
     /// Validates pagination ([`ListQuery::validate`]) and sort vs `q` rules.
     pub fn validate(self) -> Result<Self, String> {
         self.list_query().validate()?;
-        let q_nonempty = self
-            .q
-            .as_ref()
-            .is_some_and(|q| !q.trim().is_empty());
+        let q_nonempty = self.q.as_ref().is_some_and(|q| !q.trim().is_empty());
         if matches!(self.sort, Some(SongSort::Relevance)) && !q_nonempty {
             return Err("sort=relevance requires a non-empty q parameter".into());
         }
@@ -130,10 +127,7 @@ impl SongListQuery {
         match self.sort {
             Some(s) => s,
             None => {
-                let q_nonempty = self
-                    .q
-                    .as_ref()
-                    .is_some_and(|q| !q.trim().is_empty());
+                let q_nonempty = self.q.as_ref().is_some_and(|q| !q.trim().is_empty());
                 if q_nonempty {
                     SongSort::Relevance
                 } else {

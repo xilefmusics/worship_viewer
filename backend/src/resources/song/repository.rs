@@ -43,7 +43,11 @@ pub trait SongRepository: Send + Sync {
     async fn delete_song(&self, write_teams: &[Thing], id: &str) -> Result<Song, AppError>;
 
     /// Count songs matching the same filters as [`get_songs`](SongRepository::get_songs).
-    async fn count_songs(&self, read_teams: &[Thing], query: &SongListQuery) -> Result<u64, AppError>;
+    async fn count_songs(
+        &self,
+        read_teams: &[Thing],
+        query: &SongListQuery,
+    ) -> Result<u64, AppError>;
 
     async fn get_song_like(
         &self,

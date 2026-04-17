@@ -130,12 +130,13 @@ impl SongRepository for SurrealSongRepo {
         }
     }
 
-    async fn count_songs(&self, read_teams: &[Thing], query: &SongListQuery) -> Result<u64, AppError> {
+    async fn count_songs(
+        &self,
+        read_teams: &[Thing],
+        query: &SongListQuery,
+    ) -> Result<u64, AppError> {
         let db = self.inner();
-        let q_nonempty = query
-            .q
-            .as_ref()
-            .is_some_and(|s| !s.trim().is_empty());
+        let q_nonempty = query.q.as_ref().is_some_and(|s| !s.trim().is_empty());
         let (extra_where, extra_binds) = song_extra_filters(query);
 
         let mut query_s = format!("SELECT count() FROM song WHERE owner IN $teams{extra_where}");

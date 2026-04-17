@@ -1,5 +1,5 @@
-use actix_web::http::header;
 use actix_web::HttpRequest;
+use actix_web::http::header;
 
 /// Returns true when the client accepts JSON player responses (`application/json`,
 /// `application/vnd.worship.player+json`, or `*/*`).

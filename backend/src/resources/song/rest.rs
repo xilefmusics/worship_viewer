@@ -4,9 +4,9 @@ use actix_web::{
     web::{self, Data, Json, Path, Query, ReqData},
 };
 
+use crate::accept::accepts_worship_player_json;
 #[allow(unused_imports)]
 use crate::docs::ProblemDetails;
-use crate::accept::accepts_worship_player_json;
 use crate::error::AppError;
 use crate::http_cache::{if_none_match_matches, weak_etag_json};
 use crate::resources::User;

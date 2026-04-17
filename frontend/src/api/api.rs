@@ -209,11 +209,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn delete_session_for_user(
-        &self,
-        user_id: &str,
-        id: &str,
-    ) -> Result<(), ApiError> {
+    pub async fn delete_session_for_user(&self, user_id: &str, id: &str) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .delete_session_for_user(user_id, id)
