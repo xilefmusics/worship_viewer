@@ -124,7 +124,10 @@ impl<C: HttpClient> ApiClient<C> {
         user_id: &str,
         query: ListQuery,
     ) -> Result<Vec<Session>, NetworkClientError> {
-        let path = format!("api/v1/users/{user_id}/sessions{}", query.to_query_string());
+        let path = format!(
+            "api/v1/users/{user_id}/sessions{}",
+            query.to_query_string()
+        );
         self.client.get(&path).await
     }
 

@@ -2,7 +2,7 @@
 
 use actix_web::HttpRequest;
 use actix_web::http::header::IF_NONE_MATCH;
-use ring::digest::{SHA256, digest};
+use ring::digest::{digest, SHA256};
 
 pub fn weak_etag_from_bytes(bytes: &[u8]) -> String {
     let d = digest(&SHA256, bytes);
