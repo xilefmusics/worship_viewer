@@ -5,10 +5,17 @@ use serde::{Deserialize, Serialize};
 use super::Role;
 #[cfg(feature = "backend")]
 use super::User;
+#[cfg(feature = "backend")]
+#[allow(unused_imports)]
+use serde_json::json;
 
 #[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({ "email": "singer@example.com", "role": "default" }))
+)]
 pub struct CreateUser {
     pub email: String,
     #[serde(default)]

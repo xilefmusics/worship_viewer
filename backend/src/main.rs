@@ -160,6 +160,8 @@ async fn main() -> AnyResult<()> {
         settings.host, settings.port
     );
 
+    let docs_settings = settings.clone();
+
     HttpServer::new(move || {
         App::new()
             .wrap(backend::request_id::RequestId)
@@ -185,7 +187,7 @@ async fn main() -> AnyResult<()> {
                 settings.auth_rate_limit_rps,
                 settings.auth_rate_limit_burst,
             ))
-            .service(docs::rest::scope())
+            .service(docs::rest::scope(docs_settings.clone()))
             .service(resources::rest::scope(
                 settings.blob_upload_max_bytes,
                 settings.api_rate_limit_rps,

@@ -17,7 +17,7 @@ pub struct OtpConfig {
     pub allow_self_signup: bool,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug)]
 #[serde(default)]
 pub struct Settings {
     pub host: String,
@@ -67,6 +67,13 @@ pub struct Settings {
     /// Per-IP rate limit for `/api/v1/*` (token bucket). Defaults are generous for local development.
     pub api_rate_limit_rps: u64,
     pub api_rate_limit_burst: u32,
+
+    /// Shown under `info.contact.email` in OpenAPI when set (`OPENAPI_CONTACT_EMAIL`).
+    #[serde(default)]
+    pub openapi_contact_email: Option<String>,
+    /// Legal imprint / contact page URL under `info.contact.url` when set (`OPENAPI_IMPRINT_URL`).
+    #[serde(default)]
+    pub openapi_imprint_url: Option<String>,
 }
 
 impl Default for Settings {
@@ -104,6 +111,8 @@ impl Default for Settings {
             auth_rate_limit_burst: 5,
             api_rate_limit_rps: 50,
             api_rate_limit_burst: 200,
+            openapi_contact_email: None,
+            openapi_imprint_url: None,
         }
     }
 }

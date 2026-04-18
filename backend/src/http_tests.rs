@@ -28,7 +28,7 @@ use crate::database::Database;
 use crate::docs;
 use crate::resources;
 use crate::resources::User;
-use crate::settings::CookieConfig;
+use crate::settings::{CookieConfig, Settings};
 use crate::test_helpers::{create_song_with_title, create_user, session_service, test_db};
 
 // ─── Slice 4A: test harness helpers ──────────────────────────────────────────
@@ -82,7 +82,7 @@ fn build_app(
         .app_data(Data::new(session_service(&db)))
         .app_data(cookie_cfg)
         .app_data(crate::error::json_config())
-        .service(docs::rest::scope())
+        .service(docs::rest::scope(Settings::default()))
         .service(resources::rest::scope(20 * 1024 * 1024, 50, 200))
 }
 
@@ -278,11 +278,11 @@ mod openapi_endpoint {
 /// BLC-DOCS-002: OpenAPI documents `Problem` and uses `application/problem+json` for 4xx/5xx bodies.
 #[cfg(test)]
 mod openapi_problem_schema {
-    use utoipa::OpenApi;
+    use crate::settings::Settings;
 
     #[test]
     fn blc_docs_002_openapi_problem_and_problem_json() {
-        let openapi = crate::docs::ApiDoc::openapi();
+        let openapi = crate::docs::openapi_document(&Settings::default());
         let v = serde_json::to_value(openapi).expect("openapi serializes to JSON");
         let schemas = v["components"]["schemas"]
             .as_object()
@@ -343,7 +343,7 @@ mod openapi_problem_schema {
 
     #[test]
     fn blc_docs_004_openapi_schema_property_keys_are_snake_case() {
-        let openapi = crate::docs::ApiDoc::openapi();
+        let openapi = crate::docs::openapi_document(&Settings::default());
         let v = serde_json::to_value(openapi).expect("openapi serializes to JSON");
         fn check(value: &serde_json::Value, ctx: &str) {
             match value {

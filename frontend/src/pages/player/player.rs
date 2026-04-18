@@ -127,8 +127,7 @@ pub fn player_page() -> Html {
             .map(|p| p.item().0)
             .unwrap_or(&PlayerItem::Blob(PlayerBlobItem {
                 blob_id: String::new(),
-            }))
-        {
+            })) {
             PlayerItem::Blob(_) => "".to_string(),
             PlayerItem::Chords(c) => c.song.id.clone(),
         };
