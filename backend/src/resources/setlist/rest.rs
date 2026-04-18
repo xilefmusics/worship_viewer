@@ -10,7 +10,7 @@ use crate::docs::Problem;
 use crate::error::AppError;
 use crate::http_cache::{check_if_match, if_none_match_matches, weak_etag_json};
 use crate::resources::User;
-use crate::resources::setlist::CreateSetlist;
+use crate::resources::setlist::{CreateSetlist, UpdateSetlist};
 use crate::resources::setlist::PatchSetlist;
 #[allow(unused_imports)]
 use crate::resources::setlist::Setlist;
@@ -266,9 +266,9 @@ async fn create_setlist(
     params(
         ("id" = String, Path, description = "Setlist identifier")
     ),
-    request_body = CreateSetlist,
+    request_body = UpdateSetlist,
     responses(
-        (status = 200, description = "Update an existing setlist", body = Setlist),
+        (status = 200, description = "Replace setlist fields (`PUT` is full replacement, not upsert; missing id returns **404**).", body = Setlist),
         (status = 400, description = "Invalid setlist identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
         (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
@@ -288,15 +288,16 @@ async fn update_setlist(
     svc: Data<SetlistServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
-    payload: Json<CreateSetlist>,
+    payload: Json<UpdateSetlist>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let setlist = svc.get_setlist_for_user(&perms, &id).await?;
     let etag = weak_etag_json(&setlist).map_err(|e| AppError::Internal(e.to_string()))?;
     check_if_match(&req, &etag)?;
+    let payload = CreateSetlist::from(payload.into_inner());
     Ok(HttpResponse::Ok().json(
-        svc.update_setlist_for_user(&perms, &id, payload.into_inner())
+        svc.update_setlist_for_user(&perms, &id, payload)
             .await?,
     ))
 }

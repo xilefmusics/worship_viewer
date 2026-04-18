@@ -1,3 +1,3 @@
 mod setlist;
 
-pub use setlist::{CreateSetlist, PatchSetlist, Setlist};
+pub use setlist::{CreateSetlist, PatchSetlist, Setlist, UpdateSetlist};

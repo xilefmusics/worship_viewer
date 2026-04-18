@@ -10,7 +10,7 @@ use crate::docs::Problem;
 use crate::error::AppError;
 use crate::http_cache::{check_if_match, if_none_match_matches, weak_etag_json};
 use crate::resources::User;
-use crate::resources::song::CreateSong;
+use crate::resources::song::{CreateSong, UpdateSong};
 use crate::resources::song::PatchSong;
 #[allow(unused_imports)]
 use crate::resources::song::Song;
@@ -207,9 +207,9 @@ async fn create_song(
     params(
         ("id" = String, Path, description = "Song identifier")
     ),
-    request_body = CreateSong,
+    request_body = UpdateSong,
     responses(
-        (status = 200, description = "Updated an existing song.", body = Song),
+        (status = 200, description = "Updated an existing song. Upsert: if the id did not exist, responds **201** with `Location` (see BLC / `http-contract.md`).", body = Song),
         (status = 201, description = "Created the song via PUT upsert (new id). Response includes `Location: /api/v1/songs/{id}`.", body = Song),
         (status = 400, description = "Invalid song identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
@@ -230,11 +230,12 @@ async fn update_song(
     svc: Data<SongServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
-    payload: Json<CreateSong>,
+    payload: Json<UpdateSong>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let payload = payload.into_inner();
     payload.validate().map_err(AppError::invalid_request)?;
+    let payload = CreateSong::from(payload);
     let id = id.into_inner();
     match svc.get_song_for_user(&perms, &id).await {
         Ok(song) => {

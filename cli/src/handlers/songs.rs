@@ -1,6 +1,6 @@
 use shared::api::{ApiClient, ListQuery};
 use shared::net::DefaultHttpClient;
-use shared::song::CreateSong;
+use shared::song::{CreateSong, UpdateSong};
 
 use crate::commands::SongsCommand;
 use crate::output::{self, OutputFormat};
@@ -54,7 +54,7 @@ pub async fn handle_songs(
         }
         SongsCommand::Update { id, json } => {
             validate_resource_id(&id)?;
-            let payload: CreateSong = serde_json::from_str(&json)?;
+            let payload: UpdateSong = serde_json::from_str(&json)?;
             if dry_run {
                 let planned = serde_json::json!({
                     "method": "PUT",

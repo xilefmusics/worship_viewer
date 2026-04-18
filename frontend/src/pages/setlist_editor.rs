@@ -2,7 +2,7 @@ use crate::api::use_api;
 use crate::components::{SetlistEditor, SetlistSavePayload};
 use crate::route::Route;
 use serde::Deserialize;
-use shared::setlist::{CreateSetlist, Setlist};
+use shared::setlist::{CreateSetlist, Setlist, UpdateSetlist};
 use std::collections::HashMap;
 use stylist::Style;
 use yew::prelude::*;
@@ -79,7 +79,10 @@ pub fn setlist_editor_page() -> Html {
             if let Some(id) = payload.id.clone() {
                 let api = api.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let updated = api.update_setlist(&id, &data).await.unwrap();
+                    let updated = api
+                        .update_setlist(&id, &UpdateSetlist::from(data.clone()))
+                        .await
+                        .unwrap();
                     setlist_handle.set(Some(updated.into()));
                 });
             } else {

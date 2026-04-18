@@ -349,6 +349,8 @@ impl SongServiceHandle {
 
 #[cfg(test)]
 mod tests {
+    use shared::blob::BlobLink;
+
     use crate::resources::team::UserPermissions;
     use crate::test_helpers::{
         configure_personal_team_members, create_song_with_title, create_user, personal_team_id,
@@ -831,7 +833,9 @@ mod tests {
                     &owner_p,
                     CreateSong {
                         not_a_song: false,
-                        blobs: vec!["base_blob".into()],
+                        blobs: vec![BlobLink {
+                            id: "base_blob".into(),
+                        }],
                         data: base_data.clone(),
                     },
                 )
@@ -843,9 +847,13 @@ mod tests {
             let include_data = (mask & 0b100) != 0;
             let expected_not_a_song = include_not_a_song;
             let expected_blobs = if include_blobs {
-                vec!["patched_blob".to_string()]
+                vec![BlobLink {
+                    id: "patched_blob".into(),
+                }]
             } else {
-                vec!["base_blob".to_string()]
+                vec![BlobLink {
+                    id: "base_blob".into(),
+                }]
             };
             let expected_title = if include_data {
                 "PatchedTitle"
@@ -859,7 +867,9 @@ mod tests {
                     &created.id,
                     PatchSong {
                         not_a_song: include_not_a_song.then_some(true),
-                        blobs: include_blobs.then_some(vec!["patched_blob".into()]),
+                        blobs: include_blobs.then_some(vec![BlobLink {
+                            id: "patched_blob".into(),
+                        }]),
                         data: include_data.then_some(patch_data.clone()),
                     },
                 )

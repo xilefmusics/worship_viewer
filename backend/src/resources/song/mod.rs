@@ -1,4 +1,4 @@
-pub use shared::song::{CreateSong, PatchSong, PatchSongData, Song};
+pub use shared::song::{CreateSong, PatchSong, PatchSongData, Song, UpdateSong};
 
 mod liked;
 mod model;

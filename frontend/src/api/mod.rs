@@ -9,6 +9,6 @@ pub use shared::auth::otp::{OtpRequest, OtpVerify};
 #[allow(unused_imports)]
 pub use shared::error::ErrorResponse;
 #[allow(unused_imports)]
-pub use shared::user::{CreateUser, Session, User};
+pub use shared::user::{CreateUser, SessionBody, User};
 
 mod error;

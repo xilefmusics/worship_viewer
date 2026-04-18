@@ -4,7 +4,7 @@ use crate::components::{Topbar, TopbarButton, TopbarSelect, TopbarSelectOption, 
 use crate::route::Route;
 use gloo::timers::callback::Timeout;
 use serde::Deserialize;
-use shared::player::{Orientation, PlayerItem, TocItem};
+use shared::player::{Orientation, PlayerBlobItem, PlayerItem, TocItem};
 use shared::song::{ChordRepresentation, SimpleChord};
 use std::collections::HashMap;
 use stylist::{css, yew::Global, Style};
@@ -125,10 +125,12 @@ pub fn player_page() -> Html {
         let id = match player
             .as_ref()
             .map(|p| p.item().0)
-            .unwrap_or(&PlayerItem::Blob("".to_string()))
+            .unwrap_or(&PlayerItem::Blob(PlayerBlobItem {
+                blob_id: String::new(),
+            }))
         {
             PlayerItem::Blob(_) => "".to_string(),
-            PlayerItem::Chords(song) => song.id.clone(),
+            PlayerItem::Chords(c) => c.song.id.clone(),
         };
 
         move |_: MouseEvent| {
@@ -430,7 +432,7 @@ pub fn player_page() -> Html {
             <div class={if *active {"bottom active"} else {"bottom"}}>
                 <select
                     onchange={onchange2}
-                    class={if let PlayerItem::Chords(_) = player.item().0 {"visible"} else {"invisible"}}
+                    class={if let PlayerItem::Chords(_) = player.item().0 { "visible" } else { "invisible" }}
                 >
                     {
                         vec!["default", "nashville"]
@@ -446,7 +448,7 @@ pub fn player_page() -> Html {
                 </select>
                 <select
                     onchange={onchange}
-                    class={if let PlayerItem::Chords(_) = player.item().0 {"visible"} else {"invisible"}}
+                    class={if let PlayerItem::Chords(_) = player.item().0 { "visible" } else { "invisible" }}
                 >
                     {
                         vec!["default", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab"]

@@ -200,7 +200,7 @@ impl SongRepository for SurrealSongRepo {
         let resource = resource_id("song", id)?;
         let (tb, sid) = resource.clone();
         let search_content = search_content_from_song_data(&song.data);
-        let blobs: Vec<Thing> = song.blobs.iter().map(|b| blob_thing(b)).collect();
+        let blobs: Vec<Thing> = song.blobs.iter().map(|b| blob_thing(&b.id)).collect();
 
         let mut response = db
             .db

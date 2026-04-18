@@ -1,6 +1,6 @@
 use crate::auth::otp::{OtpRequest, OtpVerify};
-use crate::blob::{Blob, CreateBlob};
-use crate::collection::{Collection, CreateCollection};
+use crate::blob::{Blob, CreateBlob, UpdateBlob};
+use crate::collection::{Collection, CreateCollection, UpdateCollection};
 use crate::error::NetworkClientError;
 use crate::like::LikeStatus;
 use crate::net::HttpClient;
@@ -10,10 +10,10 @@ use crate::net::HttpClient;
 ))]
 use crate::net::{DefaultHttpClient, HttpClientConfig};
 use crate::player::Player;
-use crate::setlist::{CreateSetlist, Setlist};
-use crate::song::{CreateSong, Song};
+use crate::setlist::{CreateSetlist, Setlist, UpdateSetlist};
+use crate::song::{CreateSong, Song, UpdateSong};
 use crate::team::{CreateTeam, Team, UpdateTeam};
-use crate::user::{CreateUser, Session, User};
+use crate::user::{CreateUser, SessionBody, User};
 use std::vec::Vec;
 
 mod list_query;
@@ -52,7 +52,7 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
-    pub async fn verify_otp(&self, payload: OtpVerify) -> Result<Session, NetworkClientError> {
+    pub async fn verify_otp(&self, payload: OtpVerify) -> Result<SessionBody, NetworkClientError> {
         self.client.post("auth/otp/verify", &payload).await
     }
 
@@ -92,14 +92,22 @@ impl<C: HttpClient> ApiClient<C> {
     pub async fn list_my_sessions(
         &self,
         query: ListQuery,
-    ) -> Result<Vec<Session>, NetworkClientError> {
-        let path = format!("api/v1/users/me/sessions{}", query.to_query_string());
+    ) -> Result<Vec<SessionBody>, NetworkClientError> {
+        let path = append_query_param(
+            format!("api/v1/users/me/sessions{}", query.to_query_string()),
+            "expand",
+            "user",
+        );
         self.client.get(&path).await
     }
 
-    pub async fn get_my_session(&self, id: &str) -> Result<Session, NetworkClientError> {
+    pub async fn get_my_session(&self, id: &str) -> Result<SessionBody, NetworkClientError> {
         self.client
-            .get(&format!("api/v1/users/me/sessions/{id}"))
+            .get(&append_query_param(
+                format!("api/v1/users/me/sessions/{id}"),
+                "expand",
+                "user",
+            ))
             .await
     }
 
@@ -112,10 +120,14 @@ impl<C: HttpClient> ApiClient<C> {
     pub async fn create_session_for_user(
         &self,
         user_id: &str,
-    ) -> Result<Session, NetworkClientError> {
+    ) -> Result<SessionBody, NetworkClientError> {
         self.client
             .post(
-                &format!("api/v1/users/{user_id}/sessions"),
+                &append_query_param(
+                    format!("api/v1/users/{user_id}/sessions"),
+                    "expand",
+                    "user",
+                ),
                 &serde_json::json!({}),
             )
             .await
@@ -125,8 +137,12 @@ impl<C: HttpClient> ApiClient<C> {
         &self,
         user_id: &str,
         query: ListQuery,
-    ) -> Result<Vec<Session>, NetworkClientError> {
-        let path = format!("api/v1/users/{user_id}/sessions{}", query.to_query_string());
+    ) -> Result<Vec<SessionBody>, NetworkClientError> {
+        let path = append_query_param(
+            format!("api/v1/users/{user_id}/sessions{}", query.to_query_string()),
+            "expand",
+            "user",
+        );
         self.client.get(&path).await
     }
 
@@ -134,9 +150,13 @@ impl<C: HttpClient> ApiClient<C> {
         &self,
         user_id: &str,
         id: &str,
-    ) -> Result<Session, NetworkClientError> {
+    ) -> Result<SessionBody, NetworkClientError> {
         self.client
-            .get(&format!("api/v1/users/{user_id}/sessions/{id}"))
+            .get(&append_query_param(
+                format!("api/v1/users/{user_id}/sessions/{id}"),
+                "expand",
+                "user",
+            ))
             .await
     }
 
@@ -209,7 +229,7 @@ impl<C: HttpClient> ApiClient<C> {
     pub async fn update_song(
         &self,
         id: &str,
-        payload: CreateSong,
+        payload: UpdateSong,
     ) -> Result<Song, NetworkClientError> {
         self.client
             .put(&format!("api/v1/songs/{id}"), &payload)
@@ -292,7 +312,7 @@ impl<C: HttpClient> ApiClient<C> {
     pub async fn update_collection(
         &self,
         id: &str,
-        payload: CreateCollection,
+        payload: UpdateCollection,
     ) -> Result<Collection, NetworkClientError> {
         self.client
             .put(&format!("api/v1/collections/{id}"), &payload)
@@ -352,7 +372,7 @@ impl<C: HttpClient> ApiClient<C> {
     pub async fn update_setlist(
         &self,
         id: &str,
-        payload: CreateSetlist,
+        payload: UpdateSetlist,
     ) -> Result<Setlist, NetworkClientError> {
         self.client
             .put(&format!("api/v1/setlists/{id}"), &payload)
@@ -391,7 +411,7 @@ impl<C: HttpClient> ApiClient<C> {
     pub async fn update_blob(
         &self,
         id: &str,
-        payload: CreateBlob,
+        payload: UpdateBlob,
     ) -> Result<Blob, NetworkClientError> {
         self.client
             .put(&format!("api/v1/blobs/{id}"), &payload)
@@ -417,4 +437,9 @@ impl<C: HttpClient> ApiClient<C> {
     pub async fn download_blob_image_url(&self, id: &str) -> String {
         format!("api/v1/blobs/{id}/data")
     }
+}
+
+fn append_query_param(path: String, key: &str, value: &str) -> String {
+    let sep = if path.contains('?') { '&' } else { '?' };
+    format!("{path}{sep}{key}={value}")
 }

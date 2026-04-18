@@ -322,14 +322,18 @@ impl From<SongLinkOwned> for Player {
                     .song
                     .blobs
                     .iter()
-                    .map(|blob| PlayerItem::Blob(blob.to_string()))
+                    .map(|blob| {
+                        PlayerItem::Blob(super::PlayerBlobItem {
+                            blob_id: blob.id.clone(),
+                        })
+                    })
                     .collect::<Vec<PlayerItem>>();
                 if link.song.data.sections.len() > 0 || items.len() == 0 {
                     let mut song = link.song.clone();
                     if let Some(key) = link.key {
                         song.data.transpose(key);
                     }
-                    items.push(PlayerItem::Chords(song))
+                    items.push(PlayerItem::Chords(super::PlayerChordsItem { song }))
                 }
                 items
             },

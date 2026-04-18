@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Id, Thing};
 
 use chordlib::types::Song as SongData;
+use shared::blob::BlobLink;
 use shared::song::{CreateSong, Song, SongUserSpecificAddons};
 
 use crate::resources::common::blob_thing;
@@ -27,7 +28,13 @@ impl SongRecord {
             id: self.id.map(id_from_thing).unwrap_or_default(),
             owner: self.owner.map(id_from_thing).unwrap_or_default(),
             not_a_song: self.not_a_song,
-            blobs: self.blobs.into_iter().map(id_from_thing).collect(),
+            blobs: self
+                .blobs
+                .into_iter()
+                .map(|t| BlobLink {
+                    id: id_from_thing(t),
+                })
+                .collect(),
             data: self.data,
             user_specific_addons: SongUserSpecificAddons::default(),
         }
@@ -42,7 +49,7 @@ impl SongRecord {
             blobs: song
                 .blobs
                 .into_iter()
-                .map(|blob_id| blob_thing(&blob_id))
+                .map(|blob| blob_thing(&blob.id))
                 .collect(),
             data: song.data,
             search_content,
@@ -115,7 +122,12 @@ mod tests {
         assert_eq!(song.id, "s1");
         assert_eq!(song.owner, "t9");
         assert!(song.not_a_song);
-        assert_eq!(song.blobs, vec!["b1".to_string()]);
+        assert_eq!(
+            song.blobs,
+            vec![BlobLink {
+                id: "b1".to_string()
+            }]
+        );
     }
 
     #[test]
@@ -137,7 +149,14 @@ mod tests {
         .expect("song data json");
         let create = CreateSong {
             not_a_song: false,
-            blobs: vec!["blob:bb".into(), "rawblob".into()],
+            blobs: vec![
+                BlobLink {
+                    id: "blob:bb".into(),
+                },
+                BlobLink {
+                    id: "rawblob".into(),
+                },
+            ],
             data,
         };
         let record = SongRecord::from_payload(None, None, create);

@@ -14,7 +14,6 @@ use utoipa::ToSchema;
 #[cfg_attr(
     feature = "backend",
     schema(
-        as = SongData,
         example = json!({
             "titles": ["Amazing Grace"],
             "subtitle": null,

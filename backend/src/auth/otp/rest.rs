@@ -15,7 +15,7 @@ use crate::database::Database;
 use crate::docs::Problem;
 use crate::error::AppError;
 use crate::mail::MailService;
-use crate::resources::Session;
+use shared::user::{Session, SessionBody};
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
 use crate::settings::{CookieConfig, OtpConfig};
@@ -64,7 +64,7 @@ async fn otp_request(
     path = "/auth/otp/verify",
     request_body = OtpVerify,
     responses(
-        (status = 200, description = "OTP verified successfully; session cookie issued. When `WORSHIP_OTP_ALLOW_SELF_SIGNUP` is unset/true, a new user may be created for an unknown email; when false, the email must already exist.", body = Session),
+        (status = 200, description = "OTP verified successfully; session cookie issued. When `WORSHIP_OTP_ALLOW_SELF_SIGNUP` is unset/true, a new user may be created for an unknown email; when false, the email must already exist. Response always embeds full `User` under `user`.", body = SessionBody),
         (status = 400, description = "OTP verification failed, or signup disabled for unknown email", body = Problem, content_type = "application/problem+json"),
         (status = 429, description = "Too many incorrect attempts; request a new code", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to create session", body = Problem, content_type = "application/problem+json")
@@ -112,7 +112,7 @@ async fn otp_verify(
 
     Ok(HttpResponse::Ok()
         .cookie(session_cookie(&session.id, &cookie_cfg))
-        .json(session))
+        .json(SessionBody::from_session(session, true)))
 }
 
 trait OkIf {

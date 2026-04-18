@@ -12,7 +12,7 @@ use crate::http_cache::{check_if_match, if_none_match_matches, weak_etag_json};
 use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::collection::Collection;
-use crate::resources::collection::CreateCollection;
+use crate::resources::collection::{CreateCollection, UpdateCollection};
 use crate::resources::collection::PatchCollection;
 use crate::resources::collection::service::CollectionServiceHandle;
 #[allow(unused_imports)]
@@ -266,9 +266,9 @@ async fn create_collection(
     params(
         ("id" = String, Path, description = "Collection identifier")
     ),
-    request_body = CreateCollection,
+    request_body = UpdateCollection,
     responses(
-        (status = 200, description = "Update an existing collection", body = Collection),
+        (status = 200, description = "Replace collection fields (`PUT` is full replacement, not upsert; missing id returns **404**).", body = Collection),
         (status = 400, description = "Invalid collection identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
         (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
@@ -288,15 +288,16 @@ async fn update_collection(
     svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
-    payload: Json<CreateCollection>,
+    payload: Json<UpdateCollection>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let collection = svc.get_collection_for_user(&perms, &id).await?;
     let etag = weak_etag_json(&collection).map_err(|e| AppError::Internal(e.to_string()))?;
     check_if_match(&req, &etag)?;
+    let payload = CreateCollection::from(payload.into_inner());
     Ok(HttpResponse::Ok().json(
-        svc.update_collection_for_user(&perms, &id, payload.into_inner())
+        svc.update_collection_for_user(&perms, &id, payload)
             .await?,
     ))
 }
