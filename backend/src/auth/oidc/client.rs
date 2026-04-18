@@ -72,6 +72,11 @@ impl OidcClients {
     pub fn default_provider(&self) -> OidcProvider {
         OidcProvider::Google
     }
+
+    /// Short names of OIDC providers with clients in this process (keep in sync with [`build_clients`]).
+    pub fn registered_provider_ids(&self) -> Vec<&'static str> {
+        vec![OidcProvider::Google.as_str()]
+    }
 }
 
 pub async fn build_clients(settings: &Settings) -> AnyResult<OidcClients> {

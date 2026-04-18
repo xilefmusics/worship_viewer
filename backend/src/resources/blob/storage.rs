@@ -38,9 +38,10 @@ impl BlobStorage for FsBlobStorage {
             .ok_or_else(|| AppError::Internal("blob has no id".into()))?;
         let path = Path::new(&self.blob_dir).join(file_name);
         if let Some(dir) = path.parent() {
-            std::fs::create_dir_all(dir).map_err(|e| AppError::Internal(e.to_string()))?;
+            std::fs::create_dir_all(dir)
+                .map_err(|e| AppError::internal_from_err("blob.storage.create_dir_all", e))?;
         }
-        std::fs::write(&path, data).map_err(|e| AppError::Internal(e.to_string()))
+        std::fs::write(&path, data).map_err(|e| AppError::internal_from_err("blob.storage.write", e))
     }
 
     fn delete_blob_file(&self, blob: &Blob) {
@@ -72,6 +73,6 @@ impl BlobStorage for FsBlobStorage {
             .file_name()
             .ok_or_else(|| AppError::NotFound("blob has no id".into()))?;
         NamedFile::open(Path::new(&self.blob_dir).join(PathBuf::from(file_name)))
-            .map_err(|err| AppError::Internal(format!("{}", err)))
+            .map_err(|err| AppError::internal_from_err("blob.storage.open", err))
     }
 }

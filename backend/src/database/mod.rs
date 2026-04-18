@@ -25,14 +25,7 @@ pub(crate) fn surreal_take_errors(
 
     let mut summary = Vec::with_capacity(pairs.len());
     for (idx, err) in pairs {
-        tracing::error!(
-            context = context,
-            statement_index = idx,
-            error = %err,
-            error_source_chain = %crate::observability::error_source_chain_string(&err),
-            error_debug = ?err,
-            "SurrealDB query statement failed"
-        );
+        crate::observability::log_surreal_statement_error_context(context, idx, &err);
         summary.push(format!("[statement {idx}] {err}"));
     }
 

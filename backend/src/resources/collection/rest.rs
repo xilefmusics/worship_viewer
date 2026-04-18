@@ -123,7 +123,7 @@ async fn get_collection(
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let collection = svc.get_collection_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&collection).map_err(|e| AppError::Internal(e.to_string()))?;
+    let etag = weak_etag_json(&collection).map_err(|e| AppError::internal_from_err("collection.rest", e))?;
     if if_none_match_matches(&req, &etag) {
         return Ok(HttpResponse::NotModified()
             .insert_header((header::ETAG, etag))
@@ -293,7 +293,7 @@ async fn update_collection(
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let collection = svc.get_collection_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&collection).map_err(|e| AppError::Internal(e.to_string()))?;
+    let etag = weak_etag_json(&collection).map_err(|e| AppError::internal_from_err("collection.rest", e))?;
     check_if_match(&req, &etag)?;
     let payload = CreateCollection::from(payload.into_inner());
     Ok(HttpResponse::Ok().json(svc.update_collection_for_user(&perms, &id, payload).await?))
@@ -332,7 +332,7 @@ async fn patch_collection(
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let collection = svc.get_collection_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&collection).map_err(|e| AppError::Internal(e.to_string()))?;
+    let etag = weak_etag_json(&collection).map_err(|e| AppError::internal_from_err("collection.rest", e))?;
     check_if_match(&req, &etag)?;
     Ok(HttpResponse::Ok().json(
         svc.patch_collection_for_user(&perms, &id, payload.into_inner())
@@ -371,7 +371,7 @@ async fn delete_collection(
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let collection = svc.get_collection_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&collection).map_err(|e| AppError::Internal(e.to_string()))?;
+    let etag = weak_etag_json(&collection).map_err(|e| AppError::internal_from_err("collection.rest", e))?;
     check_if_match(&req, &etag)?;
     svc.delete_collection_for_user(&perms, &id).await?;
     Ok(HttpResponse::NoContent().finish())

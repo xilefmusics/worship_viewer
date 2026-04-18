@@ -2,6 +2,7 @@
 
 use hex;
 use ring::digest;
+use surrealdb::Error as SurrealError;
 use tracing_subscriber::EnvFilter;
 
 /// Compile-time guard: audit [`crate::audit!`] events must use the `audit.` prefix.
@@ -137,6 +138,38 @@ pub fn log_error_chain(target: &'static str, err: &(dyn std::error::Error + 'sta
         error_source_chain = %error_source_chain_string(err),
         error_debug = ?err,
         "I/O boundary error"
+    );
+}
+
+/// SurrealDB statement failure during migrations (`migration` field preserved for log compatibility).
+pub fn log_surreal_statement_error_migration(
+    migration: &str,
+    statement_index: usize,
+    err: &SurrealError,
+) {
+    tracing::error!(
+        migration = %migration,
+        statement_index = statement_index,
+        error = %err,
+        error_source_chain = %error_source_chain_string(err),
+        error_debug = ?err,
+        "SurrealDB query statement failed"
+    );
+}
+
+/// SurrealDB statement failure in application queries (`context` field).
+pub fn log_surreal_statement_error_context(
+    context: &'static str,
+    statement_index: usize,
+    err: &SurrealError,
+) {
+    tracing::error!(
+        context = context,
+        statement_index = statement_index,
+        error = %err,
+        error_source_chain = %error_source_chain_string(err),
+        error_debug = ?err,
+        "SurrealDB query statement failed"
     );
 }
 
