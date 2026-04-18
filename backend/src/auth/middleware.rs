@@ -86,6 +86,7 @@ where
                 Err(err) => return Err(err.into()),
             };
 
+            tracing::Span::current().record("user_id", tracing::field::display(&user.id));
             req.extensions_mut().insert(user);
 
             let response = service.call(req).await?;

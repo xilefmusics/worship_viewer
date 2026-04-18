@@ -19,6 +19,7 @@
 
 use std::sync::Arc;
 
+use actix_web::middleware::Compat;
 use actix_web::web::Data;
 use actix_web::{App, test};
 use anyhow::Result as AnyResult;
@@ -71,6 +72,9 @@ fn build_app(
 
     App::new()
         .wrap(crate::request_id::RequestId)
+        .wrap(Compat::new(tracing_actix_web::TracingLogger::<
+            crate::request_id::WorshipRootSpan,
+        >::new()))
         .app_data(Data::from(db.clone()))
         .app_data(Data::new(blob_service(&db, blob_dir)))
         .app_data(Data::new(collection_service(&db)))
