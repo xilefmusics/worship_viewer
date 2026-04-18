@@ -24,6 +24,26 @@ pub struct CreateCollection {
     pub songs: Vec<SongLink>,
 }
 
+/// Full replacement body for `PUT /api/v1/collections/{id}`.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct UpdateCollection {
+    pub title: String,
+    pub cover: String,
+    pub songs: Vec<SongLink>,
+}
+
+impl From<UpdateCollection> for CreateCollection {
+    fn from(value: UpdateCollection) -> Self {
+        Self {
+            title: value.title,
+            cover: value.cover,
+            songs: value.songs,
+        }
+    }
+}
+
 /// Partial update for a collection. Absent fields are left unchanged.
 #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(deny_unknown_fields)]

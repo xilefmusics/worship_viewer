@@ -4,14 +4,31 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub enum PlayerItem {
-    Blob(String),
-    Chords(Song),
+    Blob(PlayerBlobItem),
+    Chords(PlayerChordsItem),
+}
+
+/// Sheet-music or image item in a player sequence (`type`: `"blob"`).
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct PlayerBlobItem {
+    pub blob_id: String,
+}
+
+/// ChordPro-backed song item in a player sequence (`type`: `"chords"`).
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct PlayerChordsItem {
+    pub song: Song,
 }
 
 impl Default for PlayerItem {
     fn default() -> Self {
-        Self::Blob(String::default())
+        Self::Blob(PlayerBlobItem {
+            blob_id: String::new(),
+        })
     }
 }

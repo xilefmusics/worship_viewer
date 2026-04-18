@@ -3,16 +3,16 @@ pub mod rest;
 mod common;
 
 pub mod blob;
-pub use blob::{Blob, CreateBlob};
+pub use blob::{Blob, CreateBlob, UpdateBlob};
 
 pub mod collection;
-pub use collection::{Collection, CreateCollection};
+pub use collection::{Collection, CreateCollection, UpdateCollection};
 
 pub mod setlist;
-pub use setlist::{CreateSetlist, Setlist};
+pub use setlist::{CreateSetlist, Setlist, UpdateSetlist};
 
 pub mod song;
-pub use song::{CreateSong, Song};
+pub use song::{CreateSong, Song, UpdateSong};
 
 pub mod team;
 

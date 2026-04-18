@@ -1,4 +1,4 @@
-pub use shared::blob::{Blob, CreateBlob, PatchBlob};
+pub use shared::blob::{Blob, CreateBlob, PatchBlob, UpdateBlob};
 
 mod model;
 mod repository;

@@ -7,21 +7,24 @@ use crate::resources::setlist::PatchSetlist;
 use crate::resources::song::{PatchSong, PatchSongData};
 use crate::resources::user::Role;
 use crate::resources::{
-    Blob, Collection, CreateBlob, CreateCollection, CreateSetlist, CreateSong, CreateUser, Session,
-    Setlist, Song, User,
+    Blob, Collection, CreateBlob, CreateCollection, CreateSetlist, CreateSong, CreateUser, Setlist,
+    Song, UpdateBlob, UpdateCollection, UpdateSetlist, UpdateSong, User,
 };
 use shared::api::SongListQuery;
 use shared::auth::otp::{OtpRequest, OtpVerify};
-use shared::blob::FileType;
+use shared::blob::{BlobLink, FileType};
 pub use shared::error::{ErrorResponse, Problem, ProblemDetails};
 use shared::like::LikeStatus;
-use shared::player::{Orientation, Player, PlayerItem, ScrollType, TocItem};
+use shared::player::{
+    Orientation, Player, PlayerBlobItem, PlayerChordsItem, PlayerItem, ScrollType, TocItem,
+};
 use shared::song::SongDataSchema;
 use shared::song::{Link as SongLink, SongUserSpecificAddons};
 use shared::team::{
     CreateTeam, PatchTeam, Team, TeamInvitation, TeamMember, TeamMemberInput, TeamRole, TeamUser,
     TeamUserRef, UpdateTeam,
 };
+use shared::user::{SessionBody, SessionUserBody};
 
 pub mod rest {
     use super::{ApiDoc, OpenApi};
@@ -36,14 +39,16 @@ pub mod rest {
 #[openapi(
     info(
         title = "Worship Viewer API",
-        version = "1.0.0",
+        version = "2.0.0",
         description = "Versioned REST API under `/api/v1`. Authentication flows live at `/auth/*` (unversioned); clients should treat that split as stable for this major API generation.\n\n\
+            **Breaking 2.0:** See `docs/api-breaking-2-0.md` for migration (`PlayerItem`, `Song.blobs` as link objects, `Session` wire model, `Problem` without `error`, PUT bodies use `Update*` types in the spec).\n\n\
             **Timestamps:** All timestamps are UTC and use RFC 3339 with a `Z` suffix (e.g. `2026-04-18T12:00:00Z`).\n\n\
             **Identifiers:** Resource IDs are opaque printable strings returned by the API; treat them as opaque and do not parse their internal structure.\n\n\
+            **References & expand:** Cross-resource links use objects such as `BlobLink` (`{ \"id\": \"…\" }`) instead of bare id strings where noted. Session list/detail responses default to a narrow `user` link (`id` + `email`); pass `expand=user` (comma-separated with other tokens as added) to embed the full `User`.\n\n\
             **JSON naming:** Object keys use `snake_case`. Enum wire values use the casing shown in each schema (broader enum casing standardization is planned).\n\n\
             **Pagination:** List endpoints accept `page` (0-based) and `page_size` (1–500, default 50). Responses include `X-Total-Count` with the total matching rows before pagination and RFC 5988 `Link` headers (relations: first, prev, next, last) where applicable.\n\n\
             **Rate limiting:** Versioned `/api/v1/*` routes use token-bucket limits per client IP (`Retry-After`, `X-RateLimit-*` on **429**; configurable via server settings).\n\n\
-            **Errors:** Failed requests return `Content-Type: application/problem+json` ([RFC 7807](https://www.rfc-editor.org/rfc/rfc7807)) with a `Problem` body. Stable machine-readable `code` values include: `unauthorized`, `forbidden`, `not_found`, `invalid_request`, `invalid_page_size`, `conflict`, `too_many_requests`, `not_acceptable`, `precondition_failed`, `internal`. Legacy schemas `ErrorResponse` and `ProblemDetails` remain listed for one release but are deprecated in favor of `Problem`.\n\n\
+            **Errors:** Failed requests return `Content-Type: application/problem+json` ([RFC 7807](https://www.rfc-editor.org/rfc/rfc7807)) with a `Problem` body (`type`, `title`, `status`, `code`, optional `detail` / `instance`). Use `detail` for human-readable text; stable machine-readable `code` values include: `unauthorized`, `forbidden`, `not_found`, `invalid_request`, `invalid_page_size`, `conflict`, `too_many_requests`, `not_acceptable`, `precondition_failed`, `internal`. Legacy schemas `ErrorResponse` and `ProblemDetails` remain listed for one release but are deprecated in favor of `Problem`.\n\n\
             **CSRF:** Cookie sessions use `SameSite=Lax`; state-changing methods are `POST`/`PUT`/`PATCH`/`DELETE` (not `GET`). Cross-site simple requests cannot mutate state via cookies under typical browser rules. Browser `fetch` from the SPA should use `credentials: 'same-origin'` (or include cookies only on same-site requests). API clients using bearer tokens should still avoid exposing tokens to third-party origins.\n\n\
             **Examples:** See schema `example` fields on core DTOs in the components section.",
         license(name = "MIT", url = "https://opensource.org/licenses/MIT")
@@ -120,7 +125,8 @@ pub mod rest {
     components(
         schemas(
             User,
-            Session,
+            SessionBody,
+            SessionUserBody,
             Role,
             CreateUser,
             OtpRequest,
@@ -131,24 +137,31 @@ pub mod rest {
             ProblemDetails,
             Song,
             CreateSong,
+            UpdateSong,
             PatchSong,
             PatchSongData,
             SongDataSchema,
             SongUserSpecificAddons,
             Collection,
             CreateCollection,
+            UpdateCollection,
             PatchCollection,
             Setlist,
             CreateSetlist,
+            UpdateSetlist,
             PatchSetlist,
             Blob,
+            BlobLink,
             CreateBlob,
+            UpdateBlob,
             PatchBlob,
             FileType,
             SongLink,
             LikeStatus,
             Player,
             PlayerItem,
+            PlayerBlobItem,
+            PlayerChordsItem,
             TocItem,
             ScrollType,
             Orientation,

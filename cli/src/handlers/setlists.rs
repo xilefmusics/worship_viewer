@@ -1,6 +1,6 @@
 use shared::api::{ApiClient, ListQuery};
 use shared::net::DefaultHttpClient;
-use shared::setlist::CreateSetlist;
+use shared::setlist::{CreateSetlist, UpdateSetlist};
 
 use crate::commands::SetlistsCommand;
 use crate::output::{self, OutputFormat};
@@ -62,7 +62,7 @@ pub async fn handle_setlists(
         }
         SetlistsCommand::Update { id, json } => {
             validate_resource_id(&id)?;
-            let payload: CreateSetlist = serde_json::from_str(&json)?;
+            let payload: UpdateSetlist = serde_json::from_str(&json)?;
             if dry_run {
                 let planned = serde_json::json!({
                     "method": "PUT",

@@ -13,9 +13,9 @@ use crate::http_cache::{
 use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::blob::Blob;
-use crate::resources::blob::CreateBlob;
 use crate::resources::blob::PatchBlob;
 use crate::resources::blob::service::BlobServiceHandle;
+use crate::resources::blob::{CreateBlob, UpdateBlob};
 use crate::resources::team::UserPermissions;
 use shared::api::{ListQuery, PAGE_SIZE_DEFAULT};
 
@@ -168,9 +168,9 @@ async fn create_blob(
     params(
         ("id" = String, Path, description = "Blob identifier")
     ),
-    request_body = CreateBlob,
+    request_body = UpdateBlob,
     responses(
-        (status = 200, description = "Update an existing blob", body = Blob),
+        (status = 200, description = "Replace blob metadata (`PUT` is full replacement; `owner` is not client-settable).", body = Blob),
         (status = 400, description = "Invalid blob identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
         (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
@@ -190,17 +190,15 @@ async fn update_blob(
     svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     id: PathParam<String>,
-    payload: Json<CreateBlob>,
+    payload: Json<UpdateBlob>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let blob = svc.get_blob_for_user(&perms, &id).await?;
     let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
     check_if_match(&req, &etag)?;
-    Ok(HttpResponse::Ok().json(
-        svc.update_blob_for_user(&perms, &id, payload.into_inner())
-            .await?,
-    ))
+    let payload = CreateBlob::from(payload.into_inner());
+    Ok(HttpResponse::Ok().json(svc.update_blob_for_user(&perms, &id, payload).await?))
 }
 
 #[utoipa::path(

@@ -6,6 +6,6 @@ mod toc_item;
 
 pub use orientation::Orientation;
 pub use player::Player;
-pub use player_item::PlayerItem;
+pub use player_item::{PlayerBlobItem, PlayerChordsItem, PlayerItem};
 pub use scroll_type::ScrollType;
 pub use toc_item::TocItem;

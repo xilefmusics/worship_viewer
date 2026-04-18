@@ -24,8 +24,7 @@ pub struct ErrorResponse {
 
 /// [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) problem document (`application/problem+json`).
 ///
-/// Canonical error body for HTTP 4xx/5xx responses. Extension members include `code` and legacy `error`
-/// (same value as `detail` when both are present).
+/// Canonical error body for HTTP 4xx/5xx responses. Extension members include `code`.
 #[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "backend", schema(title = "Problem"))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -45,13 +44,9 @@ pub struct Problem {
     /// Optional URI reference that identifies the specific occurrence.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instance: Option<String>,
-    /// Same as `detail` (legacy alias).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
 }
 
 impl Problem {
-    /// Build a problem document with `detail` and legacy `error` set to the same string.
     pub fn new(
         type_uri: String,
         title: String,
@@ -65,9 +60,8 @@ impl Problem {
             title,
             status,
             code: code.into(),
-            detail: Some(detail.clone()),
+            detail: Some(detail),
             instance,
-            error: Some(detail),
         }
     }
 }
@@ -89,8 +83,6 @@ pub struct ProblemDetails {
     pub detail: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instance: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
 }
 
 impl From<Problem> for ProblemDetails {
@@ -102,7 +94,6 @@ impl From<Problem> for ProblemDetails {
             code: p.code,
             detail: p.detail,
             instance: p.instance,
-            error: p.error,
         }
     }
 }
@@ -116,7 +107,6 @@ impl From<ProblemDetails> for Problem {
             code: p.code,
             detail: p.detail,
             instance: p.instance,
-            error: p.error,
         }
     }
 }

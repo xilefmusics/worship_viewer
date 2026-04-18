@@ -16,15 +16,15 @@ pub struct Props {
 #[function_component(PageComponent)]
 pub fn page_components(props: &Props) -> Html {
     match &props.item {
-        PlayerItem::Blob(id) => html! {
+        PlayerItem::Blob(b) => html! {
             <div class={Style::new(include_str!("page.css")).expect("Unwrapping CSS should work!")}>
-                <img src={format!("/api/v1/blobs/{}/data", id)}/>
+                <img src={format!("/api/v1/blobs/{}/data", b.blob_id)}/>
             </div>
         },
-        PlayerItem::Chords(song) => {
+        PlayerItem::Chords(c) => {
             html! {
                 <SongViewer
-                    song={song.clone()}
+                    song={c.song.clone()}
                     override_key={props.override_key.clone()}
                     override_representation={props.override_representation.clone()}
                 />

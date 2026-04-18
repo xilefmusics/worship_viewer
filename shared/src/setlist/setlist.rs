@@ -21,6 +21,33 @@ pub struct CreateSetlist {
     pub songs: Vec<SongLink>,
 }
 
+/// Full replacement body for `PUT /api/v1/setlists/{id}`.
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct UpdateSetlist {
+    pub title: String,
+    pub songs: Vec<SongLink>,
+}
+
+impl From<CreateSetlist> for UpdateSetlist {
+    fn from(value: CreateSetlist) -> Self {
+        Self {
+            title: value.title,
+            songs: value.songs,
+        }
+    }
+}
+
+impl From<UpdateSetlist> for CreateSetlist {
+    fn from(value: UpdateSetlist) -> Self {
+        Self {
+            title: value.title,
+            songs: value.songs,
+        }
+    }
+}
+
 /// Partial update for a setlist. Absent fields are left unchanged.
 #[derive(Deserialize, Debug, Default, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]

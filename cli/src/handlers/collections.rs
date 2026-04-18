@@ -1,5 +1,5 @@
 use shared::api::{ApiClient, ListQuery};
-use shared::collection::CreateCollection;
+use shared::collection::{CreateCollection, UpdateCollection};
 use shared::net::DefaultHttpClient;
 
 use crate::commands::CollectionsCommand;
@@ -64,7 +64,7 @@ pub async fn handle_collections(
         }
         CollectionsCommand::Update { id, json } => {
             validate_resource_id(&id)?;
-            let payload: CreateCollection = serde_json::from_str(&json)?;
+            let payload: UpdateCollection = serde_json::from_str(&json)?;
             if dry_run {
                 let planned = serde_json::json!({
                     "method": "PUT",

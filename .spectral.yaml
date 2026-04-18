@@ -1,0 +1,15 @@
+# Worship Viewer: enforce snake_case property keys in OpenAPI component schemas (Phase 3 §22).
+extends:
+  - - spectral:oas
+    - off
+rules:
+  oas3-schema-properties-snake-case:
+    description: Every property name under components.schemas must be snake_case ASCII
+    message: "Property name must be snake_case (lowercase, digits, underscores): {{value}}"
+    severity: error
+    given: "$.components.schemas..properties"
+    then:
+      field: "@key"
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-z0-9_]*$"

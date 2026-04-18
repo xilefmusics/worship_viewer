@@ -2,17 +2,17 @@ use yew_router::prelude::Navigator;
 
 use shared::auth::otp::{OtpRequest, OtpVerify};
 use shared::blob::Blob;
-use shared::blob::CreateBlob;
+use shared::blob::{CreateBlob, UpdateBlob};
 use shared::collection::Collection;
-use shared::collection::CreateCollection;
+use shared::collection::{CreateCollection, UpdateCollection};
 use shared::error::NetworkClientError;
 use shared::net::{DefaultHttpClient, HttpClientConfig};
 use shared::player::Player;
-use shared::setlist::CreateSetlist;
+use shared::setlist::{CreateSetlist, UpdateSetlist};
 use shared::setlist::Setlist;
-use shared::song::CreateSong;
+use shared::song::{CreateSong, UpdateSong};
 use shared::song::Song;
-use shared::user::{CreateUser, Session, User};
+use shared::user::{CreateUser, SessionBody, User};
 
 use super::error::{ApiError, OperationType};
 use crate::route::Route;
@@ -86,7 +86,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn verify_otp(&self, email: String, code: String) -> Result<Session, ApiError> {
+    pub async fn verify_otp(&self, email: String, code: String) -> Result<SessionBody, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .verify_otp(OtpVerify { email, code })
@@ -155,7 +155,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn get_sessions_for_current_user(&self) -> Result<Vec<Session>, ApiError> {
+    pub async fn get_sessions_for_current_user(&self) -> Result<Vec<SessionBody>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
             .list_my_sessions(ListQuery::default())
@@ -164,7 +164,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn get_session_for_current_user(&self, id: &str) -> Result<Session, ApiError> {
+    pub async fn get_session_for_current_user(&self, id: &str) -> Result<SessionBody, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
             .get_my_session(id)
@@ -182,7 +182,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn get_sessions_for_user(&self, user_id: &str) -> Result<Vec<Session>, ApiError> {
+    pub async fn get_sessions_for_user(&self, user_id: &str) -> Result<Vec<SessionBody>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
             .list_sessions_for_user(user_id, ListQuery::default())
@@ -191,7 +191,11 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn get_session_for_user(&self, user_id: &str, id: &str) -> Result<Session, ApiError> {
+    pub async fn get_session_for_user(
+        &self,
+        user_id: &str,
+        id: &str,
+    ) -> Result<SessionBody, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
             .get_session_for_user(user_id, id)
@@ -200,7 +204,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn create_session_for_user(&self, user_id: &str) -> Result<Session, ApiError> {
+    pub async fn create_session_for_user(&self, user_id: &str) -> Result<SessionBody, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .create_session_for_user(user_id)
@@ -255,7 +259,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn update_song(&self, id: &str, payload: &CreateSong) -> Result<Song, ApiError> {
+    pub async fn update_song(&self, id: &str, payload: &UpdateSong) -> Result<Song, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .update_song(id, payload.clone())
@@ -342,7 +346,7 @@ impl Api {
     pub async fn update_collection(
         &self,
         id: &str,
-        payload: &CreateCollection,
+        payload: &UpdateCollection,
     ) -> Result<Collection, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
@@ -397,7 +401,6 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    #[allow(dead_code)]
     pub async fn create_setlist(&self, payload: &CreateSetlist) -> Result<Setlist, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
@@ -410,7 +413,7 @@ impl Api {
     pub async fn update_setlist(
         &self,
         id: &str,
-        payload: &CreateSetlist,
+        payload: &UpdateSetlist,
     ) -> Result<Setlist, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
@@ -456,7 +459,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn update_blob(&self, id: &str, payload: &CreateBlob) -> Result<Blob, ApiError> {
+    pub async fn update_blob(&self, id: &str, payload: &UpdateBlob) -> Result<Blob, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .update_blob(id, payload.clone())

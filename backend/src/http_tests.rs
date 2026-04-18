@@ -293,6 +293,17 @@ mod openapi_problem_schema {
         );
 
         let paths = v["paths"].as_object().expect("paths");
+        let problem = schemas
+            .get("Problem")
+            .expect("Problem schema")
+            .get("properties")
+            .and_then(|p| p.as_object())
+            .expect("Problem.properties");
+        assert!(
+            !problem.contains_key("error"),
+            "Problem schema must not include legacy `error` property"
+        );
+
         for (path, path_item) in paths {
             let path_item = path_item.as_object().expect("path item");
             for method in ["get", "put", "post", "delete", "patch"] {
@@ -326,6 +337,44 @@ mod openapi_problem_schema {
                         "{path} {method} {status}: schema $ref should point to Problem, got {schema_ref:?}"
                     );
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn blc_docs_004_openapi_schema_property_keys_are_snake_case() {
+        let openapi = crate::docs::ApiDoc::openapi();
+        let v = serde_json::to_value(openapi).expect("openapi serializes to JSON");
+        fn check(value: &serde_json::Value, ctx: &str) {
+            match value {
+                serde_json::Value::Object(map) => {
+                    if let Some(props) = map.get("properties").and_then(|p| p.as_object()) {
+                        for (key, child) in props {
+                            assert!(
+                                key.chars().next().is_some_and(|c| c.is_ascii_lowercase())
+                                    && key.chars().all(|c| c.is_ascii_lowercase()
+                                        || c.is_ascii_digit()
+                                        || c == '_'),
+                                "{ctx}: property key {key:?} must be snake_case ASCII",
+                            );
+                            check(child, &format!("{ctx}.{key}"));
+                        }
+                    }
+                    for (k, child) in map {
+                        check(child, &format!("{ctx}/{k}"));
+                    }
+                }
+                serde_json::Value::Array(items) => {
+                    for (i, item) in items.iter().enumerate() {
+                        check(item, &format!("{ctx}[{i}]"));
+                    }
+                }
+                _ => {}
+            }
+        }
+        if let Some(schemas) = v["components"]["schemas"].as_object() {
+            for (name, schema) in schemas {
+                check(schema, &format!("components.schemas.{name}"));
             }
         }
     }

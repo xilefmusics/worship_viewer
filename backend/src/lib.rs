@@ -5,6 +5,7 @@ pub mod auth;
 pub mod database;
 pub mod docs;
 pub mod error;
+pub mod expand;
 pub mod frontend;
 pub mod governor_peer;
 pub mod http_cache;

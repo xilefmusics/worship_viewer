@@ -1,5 +1,5 @@
 use shared::api::{ApiClient, ListQuery};
-use shared::blob::CreateBlob;
+use shared::blob::{CreateBlob, UpdateBlob};
 use shared::net::DefaultHttpClient;
 
 use crate::commands::BlobsCommand;
@@ -49,7 +49,7 @@ pub async fn handle_blobs(
         }
         BlobsCommand::Update { id, json } => {
             validate_resource_id(&id)?;
-            let payload: CreateBlob = serde_json::from_str(&json)?;
+            let payload: UpdateBlob = serde_json::from_str(&json)?;
             if dry_run {
                 let planned = serde_json::json!({
                     "method": "PUT",

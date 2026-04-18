@@ -1,3 +1,4 @@
+use crate::blob::BlobLink;
 use crate::patch::Patch;
 use chordlib::inputs::chord_pro;
 use chordlib::outputs::{FormatChordPro, FormatHTML};
@@ -29,9 +30,9 @@ pub struct Song {
     pub owner: String,
     /// When true, this record is not treated as a musical song (e.g. scripture or spoken content).
     pub not_a_song: bool,
-    /// Blob IDs for sheet-music or image assets linked to this song.
-    pub blobs: Vec<String>,
-    /// ChordPro-derived payload (sections, lyrics, metadata); see `SongData` in the OpenAPI components.
+    /// Linked blob assets (`id` is the blob resource identifier).
+    pub blobs: Vec<BlobLink>,
+    /// ChordPro-derived payload (sections, lyrics, metadata); see `SongDataSchema` in the OpenAPI components.
     #[cfg_attr(feature = "backend", schema(value_type = SongDataSchema))]
     pub data: ChordSong,
     /// Per-request flags such as whether the current user liked this song.
@@ -51,9 +52,54 @@ pub struct Song {
 )]
 pub struct CreateSong {
     pub not_a_song: bool,
-    pub blobs: Vec<String>,
+    pub blobs: Vec<BlobLink>,
     #[cfg_attr(feature = "backend", schema(value_type = SongDataSchema))]
     pub data: ChordSong,
+}
+
+/// Full replacement body for `PUT /api/v1/songs/{id}` (same fields as [`CreateSong`]; server-owned `id` is path-only).
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({
+        "not_a_song": false,
+        "blobs": [],
+        "data": { "titles": ["Example Hymn"], "sections": [] }
+    }))
+)]
+pub struct UpdateSong {
+    pub not_a_song: bool,
+    pub blobs: Vec<BlobLink>,
+    #[cfg_attr(feature = "backend", schema(value_type = SongDataSchema))]
+    pub data: ChordSong,
+}
+
+impl From<UpdateSong> for CreateSong {
+    fn from(value: UpdateSong) -> Self {
+        Self {
+            not_a_song: value.not_a_song,
+            blobs: value.blobs,
+            data: value.data,
+        }
+    }
+}
+
+impl From<CreateSong> for UpdateSong {
+    fn from(value: CreateSong) -> Self {
+        Self {
+            not_a_song: value.not_a_song,
+            blobs: value.blobs,
+            data: value.data,
+        }
+    }
+}
+
+impl UpdateSong {
+    pub fn validate(&self) -> Result<(), String> {
+        CreateSong::from(self.clone()).validate()
+    }
 }
 
 /// Partial update for a song. Absent fields are left unchanged.
@@ -66,7 +112,7 @@ pub struct CreateSong {
 )]
 pub struct PatchSong {
     pub not_a_song: Option<bool>,
-    pub blobs: Option<Vec<String>>,
+    pub blobs: Option<Vec<BlobLink>>,
     #[cfg_attr(feature = "backend", schema(value_type = PatchSongData))]
     pub data: Option<PatchSongData>,
 }
@@ -226,7 +272,11 @@ mod tests {
             blobs: vec![],
             data: chordlib::types::Song::default(),
         };
-        s.blobs = (0..=MAX_BLOBS_PER_SONG).map(|i| format!("b{i}")).collect();
+        s.blobs = (0..=MAX_BLOBS_PER_SONG)
+            .map(|i| BlobLink {
+                id: format!("b{i}"),
+            })
+            .collect();
         assert!(s.validate().is_err());
         s.blobs.pop();
         assert!(s.validate().is_ok());
