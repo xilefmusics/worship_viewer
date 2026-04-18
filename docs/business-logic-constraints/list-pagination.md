@@ -6,7 +6,7 @@ Applies to **GET** list routes that support paging: **`/users`** (admin), **`/bl
 
 - **BLC-LP-001:** **`page`** — 0-based index of the page.
 - **BLC-LP-002:** **`page_size`** — maximum number of items per page.
-- **BLC-LP-003:** **`q`** — optional search filter on **`/songs`**, **`/collections`**, and **`/setlists`** only (not on **`/users`** or **`/blobs`**). Collection and setlist lists match **title**; song list also matches **artists** and lyric text per the product's list-search rules (including stemming where applicable).
+- **BLC-LP-003:** **`q`** — optional search filter: **`/songs`** (full-text: titles, artists, lyrics per analyzer rules), **`/collections`** and **`/setlists`** (**title**), **`/users`** (admin list: **email** substring, case-insensitive), **`/blobs`** (**OCR** substring, case-insensitive). Whitespace-only **`q`** is treated as absent everywhere.
 
 ## Validation
 
@@ -22,4 +22,4 @@ Applies to **GET** list routes that support paging: **`/users`** (admin), **`/bl
 - **BLC-LP-008:** WHEN **`page`** IS beyond the last page THEN the API responds **200** with an **empty array** (not **404**).
 - **BLC-LP-009:** WHEN **`q`** IS combined with **`page`** / **`page_size`** THEN filtering runs first, then pagination over those results.
 
-All list responses include an **`X-Total-Count`** response header containing the total number of matching records (before pagination), allowing clients to calculate the total number of pages.
+**Track A (current):** All list responses include an **`X-Total-Count`** header: the **total number of matching records after filters and before pagination**. Clients detect the last page when the returned **`items.len() < page_size`** or the page is **empty** (including “beyond last page” pages).

@@ -1319,7 +1319,7 @@ testcases:
             }
           }
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 201
 
   # BLC: BLC-SONG-006
   - name: put-song-no-permission
@@ -1383,7 +1383,7 @@ testcases:
             }
           }
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 201
           - result.bodyjson.id ShouldEqual "new-song-id"
           - result.bodyjson.data.titles ShouldHaveLength 1
           - result.bodyjson.data.titles.titles0 ShouldEqual "Created By PUT"
@@ -1408,7 +1408,7 @@ testcases:
             }
           }
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 201
           - result.bodyjson.id ShouldEqual "new-song-by-write-user"
           - result.bodyjson.data.titles ShouldHaveLength 1
           - result.bodyjson.data.titles.titles0 ShouldEqual "Created By Write User Via PUT"
@@ -1433,7 +1433,7 @@ testcases:
             }
           }
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 201
           - result.bodyjson.owner ShouldEqual "{{.get-no-permission-personal-team.noperm_personal_team_id}}"
 
   # DELETE /api/v1/songs/{id} tests
@@ -1621,7 +1621,7 @@ testcases:
             }
           }
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 201
           - result.bodyjson.id ShouldEqual "cascade-song-delete"
         vars:
           songid:
@@ -1735,7 +1735,7 @@ testcases:
             }
           }
         assertions:
-          - result.statuscode ShouldEqual 200
+          - result.statuscode ShouldEqual 201
           - result.bodyjson.id ShouldEqual "{{.put-song-cascade-target.songid}}"
 
   # BLC: BLC-SONG-004

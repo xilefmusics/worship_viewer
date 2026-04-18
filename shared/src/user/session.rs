@@ -3,9 +3,30 @@ use chrono::Duration;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "backend")]
+#[allow(unused_imports)]
+use serde_json::json;
+
 use super::User;
 
 #[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "user": {
+            "id": "user-1",
+            "email": "singer@example.com",
+            "role": "default",
+            "default_collection": null,
+            "created_at": "2024-01-01T12:00:00Z",
+            "last_login_at": null,
+            "request_count": 0
+        },
+        "created_at": "2024-01-01T12:00:00Z",
+        "expires_at": "2025-01-01T12:00:00Z"
+    }))
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct Session {
     pub id: String,

@@ -1,11 +1,25 @@
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "backend")]
+#[allow(unused_imports)]
+use serde_json::json;
+
 use super::ListQuery;
 
 /// Query parameters for `GET /api/v1/songs`: pagination plus optional sort and filters.
 ///
 /// Pagination fields mirror [`ListQuery`] (they are not `flatten`ed so `actix_web::Query`
 /// deserializes reliably from `application/x-www-form-urlencoded` query strings).
+#[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({
+        "page": 0,
+        "page_size": 50,
+        "q": "grace",
+        "sort": "relevance"
+    }))
+)]
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct SongListQuery {
     pub page: Option<u32>,

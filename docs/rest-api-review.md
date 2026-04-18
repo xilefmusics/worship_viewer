@@ -1,6 +1,16 @@
 # REST API Review — `worship_viewer` backend
 
-Date: 2026-04-17
+## Status (2026-04)
+
+Shipped in **#78–#81** (and small follow-ups): session **IDOR fix** and admin **`user_id` scoping**; **sanitized** DB validation errors; **`Bearer`-only** `Authorization`; **204** on all `DELETE`s; OTP **lockout** + **auth rate limits**; **Problem Details** (`application/problem+json`); **plain resource ids** at the HTTP edge (reject `table:id`); **pagination** caps and **`X-Total-Count`**; **nested list** paging; **`/songs/{id}/like`** singleton; **ETags** / conditional GETs; **song list** filters; **blob** `PUT …/data` and download headers; shared **team resolver** / permissions refactor (see codebase).
+
+**Export** routes (`/songs|collections|setlists/.../export`) are **not** exposed on the current HTTP API — see appendix **Exports**.
+
+Further work is tracked in [rest-api-review-closing-gaps-action-plan.md](./rest-api-review-closing-gaps-action-plan.md).
+
+---
+
+Date: 2026-04-17  
 Scope: the HTTP surface exposed by the `backend` crate
 (`/auth`, `/api/v1/*`, `/api/docs/*`, SPA fallback), as defined in:
 
@@ -27,24 +37,23 @@ Authentication is cleanly expressed as two tiers of middleware
 (`RequireUser`, `RequireAdmin`) and the ACL model (team-based, with lazy,
 cached permission resolution via `UserPermissions`) is elegant.
 
-That said, the surface has **several concrete inconsistencies and a few real
-correctness/security smells** that deserve attention. The most important ones:
+The table below is **historical** (pre-#78). Most rows were **addressed** in #78–#81; see **Status** above. Remaining polish is in [rest-api-review-closing-gaps-action-plan.md](./rest-api-review-closing-gaps-action-plan.md).
 
-| # | Severity | Issue | Location |
-|---|---|---|---|
-| S1 | **Security (IDOR)** | `DELETE /api/v1/users/me/sessions/{id}` does not scope by caller — any authenticated user can delete any other user's session by id. | `backend/src/resources/user/session/rest.rs:82` |
-| S2 | Medium | Admin `GET /users/{user_id}/sessions/{id}` and `DELETE /users/{user_id}/sessions/{id}` ignore the `user_id` path segment. | same file, lines 168, 196 |
-| S3 | Medium | 400 responses may leak SurrealDB-internal field/index/query strings to clients (`AppError::InvalidRequest(dberr.to_string())`). | `backend/src/error.rs:65–77` |
-| S4 | Medium | `Authorization` header is accepted **both** as a raw session id and as `Bearer <id>` — ambiguous and non-standard. | `backend/src/auth/bearer.rs` (via `authorization_bearer`) |
-| S5 | Medium | DELETE semantics are inconsistent: most resources return **200 + deleted body**, `DELETE /teams/{id}/invitations/{id}` returns **204 No Content**. | see §5.1 |
-| S6 | Medium | `POST /auth/otp/request` returns `204` and `POST /auth/otp/verify` can therefore be used to probe whether an email exists (auto-creates on verify instead of request). Email enumeration surface. | `backend/src/auth/otp/rest.rs` |
-| S7 | Low | PUT on resources is **upsert** (creates with caller's personal team as owner when the id is new). Never documented in OpenAPI, tested but surprising for clients. | `SongService::update_song_for_user`, tests `blc_song_018_*` |
-| S8 | Low | `body = Vec<u8>, content_type = "application/octet-stream"` for `/songs|setlists|collections/{id}/export` is wrong for `pdf`/`zip`/`wp`/`cp`. | `*/rest.rs` export routes |
-| S9 | Low | Likes resource is a URL smell: `PUT /songs/{id}/likes` on a singleton with a `{ liked: bool }` body. Should be `PUT`/`DELETE /songs/{id}/like` or a proper collection. | `song/rest.rs:310–352` |
-| S10 | Low | `page_size=0` meaning "no cap" is non-standard and undiscoverable; `page` is 0-based but also undocumented outside of BLCs. | `shared/src/api/list_query.rs`, `BLC-LP-006` |
+| # | Severity | Issue | Location | Resolution (high level) |
+|---|---|---|---|---|
+| S1 | **Security (IDOR)** | `DELETE …/me/sessions/{id}` did not scope by caller. | `user/session/rest.rs` | **Fixed #78:** `delete_session_for_user` + 204. |
+| S2 | Medium | Admin session GET/DELETE ignored `user_id`. | same | **Fixed #78:** paths use `user_id`. |
+| S3 | Medium | 400 could leak Surreal strings. | `error.rs` | **Fixed #79:** sanitize + log. |
+| S4 | Medium | Raw session id in `Authorization`. | `bearer.rs` | **Fixed #79:** `Bearer` only. |
+| S5 | Medium | Mixed DELETE 200 vs 204. | §5.1 | **Fixed #79:** 204 everywhere. |
+| S6 | Medium | OTP / enumeration / auto-signup. | `otp/rest.rs` | **Partial #78:** lockout + limits; **config/docs** in closing-gaps. |
+| S7 | Low | PUT upsert undocumented / status. | songs | **Docs + 201 on create** (closing-gaps). |
+| S8 | Low | Export OpenAPI content types. | (no export routes) | **N/A** until exports exist; see appendix. |
+| S9 | Low | `/likes` URL smell. | `song/rest.rs` | **Fixed #80:** `/like`. |
+| S10 | Low | `page_size=0`, undocumented paging. | `list_query` | **Fixed #79–#80:** validate + headers + docs. |
 
 The rest of this document discusses what is good, then drills into each class
-of issue with concrete references and recommended fixes.
+of issue with concrete references. Treat detailed §4–§7 recommendations as **design history** unless marked still open in the action plan.
 
 ---
 
@@ -66,9 +75,9 @@ of issue with concrete references and recommended fixes.
     (wrapped by RequireAdmin)
     GET|POST|DELETE "" and "/{id}"         Admin user CRUD
     GET|POST|DELETE "/{user_id}/sessions{/id?}"
-  /songs                                   CRUD + /player, /export, /likes
-  /collections                             CRUD + /player, /export, /songs
-  /setlists                                CRUD + /player, /export, /songs
+  /songs                                   CRUD + /player, /like
+  /collections                             CRUD + /player, /songs
+  /setlists                                CRUD + /player, /songs
   /blobs                                   CRUD + /{id}/data (binary download)
   /teams                                   CRUD (+ /{team_id}/invitations)
   /invitations/{id}/accept  POST           Accept invite
@@ -96,9 +105,7 @@ Counts: **~55** documented operations across **7** resource tags.
 - **Middleware is composable.** `RequireUser` sits on `/api/v1` and
   `RequireAdmin` is scoped further on admin routes via a nested
   `web::scope("")`. Clear, no ambiguity.
-- **Resource IDs are validated.** `resource_id(table, id)` both accepts plain
-  ids and the Surreal `table:id` form while rejecting wrong-table prefixes
-  (`resources/common.rs`). Good BLC-HTTP-001 enforcement.
+- **Resource IDs are validated.** At the HTTP edge, paths use **plain ids**; `table:id` is rejected (**#79**). `resource_id` still parses ids for queries (`resources/common.rs`).
 
 ### 3.2 HTTP semantics that are correct
 
@@ -296,98 +303,29 @@ atypical enough to warrant `204` with no body, or to be renamed as `POST
 /api/v1/.../{id}:delete` if you really want a body back. BLC-HTTP-002 says
 a second DELETE returns 404 — that is orthogonal and good.
 
-### 5.2 `DELETE /api/v1/users/me/sessions/{id}` is an IDOR (S1)
+### 5.2 `DELETE …/me/sessions/{id}` IDOR (S1) — **fixed #78**
 
-```82:88:backend/src/resources/user/session/rest.rs
-#[delete("/me/sessions/{id}")]
-pub async fn delete_session_for_current_user(
-    svc: Data<SessionServiceHandle>,
-    path: Path<SessionPath>,
-) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.delete_session(&path.id).await?))
-}
-```
+**Historical:** The handler called `delete_session` without scoping to the caller.
 
-There is no `ReqData<User>` parameter and no ownership check. Any
-authenticated user can call `DELETE /api/v1/users/me/sessions/<any-session-id>`
-and terminate another user's session — the only thing stopping total
-account take-over is that session ids are unguessable. **This should be
-`svc.delete_session_for_user(&path.id, &user.id)`** (mirror
-`get_session_for_user`, which is correct), and return `404` if the session
-does not belong to the caller.
+**Current:** `delete_session_for_current_user` in `backend/src/resources/user/session/rest.rs` uses `ReqData<User>`, `delete_session_for_user(&path.id, &user.id)`, and **204**.
 
-Compare with the correct sibling directly above it:
+### 5.3 Admin session routes ignored `user_id` (S2) — **fixed #78**
 
-```55:62:backend/src/resources/user/session/rest.rs
-pub async fn get_session_for_current_user(
-    svc: Data<SessionServiceHandle>,
-    user: ReqData<User>,
-    path: Path<SessionPath>,
-) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.get_session_for_user(&path.id, &user.id).await?))
-}
-```
+**Historical:** Admin GET/DELETE called `get_session` / `delete_session` without `user_id`.
 
-That is doing the right thing. The delete sibling is not.
+**Current:** Handlers use `get_session_for_user` / `delete_session_for_user` with `path.user_id`.
 
-### 5.3 Admin session routes ignore `user_id` (S2)
+### 5.4 `/songs/{id}/likes` URL shape (S9) — **fixed #80**
 
-```167:173:backend/src/resources/user/session/rest.rs
-#[get("/{user_id}/sessions/{id}")]
-pub async fn get_session_for_user(
-    svc: Data<SessionServiceHandle>,
-    path: Path<UserSessionPath>,
-) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(svc.get_session(&path.id).await?))
-}
-```
+**Historical:** `/likes` with `{ liked: bool }` body.
 
-`UserSessionPath.user_id` is extracted and then `#[allow(dead_code)]`-ed. The
-`DELETE` sibling is the same. Either honor `user_id` (check that the returned
-session's `user.id` matches, else `404`), or drop the `user_id` segment and
-use `/api/v1/sessions/{id}` for admins — but don't pretend to scope.
+**Current:** `GET`/`PUT`/`DELETE` `/api/v1/songs/{id}/like` (singleton); see `song/rest.rs`.
 
-### 5.4 `/songs/{id}/likes` is not a collection
+### 5.5 Export endpoint OpenAPI (S8) — **N/A on current API**
 
-```310:352:backend/src/resources/song/rest.rs
-#[get("/{id}/likes")]    // body: LikeStatus
-#[put("/{id}/likes")]    // body: LikeStatus { liked: bool }
-```
+**Historical:** Review assumed export routes on songs/collections/setlists.
 
-Semantically this is a **flag** ("does the caller like this song?"), not a
-collection. Two cleaner options:
-
-- **Toggle via PUT/DELETE on a singleton:**
-  - `PUT  /api/v1/songs/{id}/like` → 204 (liked)
-  - `DELETE /api/v1/songs/{id}/like` → 204 (unliked)
-  - `GET  /api/v1/songs/{id}/like` → 200 or 404
-- **Promote `likes` to a real collection:**
-  - `GET  /api/v1/songs/{id}/likes` → who liked it (admin/self)
-  - `PUT  /api/v1/songs/{id}/likes/me` / `DELETE .../likes/me`
-
-The current shape is neither — it's `/likes` (plural, which suggests a
-collection) with a body `{ liked: bool }` (which suggests a singleton). Pick
-one.
-
-### 5.5 Export endpoint OpenAPI content-type
-
-```132:139:backend/src/resources/song/rest.rs
-(
-    status = 200,
-    description = "Download exported song file",
-    body = Vec<u8>,
-    content_type = "application/octet-stream"
-)
-```
-
-Same block in `collection/rest.rs` and `setlist/rest.rs`. In reality
-`format=pdf` returns `application/pdf`, `format=zip` `application/zip`, and
-`wp`/`cp` are text. `application/octet-stream` is misleading in the spec and
-forces clients to ignore the declared content-type and sniff their own. Use
-`utoipa` content-per-format or a union of `responses((status=200, ...,
-content_type = ...))`. Also document the `Content-Disposition: attachment;
-filename="..."` header if the server sets it (and if it doesn't, it should,
-for any `format != wp|cp`).
+**Current:** No such HTTP routes; see **Appendix: Exports**. If exports return, fix per-format OpenAPI and `Content-Disposition`.
 
 ### 5.6 `PUT` is upsert, secretly (S7)
 
@@ -886,3 +824,10 @@ careful pass can close. None of them require architectural change.
 Fixing P0 + P1 alone would put this API in a very strong position for
 external consumers, and the architecture you already have makes those fixes
 cheap and mechanical.
+
+---
+
+## Appendix: Exports (S8)
+
+There are **no** HTTP routes in this repo for `GET …/export?format=…` on songs, collections, or setlists. OpenAPI/content-type issues from the original review apply only if those endpoints are (re)introduced.
+
