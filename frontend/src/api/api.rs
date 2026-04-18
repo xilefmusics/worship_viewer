@@ -8,10 +8,10 @@ use shared::collection::{CreateCollection, UpdateCollection};
 use shared::error::NetworkClientError;
 use shared::net::{DefaultHttpClient, HttpClientConfig};
 use shared::player::Player;
-use shared::setlist::{CreateSetlist, UpdateSetlist};
 use shared::setlist::Setlist;
-use shared::song::{CreateSong, UpdateSong};
+use shared::setlist::{CreateSetlist, UpdateSetlist};
 use shared::song::Song;
+use shared::song::{CreateSong, UpdateSong};
 use shared::user::{CreateUser, SessionBody, User};
 
 use super::error::{ApiError, OperationType};
