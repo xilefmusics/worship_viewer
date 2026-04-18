@@ -16,6 +16,8 @@ pub use song::{CreateSong, Song, UpdateSong};
 
 pub mod team;
 
+pub mod monitoring;
+
 pub mod user;
 pub use user::CreateUser;
 pub use user::Role as UserRole;

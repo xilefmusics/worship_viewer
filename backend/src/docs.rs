@@ -7,6 +7,13 @@ use crate::settings::Settings;
 
 use crate::resources::blob::PatchBlob;
 use crate::resources::collection::PatchCollection;
+use crate::resources::monitoring::{
+    ActivityCalendarMetrics, AdminMonitoringMetrics, EngagementMetrics, FamilyErrorRates,
+    FamilyLatency, FeatureFamilyMetrics, HttpAuditLog, IdLike404Metrics, LatencyMetrics,
+    MethodLatency, MetricsWindowWire, MonitoringMetricsQuery, MonitoringMetricsResponse,
+    MutationHealthMetrics, NewUserActivationMetrics, ReliabilityMetrics, RouteFamily,
+    TopFailingRoute, TrafficMetrics, TrafficMixEntry,
+};
 use crate::resources::setlist::PatchSetlist;
 use crate::resources::song::{PatchSong, PatchSongData};
 use crate::resources::user::Role;
@@ -53,6 +60,7 @@ const BLC_GITHUB_BASE: &str =
 fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: &Settings) {
     let tag_docs: &[(&str, &str)] = &[
         ("Auth", "authentication.md"),
+        ("Monitoring", "monitoring.md"),
         ("Users", "user.md"),
         ("Songs", "song.md"),
         ("Collections", "collection.md"),
@@ -166,7 +174,9 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::team::invitation::rest::get_team_invitation,
         crate::resources::team::invitation::rest::delete_team_invitation,
         crate::resources::team::invitation::rest::accept_team_invitation_under_team,
-        crate::resources::team::invitation::rest::accept_team_invitation
+        crate::resources::team::invitation::rest::accept_team_invitation,
+        crate::resources::monitoring::rest::list_http_audit_logs,
+        crate::resources::monitoring::rest::get_monitoring_metrics
     ),
     components(
         schemas(
@@ -220,11 +230,32 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             UpdateTeam,
             PatchTeam,
             TeamMemberInput,
-            TeamInvitation
+            TeamInvitation,
+            HttpAuditLog,
+            MonitoringMetricsQuery,
+            MonitoringMetricsResponse,
+            MetricsWindowWire,
+            ReliabilityMetrics,
+            FamilyErrorRates,
+            RouteFamily,
+            LatencyMetrics,
+            FamilyLatency,
+            MethodLatency,
+            ActivityCalendarMetrics,
+            TrafficMetrics,
+            TrafficMixEntry,
+            TopFailingRoute,
+            FeatureFamilyMetrics,
+            MutationHealthMetrics,
+            EngagementMetrics,
+            AdminMonitoringMetrics,
+            NewUserActivationMetrics,
+            IdLike404Metrics
         )
     ),
     tags(
         (name = "Auth", description = "OAuth/OIDC login, OTP email codes, and logout. Session cookies are set on successful auth (see authentication BLC)."),
+        (name = "Monitoring", description = "Admin-only operational metrics and request audit listings under `/monitoring/`."),
         (name = "Users", description = "Current user (`/users/me`), directory listing, sessions (own and admin), and admin user lifecycle."),
         (name = "Songs", description = "Song CRUD, player JSON, likes, search/sort listing."),
         (name = "Collections", description = "Owned song collections, nested songs, and player views."),
@@ -273,6 +304,16 @@ mod tests {
                 .as_str()
                 .expect("url")
                 .contains("authentication.md")
+        );
+        let monitoring = tags
+            .iter()
+            .find(|t| t["name"] == "Monitoring")
+            .expect("Monitoring tag");
+        assert!(
+            monitoring["externalDocs"]["url"]
+                .as_str()
+                .expect("url")
+                .contains("monitoring.md")
         );
     }
 
