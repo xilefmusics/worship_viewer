@@ -49,7 +49,7 @@ pub fn scope(auth_rate_limit_rps: u64, auth_rate_limit_burst: u32) -> actix_web:
     )
 )]
 #[post("/logout")]
-async fn logout(
+pub(crate) async fn logout(
     svc: Data<SessionServiceHandle>,
     cookie_cfg: Data<CookieConfig>,
     req: HttpRequest,

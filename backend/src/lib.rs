@@ -22,3 +22,6 @@ mod test_helpers;
 
 #[cfg(test)]
 mod http_tests;
+
+#[cfg(test)]
+mod audit_events_tests;

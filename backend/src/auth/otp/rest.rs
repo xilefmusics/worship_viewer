@@ -35,7 +35,7 @@ use tracing::instrument;
 )]
 #[instrument(level = "debug", err, skip_all, fields(provider = "otp"))]
 #[post("/otp/request")]
-async fn otp_request(
+pub(crate) async fn otp_request(
     db: Data<Database>,
     mail: Data<MailService>,
     otp_cfg: Data<OtpConfig>,
@@ -83,7 +83,7 @@ async fn otp_request(
 )]
 #[instrument(level = "debug", err, skip_all, fields(provider = "otp"))]
 #[post("/otp/verify")]
-async fn otp_verify(
+pub(crate) async fn otp_verify(
     db: Data<Database>,
     user_svc: Data<UserServiceHandle>,
     session_svc: Data<SessionServiceHandle>,

@@ -41,7 +41,7 @@ use crate::test_helpers::{create_song_with_title, create_user, session_service, 
 ///
 /// The app does **not** include `auth::rest::scope()` (needs OIDC clients) or
 /// `frontend::rest::scope()` (needs a static file directory on disk).
-fn build_app(
+pub(crate) fn build_app(
     db: Arc<Database>,
 ) -> App<
     impl actix_web::dev::ServiceFactory<

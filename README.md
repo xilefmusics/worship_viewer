@@ -57,6 +57,8 @@ Notes:
   - Cookie: sso_session
   - Bearer token
 
+**Logs:** The backend uses [`tracing`](https://docs.rs/tracing). Set [`RUST_LOG`](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html) to control verbosity (for example `RUST_LOG=backend=debug,surrealdb=info`). Use `LOG_FORMAT=json` for newline-delimited JSON on stdout (this is also the default when `WORSHIP_PRODUCTION=true` or `RUST_ENV=production`). Incoming `traceparent` may supply the span id used as `X-Request-Id` and the `request_id` field on the per-request span. See `docs/architecture/backend-request-flow.md` for the full logging and audit-event notes.
+
 ### Start the Frontend
 
 ```bash
