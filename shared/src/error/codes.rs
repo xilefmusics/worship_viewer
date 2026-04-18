@@ -12,6 +12,8 @@ pub enum ErrorCode {
     Conflict,
     TooManyRequests,
     NotAcceptable,
+    /// `If-Match` precondition failed (optimistic concurrency).
+    PreconditionFailed,
     Internal,
 }
 
@@ -26,6 +28,7 @@ impl ErrorCode {
             ErrorCode::Conflict => "conflict",
             ErrorCode::TooManyRequests => "too_many_requests",
             ErrorCode::NotAcceptable => "not_acceptable",
+            ErrorCode::PreconditionFailed => "precondition_failed",
             ErrorCode::Internal => "internal",
         }
     }
@@ -40,6 +43,7 @@ impl ErrorCode {
         "conflict",
         "too_many_requests",
         "not_acceptable",
+        "precondition_failed",
         "internal",
     ];
 }
@@ -70,6 +74,7 @@ mod tests {
             Conflict,
             TooManyRequests,
             NotAcceptable,
+            PreconditionFailed,
             Internal,
         ] {
             assert!(
@@ -93,6 +98,7 @@ mod tests {
                     ErrorCode::Conflict,
                     ErrorCode::TooManyRequests,
                     ErrorCode::NotAcceptable,
+                    ErrorCode::PreconditionFailed,
                     ErrorCode::Internal,
                 ]
                 .into_iter()

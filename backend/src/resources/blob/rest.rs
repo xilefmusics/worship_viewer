@@ -7,7 +7,9 @@ use actix_web::{
 #[allow(unused_imports)]
 use crate::docs::Problem;
 use crate::error::AppError;
-use crate::http_cache::{if_none_match_matches, weak_etag_json};
+use crate::http_cache::{
+    check_if_match, if_none_match_matches, weak_etag_from_bytes, weak_etag_json,
+};
 use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::blob::Blob;
@@ -15,7 +17,7 @@ use crate::resources::blob::CreateBlob;
 use crate::resources::blob::PatchBlob;
 use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::team::UserPermissions;
-use shared::api::ListQuery;
+use shared::api::{ListQuery, PAGE_SIZE_DEFAULT};
 
 pub fn scope(blob_upload_max_bytes: usize) -> Scope {
     web::scope("/blobs")
@@ -45,6 +47,7 @@ pub fn scope(blob_upload_max_bytes: usize) -> Scope {
         (status = 200, description = "Return all blobs. `X-Total-Count` matches the filtered total.", body = [Blob]),
         (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to fetch blobs", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
@@ -55,6 +58,7 @@ pub fn scope(blob_upload_max_bytes: usize) -> Scope {
 )]
 #[get("")]
 async fn get_blobs(
+    req: HttpRequest,
     svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     query: Query<ListQuery>,
@@ -64,12 +68,25 @@ async fn get_blobs(
         .validate()
         .map_err(crate::error::map_list_query_error)?;
     let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let q_link = query.clone();
+    let page = query.page.unwrap_or(0);
+    let page_size = query.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
     let blobs = svc.list_blobs_for_user(&perms, query.clone()).await?;
     let total = svc.count_blobs_for_user(&perms, &query).await?;
     Ok(HttpResponse::Ok()
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
             total.to_string(),
+        ))
+        .insert_header((
+            header::LINK,
+            crate::request_link::list_link_header(
+                &req,
+                |p| q_link.query_string_for_page(p),
+                page,
+                page_size,
+                total,
+            ),
         ))
         .json(blobs))
 }
@@ -85,6 +102,7 @@ async fn get_blobs(
         (status = 304, description = "Not modified"),
         (status = 400, description = "Invalid blob identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Blob not found", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to fetch blob", body = Problem, content_type = "application/problem+json")
     ),
@@ -122,6 +140,7 @@ async fn get_blob(
         (status = 201, description = "Create a new blob", body = Blob),
         (status = 400, description = "Invalid blob payload", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to create blob", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
@@ -154,7 +173,9 @@ async fn create_blob(
         (status = 200, description = "Update an existing blob", body = Blob),
         (status = 400, description = "Invalid blob identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Blob not found", body = Problem, content_type = "application/problem+json"),
+        (status = 412, description = "`If-Match` does not match current weak ETag on blob metadata", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to update blob", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
@@ -165,12 +186,17 @@ async fn create_blob(
 )]
 #[put("/{id}")]
 async fn update_blob(
+    req: HttpRequest,
     svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     id: PathParam<String>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let id = id.into_inner();
+    let blob = svc.get_blob_for_user(&perms, &id).await?;
+    let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
+    check_if_match(&req, &etag)?;
     Ok(HttpResponse::Ok().json(
         svc.update_blob_for_user(&perms, &id, payload.into_inner())
             .await?,
@@ -188,7 +214,9 @@ async fn update_blob(
         (status = 200, description = "Partially update an existing blob", body = Blob),
         (status = 400, description = "Invalid blob identifier or payload", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Blob not found", body = Problem, content_type = "application/problem+json"),
+        (status = 412, description = "`If-Match` does not match current weak ETag on blob metadata", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to patch blob", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
@@ -199,12 +227,17 @@ async fn update_blob(
 )]
 #[patch("/{id}")]
 async fn patch_blob(
+    req: HttpRequest,
     svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     id: PathParam<String>,
     payload: Json<PatchBlob>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let id = id.into_inner();
+    let blob = svc.get_blob_for_user(&perms, &id).await?;
+    let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
+    check_if_match(&req, &etag)?;
     Ok(HttpResponse::Ok().json(
         svc.patch_blob_for_user(&perms, &id, payload.into_inner())
             .await?,
@@ -221,7 +254,9 @@ async fn patch_blob(
         (status = 204, description = "Blob deleted"),
         (status = 400, description = "Invalid blob identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Blob not found", body = Problem, content_type = "application/problem+json"),
+        (status = 412, description = "`If-Match` does not match current weak ETag on blob metadata", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to delete blob", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
@@ -232,11 +267,16 @@ async fn patch_blob(
 )]
 #[delete("/{id}")]
 async fn delete_blob(
+    req: HttpRequest,
     svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let id = id.into_inner();
+    let blob = svc.get_blob_for_user(&perms, &id).await?;
+    let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
+    check_if_match(&req, &etag)?;
     svc.delete_blob_for_user(&perms, &id).await?;
     Ok(HttpResponse::NoContent().finish())
 }
@@ -257,6 +297,8 @@ async fn delete_blob(
         ),
         (status = 400, description = "Invalid blob identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
+        (status = 304, description = "Not modified (`If-None-Match` matches weak ETag of bytes)"),
         (status = 404, description = "Blob not found", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to download blob", body = Problem, content_type = "application/problem+json")
     ),
@@ -279,24 +321,34 @@ async fn download_blob_image(
     let filename = blob
         .file_name()
         .unwrap_or_else(|| format!("blob-{}", blob.id));
-    let mut res = file.into_response(&req);
-    res.headers_mut().insert(
-        header::CONTENT_TYPE,
-        header::HeaderValue::from_static(blob.file_type.mime()),
-    );
-    res.headers_mut().insert(
-        header::CONTENT_DISPOSITION,
-        header::HeaderValue::from_str(&format!(
-            "attachment; filename=\"{}\"",
-            filename.replace('\\', "\\\\").replace('"', "\\\"")
+    let path = file.path().to_path_buf();
+    let bytes = std::fs::read(&path).map_err(|e| AppError::Internal(e.to_string()))?;
+    let etag = weak_etag_from_bytes(&bytes);
+    if if_none_match_matches(&req, &etag) {
+        return Ok(HttpResponse::NotModified()
+            .insert_header((header::ETAG, etag))
+            .insert_header((
+                header::CACHE_CONTROL,
+                header::HeaderValue::from_static("private, max-age=3600, immutable"),
+            ))
+            .finish());
+    }
+    let ct = header::HeaderValue::from_static(blob.file_type.mime());
+    let cd = header::HeaderValue::from_str(&format!(
+        "attachment; filename=\"{}\"",
+        filename.replace('\\', "\\\\").replace('"', "\\\"")
+    ))
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(HttpResponse::Ok()
+        .insert_header((header::ETAG, etag))
+        .insert_header((header::CONTENT_TYPE, ct))
+        .insert_header((header::CONTENT_DISPOSITION, cd))
+        .insert_header((
+            header::CACHE_CONTROL,
+            header::HeaderValue::from_static("private, max-age=3600, immutable"),
         ))
-        .map_err(|e| AppError::Internal(e.to_string()))?,
-    );
-    res.headers_mut().insert(
-        header::CACHE_CONTROL,
-        header::HeaderValue::from_static("private, max-age=3600, immutable"),
-    );
-    Ok(res)
+        .insert_header((header::CONTENT_LENGTH, bytes.len().to_string()))
+        .body(bytes))
 }
 
 #[utoipa::path(
@@ -314,7 +366,9 @@ async fn download_blob_image(
         (status = 204, description = "Blob content uploaded successfully"),
         (status = 400, description = "Invalid blob identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Blob not found or write access denied", body = Problem, content_type = "application/problem+json"),
+        (status = 412, description = "`If-Match` does not match current weak ETag on blob metadata", body = Problem, content_type = "application/problem+json"),
         (status = 413, description = "Payload too large", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to store blob content", body = Problem, content_type = "application/problem+json")
     ),
@@ -326,12 +380,17 @@ async fn download_blob_image(
 )]
 #[put("/{id}/data")]
 async fn upload_blob_data(
+    req: HttpRequest,
     svc: Data<BlobServiceHandle>,
     user: ReqData<User>,
     id: PathParam<String>,
     body: Bytes,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let id = id.into_inner();
+    let blob = svc.get_blob_for_user(&perms, &id).await?;
+    let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
+    check_if_match(&req, &etag)?;
     svc.upload_blob_data_for_user(&perms, &id, &body).await?;
     Ok(HttpResponse::NoContent().finish())
 }

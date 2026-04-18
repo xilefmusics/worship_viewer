@@ -113,6 +113,13 @@ impl ListQuery {
             format!("?{}", parts.join("&"))
         }
     }
+
+    /// Query string without `?`, with `page` overridden (keeps `page_size`, `q`).
+    pub fn query_string_for_page(&self, page: u32) -> String {
+        let mut q = self.clone();
+        q.page = Some(page);
+        q.to_query_string().trim_start_matches('?').to_string()
+    }
 }
 
 fn encode_query_value(s: &str) -> String {
@@ -159,5 +166,12 @@ impl PageQuery {
             page_size: self.page_size,
             q: None,
         }
+    }
+
+    /// Query string without `?`, with `page` overridden.
+    pub fn query_string_for_page(&self, page: u32) -> String {
+        let mut q = self.as_list_query();
+        q.page = Some(page);
+        q.to_query_string().trim_start_matches('?').to_string()
     }
 }

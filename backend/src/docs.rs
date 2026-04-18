@@ -10,12 +10,13 @@ use crate::resources::{
     Blob, Collection, CreateBlob, CreateCollection, CreateSetlist, CreateSong, CreateUser, Session,
     Setlist, Song, User,
 };
-use shared::api::{SongListQuery, SongSort};
+use shared::api::SongListQuery;
 use shared::auth::otp::{OtpRequest, OtpVerify};
 use shared::blob::FileType;
 pub use shared::error::{ErrorResponse, Problem, ProblemDetails};
 use shared::like::LikeStatus;
 use shared::player::{Orientation, Player, PlayerItem, ScrollType, TocItem};
+use shared::song::SongDataSchema;
 use shared::song::{Link as SongLink, SongUserSpecificAddons};
 use shared::team::{
     CreateTeam, PatchTeam, Team, TeamInvitation, TeamMember, TeamMemberInput, TeamRole, TeamUser,
@@ -40,8 +41,9 @@ pub mod rest {
             **Timestamps:** All timestamps are UTC and use RFC 3339 with a `Z` suffix (e.g. `2026-04-18T12:00:00Z`).\n\n\
             **Identifiers:** Resource IDs are opaque printable strings returned by the API; treat them as opaque and do not parse their internal structure.\n\n\
             **JSON naming:** Object keys use `snake_case`. Enum wire values use the casing shown in each schema (broader enum casing standardization is planned).\n\n\
-            **Pagination:** List endpoints accept `page` (0-based) and `page_size` (1–500, default 50). Responses include `X-Total-Count` with the total matching rows before pagination. RFC 5988 `Link` headers for first/prev/next/last are planned (not emitted yet).\n\n\
-            **Errors:** Failed requests return `Content-Type: application/problem+json` ([RFC 7807](https://www.rfc-editor.org/rfc/rfc7807)) with a `Problem` body. Stable machine-readable `code` values include: `unauthorized`, `forbidden`, `not_found`, `invalid_request`, `invalid_page_size`, `conflict`, `too_many_requests`, `not_acceptable`, `internal`. Legacy schemas `ErrorResponse` and `ProblemDetails` remain listed for one release but are deprecated in favor of `Problem`.\n\n\
+            **Pagination:** List endpoints accept `page` (0-based) and `page_size` (1–500, default 50). Responses include `X-Total-Count` with the total matching rows before pagination and RFC 5988 `Link` headers (relations: first, prev, next, last) where applicable.\n\n\
+            **Rate limiting:** Versioned `/api/v1/*` routes use token-bucket limits per client IP (`Retry-After`, `X-RateLimit-*` on **429**; configurable via server settings).\n\n\
+            **Errors:** Failed requests return `Content-Type: application/problem+json` ([RFC 7807](https://www.rfc-editor.org/rfc/rfc7807)) with a `Problem` body. Stable machine-readable `code` values include: `unauthorized`, `forbidden`, `not_found`, `invalid_request`, `invalid_page_size`, `conflict`, `too_many_requests`, `not_acceptable`, `precondition_failed`, `internal`. Legacy schemas `ErrorResponse` and `ProblemDetails` remain listed for one release but are deprecated in favor of `Problem`.\n\n\
             **CSRF:** Cookie sessions use `SameSite=Lax`; state-changing methods are `POST`/`PUT`/`PATCH`/`DELETE` (not `GET`). Cross-site simple requests cannot mutate state via cookies under typical browser rules. Browser `fetch` from the SPA should use `credentials: 'same-origin'` (or include cookies only on same-site requests). API clients using bearer tokens should still avoid exposing tokens to third-party origins.\n\n\
             **Examples:** See schema `example` fields on core DTOs in the components section.",
         license(name = "MIT", url = "https://opensource.org/licenses/MIT")
@@ -112,6 +114,7 @@ pub mod rest {
         crate::resources::team::invitation::rest::list_team_invitations,
         crate::resources::team::invitation::rest::get_team_invitation,
         crate::resources::team::invitation::rest::delete_team_invitation,
+        crate::resources::team::invitation::rest::accept_team_invitation_under_team,
         crate::resources::team::invitation::rest::accept_team_invitation
     ),
     components(
@@ -123,7 +126,6 @@ pub mod rest {
             OtpRequest,
             OtpVerify,
             SongListQuery,
-            SongSort,
             Problem,
             ErrorResponse,
             ProblemDetails,
@@ -131,6 +133,7 @@ pub mod rest {
             CreateSong,
             PatchSong,
             PatchSongData,
+            SongDataSchema,
             SongUserSpecificAddons,
             Collection,
             CreateCollection,

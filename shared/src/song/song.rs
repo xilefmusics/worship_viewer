@@ -1,7 +1,7 @@
 use crate::patch::Patch;
 use chordlib::inputs::chord_pro;
 use chordlib::outputs::{FormatChordPro, FormatHTML};
-use chordlib::types::{ChordRepresentation, Section, SimpleChord, Song as SongData};
+use chordlib::types::{ChordRepresentation, Section, SimpleChord, Song as ChordSong};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
@@ -11,6 +11,10 @@ use std::convert::TryFrom;
 use serde_json::json;
 #[cfg(feature = "backend")]
 use utoipa::ToSchema;
+
+#[cfg(feature = "backend")]
+#[allow(unused_imports)]
+use super::song_data_schema::SongDataSchema;
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
@@ -27,9 +31,9 @@ pub struct Song {
     pub not_a_song: bool,
     /// Blob IDs for sheet-music or image assets linked to this song.
     pub blobs: Vec<String>,
-    /// ChordPro-derived payload (sections, lyrics, metadata). A dedicated `SongData` schema is planned.
-    #[cfg_attr(feature = "backend", schema(value_type = Object, additional_properties = true))]
-    pub data: SongData,
+    /// ChordPro-derived payload (sections, lyrics, metadata); see `SongData` in the OpenAPI components.
+    #[cfg_attr(feature = "backend", schema(value_type = SongDataSchema))]
+    pub data: ChordSong,
     /// Per-request flags such as whether the current user liked this song.
     pub user_specific_addons: SongUserSpecificAddons,
 }
@@ -48,8 +52,8 @@ pub struct Song {
 pub struct CreateSong {
     pub not_a_song: bool,
     pub blobs: Vec<String>,
-    #[cfg_attr(feature = "backend", schema(value_type = Object, additional_properties = true))]
-    pub data: SongData,
+    #[cfg_attr(feature = "backend", schema(value_type = SongDataSchema))]
+    pub data: ChordSong,
 }
 
 /// Partial update for a song. Absent fields are left unchanged.

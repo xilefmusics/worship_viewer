@@ -1,11 +1,11 @@
 use actix_web::http::header;
 use actix_web::{
-    HttpResponse, delete, get, post,
+    HttpRequest, HttpResponse, delete, get, post,
     web::{Data, Path, Query, ReqData},
 };
 use serde::Deserialize;
 
-use shared::api::{ListQuery, PageQuery};
+use shared::api::{ListQuery, PAGE_SIZE_DEFAULT, PageQuery};
 
 #[allow(unused_imports)]
 use crate::docs::Problem;
@@ -26,6 +26,7 @@ use super::service::SessionServiceHandle;
         (status = 200, description = "Returns active sessions for the current user. `X-Total-Count` is the total before paging.", body = [Session]),
         (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to list sessions for current user", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Users",
@@ -36,6 +37,7 @@ use super::service::SessionServiceHandle;
 )]
 #[get("/me/sessions")]
 pub async fn get_sessions_for_current_user(
+    req: HttpRequest,
     svc: Data<SessionServiceHandle>,
     user: ReqData<User>,
     query: Query<PageQuery>,
@@ -44,15 +46,28 @@ pub async fn get_sessions_for_current_user(
         .into_inner()
         .validate()
         .map_err(crate::error::map_list_query_error)?;
+    let q_link = query.clone();
+    let cur_page = query.page.unwrap_or(0);
+    let page_size = query.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
     let sessions = svc.get_sessions_by_user_id(&user.id).await?;
     let lq = query.as_list_query();
-    let (page, total) = ListQuery::paginate_nested_vec(sessions, &lq);
+    let (sessions_page, total) = ListQuery::paginate_nested_vec(sessions, &lq);
     Ok(HttpResponse::Ok()
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
             total.to_string(),
         ))
-        .json(page))
+        .insert_header((
+            header::LINK,
+            crate::request_link::list_link_header(
+                &req,
+                |p| q_link.query_string_for_page(p),
+                cur_page,
+                page_size,
+                total,
+            ),
+        ))
+        .json(sessions_page))
 }
 
 #[utoipa::path(
@@ -64,6 +79,7 @@ pub async fn get_sessions_for_current_user(
     responses(
         (status = 200, description = "Returns a session for the current user", body = Session),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Session not found for current user", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to fetch session", body = Problem, content_type = "application/problem+json")
     ),
@@ -91,6 +107,7 @@ pub async fn get_session_for_current_user(
     responses(
         (status = 204, description = "Session deleted"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Session not found for current user", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to delete session", body = Problem, content_type = "application/problem+json")
     ),
@@ -119,6 +136,7 @@ pub async fn delete_session_for_current_user(
     responses(
         (status = 201, description = "Creates a session for the specified user", body = Session),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to create session", body = Problem, content_type = "application/problem+json")
     ),
@@ -153,6 +171,7 @@ pub async fn create_session_for_user(
         (status = 200, description = "Returns active sessions for the specified user. `X-Total-Count` is the total before paging.", body = [Session]),
         (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to list sessions", body = Problem, content_type = "application/problem+json")
     ),
@@ -164,6 +183,7 @@ pub async fn create_session_for_user(
 )]
 #[get("/{user_id}/sessions")]
 pub async fn get_sessions_for_user(
+    req: HttpRequest,
     svc: Data<SessionServiceHandle>,
     path: Path<UserIdPath>,
     query: Query<PageQuery>,
@@ -172,15 +192,28 @@ pub async fn get_sessions_for_user(
         .into_inner()
         .validate()
         .map_err(crate::error::map_list_query_error)?;
+    let q_link = query.clone();
+    let cur_page = query.page.unwrap_or(0);
+    let page_size = query.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
     let sessions = svc.get_sessions_by_user_id(&path.user_id).await?;
     let lq = query.as_list_query();
-    let (page, total) = ListQuery::paginate_nested_vec(sessions, &lq);
+    let (sessions_page, total) = ListQuery::paginate_nested_vec(sessions, &lq);
     Ok(HttpResponse::Ok()
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
             total.to_string(),
         ))
-        .json(page))
+        .insert_header((
+            header::LINK,
+            crate::request_link::list_link_header(
+                &req,
+                |p| q_link.query_string_for_page(p),
+                cur_page,
+                page_size,
+                total,
+            ),
+        ))
+        .json(sessions_page))
 }
 
 #[utoipa::path(
@@ -193,6 +226,7 @@ pub async fn get_sessions_for_user(
     responses(
         (status = 200, description = "Returns a session for the specified user", body = Session),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Session not found for specified user", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to fetch session", body = Problem, content_type = "application/problem+json")
@@ -221,6 +255,7 @@ pub async fn get_session_for_user(
     responses(
         (status = 204, description = "Session deleted"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Session not found for specified user", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to delete session", body = Problem, content_type = "application/problem+json")

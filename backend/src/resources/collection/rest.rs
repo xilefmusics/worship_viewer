@@ -8,7 +8,7 @@ use crate::accept::accepts_worship_player_json;
 #[allow(unused_imports)]
 use crate::docs::Problem;
 use crate::error::AppError;
-use crate::http_cache::{if_none_match_matches, weak_etag_json};
+use crate::http_cache::{check_if_match, if_none_match_matches, weak_etag_json};
 use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::collection::Collection;
@@ -18,7 +18,7 @@ use crate::resources::collection::service::CollectionServiceHandle;
 #[allow(unused_imports)]
 use crate::resources::song::Song;
 use crate::resources::team::UserPermissions;
-use shared::api::{ListQuery, PageQuery};
+use shared::api::{ListQuery, PAGE_SIZE_DEFAULT, PageQuery};
 #[allow(unused_imports)]
 use shared::player::Player;
 
@@ -46,6 +46,7 @@ pub fn scope() -> Scope {
         (status = 200, description = "Return all collections. `X-Total-Count` header contains the total number of matching collections.", body = [Collection]),
         (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to fetch collections", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Collections",
@@ -56,6 +57,7 @@ pub fn scope() -> Scope {
 )]
 #[get("")]
 async fn get_collections(
+    req: HttpRequest,
     svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     query: Query<ListQuery>,
@@ -66,6 +68,9 @@ async fn get_collections(
         .map_err(crate::error::map_list_query_error)?;
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let q_ref = query.q.clone();
+    let q_link = query.clone();
+    let page = query.page.unwrap_or(0);
+    let page_size = query.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
     let collections = svc.list_collections_for_user(&perms, query).await?;
     let total = svc
         .count_collections_for_user(&perms, q_ref.as_deref())
@@ -74,6 +79,16 @@ async fn get_collections(
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
             total.to_string(),
+        ))
+        .insert_header((
+            header::LINK,
+            crate::request_link::list_link_header(
+                &req,
+                |p| q_link.query_string_for_page(p),
+                page,
+                page_size,
+                total,
+            ),
         ))
         .json(collections))
 }
@@ -89,6 +104,7 @@ async fn get_collections(
         (status = 304, description = "Not modified"),
         (status = 400, description = "Invalid collection identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Collection not found", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to fetch collection", body = Problem, content_type = "application/problem+json")
     ),
@@ -128,6 +144,7 @@ async fn get_collection(
         (status = 200, description = "Return player metadata for a collection", body = Player),
         (status = 400, description = "Invalid collection identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Collection not found", body = Problem, content_type = "application/problem+json"),
         (status = 406, description = "No supported representation in Accept header", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to fetch collection player data", body = Problem, content_type = "application/problem+json")
@@ -166,6 +183,7 @@ async fn get_collection_player(
         (status = 200, description = "Return the songs for a collection. `X-Total-Count` is the total before paging.", body = [Song]),
         (status = 400, description = "Invalid collection identifier or pagination", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Collection not found", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to fetch collection songs", body = Problem, content_type = "application/problem+json")
     ),
@@ -177,6 +195,7 @@ async fn get_collection_player(
 )]
 #[get("/{id}/songs")]
 async fn get_collection_songs(
+    req: HttpRequest,
     svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
@@ -187,6 +206,9 @@ async fn get_collection_songs(
         .validate()
         .map_err(crate::error::map_list_query_error)?;
     let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let q_link = query.clone();
+    let page = query.page.unwrap_or(0);
+    let page_size = query.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
     let (songs, total) = svc
         .collection_songs_for_user(&perms, &id, query.as_list_query())
         .await?;
@@ -194,6 +216,16 @@ async fn get_collection_songs(
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
             total.to_string(),
+        ))
+        .insert_header((
+            header::LINK,
+            crate::request_link::list_link_header(
+                &req,
+                |p| q_link.query_string_for_page(p),
+                page,
+                page_size,
+                total,
+            ),
         ))
         .json(songs))
 }
@@ -206,6 +238,7 @@ async fn get_collection_songs(
         (status = 201, description = "Create a new collection", body = Collection),
         (status = 400, description = "Invalid collection payload", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to create collection", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Collections",
@@ -238,7 +271,9 @@ async fn create_collection(
         (status = 200, description = "Update an existing collection", body = Collection),
         (status = 400, description = "Invalid collection identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Collection not found", body = Problem, content_type = "application/problem+json"),
+        (status = 412, description = "`If-Match` does not match current weak ETag", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to update collection", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Collections",
@@ -249,12 +284,17 @@ async fn create_collection(
 )]
 #[put("/{id}")]
 async fn update_collection(
+    req: HttpRequest,
     svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
     payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let id = id.into_inner();
+    let collection = svc.get_collection_for_user(&perms, &id).await?;
+    let etag = weak_etag_json(&collection).map_err(|e| AppError::Internal(e.to_string()))?;
+    check_if_match(&req, &etag)?;
     Ok(HttpResponse::Ok().json(
         svc.update_collection_for_user(&perms, &id, payload.into_inner())
             .await?,
@@ -272,7 +312,9 @@ async fn update_collection(
         (status = 200, description = "Partially update an existing collection", body = Collection),
         (status = 400, description = "Invalid collection identifier or payload", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Collection not found", body = Problem, content_type = "application/problem+json"),
+        (status = 412, description = "`If-Match` does not match current weak ETag", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to patch collection", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Collections",
@@ -283,12 +325,17 @@ async fn update_collection(
 )]
 #[patch("/{id}")]
 async fn patch_collection(
+    req: HttpRequest,
     svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
     payload: Json<PatchCollection>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let id = id.into_inner();
+    let collection = svc.get_collection_for_user(&perms, &id).await?;
+    let etag = weak_etag_json(&collection).map_err(|e| AppError::Internal(e.to_string()))?;
+    check_if_match(&req, &etag)?;
     Ok(HttpResponse::Ok().json(
         svc.patch_collection_for_user(&perms, &id, payload.into_inner())
             .await?,
@@ -305,7 +352,9 @@ async fn patch_collection(
         (status = 204, description = "Collection deleted"),
         (status = 400, description = "Invalid collection identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Collection not found", body = Problem, content_type = "application/problem+json"),
+        (status = 412, description = "`If-Match` does not match current weak ETag", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to delete collection", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Collections",
@@ -316,11 +365,16 @@ async fn patch_collection(
 )]
 #[delete("/{id}")]
 async fn delete_collection(
+    req: HttpRequest,
     svc: Data<CollectionServiceHandle>,
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let id = id.into_inner();
+    let collection = svc.get_collection_for_user(&perms, &id).await?;
+    let etag = weak_etag_json(&collection).map_err(|e| AppError::Internal(e.to_string()))?;
+    check_if_match(&req, &etag)?;
     svc.delete_collection_for_user(&perms, &id).await?;
     Ok(HttpResponse::NoContent().finish())
 }

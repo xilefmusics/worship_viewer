@@ -24,6 +24,8 @@ pub enum AppError {
     TooManyRequests(String),
     #[error("not acceptable: {0}")]
     NotAcceptable(String),
+    #[error("precondition failed")]
+    PreconditionFailed,
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -101,6 +103,10 @@ impl AppError {
     pub fn too_many_requests<T: Into<String>>(msg: T) -> Self {
         Self::TooManyRequests(msg.into())
     }
+
+    pub fn precondition_failed() -> Self {
+        Self::PreconditionFailed
+    }
 }
 
 /// Map [`shared::api::ListQuery::validate`] / [`shared::api::SongListQuery::validate`] failures to the right `AppError` (`invalid_page_size` vs `invalid_request`).
@@ -175,6 +181,7 @@ impl AppError {
             AppError::Conflict(_) => "conflict",
             AppError::TooManyRequests(_) => "too_many_requests",
             AppError::NotAcceptable(_) => "not_acceptable",
+            AppError::PreconditionFailed => "precondition_failed",
             AppError::Internal(_) => "internal",
         }
     }
@@ -189,6 +196,9 @@ impl AppError {
         }
         match self {
             AppError::NotAcceptable(msg) => msg.clone(),
+            AppError::PreconditionFailed => {
+                "If-Match does not match the current resource representation".to_owned()
+            }
             _ => self.to_string(),
         }
     }
@@ -203,6 +213,7 @@ fn http_status_title(status: u16) -> &'static str {
         406 => "Not Acceptable",
         409 => "Conflict",
         429 => "Too Many Requests",
+        412 => "Precondition Failed",
         500 => "Internal Server Error",
         _ => "Error",
     }
@@ -218,6 +229,7 @@ impl ResponseError for AppError {
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             AppError::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
+            AppError::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

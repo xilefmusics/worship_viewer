@@ -83,7 +83,7 @@ fn build_app(
         .app_data(cookie_cfg)
         .app_data(crate::error::json_config())
         .service(docs::rest::scope())
-        .service(resources::rest::scope(20 * 1024 * 1024))
+        .service(resources::rest::scope(20 * 1024 * 1024, 50, 200))
 }
 
 /// Create a session for `user` and return its raw ID (used as Bearer token).
@@ -1120,6 +1120,70 @@ mod song_patch_http {
             body["data"]["titles"][0].as_str().unwrap(),
             orig_title.as_str()
         );
+    }
+
+    /// POST → GET → PATCH → GET preserves `data` fields (Phase 2 `SongData` contract).
+    #[actix_web::test]
+    async fn song_data_round_trips_through_post_get_patch_get() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "song-rt-phase2@test.local").await.unwrap();
+        let token = create_session_token(&db, user.clone()).await.unwrap();
+
+        let app = test::init_service(build_app(db.clone())).await;
+
+        let create_json = r#"{
+            "not_a_song": false,
+            "blobs": [],
+            "data": {
+                "titles": ["RoundTrip"],
+                "subtitle": "sub",
+                "sections": [],
+                "tags": {"hymn_type": "common"}
+            }
+        }"#;
+
+        let post = test::TestRequest::post()
+            .uri("/api/v1/songs")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header(("Content-Type", "application/json"))
+            .set_payload(create_json)
+            .to_request();
+        let resp = test::call_service(&app, post).await;
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let created: serde_json::Value = test::read_body_json(resp).await;
+        let id = created["id"].as_str().unwrap();
+
+        let get1 = test::TestRequest::get()
+            .uri(&format!("/api/v1/songs/{id}"))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let resp = test::call_service(&app, get1).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let g1: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(g1["data"]["titles"][0], "RoundTrip");
+        assert_eq!(g1["data"]["subtitle"], "sub");
+        assert_eq!(g1["data"]["tags"]["hymn_type"], "common");
+
+        let patch = test::TestRequest::patch()
+            .uri(&format!("/api/v1/songs/{id}"))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header(("Content-Type", "application/json"))
+            .set_payload(r#"{"data":{"titles":["RoundTrip","Second"]}}"#)
+            .to_request();
+        let resp = test::call_service(&app, patch).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let get2 = test::TestRequest::get()
+            .uri(&format!("/api/v1/songs/{id}"))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let resp = test::call_service(&app, get2).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let g2: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(g2["data"]["titles"][0], "RoundTrip");
+        assert_eq!(g2["data"]["titles"][1], "Second");
+        assert_eq!(g2["data"]["subtitle"], "sub");
+        assert_eq!(g2["data"]["tags"]["hymn_type"], "common");
     }
 }
 
