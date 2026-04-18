@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use crate::docs::ErrorResponse;
+use crate::docs::ProblemDetails;
 use crate::error::AppError;
 use crate::resources::User;
 use actix_web::http::header;
@@ -36,9 +36,9 @@ pub fn scope() -> Scope {
     ),
     responses(
         (status = 200, description = "Teams readable by the current user; platform admins receive all teams (except internal public). `X-Total-Count` is the total before paging.", body = [Team]),
-        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 500, description = "Failed to list teams", body = ErrorResponse)
+        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 500, description = "Failed to list teams", body = ProblemDetails)
     ),
     tag = "Teams",
     security(
@@ -75,9 +75,9 @@ async fn get_teams(
     ),
     responses(
         (status = 200, description = "Team details; platform admins may read any team except internal public", body = Team),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Team not found", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch team", body = ErrorResponse)
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Team not found", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch team", body = ProblemDetails)
     ),
     tag = "Teams",
     security(
@@ -100,9 +100,9 @@ async fn get_team(
     request_body = CreateTeam,
     responses(
         (status = 201, description = "Shared team created", body = Team),
-        (status = 400, description = "Invalid request", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 500, description = "Failed to create team", body = ErrorResponse)
+        (status = 400, description = "Invalid request", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 500, description = "Failed to create team", body = ProblemDetails)
     ),
     tag = "Teams",
     security(
@@ -116,10 +116,9 @@ async fn create_team(
     user: ReqData<User>,
     payload: Json<CreateTeam>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Created().json(
-        svc.create_shared_team_for_user(&user, payload.into_inner())
-            .await?,
-    ))
+    let payload = payload.into_inner();
+    payload.validate().map_err(AppError::invalid_request)?;
+    Ok(HttpResponse::Created().json(svc.create_shared_team_for_user(&user, payload).await?))
 }
 
 #[utoipa::path(
@@ -131,12 +130,12 @@ async fn create_team(
     request_body = UpdateTeam,
     responses(
         (status = 200, description = "Team updated", body = Team),
-        (status = 400, description = "Invalid request", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Insufficient team role", body = ErrorResponse),
-        (status = 404, description = "Team not found", body = ErrorResponse),
-        (status = 409, description = "Sole admin cannot remove all admins", body = ErrorResponse),
-        (status = 500, description = "Failed to update team", body = ErrorResponse)
+        (status = 400, description = "Invalid request", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 403, description = "Insufficient team role", body = ProblemDetails),
+        (status = 404, description = "Team not found", body = ProblemDetails),
+        (status = 409, description = "Sole admin cannot remove all admins", body = ProblemDetails),
+        (status = 500, description = "Failed to update team", body = ProblemDetails)
     ),
     tag = "Teams",
     security(
@@ -151,10 +150,9 @@ async fn update_team(
     id: Path<String>,
     payload: Json<UpdateTeam>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(
-        svc.update_team_for_user(&user, &id, payload.into_inner())
-            .await?,
-    ))
+    let payload = payload.into_inner();
+    payload.validate().map_err(AppError::invalid_request)?;
+    Ok(HttpResponse::Ok().json(svc.update_team_for_user(&user, &id, payload).await?))
 }
 
 #[utoipa::path(
@@ -166,12 +164,12 @@ async fn update_team(
     request_body = PatchTeam,
     responses(
         (status = 200, description = "Team partially updated", body = Team),
-        (status = 400, description = "Invalid request", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Insufficient team role", body = ErrorResponse),
-        (status = 404, description = "Team not found", body = ErrorResponse),
-        (status = 409, description = "Sole admin cannot remove all admins", body = ErrorResponse),
-        (status = 500, description = "Failed to update team", body = ErrorResponse)
+        (status = 400, description = "Invalid request", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 403, description = "Insufficient team role", body = ProblemDetails),
+        (status = 404, description = "Team not found", body = ProblemDetails),
+        (status = 409, description = "Sole admin cannot remove all admins", body = ProblemDetails),
+        (status = 500, description = "Failed to update team", body = ProblemDetails)
     ),
     tag = "Teams",
     security(
@@ -200,10 +198,10 @@ async fn patch_team(
     ),
     responses(
         (status = 204, description = "Team deleted"),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Cannot delete personal team or insufficient role", body = ErrorResponse),
-        (status = 404, description = "Team not found", body = ErrorResponse),
-        (status = 500, description = "Failed to delete team", body = ErrorResponse)
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 403, description = "Cannot delete personal team or insufficient role", body = ProblemDetails),
+        (status = 404, description = "Team not found", body = ProblemDetails),
+        (status = 500, description = "Failed to delete team", body = ProblemDetails)
     ),
     tag = "Teams",
     security(

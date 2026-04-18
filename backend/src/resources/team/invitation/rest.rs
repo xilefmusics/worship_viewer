@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use crate::docs::ErrorResponse;
+use crate::docs::ProblemDetails;
 use crate::error::AppError;
 use crate::resources::User;
 use actix_web::http::header;
@@ -36,11 +36,11 @@ pub fn invitations_accept_scope() -> Scope {
     ),
     responses(
         (status = 201, description = "Invitation created", body = TeamInvitation),
-        (status = 400, description = "Team is not shared", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Not a team admin", body = ErrorResponse),
-        (status = 404, description = "Team not found", body = ErrorResponse),
-        (status = 500, description = "Database error", body = ErrorResponse)
+        (status = 400, description = "Team is not shared", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 403, description = "Not a team admin", body = ProblemDetails),
+        (status = 404, description = "Team not found", body = ProblemDetails),
+        (status = 500, description = "Database error", body = ProblemDetails)
     ),
     tag = "Teams",
     security(
@@ -71,11 +71,11 @@ async fn create_team_invitation(
     ),
     responses(
         (status = 200, description = "Invitations for the team. `X-Total-Count` is the total before paging.", body = [TeamInvitation]),
-        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Not a team admin", body = ErrorResponse),
-        (status = 404, description = "Team not found", body = ErrorResponse),
-        (status = 500, description = "Database error", body = ErrorResponse)
+        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 403, description = "Not a team admin", body = ProblemDetails),
+        (status = 404, description = "Team not found", body = ProblemDetails),
+        (status = 500, description = "Database error", body = ProblemDetails)
     ),
     tag = "Teams",
     security(
@@ -114,10 +114,10 @@ async fn list_team_invitations(
     ),
     responses(
         (status = 200, description = "Invitation details", body = TeamInvitation),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Not a team admin", body = ErrorResponse),
-        (status = 404, description = "Team or invitation not found", body = ErrorResponse),
-        (status = 500, description = "Database error", body = ErrorResponse)
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 403, description = "Not a team admin", body = ProblemDetails),
+        (status = 404, description = "Team or invitation not found", body = ProblemDetails),
+        (status = 500, description = "Database error", body = ProblemDetails)
     ),
     tag = "Teams",
     security(
@@ -147,10 +147,10 @@ async fn get_team_invitation(
     ),
     responses(
         (status = 204, description = "Invitation removed"),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Not a team admin", body = ErrorResponse),
-        (status = 404, description = "Team or invitation not found", body = ErrorResponse),
-        (status = 500, description = "Database error", body = ErrorResponse)
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 403, description = "Not a team admin", body = ProblemDetails),
+        (status = 404, description = "Team or invitation not found", body = ProblemDetails),
+        (status = 500, description = "Database error", body = ProblemDetails)
     ),
     tag = "Teams",
     security(
@@ -178,9 +178,9 @@ async fn delete_team_invitation(
     ),
     responses(
         (status = 200, description = "Current user is on the team (added as guest if needed)", body = Team),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Invitation not found or not usable", body = ErrorResponse),
-        (status = 500, description = "Database error", body = ErrorResponse)
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Invitation not found or not usable", body = ProblemDetails),
+        (status = 500, description = "Database error", body = ProblemDetails)
     ),
     tag = "Teams",
     security(

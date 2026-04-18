@@ -20,7 +20,7 @@ use crate::resources::user::UserRepository;
 use shared::collection::CreateCollection;
 
 use super::liked::LikedSongIds;
-use super::repository::SongRepository;
+use super::repository::{SongRepository, SongUpsertOutcome};
 use super::surreal_repo::SurrealSongRepo;
 
 /// Abstraction over updating a user's default collection reference.
@@ -31,6 +31,8 @@ pub trait UserCollectionUpdater: Send + Sync {
         user_id: &str,
         collection_id: &str,
     ) -> Result<(), AppError>;
+
+    async fn clear_default_collection(&self, user_id: &str) -> Result<(), AppError>;
 }
 
 #[async_trait]
@@ -44,20 +46,24 @@ impl UserCollectionUpdater for Arc<SurrealUserRepo> {
             .set_default_collection(user_id, collection_id)
             .await
     }
+
+    async fn clear_default_collection(&self, user_id: &str) -> Result<(), AppError> {
+        (**self).clear_default_collection(user_id).await
+    }
 }
 
 /// Application service: team resolution, authorization, and orchestration for songs.
 #[derive(Clone)]
 pub struct SongService<R, T, L, C, U> {
     pub repo: R,
-    pub teams: T,
+    pub teams: Arc<T>,
     pub likes: L,
     pub collections: C,
     pub user_updater: U,
 }
 
 impl<R, T, L, C, U> SongService<R, T, L, C, U> {
-    pub fn new(repo: R, teams: T, likes: L, collections: C, user_updater: U) -> Self {
+    pub fn new(repo: R, teams: Arc<T>, likes: L, collections: C, user_updater: U) -> Self {
         Self {
             repo,
             teams,
@@ -125,7 +131,7 @@ impl<
 
     pub async fn list_songs_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         query: SongListQuery,
     ) -> Result<Vec<Song>, AppError> {
         let user_id = perms.user().id.clone();
@@ -145,7 +151,7 @@ impl<
 
     pub async fn count_songs_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         query: &SongListQuery,
     ) -> Result<u64, AppError> {
         let read_teams = perms.read_teams().await?;
@@ -154,7 +160,7 @@ impl<
 
     pub async fn get_song_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
     ) -> Result<Song, AppError> {
         let user_id = perms.user().id.clone();
@@ -167,7 +173,7 @@ impl<
 
     pub async fn song_player_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
     ) -> Result<Player, AppError> {
         let read_teams = perms.read_teams().await?;
@@ -184,43 +190,58 @@ impl<
 
     pub async fn create_song_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         song: CreateSong,
     ) -> Result<Song, AppError> {
         let created = self.repo.create_song(&perms.user().id, song).await?;
+        let mut default_id = perms.user().default_collection.clone();
 
-        if let Some(collection_id) = perms.user().default_collection.as_ref() {
+        loop {
             let write_teams = perms.write_teams().await?;
-            self.collections
-                .add_song_to_collection(
-                    write_teams,
-                    collection_id,
-                    SongLink {
-                        id: created.id.clone(),
-                        nr: None,
-                        key: None,
-                    },
-                )
-                .await?;
-        } else {
-            let collection = self
-                .collections
-                .create_collection(
-                    &perms.user().id,
-                    CreateCollection {
-                        title: "Default".to_string(),
-                        cover: "mysongs".to_string(),
-                        songs: vec![SongLink {
+            if let Some(collection_id) = default_id.as_ref() {
+                match self
+                    .collections
+                    .add_song_to_collection(
+                        write_teams,
+                        collection_id,
+                        SongLink {
                             id: created.id.clone(),
                             nr: None,
                             key: None,
-                        }],
-                    },
-                )
-                .await?;
-            self.user_updater
-                .set_default_collection(&perms.user().id, &collection.id)
-                .await?;
+                        },
+                    )
+                    .await
+                {
+                    Ok(()) => break,
+                    Err(e) if matches!(&e, AppError::NotFound(_) | AppError::Conflict(_)) => {
+                        self.user_updater
+                            .clear_default_collection(&perms.user().id)
+                            .await?;
+                        default_id = None;
+                    }
+                    Err(e) => return Err(e),
+                }
+            } else {
+                let collection = self
+                    .collections
+                    .create_collection(
+                        &perms.user().id,
+                        CreateCollection {
+                            title: "Default".to_string(),
+                            cover: "mysongs".to_string(),
+                            songs: vec![SongLink {
+                                id: created.id.clone(),
+                                nr: None,
+                                key: None,
+                            }],
+                        },
+                    )
+                    .await?;
+                self.user_updater
+                    .set_default_collection(&perms.user().id, &collection.id)
+                    .await?;
+                break;
+            }
         }
 
         Ok(created)
@@ -228,10 +249,10 @@ impl<
 
     pub async fn update_song_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
         song: CreateSong,
-    ) -> Result<Song, AppError> {
+    ) -> Result<SongUpsertOutcome, AppError> {
         let write_teams = perms.write_teams().await?;
         self.repo
             .update_song(write_teams, &perms.user().id, id, song)
@@ -240,7 +261,7 @@ impl<
 
     pub async fn patch_song_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
         patch: PatchSong,
     ) -> Result<Song, AppError> {
@@ -253,12 +274,14 @@ impl<
                 .map(|song_data_patch| Self::merge_song_data(current.data.clone(), song_data_patch))
                 .unwrap_or(current.data),
         };
-        self.update_song_for_user(perms, id, merged).await
+        self.update_song_for_user(perms, id, merged)
+            .await
+            .map(SongUpsertOutcome::into_song)
     }
 
     pub async fn delete_song_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
     ) -> Result<Song, AppError> {
         let write_teams = perms.write_teams().await?;
@@ -267,7 +290,7 @@ impl<
 
     pub async fn song_like_status_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
     ) -> Result<LikeStatus, AppError> {
         let read_teams = perms.read_teams().await?;
@@ -280,7 +303,7 @@ impl<
 
     pub async fn set_song_like_status_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
         liked: bool,
     ) -> Result<LikeStatus, AppError> {
@@ -304,9 +327,19 @@ pub type SongServiceHandle = SongService<
 
 impl SongServiceHandle {
     pub fn build(db: Arc<Database>) -> Self {
+        Self::build_with_team_resolver(
+            db.clone(),
+            Arc::new(crate::resources::team::SurrealTeamResolver::new(db.clone())),
+        )
+    }
+
+    pub fn build_with_team_resolver(
+        db: Arc<Database>,
+        teams: Arc<crate::resources::team::SurrealTeamResolver>,
+    ) -> Self {
         SongService::new(
             SurrealSongRepo::new(db.clone()),
-            crate::resources::team::SurrealTeamResolver::new(db.clone()),
+            teams,
             db.clone(),
             crate::resources::collection::SurrealCollectionRepo::new(db.clone()),
             Arc::new(SurrealUserRepo::new(db.clone())),
@@ -350,8 +383,8 @@ mod tests {
             .await
             .expect("s2");
 
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let other_p = UserPermissions::new(&other, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let other_p = UserPermissions::from_ref(&other, &svc.teams);
 
         let list = svc
             .list_songs_for_user(&owner_p, ListQuery::default().into())
@@ -430,8 +463,8 @@ mod tests {
     async fn blc_song_002_non_member_read_not_found() {
         let (db, owner, _cm, _guest, nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let nm_p = UserPermissions::new(&nm, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let nm_p = UserPermissions::from_ref(&nm, &svc.teams);
         let song = create_song_with_title(&db, &owner, "NMSong")
             .await
             .expect("song");
@@ -449,8 +482,8 @@ mod tests {
         use shared::song::CreateSong;
         let (db, owner, _cm, guest_u, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let _owner_p = UserPermissions::new(&owner, &svc.teams);
-        let guest_p = UserPermissions::new(&guest_u, &svc.teams);
+        let _owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let guest_p = UserPermissions::from_ref(&guest_u, &svc.teams);
         let song = create_song_with_title(&db, &owner, "GuestPUTSong")
             .await
             .expect("song");
@@ -468,8 +501,8 @@ mod tests {
     async fn blc_song_007_guest_cannot_delete() {
         let (db, owner, _cm, guest_u, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let guest_p = UserPermissions::new(&guest_u, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let guest_p = UserPermissions::from_ref(&guest_u, &svc.teams);
         let song = create_song_with_title(&db, &owner, "GuestDELSong")
             .await
             .expect("song");
@@ -487,8 +520,8 @@ mod tests {
         use shared::song::CreateSong;
         let (db, owner, cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let _owner_p = UserPermissions::new(&owner, &svc.teams);
-        let cm_p = UserPermissions::new(&cm, &svc.teams);
+        let _owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let cm_p = UserPermissions::from_ref(&cm, &svc.teams);
         let song = create_song_with_title(&db, &owner, "CMUpdateSong")
             .await
             .expect("song");
@@ -501,7 +534,8 @@ mod tests {
         };
         svc.update_song_for_user(&cm_p, &song.id, create)
             .await
-            .expect("cm update");
+            .expect("cm update")
+            .into_song();
     }
 
     /// BLC-SONG-003: PUT does not change the song's owner.
@@ -510,7 +544,7 @@ mod tests {
         use shared::song::CreateSong;
         let (db, owner, _cm, _guest, _nm, tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let song = create_song_with_title(&db, &owner, "OwnerSong")
             .await
             .expect("song");
@@ -524,7 +558,8 @@ mod tests {
         let updated = svc
             .update_song_for_user(&owner_p, &song.id, create)
             .await
-            .expect("update");
+            .expect("update")
+            .into_song();
         assert_eq!(updated.owner, tid, "owner must not change on PUT");
     }
 
@@ -534,7 +569,7 @@ mod tests {
         use shared::api::ListQuery;
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
 
         let mut data_with_artist = crate::test_helpers::minimal_song_data();
         data_with_artist.titles = vec!["SongByArtist".into()];
@@ -572,7 +607,7 @@ mod tests {
     async fn blc_song_012_liked_true_when_liked() {
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let song = create_song_with_title(&db, &owner, "LikeSong")
             .await
             .expect("song");
@@ -591,7 +626,7 @@ mod tests {
     async fn blc_song_012_liked_false_when_not_liked() {
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let song = create_song_with_title(&db, &owner, "UnlikedSong")
             .await
             .expect("song");
@@ -607,8 +642,8 @@ mod tests {
     async fn blc_song_004_like_state_independent_per_user() {
         let (db, owner, _cm, guest_u, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let guest_p = UserPermissions::new(&guest_u, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let guest_p = UserPermissions::from_ref(&guest_u, &svc.teams);
         let song = create_song_with_title(&db, &owner, "IndependentLike")
             .await
             .expect("song");
@@ -635,8 +670,8 @@ mod tests {
     async fn blc_song_004_like_unreadable_song_not_found() {
         let (db, owner, _cm, _guest, nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let _owner_p = UserPermissions::new(&owner, &svc.teams);
-        let nm_p = UserPermissions::new(&nm, &svc.teams);
+        let _owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let nm_p = UserPermissions::from_ref(&nm, &svc.teams);
         let song = create_song_with_title(&db, &owner, "SecretLikeSong")
             .await
             .expect("song");
@@ -652,7 +687,7 @@ mod tests {
         use shared::song::CreateSong;
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let data = crate::test_helpers::minimal_song_data();
         let create = CreateSong {
             not_a_song: false,
@@ -674,7 +709,7 @@ mod tests {
         use shared::song::PatchSong;
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
 
         let song = create_song_with_title(&db, &owner, "OriginalTitle")
             .await
@@ -710,7 +745,7 @@ mod tests {
         use shared::song::PatchSong;
         let (db, owner, _cm, guest_u, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let guest_p = UserPermissions::new(&guest_u, &svc.teams);
+        let guest_p = UserPermissions::from_ref(&guest_u, &svc.teams);
         let song = create_song_with_title(&db, &owner, "GuestPatchSong")
             .await
             .expect("song");
@@ -734,7 +769,7 @@ mod tests {
         use shared::song::PatchSong;
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let r = svc
             .patch_song_for_user(
                 &owner_p,
@@ -755,7 +790,7 @@ mod tests {
         use shared::song::PatchSong;
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let song = create_song_with_title(&db, &owner, "NoopSong")
             .await
             .expect("song");
@@ -781,7 +816,7 @@ mod tests {
 
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
 
         let mut base_data = crate::test_helpers::minimal_song_data();
         base_data.titles = vec!["BaseTitle".into()];
@@ -1046,7 +1081,7 @@ mod tests {
         use shared::song::CreateSong;
         let (db, _owner, _cm, guest_u, _nm, _tid) = four_user_song_fixture().await;
         let svc = SongServiceHandle::build(db.clone());
-        let guest_p = UserPermissions::new(&guest_u, &svc.teams);
+        let guest_p = UserPermissions::from_ref(&guest_u, &svc.teams);
         let data = crate::test_helpers::minimal_song_data();
         let create = CreateSong {
             not_a_song: false,
@@ -1057,7 +1092,8 @@ mod tests {
         let result = svc
             .update_song_for_user(&guest_p, "brand-new-guest-created-id", create)
             .await
-            .expect("guest can upsert to own personal team");
+            .expect("guest can upsert to own personal team")
+            .into_song();
         let guest_pt = personal_team_id(&db, &guest_u).await.expect("guest pt");
         assert_eq!(
             result.owner, guest_pt,
@@ -1076,7 +1112,7 @@ mod tests {
             "new user must have no default_collection"
         );
         let svc = SongServiceHandle::build(db.clone());
-        let perms = UserPermissions::new(&u, &svc.teams);
+        let perms = UserPermissions::from_ref(&u, &svc.teams);
         let song = svc
             .create_song_for_user(
                 &perms,
@@ -1091,7 +1127,7 @@ mod tests {
 
         // A "Default" collection must have been created.
         let coll_svc = crate::test_helpers::collection_service(&db);
-        let fresh_perms = UserPermissions::new(&u, &coll_svc.teams);
+        let fresh_perms = UserPermissions::from_ref(&u, &coll_svc.teams);
         let collections = coll_svc
             .list_collections_for_user(&fresh_perms, ListQuery::default())
             .await
@@ -1133,7 +1169,7 @@ mod tests {
             .await
             .expect("u");
         let svc = SongServiceHandle::build(db.clone());
-        let perms = UserPermissions::new(&u, &svc.teams);
+        let perms = UserPermissions::from_ref(&u, &svc.teams);
         let song1 = svc
             .create_song_for_user(
                 &perms,
@@ -1160,7 +1196,7 @@ mod tests {
 
         // Create a second song using the updated user (whose default_collection is set).
         let svc2 = SongServiceHandle::build(db.clone());
-        let perms2 = UserPermissions::new(&updated_u, &svc2.teams);
+        let perms2 = UserPermissions::from_ref(&updated_u, &svc2.teams);
         let song2 = svc2
             .create_song_for_user(
                 &perms2,
@@ -1178,7 +1214,7 @@ mod tests {
             .expect("song2");
 
         let coll_svc = crate::test_helpers::collection_service(&db);
-        let fresh_perms = UserPermissions::new(&updated_u, &coll_svc.teams);
+        let fresh_perms = UserPermissions::from_ref(&updated_u, &coll_svc.teams);
         let collections = coll_svc
             .list_collections_for_user(&fresh_perms, ListQuery::default())
             .await
@@ -1213,7 +1249,7 @@ mod tests {
             .await
             .expect("song");
         let sl_svc = setlist_service(&db);
-        let u_p = UserPermissions::new(&u, &sl_svc.teams);
+        let u_p = UserPermissions::from_ref(&u, &sl_svc.teams);
         let sl = sl_svc
             .create_setlist_for_user(
                 &u_p,
@@ -1221,12 +1257,12 @@ mod tests {
             )
             .await
             .expect("setlist");
-        let song_p = UserPermissions::new(&u, &svc.teams);
+        let song_p = UserPermissions::from_ref(&u, &svc.teams);
         svc.delete_song_for_user(&song_p, &song.id)
             .await
             .expect("del song");
         let sl_svc2 = setlist_service(&db);
-        let u_p2 = UserPermissions::new(&u, &sl_svc2.teams);
+        let u_p2 = UserPermissions::from_ref(&u, &sl_svc2.teams);
         let g = sl_svc2
             .get_setlist_for_user(&u_p2, &sl.id)
             .await

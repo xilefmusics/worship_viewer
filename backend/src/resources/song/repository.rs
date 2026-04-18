@@ -8,6 +8,21 @@ use shared::song::{CreateSong, Song};
 
 use crate::error::AppError;
 
+/// Result of [`SongRepository::update_song`] (PUT upsert).
+#[derive(Debug)]
+pub enum SongUpsertOutcome {
+    Created(Song),
+    Updated(Song),
+}
+
+impl SongUpsertOutcome {
+    pub fn into_song(self) -> Song {
+        match self {
+            SongUpsertOutcome::Created(s) | SongUpsertOutcome::Updated(s) => s,
+        }
+    }
+}
+
 /// Pure song data access (no user ACL — callers pass pre-resolved team [`Thing`]s).
 #[async_trait]
 pub trait SongRepository: Send + Sync {
@@ -38,7 +53,7 @@ pub trait SongRepository: Send + Sync {
         actor_user_id: &str,
         id: &str,
         song: CreateSong,
-    ) -> Result<Song, AppError>;
+    ) -> Result<SongUpsertOutcome, AppError>;
 
     async fn delete_song(&self, write_teams: &[Thing], id: &str) -> Result<Song, AppError>;
 

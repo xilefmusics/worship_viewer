@@ -90,3 +90,78 @@ pub struct PatchTeam {
     #[cfg_attr(feature = "backend", schema(value_type = Option<Vec<TeamMemberInput>>))]
     pub members: Patch<Vec<TeamMemberInput>>,
 }
+
+impl CreateTeam {
+    pub fn validate(&self) -> Result<(), String> {
+        use crate::validation_limits::{MAX_TEAM_MEMBER_INPUTS, MAX_TEAM_NAME_LEN};
+        let name = self.name.trim();
+        if name.is_empty() {
+            return Err("team name must not be empty".into());
+        }
+        if name.len() > MAX_TEAM_NAME_LEN {
+            return Err(format!(
+                "team name is too long (max {MAX_TEAM_NAME_LEN} characters)"
+            ));
+        }
+        if self.members.len() > MAX_TEAM_MEMBER_INPUTS {
+            return Err(format!(
+                "too many members in request (max {MAX_TEAM_MEMBER_INPUTS})"
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl UpdateTeam {
+    pub fn validate(&self) -> Result<(), String> {
+        use crate::validation_limits::{MAX_TEAM_MEMBER_INPUTS, MAX_TEAM_NAME_LEN};
+        let name = self.name.trim();
+        if name.is_empty() {
+            return Err("team name must not be empty".into());
+        }
+        if name.len() > MAX_TEAM_NAME_LEN {
+            return Err(format!(
+                "team name is too long (max {MAX_TEAM_NAME_LEN} characters)"
+            ));
+        }
+        if let Some(members) = &self.members {
+            if members.len() > MAX_TEAM_MEMBER_INPUTS {
+                return Err(format!(
+                    "too many members in request (max {MAX_TEAM_MEMBER_INPUTS})"
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod validate_tests {
+    use super::*;
+
+    #[test]
+    fn create_team_whitespace_name_fails() {
+        let t = CreateTeam {
+            name: "   \t".into(),
+            members: vec![],
+        };
+        assert!(t.validate().is_err());
+    }
+
+    #[test]
+    fn create_team_too_many_members_fails() {
+        use crate::validation_limits::MAX_TEAM_MEMBER_INPUTS;
+        let t = CreateTeam {
+            name: "Ok".into(),
+            members: (0..=MAX_TEAM_MEMBER_INPUTS)
+                .map(|i| TeamMemberInput {
+                    user: TeamUserRef {
+                        id: format!("u{i}"),
+                    },
+                    role: TeamRole::Guest,
+                })
+                .collect(),
+        };
+        assert!(t.validate().is_err());
+    }
+}

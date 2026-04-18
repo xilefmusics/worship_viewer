@@ -16,12 +16,12 @@ use crate::resources::common::player_from_song_links;
 #[derive(Clone)]
 pub struct SetlistService<R, T, L> {
     pub repo: R,
-    pub teams: T,
+    pub teams: Arc<T>,
     pub likes: L,
 }
 
 impl<R, T, L> SetlistService<R, T, L> {
-    pub fn new(repo: R, teams: T, likes: L) -> Self {
+    pub fn new(repo: R, teams: Arc<T>, likes: L) -> Self {
         Self { repo, teams, likes }
     }
 }
@@ -29,7 +29,7 @@ impl<R, T, L> SetlistService<R, T, L> {
 impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T, L> {
     pub async fn list_setlists_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         pagination: ListQuery,
     ) -> Result<Vec<Setlist>, AppError> {
         let read_teams = perms.read_teams().await?;
@@ -38,7 +38,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 
     pub async fn count_setlists_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         q: Option<&str>,
     ) -> Result<u64, AppError> {
         let read_teams = perms.read_teams().await?;
@@ -47,7 +47,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 
     pub async fn get_setlist_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
     ) -> Result<Setlist, AppError> {
         let read_teams = perms.read_teams().await?;
@@ -56,7 +56,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 
     pub async fn setlist_player_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
     ) -> Result<Player, AppError> {
         let user_id = perms.user().id.clone();
@@ -68,7 +68,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 
     pub async fn setlist_songs_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
         pagination: ListQuery,
     ) -> Result<(Vec<Song>, u64), AppError> {
@@ -93,7 +93,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 
     pub async fn create_setlist_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
         self.repo.create_setlist(&perms.user().id, setlist).await
@@ -101,7 +101,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 
     pub async fn update_setlist_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
@@ -111,7 +111,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 
     pub async fn patch_setlist_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
         patch: PatchSetlist,
     ) -> Result<Setlist, AppError> {
@@ -125,7 +125,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
 
     pub async fn delete_setlist_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
     ) -> Result<Setlist, AppError> {
         let write_teams = perms.write_teams().await?;
@@ -323,15 +323,15 @@ mod tests {
                 get_returns: None,
                 update_ok: false,
             },
-            MockTeams {
+            Arc::new(MockTeams {
                 read: vec![team_a()],
                 write: vec![],
-            },
+            }),
             MockLikes {
                 ids: HashSet::new(),
             },
         );
-        let perms = UserPermissions::new(&user, &svc.teams);
+        let perms = UserPermissions::from_ref(&user, &svc.teams);
         let r = svc.get_setlist_for_user(&perms, "nope").await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
@@ -346,15 +346,15 @@ mod tests {
                 get_returns: None,
                 update_ok: false,
             },
-            MockTeams {
+            Arc::new(MockTeams {
                 read: vec![team_a()],
                 write: vec![team_b()],
-            },
+            }),
             MockLikes {
                 ids: HashSet::new(),
             },
         );
-        let perms = UserPermissions::new(&user, &svc.teams);
+        let perms = UserPermissions::from_ref(&user, &svc.teams);
         let r = svc
             .update_setlist_for_user(
                 &perms,
@@ -378,15 +378,15 @@ mod tests {
                 get_returns: None,
                 update_ok: true,
             },
-            MockTeams {
+            Arc::new(MockTeams {
                 read: vec![team_a()],
                 write: vec![team_a()],
-            },
+            }),
             MockLikes {
                 ids: HashSet::new(),
             },
         );
-        let perms = UserPermissions::new(&user, &svc.teams);
+        let perms = UserPermissions::from_ref(&user, &svc.teams);
         let r = svc
             .update_setlist_for_user(
                 &perms,
@@ -418,7 +418,7 @@ mod tests {
         let s2 = create_song_with_title(&db, &owner, "Song Two")
             .await
             .expect("s2");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
 
         let created = sl
             .create_setlist_for_user(
@@ -445,9 +445,9 @@ mod tests {
         let s1 = create_song_with_title(&db, &owner, "Song One")
             .await
             .expect("s1");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
-        let read_p = UserPermissions::new(&read_u, &sl.teams);
-        let noperm_p = UserPermissions::new(&noperm, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
+        let read_p = UserPermissions::from_ref(&read_u, &sl.teams);
+        let noperm_p = UserPermissions::from_ref(&noperm, &sl.teams);
 
         sl.create_setlist_for_user(
             &owner_p,
@@ -503,7 +503,7 @@ mod tests {
         let s1 = create_song_with_title(&db, &owner, "Song")
             .await
             .expect("s");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
 
         sl.create_setlist_for_user(&owner_p, setlist_with_songs("A", &[(s1.id.as_str(), None)]))
             .await
@@ -544,7 +544,7 @@ mod tests {
         let s1 = create_song_with_title(&db, &owner, "Song")
             .await
             .expect("s");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
 
         let sunday = sl
             .create_setlist_for_user(
@@ -608,9 +608,9 @@ mod tests {
         let s2 = create_song_with_title(&db, &owner, "Song Two")
             .await
             .expect("s2");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
-        let read_p = UserPermissions::new(&read_u, &sl.teams);
-        let noperm_p = UserPermissions::new(&noperm, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
+        let read_p = UserPermissions::from_ref(&read_u, &sl.teams);
+        let noperm_p = UserPermissions::from_ref(&noperm, &sl.teams);
 
         let created = sl
             .create_setlist_for_user(
@@ -657,9 +657,9 @@ mod tests {
         let s2 = create_song_with_title(&db, &owner, "Song Two")
             .await
             .expect("s2");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
-        let read_p = UserPermissions::new(&read_u, &sl.teams);
-        let noperm_p = UserPermissions::new(&noperm, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
+        let read_p = UserPermissions::from_ref(&read_u, &sl.teams);
+        let noperm_p = UserPermissions::from_ref(&noperm, &sl.teams);
 
         let created = sl
             .create_setlist_for_user(
@@ -712,9 +712,9 @@ mod tests {
         let s2 = create_song_with_title(&db, &owner, "Song Two")
             .await
             .expect("s2");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
-        let read_p = UserPermissions::new(&read_u, &sl.teams);
-        let noperm_p = UserPermissions::new(&noperm, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
+        let read_p = UserPermissions::from_ref(&read_u, &sl.teams);
+        let noperm_p = UserPermissions::from_ref(&noperm, &sl.teams);
 
         let created = sl
             .create_setlist_for_user(
@@ -763,10 +763,10 @@ mod tests {
         let s2 = create_song_with_title(&db, &owner, "Song Two")
             .await
             .expect("s2");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
-        let read_p = UserPermissions::new(&read_u, &sl.teams);
-        let write_p = UserPermissions::new(&write_u, &sl.teams);
-        let noperm_p = UserPermissions::new(&noperm, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
+        let read_p = UserPermissions::from_ref(&read_u, &sl.teams);
+        let write_p = UserPermissions::from_ref(&write_u, &sl.teams);
+        let noperm_p = UserPermissions::from_ref(&noperm, &sl.teams);
 
         let created = sl
             .create_setlist_for_user(
@@ -857,7 +857,7 @@ mod tests {
         let s1 = create_song_with_title(&db, &owner, "Song One")
             .await
             .expect("s1");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
 
         let created = sl
             .create_setlist_for_user(
@@ -893,7 +893,7 @@ mod tests {
         use shared::setlist::PatchSetlist;
         let (db, owner, _read_u, _write_u, _noperm, _team_id) = four_user_setlist_fixture().await;
         let sl = setlist_service(&db);
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
         let r = sl
             .patch_setlist_for_user(
                 &owner_p,
@@ -916,8 +916,8 @@ mod tests {
         let s1 = create_song_with_title(&db, &owner, "Song")
             .await
             .expect("s");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
-        let read_p = UserPermissions::new(&read_u, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
+        let read_p = UserPermissions::from_ref(&read_u, &sl.teams);
         let created = sl
             .create_setlist_for_user(
                 &owner_p,
@@ -950,7 +950,7 @@ mod tests {
         let s2 = create_song_with_title(&db, &owner, "Song Two")
             .await
             .expect("s2");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
 
         for mask in 0u8..4 {
             let created = sl
@@ -1013,9 +1013,9 @@ mod tests {
         let s1 = create_song_with_title(&db, &owner, "Song")
             .await
             .expect("s");
-        let owner_p = UserPermissions::new(&owner, &sl.teams);
-        let write_p = UserPermissions::new(&write_u, &sl.teams);
-        let noperm_p = UserPermissions::new(&noperm, &sl.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &sl.teams);
+        let write_p = UserPermissions::from_ref(&write_u, &sl.teams);
+        let noperm_p = UserPermissions::from_ref(&noperm, &sl.teams);
 
         let owner_setlist = sl
             .create_setlist_for_user(

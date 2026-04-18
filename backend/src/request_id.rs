@@ -9,6 +9,10 @@ use uuid::Uuid;
 
 static X_REQUEST_ID: HeaderName = HeaderName::from_static("x-request-id");
 
+/// Request path and query (`/api/v1/...?a=1`), stored for diagnostics (e.g. Problem Details `instance`).
+#[derive(Clone)]
+pub struct ApiRequestTarget(pub String);
+
 /// If `traceparent` is a valid W3C trace context value (`version-trace_id-span_id-flags`),
 /// returns the 16-hex-character **span id** segment (often aligned with OpenTelemetry span id).
 fn span_id_from_traceparent(traceparent: &str) -> Option<String> {
@@ -76,6 +80,12 @@ where
             .and_then(span_id_from_traceparent)
             .unwrap_or_else(|| Uuid::new_v4().to_string());
         req.extensions_mut().insert(id.clone());
+        let target = req
+            .uri()
+            .path_and_query()
+            .map(|pq| pq.to_string())
+            .unwrap_or_else(|| req.uri().path().to_string());
+        req.extensions_mut().insert(ApiRequestTarget(target));
 
         let service = Rc::clone(&self.service);
         Box::pin(async move {

@@ -979,3 +979,70 @@ mod list_pagination {
         );
     }
 }
+
+mod spa_fallback_guard {
+    use actix_web::http::StatusCode;
+    use actix_web::{App, ResponseError, test};
+
+    use crate::error::AppError;
+    use crate::frontend;
+
+    #[actix_web::test]
+    async fn unknown_path_under_api_or_auth_returns_problem_json() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("index.html"), "<html>spa</html>").unwrap();
+        let static_path = dir.path().to_string_lossy().into_owned();
+        let app = test::init_service(App::new().service(frontend::rest::scope(&static_path))).await;
+
+        for uri in [
+            "/api/v1/definitely/not/a/route",
+            "/api/v2/foo",
+            "/auth/not-a-real-endpoint",
+        ] {
+            let req = test::TestRequest::get().uri(uri).to_request();
+            let resp = test::call_service(&app, req).await;
+            assert_eq!(resp.status(), StatusCode::NOT_FOUND, "uri={uri}");
+            let ct = resp
+                .headers()
+                .get("content-type")
+                .and_then(|h| h.to_str().ok())
+                .unwrap_or("");
+            assert!(
+                ct.contains("application/problem+json"),
+                "expected problem+json, got {ct} for {uri}"
+            );
+            let body = test::read_body(resp).await;
+            let s = String::from_utf8_lossy(&body);
+            assert!(
+                !s.contains("<html"),
+                "should not return SPA shell for {uri}"
+            );
+        }
+    }
+
+    #[actix_web::test]
+    async fn spa_route_still_serves_index_html() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("index.html"), "<html>spa</html>").unwrap();
+        let static_path = dir.path().to_string_lossy().into_owned();
+        let app = test::init_service(App::new().service(frontend::rest::scope(&static_path))).await;
+
+        let req = test::TestRequest::get().uri("/app/deep/link").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = test::read_body(resp).await;
+        assert!(String::from_utf8_lossy(&body).contains("spa"));
+    }
+
+    #[actix_web::test]
+    async fn not_found_body_is_problem_details_shape() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("index.html"), "<html/>").unwrap();
+        let static_path = dir.path().to_string_lossy().into_owned();
+        let app = test::init_service(App::new().service(frontend::rest::scope(&static_path))).await;
+        let req = test::TestRequest::get().uri("/api/missing").to_request();
+        let resp = test::call_service(&app, req).await;
+        let expected = AppError::NotFound("not found".into()).error_response();
+        assert_eq!(resp.status(), expected.status());
+    }
+}

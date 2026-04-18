@@ -62,7 +62,7 @@ pub async fn create_song_with_title(
         data,
     };
     let svc = song_service(db);
-    let perms = UserPermissions::new(user, &svc.teams);
+    let perms = UserPermissions::from_ref(user, &svc.teams);
     Ok(svc.create_song_for_user(&perms, create).await?)
 }
 
@@ -112,7 +112,7 @@ pub fn song_service(db: &Arc<Database>) -> SongServiceHandle {
 pub fn setlist_service(db: &Arc<Database>) -> SetlistServiceHandle {
     SetlistService::new(
         SurrealSetlistRepo::new(db.clone()),
-        SurrealTeamResolver::new(db.clone()),
+        Arc::new(SurrealTeamResolver::new(db.clone())),
         db.clone(),
     )
 }

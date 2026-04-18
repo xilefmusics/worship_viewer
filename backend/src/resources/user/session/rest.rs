@@ -8,7 +8,7 @@ use serde::Deserialize;
 use shared::api::ListQuery;
 
 #[allow(unused_imports)]
-use crate::docs::ErrorResponse;
+use crate::docs::ProblemDetails;
 use crate::error::AppError;
 use crate::resources::User;
 use crate::settings::CookieConfig;
@@ -19,15 +19,15 @@ use super::service::SessionServiceHandle;
     get,
     path = "/api/v1/users/me/sessions",
     params(
-        ("page" = Option<u32>, Query, description = "Page index, zero-based. Omit with `page_size` for full list."),
+        ("page" = Option<u32>, Query, description = "Zero-based page. With `page_size`, `X-Total-Count` is pre-pagination total (`list-pagination.md`)."),
         ("page_size" = Option<u32>, Query, description = "Items per page (1–500). Omit with `page` for full list."),
         ("q" = Option<String>, Query, description = "Reserved.")
     ),
     responses(
         (status = 200, description = "Returns active sessions for the current user. `X-Total-Count` is the total before paging.", body = [Session]),
-        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 500, description = "Failed to list sessions for current user", body = ErrorResponse)
+        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 500, description = "Failed to list sessions for current user", body = ProblemDetails)
     ),
     tag = "Users",
     security(
@@ -63,9 +63,9 @@ pub async fn get_sessions_for_current_user(
     ),
     responses(
         (status = 200, description = "Returns a session for the current user", body = Session),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Session not found for current user", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch session", body = ErrorResponse)
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Session not found for current user", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch session", body = ProblemDetails)
     ),
     tag = "Users",
     security(
@@ -90,9 +90,9 @@ pub async fn get_session_for_current_user(
     ),
     responses(
         (status = 204, description = "Session deleted"),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Session not found for current user", body = ErrorResponse),
-        (status = 500, description = "Failed to delete session", body = ErrorResponse)
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Session not found for current user", body = ProblemDetails),
+        (status = 500, description = "Failed to delete session", body = ProblemDetails)
     ),
     tag = "Users",
     security(
@@ -118,9 +118,9 @@ pub async fn delete_session_for_current_user(
     ),
     responses(
         (status = 201, description = "Creates a session for the specified user", body = Session),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Admin role required", body = ErrorResponse),
-        (status = 500, description = "Failed to create session", body = ErrorResponse)
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 403, description = "Admin role required", body = ProblemDetails),
+        (status = 500, description = "Failed to create session", body = ProblemDetails)
     ),
     tag = "Users",
     security(
@@ -146,16 +146,16 @@ pub async fn create_session_for_user(
     path = "/api/v1/users/{user_id}/sessions",
     params(
         ("user_id" = String, Path, description = "User identifier"),
-        ("page" = Option<u32>, Query, description = "Page index, zero-based. Omit with `page_size` for full list."),
+        ("page" = Option<u32>, Query, description = "Zero-based page. With `page_size`, `X-Total-Count` is pre-pagination total (`list-pagination.md`)."),
         ("page_size" = Option<u32>, Query, description = "Items per page (1–500). Omit with `page` for full list."),
         ("q" = Option<String>, Query, description = "Reserved.")
     ),
     responses(
         (status = 200, description = "Returns active sessions for the specified user. `X-Total-Count` is the total before paging.", body = [Session]),
-        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Admin role required", body = ErrorResponse),
-        (status = 500, description = "Failed to list sessions", body = ErrorResponse)
+        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 403, description = "Admin role required", body = ProblemDetails),
+        (status = 500, description = "Failed to list sessions", body = ProblemDetails)
     ),
     tag = "Users",
     security(
@@ -192,10 +192,10 @@ pub async fn get_sessions_for_user(
     ),
     responses(
         (status = 200, description = "Returns a session for the specified user", body = Session),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Admin role required", body = ErrorResponse),
-        (status = 404, description = "Session not found for specified user", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch session", body = ErrorResponse)
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 403, description = "Admin role required", body = ProblemDetails),
+        (status = 404, description = "Session not found for specified user", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch session", body = ProblemDetails)
     ),
     tag = "Users",
     security(
@@ -220,10 +220,10 @@ pub async fn get_session_for_user(
     ),
     responses(
         (status = 204, description = "Session deleted"),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 403, description = "Admin role required", body = ErrorResponse),
-        (status = 404, description = "Session not found for specified user", body = ErrorResponse),
-        (status = 500, description = "Failed to delete session", body = ErrorResponse)
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 403, description = "Admin role required", body = ProblemDetails),
+        (status = 404, description = "Session not found for specified user", body = ProblemDetails),
+        (status = 500, description = "Failed to delete session", body = ProblemDetails)
     ),
     tag = "Users",
     security(

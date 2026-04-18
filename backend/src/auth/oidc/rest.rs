@@ -20,7 +20,7 @@ use utoipa::IntoParams;
 use super::{Model as OidcModel, OidcClients, OidcProvider, PendingOidc};
 use crate::database::Database;
 #[allow(unused_imports)]
-use crate::docs::ErrorResponse;
+use crate::docs::ProblemDetails;
 use crate::error::AppError;
 use crate::resources::Session;
 use crate::resources::user::service::UserServiceHandle;
@@ -33,9 +33,9 @@ use crate::settings::CookieConfig;
     params(LoginQuery),
     responses(
         (status = 302, description = "Redirect to OIDC provider login page"),
-        (status = 400, description = "Invalid login request", body = ErrorResponse),
-        (status = 429, description = "Rate limit exceeded; slow down and retry", body = ErrorResponse),
-        (status = 500, description = "Failed to prepare login flow", body = ErrorResponse)
+        (status = 400, description = "Invalid login request", body = ProblemDetails),
+        (status = 429, description = "Rate limit exceeded; slow down and retry", body = ProblemDetails),
+        (status = 500, description = "Failed to prepare login flow", body = ProblemDetails)
     ),
     tag = "Auth"
 )]
@@ -97,9 +97,9 @@ async fn login(
     params(AuthCallbackQuery),
     responses(
         (status = 302, description = "Successful callback exchange; redirects back to frontend"),
-        (status = 400, description = "Invalid OIDC state", body = ErrorResponse),
-        (status = 401, description = "OIDC user info missing required claims", body = ErrorResponse),
-        (status = 500, description = "OIDC provider or database error", body = ErrorResponse)
+        (status = 400, description = "Invalid OIDC state", body = ProblemDetails),
+        (status = 401, description = "OIDC user info missing required claims", body = ProblemDetails),
+        (status = 500, description = "OIDC provider or database error", body = ProblemDetails)
     ),
     tag = "Auth"
 )]

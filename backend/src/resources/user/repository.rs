@@ -9,8 +9,8 @@ use crate::error::AppError;
 #[async_trait]
 pub trait UserRepository: Send + Sync {
     async fn get_users(&self, pagination: ListQuery) -> Result<Vec<User>, AppError>;
-    /// Count all users in the system.
-    async fn count_users(&self) -> Result<u64, AppError>;
+    /// Count users matching the same optional `q` filter as [`get_users`](Self::get_users) (ignores page).
+    async fn count_users(&self, query: ListQuery) -> Result<u64, AppError>;
     async fn get_user(&self, id: &str) -> Result<User, AppError>;
     async fn get_user_by_email(&self, email: &str) -> Result<Option<User>, AppError>;
     /// Insert a user record. Does NOT create a personal team — service layer handles that.

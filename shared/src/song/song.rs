@@ -7,6 +7,9 @@ use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 #[cfg(feature = "backend")]
+#[allow(unused_imports)]
+use serde_json::json;
+#[cfg(feature = "backend")]
 use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
@@ -30,6 +33,14 @@ pub struct Song {
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({
+        "not_a_song": false,
+        "blobs": [],
+        "data": { "titles": ["Example Hymn"], "sections": [] }
+    }))
+)]
 pub struct CreateSong {
     pub not_a_song: bool,
     pub blobs: Vec<String>,
@@ -41,6 +52,10 @@ pub struct CreateSong {
 #[derive(Deserialize, Debug, Default, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({ "not_a_song": false }))
+)]
 pub struct PatchSong {
     pub not_a_song: Option<bool>,
     pub blobs: Option<Vec<String>>,
@@ -122,6 +137,17 @@ impl CreateSong {
     ) -> (String, String) {
         (&self.data).format_html_page(key, representation, language, scale)
     }
+
+    /// Reject oversized blob reference lists before hitting the service layer.
+    pub fn validate(&self) -> Result<(), String> {
+        use crate::validation_limits::MAX_BLOBS_PER_SONG;
+        if self.blobs.len() > MAX_BLOBS_PER_SONG {
+            return Err(format!(
+                "too many blob references (max {MAX_BLOBS_PER_SONG})"
+            ));
+        }
+        Ok(())
+    }
 }
 
 impl Song {
@@ -180,5 +206,19 @@ mod tests {
         assert_eq!(s.data.title(), "Hello");
         assert_eq!(s.data.artist(), "A");
         assert_eq!(s.data.language(), "en");
+    }
+
+    #[test]
+    fn create_song_validate_rejects_too_many_blobs() {
+        use crate::validation_limits::MAX_BLOBS_PER_SONG;
+        let mut s = CreateSong {
+            not_a_song: false,
+            blobs: vec![],
+            data: chordlib::types::Song::default(),
+        };
+        s.blobs = (0..=MAX_BLOBS_PER_SONG).map(|i| format!("b{i}")).collect();
+        assert!(s.validate().is_err());
+        s.blobs.pop();
+        assert!(s.validate().is_ok());
     }
 }

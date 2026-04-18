@@ -18,12 +18,12 @@ use super::surreal_repo::SurrealCollectionRepo;
 #[derive(Clone)]
 pub struct CollectionService<R, T, L> {
     pub repo: R,
-    pub teams: T,
+    pub teams: Arc<T>,
     pub likes: L,
 }
 
 impl<R, T, L> CollectionService<R, T, L> {
-    pub fn new(repo: R, teams: T, likes: L) -> Self {
+    pub fn new(repo: R, teams: Arc<T>, likes: L) -> Self {
         Self { repo, teams, likes }
     }
 }
@@ -31,7 +31,7 @@ impl<R, T, L> CollectionService<R, T, L> {
 impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionService<R, T, L> {
     pub async fn list_collections_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         pagination: ListQuery,
     ) -> Result<Vec<Collection>, AppError> {
         let read_teams = perms.read_teams().await?;
@@ -40,7 +40,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 
     pub async fn count_collections_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         q: Option<&str>,
     ) -> Result<u64, AppError> {
         let read_teams = perms.read_teams().await?;
@@ -49,7 +49,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 
     pub async fn get_collection_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
     ) -> Result<Collection, AppError> {
         let read_teams = perms.read_teams().await?;
@@ -58,7 +58,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 
     pub async fn collection_player_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
     ) -> Result<Player, AppError> {
         let user_id = perms.user().id.clone();
@@ -70,7 +70,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 
     pub async fn collection_songs_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
         pagination: ListQuery,
     ) -> Result<(Vec<Song>, u64), AppError> {
@@ -95,7 +95,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 
     pub async fn create_collection_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
         self.repo
@@ -105,7 +105,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 
     pub async fn update_collection_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
@@ -117,7 +117,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 
     pub async fn patch_collection_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
         patch: PatchCollection,
     ) -> Result<Collection, AppError> {
@@ -132,7 +132,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
 
     pub async fn delete_collection_for_user(
         &self,
-        perms: &UserPermissions<'_, T>,
+        perms: &UserPermissions<T>,
         id: &str,
     ) -> Result<Collection, AppError> {
         let write_teams = perms.write_teams().await?;
@@ -149,11 +149,17 @@ pub type CollectionServiceHandle = CollectionService<
 
 impl CollectionServiceHandle {
     pub fn build(db: Arc<Database>) -> Self {
-        CollectionService::new(
-            SurrealCollectionRepo::new(db.clone()),
-            crate::resources::team::SurrealTeamResolver::new(db.clone()),
+        Self::build_with_team_resolver(
             db.clone(),
+            Arc::new(crate::resources::team::SurrealTeamResolver::new(db.clone())),
         )
+    }
+
+    pub fn build_with_team_resolver(
+        db: Arc<Database>,
+        teams: Arc<crate::resources::team::SurrealTeamResolver>,
+    ) -> Self {
+        CollectionService::new(SurrealCollectionRepo::new(db.clone()), teams, db.clone())
     }
 }
 
@@ -194,8 +200,8 @@ mod tests {
             .await
             .expect("song");
 
-        let owner_perms = UserPermissions::new(&owner, &svc.teams);
-        let guest_perms = UserPermissions::new(&guest, &svc.teams);
+        let owner_perms = UserPermissions::from_ref(&owner, &svc.teams);
+        let guest_perms = UserPermissions::from_ref(&guest, &svc.teams);
 
         let col = svc
             .create_collection_for_user(
@@ -311,8 +317,8 @@ mod tests {
     async fn blc_coll_002_non_member_read_not_found() {
         let (db, owner, _cm, _guest, nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let nm_p = UserPermissions::new(&nm, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let nm_p = UserPermissions::from_ref(&nm, &svc.teams);
         let col = svc
             .create_collection_for_user(&owner_p, make_collection("NMTest"))
             .await
@@ -326,8 +332,8 @@ mod tests {
     async fn blc_coll_002_guest_can_read() {
         let (db, owner, _cm, guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let guest_p = UserPermissions::new(&guest, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let guest_p = UserPermissions::from_ref(&guest, &svc.teams);
         let col = svc
             .create_collection_for_user(&owner_p, make_collection("GuestTest"))
             .await
@@ -342,8 +348,8 @@ mod tests {
     async fn blc_coll_002_content_maintainer_can_update() {
         let (db, owner, cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let cm_p = UserPermissions::new(&cm, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let cm_p = UserPermissions::from_ref(&cm, &svc.teams);
         let col = svc
             .create_collection_for_user(&owner_p, make_collection("CMTest"))
             .await
@@ -358,7 +364,7 @@ mod tests {
     async fn blc_coll_007_guest_cannot_create() {
         let (db, _owner, _cm, guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let guest_p = UserPermissions::new(&guest, &svc.teams);
+        let guest_p = UserPermissions::from_ref(&guest, &svc.teams);
         // The collection would be owned by the guest's personal team, which the guest can write.
         // But test: guest on owner's team cannot write to owner's collections.
         // Actually, create always goes to caller's personal team, so guest creates on their own
@@ -367,7 +373,7 @@ mod tests {
         let owner_2 = crate::test_helpers::create_user(&db, "c3g-owner2@test.local")
             .await
             .expect("o2");
-        let owner2_p = UserPermissions::new(&owner_2, &svc.teams);
+        let owner2_p = UserPermissions::from_ref(&owner_2, &svc.teams);
         let col = svc
             .create_collection_for_user(&owner2_p, make_collection("O2Coll"))
             .await
@@ -383,8 +389,8 @@ mod tests {
     async fn blc_coll_007_guest_cannot_delete() {
         let (db, owner, _cm, guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let guest_p = UserPermissions::new(&guest, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let guest_p = UserPermissions::from_ref(&guest, &svc.teams);
         let col = svc
             .create_collection_for_user(&owner_p, make_collection("GuestDel"))
             .await
@@ -398,7 +404,7 @@ mod tests {
     async fn blc_coll_003_put_does_not_change_owner() {
         let (db, owner, _cm, _guest, _nm, tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let col = svc
             .create_collection_for_user(&owner_p, make_collection("OwnerTest"))
             .await
@@ -416,7 +422,7 @@ mod tests {
     async fn blc_coll_004_post_accepts_nonexistent_song_ids() {
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let col = svc
             .create_collection_for_user(
                 &owner_p,
@@ -440,7 +446,7 @@ mod tests {
     async fn blc_coll_005_list_with_q_filter() {
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         svc.create_collection_for_user(&owner_p, make_collection("Hallelujah"))
             .await
             .expect("c1");
@@ -460,7 +466,7 @@ mod tests {
     async fn blc_coll_005_list_pagination() {
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         for i in 0..3u32 {
             svc.create_collection_for_user(&owner_p, make_collection(&format!("Coll{i}")))
                 .await
@@ -490,7 +496,7 @@ mod tests {
         use crate::test_helpers::create_song_with_title;
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let song = create_song_with_title(&db, &owner, "CollSongSub")
             .await
             .expect("song");
@@ -522,7 +528,7 @@ mod tests {
         use shared::collection::PatchCollection;
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
 
         let col = svc
             .create_collection_for_user(&owner_p, make_collection("Old Title"))
@@ -557,7 +563,7 @@ mod tests {
         use shared::collection::PatchCollection;
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
 
         let col = svc
             .create_collection_for_user(&owner_p, make_collection("Title"))
@@ -587,7 +593,7 @@ mod tests {
         use shared::collection::PatchCollection;
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let r = svc
             .patch_collection_for_user(
                 &owner_p,
@@ -608,7 +614,7 @@ mod tests {
 
         let (db, owner, _cm, _guest, _nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let s1 = create_song_with_title(&db, &owner, "Song One")
             .await
             .expect("s1");
@@ -688,8 +694,8 @@ mod tests {
     async fn blc_coll_011_songs_sub_route_unauthorized() {
         let (db, owner, _cm, _guest, nm, _tid) = four_user_coll_fixture().await;
         let svc = CollectionServiceHandle::build(db.clone());
-        let owner_p = UserPermissions::new(&owner, &svc.teams);
-        let nm_p = UserPermissions::new(&nm, &svc.teams);
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let nm_p = UserPermissions::from_ref(&nm, &svc.teams);
         let col = svc
             .create_collection_for_user(&owner_p, make_collection("SecretColl"))
             .await

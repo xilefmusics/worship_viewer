@@ -14,6 +14,7 @@ use crate::resources::song::CreateSong;
 use crate::resources::song::PatchSong;
 #[allow(unused_imports)]
 use crate::resources::song::Song;
+use crate::resources::song::SongUpsertOutcome;
 use crate::resources::song::service::SongServiceHandle;
 use crate::resources::team::UserPermissions;
 use shared::api::SongListQuery;
@@ -38,8 +39,8 @@ pub fn scope() -> Scope {
     get,
     path = "/api/v1/songs",
     params(
-        ("page" = Option<u32>, Query, description = "Page index, zero-based. Defaults to 0."),
-        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50."),
+        ("page" = Option<u32>, Query, description = "Zero-based page index (default 0). `X-Total-Count` is the total before pagination; the last page is when `items.len() < page_size` or the list is empty (see `docs/business-logic-constraints/list-pagination.md`)."),
+        ("page_size" = Option<u32>, Query, description = "Page size 1–500 (default 50)."),
         ("q" = Option<String>, Query, description = "Full-text search query (titles, artists, line lyrics); uses text_search analyzer (stemming)"),
         ("sort" = Option<String>, Query, description = "Sort: `id_desc` (default without q), `id_asc`, `title_asc`, `title_desc`, `relevance` (default with q; requires q when set explicitly)"),
         ("lang" = Option<String>, Query, description = "Filter: song must list this language in `data.languages`."),
@@ -67,7 +68,7 @@ async fn get_songs(
         .into_inner()
         .validate()
         .map_err(AppError::invalid_request)?;
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     let songs = svc.list_songs_for_user(&perms, query.clone()).await?;
     let total = svc.count_songs_for_user(&perms, &query).await?;
     Ok(HttpResponse::Ok()
@@ -105,7 +106,7 @@ async fn get_song(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     let song = svc.get_song_for_user(&perms, &id).await?;
     let etag = weak_etag_json(&song).map_err(|e| AppError::Internal(e.to_string()))?;
     if if_none_match_matches(&req, &etag) {
@@ -150,7 +151,7 @@ async fn get_song_player(
             "supported Accept values include application/json, application/vnd.worship.player+json, and */*",
         ));
     }
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(svc.song_player_for_user(&perms, &id).await?))
 }
 
@@ -176,11 +177,10 @@ async fn create_song(
     user: ReqData<User>,
     payload: Json<CreateSong>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Created().json(
-        svc.create_song_for_user(&perms, payload.into_inner())
-            .await?,
-    ))
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let payload = payload.into_inner();
+    payload.validate().map_err(AppError::invalid_request)?;
+    Ok(HttpResponse::Created().json(svc.create_song_for_user(&perms, payload).await?))
 }
 
 #[utoipa::path(
@@ -191,7 +191,8 @@ async fn create_song(
     ),
     request_body = CreateSong,
     responses(
-        (status = 200, description = "Update an existing song, or upsert: if the id does not exist, creates the song (same as POST) on the caller's writable context (BLC upsert tests).", body = Song),
+        (status = 200, description = "Updated an existing song.", body = Song),
+        (status = 201, description = "Created the song via PUT upsert (new id). Response includes `Location: /api/v1/songs/{id}`.", body = Song),
         (status = 400, description = "Invalid song identifier", body = ProblemDetails),
         (status = 401, description = "Authentication required", body = ProblemDetails),
         (status = 404, description = "Song not found", body = ProblemDetails),
@@ -210,11 +211,15 @@ async fn update_song(
     id: Path<String>,
     payload: Json<CreateSong>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
-    Ok(HttpResponse::Ok().json(
-        svc.update_song_for_user(&perms, &id, payload.into_inner())
-            .await?,
-    ))
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let payload = payload.into_inner();
+    payload.validate().map_err(AppError::invalid_request)?;
+    match svc.update_song_for_user(&perms, &id, payload).await? {
+        SongUpsertOutcome::Created(song) => Ok(HttpResponse::Created()
+            .insert_header((header::LOCATION, format!("/api/v1/songs/{}", song.id)))
+            .json(song)),
+        SongUpsertOutcome::Updated(song) => Ok(HttpResponse::Ok().json(song)),
+    }
 }
 
 #[utoipa::path(
@@ -244,7 +249,7 @@ async fn patch_song(
     id: Path<String>,
     payload: Json<PatchSong>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
         svc.patch_song_for_user(&perms, &id, payload.into_inner())
             .await?,
@@ -276,7 +281,7 @@ async fn delete_song(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     svc.delete_song_for_user(&perms, &id).await?;
     Ok(HttpResponse::NoContent().finish())
 }
@@ -306,7 +311,7 @@ async fn get_song_like_status(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(svc.song_like_status_for_user(&perms, &id).await?))
 }
 
@@ -335,7 +340,7 @@ async fn put_song_like(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     svc.set_song_like_status_for_user(&perms, &id, true).await?;
     Ok(HttpResponse::NoContent().finish())
 }
@@ -365,7 +370,7 @@ async fn delete_song_like(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     svc.set_song_like_status_for_user(&perms, &id, false)
         .await?;
     Ok(HttpResponse::NoContent().finish())

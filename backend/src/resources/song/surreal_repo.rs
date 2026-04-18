@@ -15,7 +15,7 @@ use crate::error::AppError;
 use crate::resources::common::{belongs_to, blob_thing, resource_id};
 
 use super::model::{LikeRecord, SongRecord, search_content_from_song_data};
-use super::repository::SongRepository;
+use super::repository::{SongRepository, SongUpsertOutcome};
 
 fn owner_thing(user_id: &str) -> Thing {
     Thing::from(("user".to_owned(), user_id.to_owned()))
@@ -195,7 +195,7 @@ impl SongRepository for SurrealSongRepo {
         actor_user_id: &str,
         id: &str,
         song: CreateSong,
-    ) -> Result<Song, AppError> {
+    ) -> Result<SongUpsertOutcome, AppError> {
         let db = self.inner();
         let resource = resource_id("song", id)?;
         let (tb, sid) = resource.clone();
@@ -219,7 +219,7 @@ impl SongRepository for SurrealSongRepo {
 
         let rows: Vec<SongRecord> = response.take(0)?;
         if let Some(updated) = rows.into_iter().next() {
-            return Ok(updated.into_song());
+            return Ok(SongUpsertOutcome::Updated(updated.into_song()));
         }
 
         let existing: Option<SongRecord> = db.db.select(resource.clone()).await?;
@@ -233,12 +233,14 @@ impl SongRepository for SurrealSongRepo {
         }
         let record_id = Thing::from(resource.clone());
         let record = SongRecord::from_payload(Some(record_id), Some(personal), song);
-        db.db
+        let created = db
+            .db
             .create(resource)
             .content(record)
             .await?
             .map(SongRecord::into_song)
-            .ok_or_else(|| AppError::database("failed to upsert song"))
+            .ok_or_else(|| AppError::database("failed to upsert song"))?;
+        Ok(SongUpsertOutcome::Created(created))
     }
 
     async fn delete_song(&self, write_teams: &[Thing], id: &str) -> Result<Song, AppError> {

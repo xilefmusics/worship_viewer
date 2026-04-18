@@ -29,8 +29,8 @@ impl<R: UserRepository, T: TeamRepository> UserService<R, T> {
         self.repo.get_users(pagination).await
     }
 
-    pub async fn count_users(&self) -> Result<u64, AppError> {
-        self.repo.count_users().await
+    pub async fn count_users(&self, query: ListQuery) -> Result<u64, AppError> {
+        self.repo.count_users(query).await
     }
 
     pub async fn get_user(&self, id: &str) -> Result<User, AppError> {
@@ -158,7 +158,7 @@ mod tests {
             unreachable!("not used in these tests")
         }
 
-        async fn count_users(&self) -> Result<u64, AppError> {
+        async fn count_users(&self, _query: ListQuery) -> Result<u64, AppError> {
             unreachable!("not used in these tests")
         }
 

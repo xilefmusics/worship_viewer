@@ -6,7 +6,7 @@ use actix_web::{
 
 use crate::accept::accepts_worship_player_json;
 #[allow(unused_imports)]
-use crate::docs::{ErrorResponse, ProblemDetails};
+use crate::docs::ProblemDetails;
 use crate::error::AppError;
 use crate::http_cache::{if_none_match_matches, weak_etag_json};
 use crate::resources::User;
@@ -38,15 +38,15 @@ pub fn scope() -> Scope {
     get,
     path = "/api/v1/collections",
     params(
-        ("page" = Option<u32>, Query, description = "Page index, zero-based. Defaults to 0."),
-        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50."),
+        ("page" = Option<u32>, Query, description = "Zero-based page (default 0). `X-Total-Count` = filtered total before pagination; last page when `items.len() < page_size` or empty (`list-pagination.md`)."),
+        ("page_size" = Option<u32>, Query, description = "Page size 1–500 (default 50)."),
         ("q" = Option<String>, Query, description = "Full-text search query (title); uses text_search analyzer (stemming)")
     ),
     responses(
         (status = 200, description = "Return all collections. `X-Total-Count` header contains the total number of matching collections.", body = [Collection]),
-        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch collections", body = ErrorResponse)
+        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch collections", body = ProblemDetails)
     ),
     tag = "Collections",
     security(
@@ -64,7 +64,7 @@ async fn get_collections(
         .into_inner()
         .validate()
         .map_err(AppError::invalid_request)?;
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     let q_ref = query.q.clone();
     let collections = svc.list_collections_for_user(&perms, query).await?;
     let total = svc
@@ -87,10 +87,10 @@ async fn get_collections(
     responses(
         (status = 200, description = "Return a single collection (weak `ETag`; `If-None-Match` supported)", body = Collection),
         (status = 304, description = "Not modified"),
-        (status = 400, description = "Invalid collection identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Collection not found", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch collection", body = ErrorResponse)
+        (status = 400, description = "Invalid collection identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Collection not found", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch collection", body = ProblemDetails)
     ),
     tag = "Collections",
     security(
@@ -105,7 +105,7 @@ async fn get_collection(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     let collection = svc.get_collection_for_user(&perms, &id).await?;
     let etag = weak_etag_json(&collection).map_err(|e| AppError::Internal(e.to_string()))?;
     if if_none_match_matches(&req, &etag) {
@@ -150,7 +150,7 @@ async fn get_collection_player(
             "supported Accept values include application/json, application/vnd.worship.player+json, and */*",
         ));
     }
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(svc.collection_player_for_user(&perms, &id).await?))
 }
 
@@ -165,10 +165,10 @@ async fn get_collection_player(
     ),
     responses(
         (status = 200, description = "Return the songs for a collection. `X-Total-Count` is the total before paging.", body = [Song]),
-        (status = 400, description = "Invalid collection identifier or pagination", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Collection not found", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch collection songs", body = ErrorResponse)
+        (status = 400, description = "Invalid collection identifier or pagination", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Collection not found", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch collection songs", body = ProblemDetails)
     ),
     tag = "Collections",
     security(
@@ -187,7 +187,7 @@ async fn get_collection_songs(
         .into_inner()
         .validate()
         .map_err(AppError::invalid_request)?;
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     let (songs, total) = svc.collection_songs_for_user(&perms, &id, query).await?;
     Ok(HttpResponse::Ok()
         .insert_header((
@@ -203,9 +203,9 @@ async fn get_collection_songs(
     request_body = CreateCollection,
     responses(
         (status = 201, description = "Create a new collection", body = Collection),
-        (status = 400, description = "Invalid collection payload", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 500, description = "Failed to create collection", body = ErrorResponse)
+        (status = 400, description = "Invalid collection payload", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 500, description = "Failed to create collection", body = ProblemDetails)
     ),
     tag = "Collections",
     security(
@@ -219,7 +219,7 @@ async fn create_collection(
     user: ReqData<User>,
     payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Created().json(
         svc.create_collection_for_user(&perms, payload.into_inner())
             .await?,
@@ -235,10 +235,10 @@ async fn create_collection(
     request_body = CreateCollection,
     responses(
         (status = 200, description = "Update an existing collection", body = Collection),
-        (status = 400, description = "Invalid collection identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Collection not found", body = ErrorResponse),
-        (status = 500, description = "Failed to update collection", body = ErrorResponse)
+        (status = 400, description = "Invalid collection identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Collection not found", body = ProblemDetails),
+        (status = 500, description = "Failed to update collection", body = ProblemDetails)
     ),
     tag = "Collections",
     security(
@@ -253,7 +253,7 @@ async fn update_collection(
     id: Path<String>,
     payload: Json<CreateCollection>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
         svc.update_collection_for_user(&perms, &id, payload.into_inner())
             .await?,
@@ -269,10 +269,10 @@ async fn update_collection(
     request_body = PatchCollection,
     responses(
         (status = 200, description = "Partially update an existing collection", body = Collection),
-        (status = 400, description = "Invalid collection identifier or payload", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Collection not found", body = ErrorResponse),
-        (status = 500, description = "Failed to patch collection", body = ErrorResponse)
+        (status = 400, description = "Invalid collection identifier or payload", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Collection not found", body = ProblemDetails),
+        (status = 500, description = "Failed to patch collection", body = ProblemDetails)
     ),
     tag = "Collections",
     security(
@@ -287,7 +287,7 @@ async fn patch_collection(
     id: Path<String>,
     payload: Json<PatchCollection>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
         svc.patch_collection_for_user(&perms, &id, payload.into_inner())
             .await?,
@@ -302,10 +302,10 @@ async fn patch_collection(
     ),
     responses(
         (status = 204, description = "Collection deleted"),
-        (status = 400, description = "Invalid collection identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Collection not found", body = ErrorResponse),
-        (status = 500, description = "Failed to delete collection", body = ErrorResponse)
+        (status = 400, description = "Invalid collection identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Collection not found", body = ProblemDetails),
+        (status = 500, description = "Failed to delete collection", body = ProblemDetails)
     ),
     tag = "Collections",
     security(
@@ -319,7 +319,7 @@ async fn delete_collection(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     svc.delete_collection_for_user(&perms, &id).await?;
     Ok(HttpResponse::NoContent().finish())
 }
