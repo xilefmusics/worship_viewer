@@ -5,8 +5,15 @@ use tracing::instrument;
 use crate::error::AppError;
 
 #[derive(Clone)]
+enum MailTransport {
+    Smtp(AsyncSmtpTransport<Tokio1Executor>),
+    #[cfg(test)]
+    Noop,
+}
+
+#[derive(Clone)]
 pub struct MailService {
-    transport: AsyncSmtpTransport<Tokio1Executor>,
+    transport: MailTransport,
     from: String,
 }
 
@@ -17,7 +24,19 @@ impl MailService {
             .map_err(|e| crate::log_and_convert!(AppError::mail, "mail.smtp_relay", e))?
             .credentials(credentials)
             .build();
-        Ok(Self { transport, from })
+        Ok(Self {
+            transport: MailTransport::Smtp(transport),
+            from,
+        })
+    }
+
+    /// Test helper: [`MailService::send`] succeeds without SMTP I/O (for OTP / audit tests).
+    #[cfg(test)]
+    pub fn noop_for_tests(from: String) -> Self {
+        Self {
+            transport: MailTransport::Noop,
+            from,
+        }
     }
 
     #[instrument(
@@ -31,35 +50,42 @@ impl MailService {
         )
     )]
     pub async fn send(&self, to: &str, subject: &str, body: &str) -> Result<(), AppError> {
-        let message = Message::builder()
-            .from(
-                self.from
-                    .parse()
-                    .map_err(|e| crate::log_and_convert!(AppError::mail, "mail.parse_from", e))?,
-            )
-            .to(to
-                .parse()
-                .map_err(|e| crate::log_and_convert!(AppError::mail, "mail.parse_to", e))?)
-            .subject(subject)
-            .body(body.to_owned())
-            .map_err(|e| crate::log_and_convert!(AppError::mail, "mail.build_message", e))?;
+        match &self.transport {
+            #[cfg(test)]
+            MailTransport::Noop => {
+                let _ = (to, subject, body);
+                tracing::Span::current().record("transport_ok", tracing::field::display(&true));
+                Ok(())
+            }
+            MailTransport::Smtp(transport) => {
+                let message = Message::builder()
+                    .from(self.from.parse().map_err(|e| {
+                        crate::log_and_convert!(AppError::mail, "mail.parse_from", e)
+                    })?)
+                    .to(to
+                        .parse()
+                        .map_err(|e| crate::log_and_convert!(AppError::mail, "mail.parse_to", e))?)
+                    .subject(subject)
+                    .body(body.to_owned())
+                    .map_err(|e| crate::log_and_convert!(AppError::mail, "mail.build_message", e))?;
 
-        let response = self
-            .transport
-            .send(message)
-            .await
-            .map_err(|e| crate::log_and_convert!(AppError::mail, "mail.transport_send", e))?;
+                let response = transport
+                    .send(message)
+                    .await
+                    .map_err(|e| crate::log_and_convert!(AppError::mail, "mail.transport_send", e))?;
 
-        if !response.is_positive() {
-            tracing::Span::current().record("transport_ok", tracing::field::display(&false));
-            tracing::warn!(
-                target = "mail.transport",
-                ?response,
-                "sending the mail was not positive"
-            );
-            return Err(AppError::mail("sending the mail was not positive"));
+                if !response.is_positive() {
+                    tracing::Span::current().record("transport_ok", tracing::field::display(&false));
+                    tracing::warn!(
+                        target = "mail.transport",
+                        ?response,
+                        "sending the mail was not positive"
+                    );
+                    return Err(AppError::mail("sending the mail was not positive"));
+                }
+                tracing::Span::current().record("transport_ok", tracing::field::display(&true));
+                Ok(())
+            }
         }
-        tracing::Span::current().record("transport_ok", tracing::field::display(&true));
-        Ok(())
     }
 }
