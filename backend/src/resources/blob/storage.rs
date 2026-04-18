@@ -41,7 +41,8 @@ impl BlobStorage for FsBlobStorage {
             std::fs::create_dir_all(dir)
                 .map_err(|e| AppError::internal_from_err("blob.storage.create_dir_all", e))?;
         }
-        std::fs::write(&path, data).map_err(|e| AppError::internal_from_err("blob.storage.write", e))
+        std::fs::write(&path, data)
+            .map_err(|e| AppError::internal_from_err("blob.storage.write", e))
     }
 
     fn delete_blob_file(&self, blob: &Blob) {

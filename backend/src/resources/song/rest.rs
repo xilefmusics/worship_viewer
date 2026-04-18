@@ -239,7 +239,8 @@ async fn update_song(
     let id = id.into_inner();
     match svc.get_song_for_user(&perms, &id).await {
         Ok(song) => {
-            let etag = weak_etag_json(&song).map_err(|e| AppError::internal_from_err("song.rest", e))?;
+            let etag =
+                weak_etag_json(&song).map_err(|e| AppError::internal_from_err("song.rest", e))?;
             check_if_match(&req, &etag)?;
         }
         Err(AppError::NotFound(_)) => {}

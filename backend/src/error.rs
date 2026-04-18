@@ -110,10 +110,7 @@ impl AppError {
     }
 
     /// Log full error chain at an I/O boundary, then return [`Internal`](Self::Internal).
-    pub fn internal_from_err<E: std::error::Error + 'static>(
-        target: &'static str,
-        err: E,
-    ) -> Self {
+    pub fn internal_from_err<E: std::error::Error + 'static>(target: &'static str, err: E) -> Self {
         observability::log_error_chain(target, &err);
         Self::Internal(err.to_string())
     }

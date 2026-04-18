@@ -123,7 +123,8 @@ async fn get_setlist(
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let setlist = svc.get_setlist_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&setlist).map_err(|e| AppError::internal_from_err("setlist.rest", e))?;
+    let etag =
+        weak_etag_json(&setlist).map_err(|e| AppError::internal_from_err("setlist.rest", e))?;
     if if_none_match_matches(&req, &etag) {
         return Ok(HttpResponse::NotModified()
             .insert_header((header::ETAG, etag))
@@ -293,7 +294,8 @@ async fn update_setlist(
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let setlist = svc.get_setlist_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&setlist).map_err(|e| AppError::internal_from_err("setlist.rest", e))?;
+    let etag =
+        weak_etag_json(&setlist).map_err(|e| AppError::internal_from_err("setlist.rest", e))?;
     check_if_match(&req, &etag)?;
     let payload = CreateSetlist::from(payload.into_inner());
     Ok(HttpResponse::Ok().json(svc.update_setlist_for_user(&perms, &id, payload).await?))
@@ -332,7 +334,8 @@ async fn patch_setlist(
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let setlist = svc.get_setlist_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&setlist).map_err(|e| AppError::internal_from_err("setlist.rest", e))?;
+    let etag =
+        weak_etag_json(&setlist).map_err(|e| AppError::internal_from_err("setlist.rest", e))?;
     check_if_match(&req, &etag)?;
     Ok(HttpResponse::Ok().json(
         svc.patch_setlist_for_user(&perms, &id, payload.into_inner())
@@ -371,7 +374,8 @@ async fn delete_setlist(
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let setlist = svc.get_setlist_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&setlist).map_err(|e| AppError::internal_from_err("setlist.rest", e))?;
+    let etag =
+        weak_etag_json(&setlist).map_err(|e| AppError::internal_from_err("setlist.rest", e))?;
     check_if_match(&req, &etag)?;
     svc.delete_setlist_for_user(&perms, &id).await?;
     Ok(HttpResponse::NoContent().finish())

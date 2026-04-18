@@ -320,7 +320,8 @@ async fn download_blob_image(
         .file_name()
         .unwrap_or_else(|| format!("blob-{}", blob.id));
     let path = file.path().to_path_buf();
-    let bytes = std::fs::read(&path).map_err(|e| AppError::internal_from_err("blob.rest.read_data", e))?;
+    let bytes =
+        std::fs::read(&path).map_err(|e| AppError::internal_from_err("blob.rest.read_data", e))?;
     let etag = weak_etag_from_bytes(&bytes);
     if if_none_match_matches(&req, &etag) {
         return Ok(HttpResponse::NotModified()
