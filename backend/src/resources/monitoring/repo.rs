@@ -858,7 +858,7 @@ async fn id_like_404_metrics(
             });
         }
     }
-    top.sort_by(|a, b| b.error_count.cmp(&a.error_count));
+    top.sort_by_key(|r| std::cmp::Reverse(r.error_count));
     top.truncate(20);
     Ok((id_like, top))
 }
