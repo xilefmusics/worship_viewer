@@ -278,9 +278,11 @@ mod tests {
 
     #[test]
     fn openapi_contact_reflects_settings() {
-        let mut s = Settings::default();
-        s.openapi_contact_email = Some("ops@example.com".into());
-        s.openapi_imprint_url = Some("https://example.com/imprint".into());
+        let s = Settings {
+            openapi_contact_email: Some("ops@example.com".into()),
+            openapi_imprint_url: Some("https://example.com/imprint".into()),
+            ..Default::default()
+        };
         let doc = openapi_document(&s);
         let v = serde_json::to_value(doc).expect("openapi json");
         assert_eq!(v["info"]["contact"]["email"], "ops@example.com");

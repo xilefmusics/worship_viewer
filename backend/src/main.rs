@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use actix_web::{App, HttpServer, middleware::Logger, web::Data};
+use actix_web::middleware::Compat;
+use actix_web::{App, HttpServer, web::Data};
 use anyhow::{Context, Result as AnyResult};
 use chrono::Utc;
 use lettre::transport::smtp::authentication::Credentials;
 use tracing::info;
-use tracing_subscriber::EnvFilter;
+use tracing_actix_web::TracingLogger;
 
 use backend::auth;
 use backend::auth::oidc;
@@ -28,23 +29,11 @@ use backend::settings::Settings;
 
 #[actix_web::main]
 async fn main() -> AnyResult<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
-        )
-        .with_target(false)
-        .compact()
-        .init();
+    backend::observability::init()?;
 
     let settings = Settings::from_env()?;
 
-    let production = matches!(
-        std::env::var("WORSHIP_PRODUCTION").ok().as_deref(),
-        Some("true" | "1" | "yes")
-    ) || matches!(
-        std::env::var("RUST_ENV").ok().as_deref(),
-        Some("production")
-    );
+    let production = backend::observability::is_production();
     if production && settings.initial_admin_user_test_session {
         anyhow::bail!(
             "refusing to start: initial_admin_user_test_session is enabled under WORSHIP_PRODUCTION or RUST_ENV=production"
@@ -165,6 +154,9 @@ async fn main() -> AnyResult<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(backend::request_id::RequestId)
+            .wrap(Compat::new(TracingLogger::<
+                backend::request_id::WorshipRootSpan,
+            >::new()))
             .app_data(backend::error::json_config())
             .app_data(db_data.clone())
             .app_data(Data::new(mail_service.clone()))
@@ -180,9 +172,6 @@ async fn main() -> AnyResult<()> {
             .app_data(oidc_clients.clone())
             .app_data(cookie_config.clone())
             .app_data(otp_config.clone())
-            .wrap(Logger::new(
-                r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
-            ))
             .service(auth::rest::scope(
                 settings.auth_rate_limit_rps,
                 settings.auth_rate_limit_burst,

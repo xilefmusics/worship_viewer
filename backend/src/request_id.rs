@@ -1,10 +1,13 @@
 use std::future::{Ready, ready};
 use std::rc::Rc;
 
+use actix_web::body::MessageBody;
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready};
 use actix_web::http::header::HeaderName;
 use actix_web::{Error, HttpMessage};
 use futures_util::future::LocalBoxFuture;
+use tracing::Span;
+use tracing_actix_web::RootSpanBuilder;
 use uuid::Uuid;
 
 static X_REQUEST_ID: HeaderName = HeaderName::from_static("x-request-id");
@@ -12,6 +15,10 @@ static X_REQUEST_ID: HeaderName = HeaderName::from_static("x-request-id");
 /// Request path and query (`/api/v1/...?a=1`), stored for diagnostics (e.g. Problem Details `instance`).
 #[derive(Clone)]
 pub struct ApiRequestTarget(pub String);
+
+/// Start time for request latency (stored in request extensions; read in [`WorshipRootSpan::on_request_end`]).
+#[derive(Clone, Copy)]
+pub struct RequestStartedAt(pub std::time::Instant);
 
 /// If `traceparent` is a valid W3C trace context value (`version-trace_id-span_id-flags`),
 /// returns the 16-hex-character **span id** segment (often aligned with OpenTelemetry span id).
@@ -33,9 +40,70 @@ fn span_id_from_traceparent(traceparent: &str) -> Option<String> {
     Some(span_id.to_ascii_lowercase())
 }
 
-/// Middleware that assigns `X-Request-Id`: prefers the span id from a valid `traceparent`
-/// header (W3C trace context), otherwise a random UUID v4. The value is stored in request
-/// extensions as a `String`.
+fn request_id_string(req: &ServiceRequest) -> String {
+    req.headers()
+        .get("traceparent")
+        .and_then(|v| v.to_str().ok())
+        .and_then(span_id_from_traceparent)
+        .unwrap_or_else(|| Uuid::new_v4().to_string())
+}
+
+/// Root span for [`tracing_actix_web::TracingLogger`]: correlates logs with `traceparent` / `X-Request-Id`
+/// and records `status` / `latency_ms` on completion.
+pub struct WorshipRootSpan;
+
+impl RootSpanBuilder for WorshipRootSpan {
+    fn on_request_start(request: &ServiceRequest) -> Span {
+        let id = request_id_string(request);
+        request.extensions_mut().insert(id.clone());
+        let target = request
+            .uri()
+            .path_and_query()
+            .map(|pq| pq.to_string())
+            .unwrap_or_else(|| request.uri().path().to_string());
+        request.extensions_mut().insert(ApiRequestTarget(target));
+        request
+            .extensions_mut()
+            .insert(RequestStartedAt(std::time::Instant::now()));
+
+        let route = request
+            .match_pattern()
+            .unwrap_or_else(|| request.path().to_string());
+
+        tracing::info_span!(
+            "http.request",
+            request_id = %id,
+            method = %request.method(),
+            route = %route,
+            user_id = tracing::field::Empty,
+            status = tracing::field::Empty,
+            latency_ms = tracing::field::Empty,
+        )
+    }
+
+    fn on_request_end<B: MessageBody>(span: Span, outcome: &Result<ServiceResponse<B>, Error>) {
+        match outcome {
+            Ok(response) => {
+                let status = response.response().status().as_u16();
+                span.record("status", status);
+                let latency_ms = response
+                    .request()
+                    .extensions()
+                    .get::<RequestStartedAt>()
+                    .map(|t| t.0.elapsed().as_millis() as u64)
+                    .unwrap_or(0);
+                span.record("latency_ms", latency_ms);
+            }
+            Err(err) => {
+                let status = err.as_response_error().status_code().as_u16();
+                span.record("status", status);
+            }
+        }
+    }
+}
+
+/// Sets `X-Request-Id` on the response. Correlation id and [`ApiRequestTarget`] are populated by
+/// [`WorshipRootSpan`] inside [`tracing_actix_web::TracingLogger`]; this middleware must run inside that logger.
 #[derive(Clone, Default)]
 pub struct RequestId;
 
@@ -73,25 +141,17 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        let id = req
-            .headers()
-            .get("traceparent")
-            .and_then(|v| v.to_str().ok())
-            .and_then(span_id_from_traceparent)
-            .unwrap_or_else(|| Uuid::new_v4().to_string());
-        req.extensions_mut().insert(id.clone());
-        let target = req
-            .uri()
-            .path_and_query()
-            .map(|pq| pq.to_string())
-            .unwrap_or_else(|| req.uri().path().to_string());
-        req.extensions_mut().insert(ApiRequestTarget(target));
-
+        let id =
+            req.extensions().get::<String>().cloned().expect(
+                "correlation id missing: register TracingLogger::<WorshipRootSpan> outermost",
+            );
         let service = Rc::clone(&self.service);
         Box::pin(async move {
             let mut resp = service.call(req).await?;
-            resp.headers_mut()
-                .insert(X_REQUEST_ID.clone(), id.parse().unwrap());
+            resp.headers_mut().insert(
+                X_REQUEST_ID.clone(),
+                id.parse().expect("request id is a valid HeaderValue"),
+            );
             Ok(resp)
         })
     }

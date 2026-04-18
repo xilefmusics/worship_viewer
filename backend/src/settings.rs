@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::Deserialize;
 
 #[derive(Clone, Debug)]
@@ -17,7 +19,7 @@ pub struct OtpConfig {
     pub allow_self_signup: bool,
 }
 
-#[derive(Clone, Deserialize, Debug)]
+#[derive(Clone, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     pub host: String,
@@ -74,6 +76,56 @@ pub struct Settings {
     /// Legal imprint / contact page URL under `info.contact.url` when set (`OPENAPI_IMPRINT_URL`).
     #[serde(default)]
     pub openapi_imprint_url: Option<String>,
+}
+
+impl fmt::Debug for Settings {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Settings")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("post_login_path", &self.post_login_path)
+            .field("cookie_name", &self.cookie_name)
+            .field("cookie_secure", &self.cookie_secure)
+            .field("session_ttl_seconds", &self.session_ttl_seconds)
+            .field("otp_ttl_seconds", &self.otp_ttl_seconds)
+            .field("otp_pepper", &"<redacted>")
+            .field("otp_max_attempts", &self.otp_max_attempts)
+            .field("otp_allow_self_signup", &self.otp_allow_self_signup)
+            .field("db_address", &self.db_address)
+            .field("db_namespace", &self.db_namespace)
+            .field("db_database", &self.db_database)
+            .field("db_username", &self.db_username)
+            .field(
+                "db_password",
+                &self.db_password.as_ref().map(|_| "<redacted>"),
+            )
+            .field("db_migration_path", &self.db_migration_path)
+            .field("oidc_issuer_url", &self.oidc_issuer_url)
+            .field("oidc_client_id", &self.oidc_client_id)
+            .field(
+                "oidc_client_secret",
+                &self.oidc_client_secret.as_ref().map(|_| "<redacted>"),
+            )
+            .field("oidc_redirect_url", &self.oidc_redirect_url)
+            .field("oidc_scopes", &self.oidc_scopes)
+            .field("initial_admin_user_email", &self.initial_admin_user_email)
+            .field(
+                "initial_admin_user_test_session",
+                &self.initial_admin_user_test_session,
+            )
+            .field("gmail_app_password", &"<redacted>")
+            .field("gmail_from", &self.gmail_from)
+            .field("static_dir", &self.static_dir)
+            .field("blob_dir", &self.blob_dir)
+            .field("blob_upload_max_bytes", &self.blob_upload_max_bytes)
+            .field("auth_rate_limit_rps", &self.auth_rate_limit_rps)
+            .field("auth_rate_limit_burst", &self.auth_rate_limit_burst)
+            .field("api_rate_limit_rps", &self.api_rate_limit_rps)
+            .field("api_rate_limit_burst", &self.api_rate_limit_burst)
+            .field("openapi_contact_email", &self.openapi_contact_email)
+            .field("openapi_imprint_url", &self.openapi_imprint_url)
+            .finish()
+    }
 }
 
 impl Default for Settings {
@@ -147,5 +199,28 @@ impl Settings {
             max_attempts: self.otp_max_attempts,
             allow_self_signup: self.otp_allow_self_signup,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Settings;
+
+    #[test]
+    fn settings_debug_redacts_secrets() {
+        let s = Settings {
+            otp_pepper: "unique_pepper_value_123".into(),
+            gmail_app_password: "unique_gmail_secret_456".into(),
+            db_password: Some("unique_db_pass_789".into()),
+            oidc_client_secret: Some("unique_oidc_secret_abc".into()),
+            ..Default::default()
+        };
+
+        let out = format!("{s:?}");
+        assert!(!out.contains("unique_pepper_value_123"));
+        assert!(!out.contains("unique_gmail_secret_456"));
+        assert!(!out.contains("unique_db_pass_789"));
+        assert!(!out.contains("unique_oidc_secret_abc"));
+        assert!(out.contains("<redacted>"));
     }
 }
