@@ -4,6 +4,7 @@ use shared::api::ListQuery;
 use shared::player::Player;
 use shared::setlist::{CreateSetlist, PatchSetlist, Setlist};
 use shared::song::Song;
+use tracing::instrument;
 
 use crate::error::AppError;
 use crate::resources::song::LikedSongIds;
@@ -27,6 +28,7 @@ impl<R, T, L> SetlistService<R, T, L> {
 }
 
 impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T, L> {
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn list_setlists_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -36,6 +38,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         self.repo.get_setlists(read_teams, pagination).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn count_setlists_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -45,6 +48,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         self.repo.count_setlists(read_teams, q).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn get_setlist_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -54,6 +58,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         self.repo.get_setlist(read_teams, id).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn setlist_player_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -66,6 +71,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         player_from_song_links(liked_set, links)
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn setlist_songs_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -91,6 +97,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         Ok((page, total))
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, setlist))]
     pub async fn create_setlist_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -99,6 +106,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         self.repo.create_setlist(&perms.user().id, setlist).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, setlist))]
     pub async fn update_setlist_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -109,6 +117,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         self.repo.update_setlist(write_teams, id, setlist).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, patch))]
     pub async fn patch_setlist_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -123,6 +132,7 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         self.update_setlist_for_user(perms, id, merged).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn delete_setlist_for_user(
         &self,
         perms: &UserPermissions<T>,

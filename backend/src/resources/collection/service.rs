@@ -4,6 +4,7 @@ use shared::api::ListQuery;
 use shared::collection::{Collection, CreateCollection, PatchCollection};
 use shared::player::Player;
 use shared::song::Song;
+use tracing::instrument;
 
 use crate::database::Database;
 use crate::error::AppError;
@@ -29,6 +30,7 @@ impl<R, T, L> CollectionService<R, T, L> {
 }
 
 impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionService<R, T, L> {
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn list_collections_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -38,6 +40,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         self.repo.get_collections(read_teams, pagination).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn count_collections_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -47,6 +50,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         self.repo.count_collections(read_teams, q).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn get_collection_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -56,6 +60,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         self.repo.get_collection(read_teams, id).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn collection_player_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -68,6 +73,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         player_from_song_links(liked_set, links)
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn collection_songs_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -93,6 +99,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         Ok((page, total))
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, collection))]
     pub async fn create_collection_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -103,6 +110,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
             .await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, collection))]
     pub async fn update_collection_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -115,6 +123,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
             .await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, patch))]
     pub async fn patch_collection_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -130,6 +139,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         self.update_collection_for_user(perms, id, merged).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn delete_collection_for_user(
         &self,
         perms: &UserPermissions<T>,

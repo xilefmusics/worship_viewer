@@ -44,7 +44,6 @@ async fn main() -> AnyResult<()> {
         .with_context(|| format!("static_dir {:?} could not be resolved", settings.static_dir))?
         .to_string_lossy()
         .into_owned();
-    info!("Serving static files from {}", static_dir);
 
     let cookie_config = Data::new(settings.cookie_config());
     let otp_config = Data::new(settings.otp_config());
@@ -123,6 +122,27 @@ async fn main() -> AnyResult<()> {
 
     let oidc_clients = Data::new(Arc::new(oidc::build_clients(&settings).await?));
 
+    info!(
+        event = "startup",
+        host = %settings.host,
+        port = settings.port,
+        cookie_secure = settings.cookie_secure,
+        session_ttl_seconds = settings.session_ttl_seconds,
+        otp_ttl_seconds = settings.otp_ttl_seconds,
+        otp_allow_self_signup = settings.otp_allow_self_signup,
+        otp_max_attempts = settings.otp_max_attempts,
+        auth_rate_limit_rps = settings.auth_rate_limit_rps,
+        auth_rate_limit_burst = settings.auth_rate_limit_burst,
+        api_rate_limit_rps = settings.api_rate_limit_rps,
+        api_rate_limit_burst = settings.api_rate_limit_burst,
+        blob_upload_max_bytes = settings.blob_upload_max_bytes,
+        blob_dir = %settings.blob_dir,
+        production = production,
+        static_dir = %static_dir,
+        oidc_providers = ?["google"],
+        "backend starting"
+    );
+
     let team_resolver = Arc::new(SurrealTeamResolver::new(db.clone()));
     let blob_service = BlobServiceHandle::build_with_team_resolver(
         db.clone(),
@@ -143,11 +163,6 @@ async fn main() -> AnyResult<()> {
     let team_resolver_data = Data::new(team_resolver);
     let invitation_service = InvitationServiceHandle::build(db.clone());
     let db_data = Data::from(db);
-
-    info!(
-        "Starting server on http://{}:{}",
-        settings.host, settings.port
-    );
 
     let docs_settings = settings.clone();
 

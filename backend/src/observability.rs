@@ -1,6 +1,41 @@
 //! Tracing subscriber setup (`tracing` + `tracing-subscriber` + `tracing-log` bridge).
 
+use hex;
+use ring::digest;
 use tracing_subscriber::EnvFilter;
+
+/// Compile-time guard: audit [`crate::audit!`] events must use the `audit.` prefix.
+pub const fn audit_event_name_ok(name: &str) -> bool {
+    let b = name.as_bytes();
+    b.len() >= 6
+        && b[0] == b'a'
+        && b[1] == b'u'
+        && b[2] == b'd'
+        && b[3] == b'i'
+        && b[4] == b't'
+        && b[5] == b'.'
+}
+
+/// SHA-256 hex digest of `email` for audit logs (never log raw email on failure paths).
+pub fn audit_email_hash(email: &str) -> String {
+    let d = digest::digest(&digest::SHA256, email.as_bytes());
+    hex::encode(d.as_ref())
+}
+
+/// Structured audit line: sets `audit = true` and enforces `event` literals starting with `audit.`.
+///
+/// Fields use `ident = expr` only (use [`tracing::field::display`] / [`tracing::field::debug`] in the expr).
+#[macro_export]
+macro_rules! audit {
+    ($event:literal ; $msg:literal) => {
+        const _: () = assert!($crate::observability::audit_event_name_ok($event));
+        tracing::info!(audit = true, event = $event, $msg);
+    };
+    ($event:literal, $($key:ident = $value:expr),+ ; $msg:literal) => {
+        const _: () = assert!($crate::observability::audit_event_name_ok($event));
+        tracing::info!(audit = true, event = $event, $($key = $value),+, $msg);
+    };
+}
 
 /// Matches production detection in `main` (initial admin / unsafe dev checks).
 pub fn is_production() -> bool {

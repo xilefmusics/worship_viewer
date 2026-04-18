@@ -5,12 +5,13 @@ use std::sync::Arc;
 use shared::patch::Patch;
 use shared::team::{CreateTeam, PatchTeam, Team, UpdateTeam};
 use shared::user::{Role as UserRole, User};
+use tracing::instrument;
 
 use crate::database::Database;
 use crate::error::AppError;
 
 use super::model::{
-    TeamCreatePayload, build_create_shared_members, can_read_team, effective_admin,
+    DbTeamMember, TeamCreatePayload, build_create_shared_members, can_read_team, effective_admin,
     ensure_shared_team_has_admin_after_update, inputs_to_db_members, member_or_owner_readable,
     member_self_leave_payload, team_fetched_to_stored, team_resource_or_reject_public,
     thing_user_id, validate_personal_members_not_owner,
@@ -18,6 +19,34 @@ use super::model::{
 use super::repository::TeamRepository;
 use super::resolver::{TeamResolver, UserPermissions};
 use super::surreal_repo::SurrealTeamRepo;
+
+fn audit_team_member_role_changes(
+    team_id: &str,
+    actor_user_id: &str,
+    before: &[DbTeamMember],
+    after: &[DbTeamMember],
+) {
+    let old_map: BTreeMap<String, &str> = before
+        .iter()
+        .map(|m| (thing_user_id(&m.user), m.role.as_str()))
+        .collect();
+    for m in after {
+        let uid = thing_user_id(&m.user);
+        let old = old_map.get(&uid).copied().unwrap_or("");
+        let new = m.role.as_str();
+        if old != new {
+            crate::audit!(
+                "audit.team.role.changed",
+                team_id = tracing::field::display(team_id),
+                target_user_id = tracing::field::display(&uid),
+                old_role = tracing::field::display(old),
+                new_role = tracing::field::display(new),
+                actor_user_id = tracing::field::display(actor_user_id)
+                ; "team member role changed"
+            );
+        }
+    }
+}
 
 /// Application service: authorization and orchestration for teams.
 #[derive(Clone)]
@@ -33,6 +62,7 @@ impl<R, TR> TeamService<R, TR> {
 }
 
 impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
+    #[instrument(level = "debug", err, skip(self, user))]
     pub async fn list_teams_for_user(&self, user: &User) -> Result<Vec<Team>, AppError> {
         let app_admin = user.role == UserRole::Admin;
         let rows = self.repo.fetch_teams_for_user(&user.id, app_admin).await?;
@@ -50,6 +80,7 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
         Ok(list)
     }
 
+    #[instrument(level = "debug", err, skip(self, user))]
     pub async fn get_team_for_user(&self, user: &User, id: &str) -> Result<Team, AppError> {
         let app_admin = user.role == UserRole::Admin;
         let row = self
@@ -64,6 +95,7 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
         row.into_team()
     }
 
+    #[instrument(level = "debug", err, skip(self, user, payload))]
     pub async fn create_shared_team_for_user(
         &self,
         user: &User,
@@ -90,6 +122,7 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
         self.repo.load_team_display(&id).await
     }
 
+    #[instrument(level = "debug", err, skip(self, user, payload))]
     pub async fn update_team_for_user(
         &self,
         user: &User,
@@ -145,6 +178,7 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
             } else {
                 ensure_shared_team_has_admin_after_update(&new_members)?;
             }
+            audit_team_member_role_changes(id, &user.id, &stored.members, &new_members);
             self.repo.update_team_members(resource, new_members).await?;
             return self.repo.load_team_display(id).await;
         }
@@ -165,12 +199,14 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
             } else {
                 ensure_shared_team_has_admin_after_update(&new_members)?;
             }
+            audit_team_member_role_changes(id, &user.id, &stored.members, &new_members);
             self.repo.update_team_members(resource, new_members).await?;
         }
 
         self.repo.load_team_display(id).await
     }
 
+    #[instrument(level = "debug", err, skip(self, user, patch))]
     pub async fn patch_team_for_user(
         &self,
         user: &User,
@@ -192,6 +228,7 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
             .await
     }
 
+    #[instrument(level = "debug", err, skip(self, user))]
     pub async fn delete_team_for_user(&self, user: &User, id: &str) -> Result<Team, AppError> {
         let perms = UserPermissions::from_ref(user, &self.resolver);
         let resource = team_resource_or_reject_public(id)?;

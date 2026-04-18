@@ -6,6 +6,7 @@ use surrealdb::Surreal;
 use surrealdb::engine::any::{Any, connect};
 use surrealdb::opt::auth::Database as DbAuth;
 use surrealdb::sql::{Id, Thing};
+use tracing::instrument;
 
 use crate::error::AppError;
 
@@ -61,6 +62,18 @@ pub struct Database {
 }
 
 impl Database {
+    #[instrument(
+        name = "database.connect",
+        level = "debug",
+        err,
+        skip(username, password),
+        fields(
+            db_address = %address,
+            db_namespace = %namespace,
+            db_database = %database,
+            has_credentials = username.is_some() && password.is_some()
+        )
+    )]
     pub async fn connect(
         address: &str,
         namespace: &str,
@@ -103,6 +116,13 @@ impl Database {
         Ok(Self { db })
     }
 
+    #[instrument(
+        name = "database.migrate",
+        level = "debug",
+        err,
+        skip(self),
+        fields(migration_path = %migration_path)
+    )]
     pub async fn migrate(&self, migration_path: &str) -> AnyResult<()> {
         migrations::run(&self.db, migration_path).await
     }

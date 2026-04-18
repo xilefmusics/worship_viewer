@@ -19,6 +19,7 @@ use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
 use crate::settings::{CookieConfig, OtpConfig};
 use shared::user::{Session, SessionBody};
+use tracing::instrument;
 
 #[utoipa::path(
     post,
@@ -32,6 +33,7 @@ use shared::user::{Session, SessionBody};
     ),
     tag = "Auth"
 )]
+#[instrument(level = "debug", err, skip_all, fields(provider = "otp"))]
 #[post("/otp/request")]
 async fn otp_request(
     db: Data<Database>,
@@ -56,6 +58,14 @@ async fn otp_request(
         &format!("Hello {email},\n\nto complete your sign-in or verification for WorshipViewer, please use the one-time password below:\n\n🔐 OTP: {code}\n\nThis code is valid for the next 5 minutes.  \nIf you did not request this, please ignore this message.\n\nBlessings,\nThe WorshipViewer Team"),
     ).await?;
 
+    let email_domain = email.split('@').nth(1).unwrap_or("unknown");
+    crate::audit!(
+        "audit.auth.otp.requested",
+        email_domain = tracing::field::display(email_domain),
+        delivered = tracing::field::display(&true)
+        ; "otp requested"
+    );
+
     Ok(HttpResponse::NoContent().finish())
 }
 
@@ -71,6 +81,7 @@ async fn otp_request(
     ),
     tag = "Auth"
 )]
+#[instrument(level = "debug", err, skip_all, fields(provider = "otp"))]
 #[post("/otp/verify")]
 async fn otp_verify(
     db: Data<Database>,
@@ -94,21 +105,79 @@ async fn otp_verify(
         .ok_if(|value| !value.is_empty())
         .ok_or_else(|| AppError::invalid_request("otp code is required"))?;
 
-    db.validate_otp(&email, &code, &otp_cfg.pepper, otp_cfg.max_attempts)
-        .await?;
+    match db
+        .validate_otp(&email, &code, &otp_cfg.pepper, otp_cfg.max_attempts)
+        .await
+    {
+        Ok(()) => {}
+        Err(e) => {
+            let reason = match &e {
+                AppError::TooManyRequests(_) => "otp_locked_out",
+                AppError::InvalidRequest(msg) if msg.contains("no otp request") => "otp_not_found",
+                AppError::InvalidRequest(_) => "otp_invalid",
+                _ => "otp_verify_failed",
+            };
+            crate::audit!(
+                "audit.auth.login.failure",
+                provider = tracing::field::display(&"otp"),
+                reason = tracing::field::display(&reason),
+                email_hash = tracing::field::display(&crate::observability::audit_email_hash(
+                    &email
+                ))
+                ; "otp verify failed"
+            );
+            return Err(e);
+        }
+    }
 
     let user = if otp_cfg.allow_self_signup {
         user_svc.get_user_by_email_or_create(&email).await?
     } else {
         user_svc.get_user_by_email(&email).await?.ok_or_else(|| {
+            crate::audit!(
+                "audit.auth.login.failure",
+                provider = tracing::field::display(&"otp"),
+                reason = tracing::field::display(&"self_signup_disabled"),
+                email_hash = tracing::field::display(&crate::observability::audit_email_hash(
+                    &email
+                ))
+                ; "otp verify failed"
+            );
             AppError::invalid_request(
                 "no user exists for this email; self-signup via OTP is disabled",
             )
         })?
     };
-    let session = session_svc
-        .create_session(Session::new(user, cookie_cfg.session_ttl_seconds as i64))
-        .await?;
+
+    let session = match session_svc
+        .create_session(Session::new(
+            user.clone(),
+            cookie_cfg.session_ttl_seconds as i64,
+        ))
+        .await
+    {
+        Ok(s) => s,
+        Err(e) => {
+            crate::audit!(
+                "audit.auth.login.failure",
+                provider = tracing::field::display(&"otp"),
+                reason = tracing::field::display(&"session_create_failed"),
+                email_hash = tracing::field::display(&crate::observability::audit_email_hash(
+                    &email
+                ))
+                ; "otp verify failed"
+            );
+            return Err(e);
+        }
+    };
+
+    crate::audit!(
+        "audit.auth.login.success",
+        provider = tracing::field::display(&"otp"),
+        user_id = tracing::field::display(&user.id),
+        session_id = tracing::field::display(&session.id)
+        ; "login succeeded"
+    );
 
     Ok(HttpResponse::Ok()
         .cookie(session_cookie(&session.id, &cookie_cfg))

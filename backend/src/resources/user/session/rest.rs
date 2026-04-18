@@ -151,7 +151,15 @@ pub async fn delete_session_for_current_user(
     user: ReqData<User>,
     path: Path<SessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    svc.delete_session_for_user(&path.id, &user.id).await?;
+    let user = user.into_inner();
+    let deleted = svc.delete_session_for_user(&path.id, &user.id).await?;
+    crate::audit!(
+        "audit.session.revoked",
+        session_id = tracing::field::display(&deleted.id),
+        user_id = tracing::field::display(&deleted.user.id),
+        actor_user_id = tracing::field::display(&user.id)
+        ; "session revoked"
+    );
     Ok(HttpResponse::NoContent().finish())
 }
 
@@ -314,9 +322,18 @@ pub async fn get_session_for_user(
 #[delete("/{user_id}/sessions/{id}")]
 pub async fn delete_session_for_user(
     svc: Data<SessionServiceHandle>,
+    actor: ReqData<User>,
     path: Path<UserSessionPath>,
 ) -> Result<HttpResponse, AppError> {
-    svc.delete_session_for_user(&path.id, &path.user_id).await?;
+    let actor = actor.into_inner();
+    let deleted = svc.delete_session_for_user(&path.id, &path.user_id).await?;
+    crate::audit!(
+        "audit.session.revoked",
+        session_id = tracing::field::display(&deleted.id),
+        user_id = tracing::field::display(&deleted.user.id),
+        actor_user_id = tracing::field::display(&actor.id)
+        ; "session revoked"
+    );
     Ok(HttpResponse::NoContent().finish())
 }
 

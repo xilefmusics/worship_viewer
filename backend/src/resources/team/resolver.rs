@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use surrealdb::sql::Thing;
 use tokio::sync::OnceCell;
+use tracing::instrument;
 
 use shared::user::{Role as UserRole, User};
 
@@ -120,14 +121,17 @@ impl SurrealTeamResolver {
 
 #[async_trait]
 impl TeamResolver for SurrealTeamResolver {
+    #[instrument(level = "debug", err, skip(self, user), fields(user_id = %user.id))]
     async fn content_read_teams(&self, user: &User) -> Result<Vec<Thing>, AppError> {
         content_read_team_things(&self.db, user).await
     }
 
+    #[instrument(level = "debug", err, skip(self, user), fields(user_id = %user.id))]
     async fn content_write_teams(&self, user: &User) -> Result<Vec<Thing>, AppError> {
         content_write_team_things(&self.db, user).await
     }
 
+    #[instrument(level = "debug", err, skip(self), fields(user_id = %user_id))]
     async fn personal_team(&self, user_id: &str) -> Result<Thing, AppError> {
         self.db.personal_team_thing_for_user(user_id).await
     }

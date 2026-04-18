@@ -6,6 +6,7 @@ use uuid::Uuid;
 use shared::api::ListQuery;
 use shared::team::{Team, TeamInvitation};
 use shared::user::User;
+use tracing::instrument;
 
 use crate::database::{Database, record_id_string};
 use crate::error::AppError;
@@ -19,6 +20,16 @@ use crate::resources::team::model::{
 };
 use crate::resources::team::repository::TeamRepository;
 use crate::resources::team::surreal_repo::SurrealTeamRepo;
+
+fn audit_invitation_accepted(team_id: &str, invitation_id: &str, user_id: &str) {
+    crate::audit!(
+        "audit.team.invitation.accepted",
+        team_id = tracing::field::display(team_id),
+        invitation_id = tracing::field::display(invitation_id),
+        user_id = tracing::field::display(user_id)
+        ; "invitation accepted"
+    );
+}
 
 /// Application service for team invitation management.
 #[derive(Clone)]
@@ -37,6 +48,7 @@ impl<R, IR> InvitationService<R, IR> {
 }
 
 impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
+    #[instrument(level = "debug", err, skip(self, user))]
     pub async fn create_invitation_for_user(
         &self,
         user: &User,
@@ -50,6 +62,7 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         self.get_invitation_for_user(user, team_id, &inv_id).await
     }
 
+    #[instrument(level = "debug", err, skip(self, user, pagination))]
     pub async fn list_invitations_for_user(
         &self,
         user: &User,
@@ -66,6 +79,7 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         Ok((page, total))
     }
 
+    #[instrument(level = "debug", err, skip(self, user))]
     pub async fn get_invitation_for_user(
         &self,
         user: &User,
@@ -88,6 +102,7 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         row.into_invitation()
     }
 
+    #[instrument(level = "debug", err, skip(self, user))]
     pub async fn delete_invitation_for_user(
         &self,
         user: &User,
@@ -114,6 +129,7 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         Ok(())
     }
 
+    #[instrument(level = "debug", err, skip(self, user))]
     pub async fn accept_invitation_for_user(
         &self,
         user: &User,
@@ -153,7 +169,9 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         };
 
         if !needs_guest {
-            return self.team_repo.load_team_display(&team_id_str).await;
+            let team = self.team_repo.load_team_display(&team_id_str).await?;
+            audit_invitation_accepted(&team_id_str, invitation_id, &user.id);
+            return Ok(team);
         }
 
         map.insert(
@@ -172,10 +190,13 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
             .update_team_members(resource, members)
             .await?;
 
-        self.team_repo.load_team_display(&team_id_str).await
+        let team = self.team_repo.load_team_display(&team_id_str).await?;
+        audit_invitation_accepted(&team_id_str, invitation_id, &user.id);
+        Ok(team)
     }
 
     /// Like [`accept_invitation_for_user`], but ensures the invitation belongs to `team_id`.
+    #[instrument(level = "debug", err, skip(self, user))]
     pub async fn accept_invitation_for_user_on_team(
         &self,
         user: &User,
