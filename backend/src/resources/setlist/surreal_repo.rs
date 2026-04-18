@@ -117,7 +117,7 @@ impl SetlistRepository for SurrealSetlistRepo {
         let resource = resource_id("setlist", id)?;
         let mut response = db
             .db
-            .query("SELECT owner, songs FROM setlist WHERE id = $id FETCH songs.*.id")
+            .query("SELECT owner, songs FROM setlist WHERE id = $id FETCH songs.id")
             .bind(("id", Thing::from(resource.clone())))
             .await?;
 
