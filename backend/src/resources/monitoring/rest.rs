@@ -9,15 +9,19 @@ use actix_web::{
     HttpRequest, HttpResponse, Scope, get,
     web::{Data, Query},
 };
-use shared::api::{PageQuery, PAGE_SIZE_DEFAULT};
+use shared::api::{PAGE_SIZE_DEFAULT, PageQuery};
 
+use super::MonitoringMetricsQuery;
+#[allow(unused_imports)] // Only referenced from `utoipa::path` response schemas
+use super::{HttpAuditLog, MonitoringMetricsResponse};
 use super::repo::MonitoringRepo;
 
 pub fn scope() -> Scope {
     actix_web::web::scope("/monitoring").service(
         actix_web::web::scope("")
             .wrap(RequireAdmin)
-            .service(list_http_audit_logs),
+            .service(list_http_audit_logs)
+            .service(get_monitoring_metrics),
     )
 }
 
@@ -29,7 +33,7 @@ pub fn scope() -> Scope {
         ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50.", minimum = 1, maximum = 500, example = 50, nullable = true),
     ),
     responses(
-        (status = 200, description = "Paginated HTTP request audit log (newest first). `X-Total-Count` is the total row count.", body = [crate::resources::monitoring::HttpAuditLog]),
+        (status = 200, description = "Paginated HTTP request audit log (newest first). `X-Total-Count` is the total row count.", body = [HttpAuditLog]),
         (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
@@ -74,4 +78,35 @@ async fn list_http_audit_logs(
             ),
         ))
         .json(items))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/monitoring/metrics",
+    params(MonitoringMetricsQuery),
+    responses(
+        (status = 200, description = "Aggregated HTTP audit metrics for `[start, end)` (UTC). Rates are 0.0–1.0.", body = MonitoringMetricsResponse),
+        (status = 400, description = "Invalid or disallowed time window", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to compute metrics", body = Problem, content_type = "application/problem+json")
+    ),
+    tag = "Monitoring",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[get("/metrics")]
+async fn get_monitoring_metrics(
+    db: Data<Database>,
+    query: Query<MonitoringMetricsQuery>,
+) -> Result<HttpResponse, AppError> {
+    let query = query
+        .into_inner()
+        .validate()
+        .map_err(AppError::invalid_request)?;
+    let body = MonitoringRepo::fetch_metrics(db.get_ref(), query.as_window()).await?;
+    Ok(HttpResponse::Ok().json(body))
 }

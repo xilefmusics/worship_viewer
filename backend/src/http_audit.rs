@@ -99,10 +99,7 @@ where
                         .map(|t| t.0.clone())
                         .unwrap_or_else(|| api_path.clone());
                     let user_id = r.extensions().get::<User>().map(|u| u.id.clone());
-                    let session_id = r
-                        .extensions()
-                        .get::<AuditSessionId>()
-                        .map(|s| s.0.clone());
+                    let session_id = r.extensions().get::<AuditSessionId>().map(|s| s.0.clone());
                     (resp.status().as_u16() as i64, user_id, session_id, path)
                 }
                 Err(e) => (

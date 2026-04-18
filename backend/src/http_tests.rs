@@ -1197,9 +1197,7 @@ mod monitoring_http {
     ) -> (Option<String>, Option<String>) {
         let mut r = db
             .db
-            .query(
-                "SELECT user, session FROM http_request_audit WHERE request_id = $rid LIMIT 1",
-            )
+            .query("SELECT user, session FROM http_request_audit WHERE request_id = $rid LIMIT 1")
             .bind(("rid", request_id.to_string()))
             .await
             .expect("audit links");
@@ -1308,16 +1306,17 @@ mod monitoring_http {
 
         let (u, s) = audit_links_for_request(&db, &rid).await;
         assert_eq!(u.as_deref(), Some(user.id.as_str()));
-        assert!(s.is_none(), "session link should clear after session delete");
+        assert!(
+            s.is_none(),
+            "session link should clear after session delete"
+        );
     }
 
     /// BLC-MON-003: deleting a user clears `user` (and session) on existing audit rows (row kept).
     #[actix_web::test]
     async fn blc_mon_003_delete_user_clears_user_and_session_links() {
         let db = test_db().await.unwrap();
-        let target = create_user(&db, "mon-user-del@test.local")
-            .await
-            .unwrap();
+        let target = create_user(&db, "mon-user-del@test.local").await.unwrap();
         let target_token = create_session_token(&db, target.clone()).await.unwrap();
         let app = test::init_service(build_app(db.clone())).await;
         let req = test::TestRequest::get()
@@ -1342,7 +1341,89 @@ mod monitoring_http {
         assert_eq!(del_resp.status(), StatusCode::NO_CONTENT);
 
         let (u, s) = audit_links_for_request(&db, &rid).await;
-        assert!(u.is_none() && s.is_none(), "user/session links cleared after user delete");
+        assert!(
+            u.is_none() && s.is_none(),
+            "user/session links cleared after user delete"
+        );
+    }
+
+    /// GET /monitoring/metrics: non-admin receives 403.
+    #[actix_web::test]
+    async fn monitoring_metrics_non_admin_403() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "mon-metrics-nonadmin@test.local")
+            .await
+            .unwrap();
+        let token = create_session_token(&db, user).await.unwrap();
+        let app = test::init_service(build_app(db)).await;
+        let req = test::TestRequest::get()
+            .uri("/api/v1/monitoring/metrics?start=2026-04-01T00:00:00Z&end=2026-04-02T00:00:00Z")
+            .insert_header(("Authorization", format!("Bearer {token}")));
+        assert_eq!(call_status!(app, req), StatusCode::FORBIDDEN);
+    }
+
+    /// GET /monitoring/metrics: invalid window returns 400.
+    #[actix_web::test]
+    async fn monitoring_metrics_invalid_window_400() {
+        let db = test_db().await.unwrap();
+        let (_, token) = make_admin(&db, "mon-metrics-badwin@test.local").await;
+        let app = test::init_service(build_app(db)).await;
+        let req = test::TestRequest::get()
+            .uri("/api/v1/monitoring/metrics?start=2026-04-02T00:00:00Z&end=2026-04-01T00:00:00Z")
+            .insert_header(("Authorization", format!("Bearer {token}")));
+        assert_eq!(call_status!(app, req), StatusCode::BAD_REQUEST);
+    }
+
+    /// GET /monitoring/metrics: admin receives aggregated counts for seeded audit rows.
+    #[actix_web::test]
+    async fn monitoring_metrics_admin_seeded_audit() {
+        let db = test_db().await.unwrap();
+        for (rid, path, status) in [
+            ("seed-met-1", "/api/v1/songs", 200i64),
+            ("seed-met-2", "/auth/callback", 200),
+            (
+                "seed-met-3",
+                "/api/v1/songs/550e8400-e29b-41d4-a716-446655440404",
+                404,
+            ),
+            ("seed-met-4", "/api/v1/users", 500),
+        ] {
+            let r = db
+                .db
+                .query(
+                    "CREATE http_request_audit SET request_id = $rid, method = 'GET', path = $path, \
+                     status_code = $status, duration_ms = 10, user = NONE, session = NONE, \
+                     created_at = d'2026-04-01T12:00:00Z'",
+                )
+                .bind(("rid", rid.to_string()))
+                .bind(("path", path.to_string()))
+                .bind(("status", status))
+                .await
+                .expect("seed audit");
+            r.check().expect("seed audit statement ok");
+        }
+
+        let (_, token) = make_admin(&db, "mon-metrics-seed@test.local").await;
+        let app = test::init_service(build_app(db)).await;
+        let req = test::TestRequest::get()
+            .uri("/api/v1/monitoring/metrics?start=2026-04-01T00:00:00Z&end=2026-04-02T00:00:00Z")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert!(
+            body["window"]["total_requests"].as_u64().unwrap() >= 4,
+            "expected at least the four seeded rows in total_requests (plus optional handler audit row): {body:?}"
+        );
+        assert!(
+            body["reliability"]["error_count_all"].as_u64().unwrap() >= 2,
+            "expected seeded 404 and 500 to count as errors: {body:?}"
+        );
+        assert!(
+            body["probing"]["id_like_404_count"].as_u64().unwrap() >= 1,
+            "expected uuid-shaped 404 to count as id-like: {body:?}"
+        );
     }
 }
 

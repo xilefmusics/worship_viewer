@@ -7,6 +7,13 @@ use crate::settings::Settings;
 
 use crate::resources::blob::PatchBlob;
 use crate::resources::collection::PatchCollection;
+use crate::resources::monitoring::{
+    ActivityCalendarMetrics, AdminMonitoringMetrics, EngagementMetrics, FamilyErrorRates,
+    FamilyLatency, FeatureFamilyMetrics, HttpAuditLog, IdLike404Metrics, LatencyMetrics,
+    MetricsWindowWire, MethodLatency, MonitoringMetricsQuery, MonitoringMetricsResponse,
+    MutationHealthMetrics, NewUserActivationMetrics, ReliabilityMetrics, RouteFamily,
+    TopFailingRoute, TrafficMetrics, TrafficMixEntry,
+};
 use crate::resources::setlist::PatchSetlist;
 use crate::resources::song::{PatchSong, PatchSongData};
 use crate::resources::user::Role;
@@ -14,7 +21,6 @@ use crate::resources::{
     Blob, Collection, CreateBlob, CreateCollection, CreateSetlist, CreateSong, CreateUser, Setlist,
     Song, UpdateBlob, UpdateCollection, UpdateSetlist, UpdateSong, User,
 };
-use crate::resources::monitoring::HttpAuditLog;
 use shared::api::SongListQuery;
 use shared::auth::otp::{OtpRequest, OtpVerify};
 use shared::blob::{BlobLink, FileType};
@@ -169,7 +175,8 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::team::invitation::rest::delete_team_invitation,
         crate::resources::team::invitation::rest::accept_team_invitation_under_team,
         crate::resources::team::invitation::rest::accept_team_invitation,
-        crate::resources::monitoring::rest::list_http_audit_logs
+        crate::resources::monitoring::rest::list_http_audit_logs,
+        crate::resources::monitoring::rest::get_monitoring_metrics
     ),
     components(
         schemas(
@@ -224,7 +231,26 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             PatchTeam,
             TeamMemberInput,
             TeamInvitation,
-            HttpAuditLog
+            HttpAuditLog,
+            MonitoringMetricsQuery,
+            MonitoringMetricsResponse,
+            MetricsWindowWire,
+            ReliabilityMetrics,
+            FamilyErrorRates,
+            RouteFamily,
+            LatencyMetrics,
+            FamilyLatency,
+            MethodLatency,
+            ActivityCalendarMetrics,
+            TrafficMetrics,
+            TrafficMixEntry,
+            TopFailingRoute,
+            FeatureFamilyMetrics,
+            MutationHealthMetrics,
+            EngagementMetrics,
+            AdminMonitoringMetrics,
+            NewUserActivationMetrics,
+            IdLike404Metrics
         )
     ),
     tags(
