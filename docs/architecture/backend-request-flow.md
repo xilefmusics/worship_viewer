@@ -5,6 +5,24 @@ entry point to SurrealDB and back.
 
 ---
 
+## Logging and observability
+
+Subscriber setup lives in [`backend/src/observability.rs`](../../backend/src/observability.rs): `observability::init()` runs once from `main`, installs `tracing-subscriber` with an [`EnvFilter`](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html) (default `info`, overridable with **`RUST_LOG`**), and enables the **`tracing-log`** bridge so crates that use the `log` facade (Actix, SurrealDB, lettre, etc.) emit into the same sink.
+
+**Output format:** With **`LOG_FORMAT=json`**, **`LOG_FORMAT=compact`**, or **`LOG_FORMAT=pretty`**, operators force a formatter regardless of environment. If `LOG_FORMAT` is unset, JSON is used when **`WORSHIP_PRODUCTION`** is truthy or **`RUST_ENV=production`**, otherwise compact (human-friendly) lines.
+
+**`RUST_LOG` examples:**
+
+- `RUST_LOG=info` — default.
+- `RUST_LOG=backend=debug,info` — debug for this crate only.
+- `RUST_LOG=backend::auth=trace,surrealdb=info` — verbose auth, quieter database logs.
+
+**Request correlation:** [`tracing-actix-web`](https://docs.rs/tracing-actix-web) builds a root span per HTTP request via [`WorshipRootSpan`](../../backend/src/request_id.rs). The request-id middleware stores the same id in request extensions (for Problem Details `instance`) and echoes it as **`X-Request-Id`**. If the client sends a W3C **`traceparent`** header, its span id is preferred as the request id; otherwise a UUID is generated. Authenticated requests record **`user_id`** on the current span from [`RequireUser`](../../backend/src/auth/middleware.rs). Log lines emitted while handling a request inherit those fields.
+
+**Regression tests:** Canary tests in [`backend/src/audit_events_tests.rs`](../../backend/src/audit_events_tests.rs) (using [`tracing-test`](https://docs.rs/tracing-test)) assert that each catalogued `audit.*` event still appears when the corresponding code path runs.
+
+---
+
 ## Overview
 
 ```

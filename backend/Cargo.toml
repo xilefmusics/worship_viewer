@@ -54,6 +54,7 @@ zip = "6.0.0"
 anyhow = "1"
 criterion = { version = "0.5", features = ["html_reports"] }
 tempfile = "3"
+tracing-test = "0.2.6"
 
 [[bench]]
 name = "repo_perf"
