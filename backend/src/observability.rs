@@ -81,3 +81,36 @@ pub fn init() -> anyhow::Result<()> {
     let _ = tracing_log::LogTracer::init();
     Ok(())
 }
+
+/// Joins [`std::error::Error::source`] links with `" <- "` (top-level message first).
+pub fn error_source_chain_string(err: &(dyn std::error::Error + 'static)) -> String {
+    let mut sources: Vec<String> = Vec::new();
+    sources.push(err.to_string());
+    let mut cursor = err.source();
+    while let Some(inner) = cursor {
+        sources.push(inner.to_string());
+        cursor = inner.source();
+    }
+    sources.join(" <- ")
+}
+
+/// Logs `%err`, `?err`, and the full source chain under a stable `target` field.
+pub fn log_error_chain(target: &'static str, err: &(dyn std::error::Error + 'static)) {
+    tracing::error!(
+        target = target,
+        error = %err,
+        error_source_chain = %error_source_chain_string(err),
+        error_debug = ?err,
+        "I/O boundary error"
+    );
+}
+
+/// Log a typed error's chain, then convert with `AppError::{database,mail,oidc}` (or similar).
+#[macro_export]
+macro_rules! log_and_convert {
+    ($mapper:path, $target:literal, $err:expr) => {{
+        let err = $err;
+        $crate::observability::log_error_chain($target, &err);
+        $mapper(err)
+    }};
+}

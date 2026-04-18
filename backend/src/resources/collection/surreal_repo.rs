@@ -9,7 +9,7 @@ use shared::api::ListQuery;
 use shared::collection::{Collection, CreateCollection};
 use shared::song::{Link as SongLink, LinkOwned as SongLinkOwned};
 
-use crate::database::Database;
+use crate::database::{Database, surreal_take_errors};
 use crate::error::AppError;
 use crate::resources::common::{SongLinkRecord, belongs_to, blob_thing, resource_id};
 
@@ -217,7 +217,7 @@ impl CollectionRepository for SurrealCollectionRepo {
         song_link: SongLink,
     ) -> Result<(), AppError> {
         let db = self.inner();
-        let _ = db
+        let mut response = db
             .db
             .query(
                 r#"UPDATE type::thing("collection", $id) SET songs = array::append(songs, $song) WHERE owner IN $teams;"#,
@@ -226,6 +226,15 @@ impl CollectionRepository for SurrealCollectionRepo {
             .bind(("teams", write_teams.to_vec()))
             .bind(("song", SongLinkRecord::from(song_link)))
             .await?;
+
+        surreal_take_errors("collection.add_song_to_collection", &mut response)?;
+        let _ = response.check().map_err(|e| {
+            crate::log_and_convert!(
+                AppError::database,
+                "collection.add_song_to_collection.check",
+                e
+            )
+        })?;
 
         Ok(())
     }

@@ -64,7 +64,7 @@ impl BlobRepository for SurrealBlobRepo {
                 .bind(("limit", limit))
                 .bind(("start", offset))
                 .await
-                .map_err(AppError::database)?
+                .map_err(|e| crate::log_and_convert!(AppError::database, "blob.list.query", e))?
         } else {
             db.db
                 .query("SELECT * FROM blob WHERE owner IN $teams LIMIT $limit START $start")
@@ -72,7 +72,7 @@ impl BlobRepository for SurrealBlobRepo {
                 .bind(("limit", limit))
                 .bind(("start", offset))
                 .await
-                .map_err(AppError::database)?
+                .map_err(|e| crate::log_and_convert!(AppError::database, "blob.list.query", e))?
         };
 
         Ok(response

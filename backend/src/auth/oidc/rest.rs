@@ -134,7 +134,7 @@ async fn callback(
     let token_response = token_request
         .request_async(async_http_client)
         .await
-        .map_err(AppError::oidc)?;
+        .map_err(|e| crate::log_and_convert!(AppError::oidc, "oidc.token_exchange", e))?;
 
     let id_token = token_response
         .extra_fields()
@@ -143,7 +143,7 @@ async fn callback(
 
     let claims = id_token
         .claims(&oidc_client.id_token_verifier(), &nonce)
-        .map_err(AppError::oidc)?;
+        .map_err(|e| crate::log_and_convert!(AppError::oidc, "oidc.id_token_claims", e))?;
 
     let user = user_svc
         .get_user_by_email_or_create(claims.email().ok_or(AppError::Unauthorized)?)

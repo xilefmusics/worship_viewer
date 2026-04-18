@@ -46,8 +46,14 @@ impl TeamInvitationRepository for SurrealTeamInvitationRepo {
             .create(("team_invitation", inv_id))
             .content(create)
             .await
-            .map_err(AppError::database)?;
+            .map_err(|e| {
+                crate::log_and_convert!(AppError::database, "team_invitation.create", e)
+            })?;
         if created.is_none() {
+            tracing::error!(
+                target = "team_invitation.create",
+                "failed to create team invitation (empty result)"
+            );
             return Err(AppError::database("failed to create team invitation"));
         }
         Ok(())

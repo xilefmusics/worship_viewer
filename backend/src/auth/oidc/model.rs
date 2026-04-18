@@ -36,7 +36,7 @@ impl Model for Database {
             .create(("oidc_state", key))
             .content(record)
             .await
-            .map_err(AppError::database)?;
+            .map_err(|e| crate::log_and_convert!(AppError::database, "oidc_state.create", e))?;
 
         Ok(())
     }
@@ -46,7 +46,7 @@ impl Model for Database {
             .db
             .select(("oidc_state", key))
             .await
-            .map_err(AppError::database)?;
+            .map_err(|e| crate::log_and_convert!(AppError::database, "oidc_state.select", e))?;
 
         let Some(record) = record else {
             return Ok(None);
@@ -56,7 +56,7 @@ impl Model for Database {
             .db
             .delete(("oidc_state", key))
             .await
-            .map_err(AppError::database)?;
+            .map_err(|e| crate::log_and_convert!(AppError::database, "oidc_state.delete", e))?;
 
         let pending = record.into_pending();
         if pending.expires_at <= Utc::now() {
@@ -70,7 +70,7 @@ impl Model for Database {
         self.db
             .query("DELETE oidc_state WHERE expires_at <= time::now()")
             .await
-            .map_err(AppError::database)?;
+            .map_err(|e| crate::log_and_convert!(AppError::database, "oidc_state.cleanup", e))?;
         Ok(())
     }
 }
