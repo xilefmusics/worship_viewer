@@ -2,10 +2,23 @@ use crate::song::Link as SongLink;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "backend")]
+#[allow(unused_imports)]
+use serde_json::json;
+#[cfg(feature = "backend")]
 use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({
+        "id": "col_example",
+        "owner": "usr_example",
+        "title": "Sunday worship",
+        "cover": "",
+        "songs": [{ "id": "song_example", "nr": null, "key": null }]
+    }))
+)]
 pub struct Collection {
     pub id: String,
     pub owner: String,
@@ -18,6 +31,14 @@ pub struct Collection {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({
+        "title": "Sunday worship",
+        "cover": "",
+        "songs": [{ "id": "song_example", "nr": null, "key": null }]
+    }))
+)]
 pub struct CreateCollection {
     pub title: String,
     pub cover: String,

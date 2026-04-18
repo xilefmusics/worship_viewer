@@ -2,6 +2,9 @@ use crate::patch::Patch;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "backend")]
+#[allow(unused_imports)]
+use serde_json::json;
+#[cfg(feature = "backend")]
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,6 +41,17 @@ pub struct TeamMember {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({
+        "id": "team_example",
+        "owner": { "id": "usr_example", "email": "owner@example.com" },
+        "name": "Worship team",
+        "members": [
+            { "user": { "id": "usr_example", "email": "owner@example.com" }, "role": "admin" }
+        ]
+    }))
+)]
 pub struct Team {
     pub id: String,
     /// When set, this team is that user's personal team (1:1, not deletable). Not listed in `members`.
@@ -50,6 +64,10 @@ pub struct Team {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({ "name": "Worship team", "members": [] }))
+)]
 pub struct CreateTeam {
     pub name: String,
     /// Additional members (besides the creating user, who is always `admin`).

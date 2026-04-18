@@ -1,10 +1,26 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "backend")]
+#[allow(unused_imports)]
+use serde_json::json;
+
 use super::Role;
 
 #[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({
+        "id": "usr_example",
+        "email": "singer@example.com",
+        "role": "default",
+        "default_collection": null,
+        "created_at": "2026-01-01T12:00:00Z",
+        "last_login_at": null,
+        "request_count": 0
+    }))
+)]
 pub struct User {
     pub id: String,
     pub email: String,

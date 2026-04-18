@@ -18,6 +18,7 @@ on:
       - ".dockerignore"
       - ".github/workflows/backend-ci.yml"
       - ".spectral.yaml"
+      - "backend/openapi.json"
 
 jobs:
   backend-validate:
@@ -47,10 +48,8 @@ jobs:
         with:
           node-version: "20"
 
-      - name: OpenAPI Spectral (schema property keys snake_case)
-        run: |
-          cargo run --manifest-path backend/Cargo.toml --example print_openapi --quiet > "$RUNNER_TEMP/openapi.json"
-          npx --yes @stoplight/spectral-cli@6 lint "$RUNNER_TEMP/openapi.json" -r .spectral.yaml
+      - name: OpenAPI Spectral (committed backend/openapi.json)
+        run: npx --yes @stoplight/spectral-cli@6 lint backend/openapi.json -r .spectral.yaml
 
       - name: Clippy
         working-directory: backend

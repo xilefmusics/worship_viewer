@@ -1,8 +1,22 @@
-# Worship Viewer: enforce snake_case property keys in OpenAPI component schemas (Phase 3 §22).
-extends:
-  - - spectral:oas
-    - off
+# Worship Viewer OpenAPI lint (Phase 4 §25).
+# Extends the stock OAS ruleset; rules that are noisy for utoipa-generated specs are off,
+# and we add a project-specific snake_case property rule (Phase 3 §22).
+extends: spectral:oas
+
 rules:
+  # Examples in utoipa often intentionally omit nested required fields; validating examples
+  # against the full schema is deferred.
+  oas3-valid-schema-example: off
+  # Descriptions live on parameters in Rust docs but utoipa layout differs.
+  oas3-parameter-description: off
+  # Global operation.summary is used; per-path description duplication is deferred.
+  operation-description: off
+  openapi-tags-alphabetical: off
+  # `contact` is injected at runtime from `OPENAPI_CONTACT_EMAIL` / `OPENAPI_IMPRINT_URL`.
+  info-contact: off
+  # Deprecated / query shapes referenced indirectly.
+  oas3-unused-component: off
+
   oas3-schema-properties-snake-case:
     description: Every property name under components.schemas must be snake_case ASCII
     message: "Property name must be snake_case (lowercase, digits, underscores): {{value}}"

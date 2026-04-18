@@ -36,7 +36,7 @@ pub fn scope(auth_rate_limit_rps: u64, auth_rate_limit_burst: u32) -> actix_web:
 #[utoipa::path(
     post,
     path = "/auth/logout",
-    responses((status = 204, description = "Session cookie cleared")),
+    responses((status = 204, description = "Ends the session idempotently: clears `sso_session` cookie and deletes the session server-side if the cookie or `Authorization: Bearer` session id is present. Missing/unknown sessions still yield 204.")),
     tag = "Auth",
     security(
         ("SessionCookie" = []),

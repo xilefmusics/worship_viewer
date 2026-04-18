@@ -2,6 +2,9 @@ use super::FileType;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "backend")]
+#[allow(unused_imports)]
+use serde_json::json;
+#[cfg(feature = "backend")]
 use utoipa::ToSchema;
 
 /// Cross-resource reference to a blob (opaque `id` as returned by the API).
@@ -13,6 +16,17 @@ pub struct BlobLink {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({
+        "id": "blob_example",
+        "owner": "usr_example",
+        "file_type": "image/png",
+        "width": 1200,
+        "height": 800,
+        "ocr": ""
+    }))
+)]
 pub struct Blob {
     pub id: String,
     pub owner: String,
@@ -36,6 +50,15 @@ impl Blob {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(example = json!({
+        "file_type": "image/png",
+        "width": 1200,
+        "height": 800,
+        "ocr": ""
+    }))
+)]
 pub struct CreateBlob {
     pub file_type: FileType,
     pub width: u32,

@@ -1,5 +1,9 @@
+use utoipa::openapi::external_docs::ExternalDocs;
+use utoipa::openapi::info::ContactBuilder;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
+
+use crate::settings::Settings;
 
 use crate::resources::blob::PatchBlob;
 use crate::resources::collection::PatchCollection;
@@ -27,11 +31,53 @@ use shared::team::{
 use shared::user::{SessionBody, SessionUserBody};
 
 pub mod rest {
-    use super::{ApiDoc, OpenApi};
+    use super::{Settings, openapi_document};
     use utoipa_swagger_ui::SwaggerUi;
 
-    pub fn scope() -> SwaggerUi {
-        SwaggerUi::new("/api/docs/{_:.*}").url("/api/docs/openapi.json", ApiDoc::openapi())
+    pub fn scope(settings: Settings) -> SwaggerUi {
+        SwaggerUi::new("/api/docs/{_:.*}")
+            .url("/api/docs/openapi.json", openapi_document(&settings))
+    }
+}
+
+/// Apply OpenAPI metadata that depends on deployment (env-backed [`Settings`]) and tag [`externalDocs`].
+pub fn openapi_document(settings: &Settings) -> utoipa::openapi::OpenApi {
+    let mut doc = ApiDoc::openapi();
+    apply_openapi_runtime_metadata(&mut doc, settings);
+    doc
+}
+
+const BLC_GITHUB_BASE: &str =
+    "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/";
+
+fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: &Settings) {
+    let tag_docs: &[(&str, &str)] = &[
+        ("Auth", "authentication.md"),
+        ("Users", "user.md"),
+        ("Songs", "song.md"),
+        ("Collections", "collection.md"),
+        ("Blobs", "blob.md"),
+        ("Setlists", "setlist.md"),
+        ("Teams", "team.md"),
+    ];
+    if let Some(tags) = doc.tags.as_mut() {
+        for tag in tags.iter_mut() {
+            if let Some((_, file)) = tag_docs.iter().find(|(n, _)| *n == tag.name) {
+                let url = format!("{BLC_GITHUB_BASE}{file}");
+                let mut ext = ExternalDocs::new(url);
+                ext.description =
+                    Some("Business logic constraints (markdown in repository).".into());
+                tag.external_docs = Some(ext);
+            }
+        }
+    }
+    if settings.openapi_contact_email.is_some() || settings.openapi_imprint_url.is_some() {
+        let contact = ContactBuilder::new()
+            .name(Some("Worship Viewer"))
+            .email(settings.openapi_contact_email.clone())
+            .url(settings.openapi_imprint_url.clone())
+            .build();
+        doc.info.contact = Some(contact);
     }
 }
 
@@ -178,13 +224,13 @@ pub mod rest {
         )
     ),
     tags(
-        (name = "Auth", description = "Authentication endpoints"),
-        (name = "Users", description = "User resources"),
-        (name = "Songs", description = "Song resources"),
-        (name = "Collections", description = "Collection resources"),
-        (name = "Blobs", description = "Blob resources"),
-        (name = "Setlists", description = "Setlist resources"),
-        (name = "Teams", description = "Team resources")
+        (name = "Auth", description = "OAuth/OIDC login, OTP email codes, and logout. Session cookies are set on successful auth (see authentication BLC)."),
+        (name = "Users", description = "Current user (`/users/me`), directory listing, sessions (own and admin), and admin user lifecycle."),
+        (name = "Songs", description = "Song CRUD, player JSON, likes, search/sort listing."),
+        (name = "Collections", description = "Owned song collections, nested songs, and player views."),
+        (name = "Blobs", description = "Binary image assets: metadata, byte upload/download with cache headers."),
+        (name = "Setlists", description = "Ordered sets of songs and player payloads for services."),
+        (name = "Teams", description = "Team membership, roles, and invitations (nested under `/teams/{id}/invitations`).")
     ),
     modifiers(&SessionSecurity)
 )]
@@ -208,6 +254,77 @@ impl Modify for SessionSecurity {
                 "Authorization",
                 "Session override using `Authorization: Bearer <session>` header",
             ))),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openapi_includes_tag_external_docs() {
+        let doc = openapi_document(&Settings::default());
+        let v = serde_json::to_value(doc).expect("openapi json");
+        let tags = v["tags"].as_array().expect("tags");
+        let auth = tags.iter().find(|t| t["name"] == "Auth").expect("Auth tag");
+        assert!(
+            auth["externalDocs"]["url"]
+                .as_str()
+                .expect("url")
+                .contains("authentication.md")
+        );
+    }
+
+    #[test]
+    fn openapi_contact_reflects_settings() {
+        let mut s = Settings::default();
+        s.openapi_contact_email = Some("ops@example.com".into());
+        s.openapi_imprint_url = Some("https://example.com/imprint".into());
+        let doc = openapi_document(&s);
+        let v = serde_json::to_value(doc).expect("openapi json");
+        assert_eq!(v["info"]["contact"]["email"], "ops@example.com");
+        assert_eq!(v["info"]["contact"]["url"], "https://example.com/imprint");
+    }
+
+    /// Normalize JSON object key order for stable snapshot comparison (`backend/openapi.json`).
+    fn sort_json_value(v: &mut serde_json::Value) {
+        match v {
+            serde_json::Value::Object(map) => {
+                let keys: Vec<String> = map.keys().cloned().collect();
+                let mut sorted = serde_json::Map::new();
+                let mut keys = keys;
+                keys.sort();
+                for k in keys {
+                    let mut val = map.remove(&k).unwrap();
+                    sort_json_value(&mut val);
+                    sorted.insert(k, val);
+                }
+                *map = sorted;
+            }
+            serde_json::Value::Array(items) => {
+                for item in items.iter_mut() {
+                    sort_json_value(item);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn openapi_snapshot_matches_committed_file() {
+        let mut got =
+            serde_json::to_value(openapi_document(&Settings::default())).expect("openapi json");
+        sort_json_value(&mut got);
+        let mut expected: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/openapi.json"
+        )))
+        .expect("parse backend/openapi.json");
+        sort_json_value(&mut expected);
+        assert_eq!(
+            got, expected,
+            "OpenAPI drift: regenerate with `cargo run --example print_openapi --quiet | python3 -c \"import json,sys; json.dump(json.load(sys.stdin), sys.stdout, indent=2, sort_keys=True, ensure_ascii=False)\" > backend/openapi.json`"
         );
     }
 }
