@@ -14,7 +14,7 @@
 - **BLC-TINV-007:** WHEN **POST** `/teams/{team_id}/invitations` runs THEN only a team **admin** MAY create; the team MUST be a valid shared team (invalid id THEN **400** or **404** consistent with team routes).
 - **BLC-TINV-008:** WHEN **GET** list or **GET** one invitation runs THEN only team **admin** MAY; wrong team or id THEN **404** for others.
 - **BLC-TINV-009:** WHEN **DELETE** an invitation runs THEN only team **admin** MAY; missing id THEN **404** vs **204** MUST stay consistent across the API.
-- **BLC-TINV-010:** WHEN **accept** runs THEN the session MUST be authenticated; the current user IS added as **guest** on the team (**members** in **GET /teams/{id}**).
+- **BLC-TINV-010:** WHEN **accept** runs THEN the session MUST be authenticated; the current user IS added as **guest** on the team (**members** in **GET /teams/{id}**). The primary route IS **`POST /api/v1/teams/{team_id}/invitations/{invitation_id}/accept`**; **`POST /api/v1/invitations/{invitation_id}/accept`** remains supported but IS deprecated ( **`Deprecation`** / **`Sunset`** headers on responses).
 - **BLC-TINV-011:** WHEN **accept** runs and the user is already **content_maintainer** or **admin** on that team THEN their role MUST NOT downgrade to **guest**.
 - **BLC-TINV-012:** WHEN **accept** runs and the user is already **guest** THEN duplicate **members** entries MUST NOT appear.
 - **BLC-TINV-013:** WHEN **accept** succeeds and the invitation still exists THEN the same invitation id MAY be used again until an admin deletes it.

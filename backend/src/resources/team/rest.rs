@@ -4,10 +4,10 @@ use crate::error::AppError;
 use crate::resources::User;
 use actix_web::http::header;
 use actix_web::{
-    HttpResponse, Scope, delete, get, patch, post, put,
+    HttpRequest, HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
 };
-use shared::api::{ListQuery, PageQuery};
+use shared::api::{ListQuery, PAGE_SIZE_DEFAULT, PageQuery};
 #[allow(unused_imports)]
 use shared::team::Team;
 use shared::team::{CreateTeam, PatchTeam, UpdateTeam};
@@ -37,6 +37,7 @@ pub fn scope() -> Scope {
         (status = 200, description = "Teams readable by the current user; platform admins receive all teams (except internal public). `X-Total-Count` is the total before paging.", body = [Team]),
         (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to list teams", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
@@ -47,6 +48,7 @@ pub fn scope() -> Scope {
 )]
 #[get("")]
 async fn get_teams(
+    req: HttpRequest,
     svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
     query: Query<PageQuery>,
@@ -55,16 +57,29 @@ async fn get_teams(
         .into_inner()
         .validate()
         .map_err(crate::error::map_list_query_error)?;
+    let q_link = query.clone();
+    let cur_page = query.page.unwrap_or(0);
+    let page_size = query.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
     let teams = svc.list_teams_for_user(&user).await?;
     let total = teams.len() as u64;
     let lq = query.as_list_query();
-    let (page, _) = ListQuery::paginate_nested_vec(teams, &lq);
+    let (teams_page, _) = ListQuery::paginate_nested_vec(teams, &lq);
     Ok(HttpResponse::Ok()
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
             total.to_string(),
         ))
-        .json(page))
+        .insert_header((
+            header::LINK,
+            crate::request_link::list_link_header(
+                &req,
+                |p| q_link.query_string_for_page(p),
+                cur_page,
+                page_size,
+                total,
+            ),
+        ))
+        .json(teams_page))
 }
 
 #[utoipa::path(
@@ -76,6 +91,7 @@ async fn get_teams(
     responses(
         (status = 200, description = "Team details; platform admins may read any team except internal public", body = Team),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Team not found", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to fetch team", body = Problem, content_type = "application/problem+json")
     ),
@@ -102,6 +118,7 @@ async fn get_team(
         (status = 201, description = "Shared team created", body = Team),
         (status = 400, description = "Invalid request", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to create team", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
@@ -132,6 +149,7 @@ async fn create_team(
         (status = 200, description = "Team updated", body = Team),
         (status = 400, description = "Invalid request", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Insufficient team role", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Team not found", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "Sole admin cannot remove all admins", body = Problem, content_type = "application/problem+json"),
@@ -166,6 +184,7 @@ async fn update_team(
         (status = 200, description = "Team partially updated", body = Team),
         (status = 400, description = "Invalid request", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Insufficient team role", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Team not found", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "Sole admin cannot remove all admins", body = Problem, content_type = "application/problem+json"),
@@ -199,6 +218,7 @@ async fn patch_team(
     responses(
         (status = 204, description = "Team deleted"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Cannot delete personal team or insufficient role", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Team not found", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to delete team", body = Problem, content_type = "application/problem+json")

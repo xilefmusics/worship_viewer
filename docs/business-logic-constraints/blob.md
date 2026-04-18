@@ -20,6 +20,7 @@
 - **BLC-BLOB-009:** WHEN **POST** creates a blob THEN **`owner`** IS ALWAYS the caller’s **personal** team.
 - **BLC-BLOB-010:** WHEN **GET /blobs** or **GET /blobs/{id}** runs THEN only blobs whose **`owner`** team the caller may read are included or returned; catalog-wide readable material MAY appear without team membership where the product exposes it.
 - **BLC-BLOB-011:** WHEN **GET …/data** runs THEN the same visibility rules as metadata **GET** apply; IF bytes are available THEN they are served.
+- **BLC-BLOB-016:** **`GET /blobs/{id}/data`** responses include a weak **`ETag`** over stored bytes, **`Content-Length`**, and **`Cache-Control: private, max-age=3600, immutable`**. **`If-None-Match`** matching the current **`ETag`** yields **304** with an empty body.
 - **BLC-BLOB-012:** WHEN **PUT** runs THEN only **`file_type`**, **`width`**, **`height`**, and **`ocr`** may change.
 - **BLC-BLOB-013:** WHEN **DELETE** succeeds THEN the blob no longer appears in the API and associated stored bytes MAY be removed.
 

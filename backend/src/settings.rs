@@ -63,6 +63,10 @@ pub struct Settings {
     /// Default: 1 request per second with a burst of 5.
     pub auth_rate_limit_rps: u64,
     pub auth_rate_limit_burst: u32,
+
+    /// Per-IP rate limit for `/api/v1/*` (token bucket). Defaults are generous for local development.
+    pub api_rate_limit_rps: u64,
+    pub api_rate_limit_burst: u32,
 }
 
 impl Default for Settings {
@@ -98,6 +102,8 @@ impl Default for Settings {
             blob_upload_max_bytes: 20 * 1024 * 1024,
             auth_rate_limit_rps: 1,
             auth_rate_limit_burst: 5,
+            api_rate_limit_rps: 50,
+            api_rate_limit_burst: 200,
         }
     }
 }

@@ -6,10 +6,10 @@ use crate::error::AppError;
 use crate::resources::user::service::UserServiceHandle;
 use actix_web::http::header;
 use actix_web::{
-    HttpResponse, Scope, delete, get, post,
+    HttpRequest, HttpResponse, Scope, delete, get, post,
     web::{self, Data, Json, Path, Query, ReqData},
 };
-use shared::api::ListQuery;
+use shared::api::{ListQuery, PAGE_SIZE_DEFAULT};
 
 pub fn scope() -> Scope {
     web::scope("/users")
@@ -37,6 +37,7 @@ pub fn scope() -> Scope {
     responses(
         (status = 200, description = "Returns the currently authenticated user", body = User),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to load user session", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Users",
@@ -60,6 +61,7 @@ async fn get_users_me(user: ReqData<User>) -> HttpResponse {
         (status = 200, description = "Returns the user matching the provided id", body = User),
         (status = 400, description = "Invalid user identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to fetch user", body = Problem, content_type = "application/problem+json")
     ),
@@ -89,6 +91,7 @@ async fn get_user(
         (status = 200, description = "Returns list of all users. `X-Total-Count` header contains the total matching user count (before pagination).", body = [User]),
         (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to list users", body = Problem, content_type = "application/problem+json")
     ),
@@ -100,6 +103,7 @@ async fn get_user(
 )]
 #[get("")]
 async fn get_users(
+    req: HttpRequest,
     svc: Data<UserServiceHandle>,
     query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
@@ -107,12 +111,25 @@ async fn get_users(
         .into_inner()
         .validate()
         .map_err(crate::error::map_list_query_error)?;
+    let q_link = query.clone();
+    let page = query.page.unwrap_or(0);
+    let page_size = query.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
     let users = svc.get_users(query.clone()).await?;
     let total = svc.count_users(query).await?;
     Ok(HttpResponse::Ok()
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
             total.to_string(),
+        ))
+        .insert_header((
+            header::LINK,
+            crate::request_link::list_link_header(
+                &req,
+                |p| q_link.query_string_for_page(p),
+                page,
+                page_size,
+                total,
+            ),
         ))
         .json(users))
 }
@@ -125,6 +142,7 @@ async fn get_users(
         (status = 201, description = "Creates a new user", body = User),
         (status = 400, description = "Invalid request payload", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "User with that email already exists", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to create user", body = Problem, content_type = "application/problem+json")
@@ -153,6 +171,7 @@ async fn create_user(
         (status = 204, description = "User deleted"),
         (status = 400, description = "Invalid user identifier", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to delete user", body = Problem, content_type = "application/problem+json")
     ),

@@ -186,7 +186,11 @@ async fn main() -> AnyResult<()> {
                 settings.auth_rate_limit_burst,
             ))
             .service(docs::rest::scope())
-            .service(resources::rest::scope(settings.blob_upload_max_bytes))
+            .service(resources::rest::scope(
+                settings.blob_upload_max_bytes,
+                settings.api_rate_limit_rps,
+                settings.api_rate_limit_burst,
+            ))
             .service(frontend::rest::scope(&static_dir))
     })
     .bind((settings.host.clone(), settings.port))?

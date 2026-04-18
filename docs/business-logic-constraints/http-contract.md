@@ -13,3 +13,7 @@ Rules that apply across several **`/api/v1`** resources (path validation, idempo
 ## Idempotent DELETE
 
 - **BLC-HTTP-002:** WHEN **DELETE** on a resource succeeds and the client issues the same **DELETE** again for that **id** THEN the API responds **404** (same pattern as **BLC-USER-014** for users).
+
+## API rate limiting (`/api/v1/*`)
+
+- **BLC-HTTP-004:** Versioned **`/api/v1/*`** routes are rate-limited **per client IP** (see `backend` settings **`API_RATE_LIMIT_RPS`** and **`API_RATE_LIMIT_BURST`**, defaults **50** RPS and burst **200**). WHEN the limit IS exceeded THEN the API responds **429 Too Many Requests** with **`Retry-After`** and **`X-RateLimit-*`** headers ([`actix-governor`](https://docs.rs/actix-governor/latest/actix_governor/)).

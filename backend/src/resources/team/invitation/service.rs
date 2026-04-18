@@ -175,6 +175,20 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         self.team_repo.load_team_display(&team_id_str).await
     }
 
+    /// Like [`accept_invitation_for_user`], but ensures the invitation belongs to `team_id`.
+    pub async fn accept_invitation_for_user_on_team(
+        &self,
+        user: &User,
+        team_id: &str,
+        invitation_id: &str,
+    ) -> Result<Team, AppError> {
+        let team = self.accept_invitation_for_user(user, invitation_id).await?;
+        if team.id != team_id {
+            return Err(AppError::NotFound("invitation not found".into()));
+        }
+        Ok(team)
+    }
+
     /// Asserts that a team exists, is a shared team, and the user is an admin of it.
     /// Returns the team `Thing` for binding into queries.
     async fn assert_shared_team_admin(

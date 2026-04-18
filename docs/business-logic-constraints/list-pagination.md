@@ -23,3 +23,5 @@ Applies to **GET** list routes that support paging: **`/users`** (admin), **`/bl
 - **BLC-LP-009:** WHEN **`q`** IS combined with **`page`** / **`page_size`** THEN filtering runs first, then pagination over those results.
 
 **Track A (current):** All list responses include an **`X-Total-Count`** header: the **total number of matching records after filters and before pagination**. Clients detect the last page when the returned **`items.len() < page_size`** or the page is **empty** (including “beyond last page” pages).
+
+- **BLC-LP-010:** List responses also include an [**RFC 5988**](https://www.rfc-editor.org/rfc/rfc5988) **`Link`** header with `first` / `prev` / `next` / `last` relations (omitting `prev` on the first page and `next` on the last). The URLs repeat the same query shape as the request with adjusted `page`.
