@@ -114,9 +114,9 @@ impl SessionRepository for SurrealSessionRepo {
             )
             .bind(("id", id.to_owned()))
             .await
-            .map_err(AppError::database)?
+            .map_err(|e| crate::log_and_convert!(AppError::database, "session.validate.query", e))?
             .take::<Option<SessionRecord>>(3)
-            .map_err(AppError::database)?
+            .map_err(|e| crate::log_and_convert!(AppError::database, "session.validate.take", e))?
             .map(SessionRecord::into_session))
     }
 }
