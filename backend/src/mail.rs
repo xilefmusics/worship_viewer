@@ -67,15 +67,17 @@ impl MailService {
                         .map_err(|e| crate::log_and_convert!(AppError::mail, "mail.parse_to", e))?)
                     .subject(subject)
                     .body(body.to_owned())
-                    .map_err(|e| crate::log_and_convert!(AppError::mail, "mail.build_message", e))?;
+                    .map_err(|e| {
+                        crate::log_and_convert!(AppError::mail, "mail.build_message", e)
+                    })?;
 
-                let response = transport
-                    .send(message)
-                    .await
-                    .map_err(|e| crate::log_and_convert!(AppError::mail, "mail.transport_send", e))?;
+                let response = transport.send(message).await.map_err(|e| {
+                    crate::log_and_convert!(AppError::mail, "mail.transport_send", e)
+                })?;
 
                 if !response.is_positive() {
-                    tracing::Span::current().record("transport_ok", tracing::field::display(&false));
+                    tracing::Span::current()
+                        .record("transport_ok", tracing::field::display(&false));
                     tracing::warn!(
                         target = "mail.transport",
                         ?response,

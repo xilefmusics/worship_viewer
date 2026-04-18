@@ -8,7 +8,7 @@ use std::sync::Arc;
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::http::StatusCode;
 use actix_web::middleware::Compat;
-use actix_web::web::{Data, self};
+use actix_web::web::{self, Data};
 use actix_web::{App, test};
 use serde_json::json;
 use shared::team::{TeamMemberInput, TeamRole, TeamUserRef, UpdateTeam};
@@ -46,7 +46,11 @@ fn auth_scope_otp_logout(auth_rate_limit_rps: u64, auth_rate_limit_burst: u32) -
     )
 }
 
-fn build_auth_app(db: Arc<Database>, auth_rps: u64, auth_burst: u32) -> App<
+fn build_auth_app(
+    db: Arc<Database>,
+    auth_rps: u64,
+    auth_burst: u32,
+) -> App<
     impl actix_web::dev::ServiceFactory<
         actix_web::dev::ServiceRequest,
         Config = (),
@@ -224,10 +228,7 @@ async fn audit_auth_login_success_emits_event() {
     let req = test::TestRequest::post()
         .uri("/auth/otp/verify")
         .insert_header(("Content-Type", "application/json"))
-        .set_payload(
-            json!({ "email": email, "code": code })
-                .to_string(),
-        )
+        .set_payload(json!({ "email": email, "code": code }).to_string())
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::OK);
@@ -247,10 +248,7 @@ async fn audit_auth_login_failure_emits_event() {
     let req = test::TestRequest::post()
         .uri("/auth/otp/verify")
         .insert_header(("Content-Type", "application/json"))
-        .set_payload(
-            json!({ "email": email, "code": "999999" })
-                .to_string(),
-        )
+        .set_payload(json!({ "email": email, "code": "999999" }).to_string())
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
