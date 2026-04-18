@@ -121,7 +121,7 @@ impl CollectionRepository for SurrealCollectionRepo {
         let resource = resource_id("collection", id)?;
         let mut response = db
             .db
-            .query("SELECT owner, songs FROM collection WHERE id = $id FETCH songs.*.id")
+            .query("SELECT owner, songs FROM collection WHERE id = $id FETCH songs.id")
             .bind(("id", Thing::from(resource.clone())))
             .await?;
 

@@ -97,7 +97,7 @@ impl From<SongLink> for SongLinkRecord {
     }
 }
 
-/// A fully-fetched song record returned when querying setlist / collection songs via `FETCH`.
+/// A fully-fetched song record returned when querying setlist / collection songs via `FETCH songs.id`.
 ///
 /// The `id` field holds the fetched [`SongRecord`]; the other fields come from the link itself.
 #[derive(Deserialize)]
