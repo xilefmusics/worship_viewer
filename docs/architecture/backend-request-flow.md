@@ -21,6 +21,28 @@ Subscriber setup lives in [`backend/src/observability.rs`](../../backend/src/obs
 
 **Regression tests:** Canary tests in [`backend/src/audit_events_tests.rs`](../../backend/src/audit_events_tests.rs) (using [`tracing-test`](https://docs.rs/tracing-test)) assert that each catalogued `audit.*` event still appears when the corresponding code path runs.
 
+### Canonical log fields
+
+Use these names on new spans and structured log lines so aggregators and grep stay consistent (see also [logging-review.md §5](../logging-review.md)):
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `request_id` | string | UUID or W3C `traceparent` span id; set on the root HTTP span. |
+| `user_id` | string | Authenticated user id; recorded after session validation. |
+| `session_id` | string | Session id being created, validated, or revoked. |
+| `team_id` | string | Resolved team context for the request or mutation. |
+| `route` | string | Matched Actix route pattern (e.g. `/api/v1/songs/{id}`). |
+| `method` | string | HTTP method. |
+| `status` | u16 | HTTP response status code. |
+| `latency_ms` | u64 | Total request latency in milliseconds. |
+| `event` | string | Stable event name (`startup`, `oidc.provider.registered`, or `audit.*`). |
+| `audit` | bool | `true` on audit lines emitted via `audit!`. |
+| `error` | Display | Primary error message (`%err`). |
+| `error_debug` | Debug | Developer-oriented detail (`?err`). |
+| `error_source_chain` | string | `Error::source` chain joined with ` <- `. |
+| `target` | string | Logical I/O boundary tag for `log_error_chain` (e.g. `mail.transport_send`). |
+| `context` / `migration` | string | Surreal per-statement failures: app repo context vs migration script name. |
+
 ---
 
 ## Overview
@@ -420,7 +442,7 @@ teams on user registration.
 
 ## Audit event catalog
 
-Structured audit lines use `tracing` with **`audit = true`** and a stable **`event`** name (macro `audit!` in [backend/src/observability.rs](../../backend/src/observability.rs)). Field names follow [docs/logging-review.md](../logging-review.md) §5.
+Structured audit lines use `tracing` with **`audit = true`** and a stable **`event`** name (macro `audit!` in [backend/src/observability.rs](../../backend/src/observability.rs)). Field names follow the [canonical log fields](#canonical-log-fields) table above.
 
 | `event` | Where emitted | Typical fields |
 |---------|---------------|----------------|

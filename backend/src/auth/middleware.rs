@@ -150,6 +150,21 @@ where
                 .unwrap_or(false);
 
             if !is_admin {
+                match req.extensions().get::<User>() {
+                    Some(user) => {
+                        debug!(
+                            reason = "require_admin_forbidden",
+                            user_id = %user.id,
+                            "forbidden: admin role required"
+                        );
+                    }
+                    None => {
+                        debug!(
+                            reason = "require_admin_forbidden",
+                            "forbidden: admin role required (no user in extensions)"
+                        );
+                    }
+                }
                 return Err(AppError::forbidden().into());
             }
 

@@ -9,7 +9,7 @@ use ring::digest::{SHA256, digest};
 use serde::Deserialize;
 use surrealdb::Surreal;
 use surrealdb::engine::any::Any;
-use tracing::{error, info};
+use tracing::info;
 
 #[derive(Debug, Deserialize)]
 struct AppliedMigration {
@@ -95,17 +95,6 @@ async fn load_applied_migrations(db: &Surreal<Any>) -> AnyResult<HashMap<String,
     Ok(out)
 }
 
-fn log_surreal_error_chain(migration: &str, statement_index: usize, err: &surrealdb::Error) {
-    error!(
-        migration = %migration,
-        statement_index = statement_index,
-        error = %err,
-        error_source_chain = %crate::observability::error_source_chain_string(err),
-        error_debug = ?err,
-        "SurrealDB query statement failed"
-    );
-}
-
 fn ensure_no_statement_errors(
     migration: &str,
     context: &str,
@@ -121,7 +110,7 @@ fn ensure_no_statement_errors(
 
     let mut summary = Vec::with_capacity(pairs.len());
     for (idx, err) in &pairs {
-        log_surreal_error_chain(migration, *idx, err);
+        crate::observability::log_surreal_statement_error_migration(migration, *idx, err);
         summary.push(format!("[statement {idx}] {err}"));
     }
 

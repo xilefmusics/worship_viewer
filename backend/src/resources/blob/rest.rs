@@ -121,7 +121,7 @@ async fn get_blob(
 ) -> Result<HttpResponse, AppError> {
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let blob = svc.get_blob_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
+    let etag = weak_etag_json(&blob).map_err(|e| AppError::internal_from_err("blob.rest", e))?;
     if if_none_match_matches(&req, &etag) {
         return Ok(HttpResponse::NotModified()
             .insert_header((header::ETAG, etag))
@@ -195,7 +195,7 @@ async fn update_blob(
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let blob = svc.get_blob_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
+    let etag = weak_etag_json(&blob).map_err(|e| AppError::internal_from_err("blob.rest", e))?;
     check_if_match(&req, &etag)?;
     let payload = CreateBlob::from(payload.into_inner());
     Ok(HttpResponse::Ok().json(svc.update_blob_for_user(&perms, &id, payload).await?))
@@ -234,7 +234,7 @@ async fn patch_blob(
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let blob = svc.get_blob_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
+    let etag = weak_etag_json(&blob).map_err(|e| AppError::internal_from_err("blob.rest", e))?;
     check_if_match(&req, &etag)?;
     Ok(HttpResponse::Ok().json(
         svc.patch_blob_for_user(&perms, &id, payload.into_inner())
@@ -273,7 +273,7 @@ async fn delete_blob(
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let blob = svc.get_blob_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
+    let etag = weak_etag_json(&blob).map_err(|e| AppError::internal_from_err("blob.rest", e))?;
     check_if_match(&req, &etag)?;
     svc.delete_blob_for_user(&perms, &id).await?;
     Ok(HttpResponse::NoContent().finish())
@@ -320,7 +320,8 @@ async fn download_blob_image(
         .file_name()
         .unwrap_or_else(|| format!("blob-{}", blob.id));
     let path = file.path().to_path_buf();
-    let bytes = std::fs::read(&path).map_err(|e| AppError::Internal(e.to_string()))?;
+    let bytes =
+        std::fs::read(&path).map_err(|e| AppError::internal_from_err("blob.rest.read_data", e))?;
     let etag = weak_etag_from_bytes(&bytes);
     if if_none_match_matches(&req, &etag) {
         return Ok(HttpResponse::NotModified()
@@ -336,7 +337,7 @@ async fn download_blob_image(
         "attachment; filename=\"{}\"",
         filename.replace('\\', "\\\\").replace('"', "\\\"")
     ))
-    .map_err(|e| AppError::Internal(e.to_string()))?;
+    .map_err(|e| AppError::internal_from_err("blob.rest.content_disposition_header", e))?;
     Ok(HttpResponse::Ok()
         .insert_header((header::ETAG, etag))
         .insert_header((header::CONTENT_TYPE, ct))
@@ -387,7 +388,7 @@ async fn upload_blob_data(
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let blob = svc.get_blob_for_user(&perms, &id).await?;
-    let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
+    let etag = weak_etag_json(&blob).map_err(|e| AppError::internal_from_err("blob.rest", e))?;
     check_if_match(&req, &etag)?;
     svc.upload_blob_data_for_user(&perms, &id, &body).await?;
     Ok(HttpResponse::NoContent().finish())

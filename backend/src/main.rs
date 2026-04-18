@@ -120,7 +120,9 @@ async fn main() -> AnyResult<()> {
         }
     }
 
-    let oidc_clients = Data::new(Arc::new(oidc::build_clients(&settings).await?));
+    let oidc_clients_arc = Arc::new(oidc::build_clients(&settings).await?);
+    let oidc_provider_ids = oidc_clients_arc.registered_provider_ids();
+    let oidc_clients = Data::new(oidc_clients_arc);
 
     info!(
         event = "startup",
@@ -139,7 +141,7 @@ async fn main() -> AnyResult<()> {
         blob_dir = %settings.blob_dir,
         production = production,
         static_dir = %static_dir,
-        oidc_providers = ?["google"],
+        oidc_providers = ?oidc_provider_ids,
         "backend starting"
     );
 

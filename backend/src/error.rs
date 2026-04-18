@@ -108,6 +108,12 @@ impl AppError {
     pub fn precondition_failed() -> Self {
         Self::PreconditionFailed
     }
+
+    /// Log full error chain at an I/O boundary, then return [`Internal`](Self::Internal).
+    pub fn internal_from_err<E: std::error::Error + 'static>(target: &'static str, err: E) -> Self {
+        observability::log_error_chain(target, &err);
+        Self::Internal(err.to_string())
+    }
 }
 
 /// Map [`shared::api::ListQuery::validate`] / [`shared::api::SongListQuery::validate`] failures to the right `AppError` (`invalid_page_size` vs `invalid_request`).
