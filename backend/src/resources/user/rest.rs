@@ -184,8 +184,16 @@ async fn create_user(
 #[delete("/{id}")]
 async fn delete_user(
     svc: Data<UserServiceHandle>,
+    actor: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    svc.delete_user(&id).await?;
+    let deleted = svc.delete_user(&id).await?;
+    let actor = actor.into_inner();
+    crate::audit!(
+        "audit.user.deleted",
+        user_id = tracing::field::display(&deleted.id),
+        actor_user_id = tracing::field::display(&actor.id)
+        ; "user deleted"
+    );
     Ok(HttpResponse::NoContent().finish())
 }

@@ -18,6 +18,7 @@ use crate::resources::team::{TeamResolver, UserPermissions};
 use crate::resources::user::SurrealUserRepo;
 use crate::resources::user::UserRepository;
 use shared::collection::CreateCollection;
+use tracing::instrument;
 
 use super::liked::LikedSongIds;
 use super::repository::{SongRepository, SongUpsertOutcome};
@@ -129,6 +130,7 @@ impl<
         current
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, query))]
     pub async fn list_songs_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -149,6 +151,7 @@ impl<
             .collect())
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, query))]
     pub async fn count_songs_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -158,6 +161,7 @@ impl<
         self.repo.count_songs(read_teams, query).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn get_song_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -171,6 +175,7 @@ impl<
         Ok(song)
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn song_player_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -188,6 +193,7 @@ impl<
         }))
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, song))]
     pub async fn create_song_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -247,6 +253,7 @@ impl<
         Ok(created)
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, song))]
     pub async fn update_song_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -259,6 +266,7 @@ impl<
             .await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, patch))]
     pub async fn patch_song_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -279,6 +287,7 @@ impl<
             .map(SongUpsertOutcome::into_song)
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn delete_song_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -288,6 +297,7 @@ impl<
         self.repo.delete_song(write_teams, id).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn song_like_status_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -301,6 +311,7 @@ impl<
         Ok(LikeStatus { liked })
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn set_song_like_status_for_user(
         &self,
         perms: &UserPermissions<T>,

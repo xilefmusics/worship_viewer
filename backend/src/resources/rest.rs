@@ -1,5 +1,6 @@
 use super::{blob, collection, setlist, song, team, user};
 use crate::auth::middleware::RequireUser;
+use crate::governor_audit::AuditRateLimit429;
 use crate::governor_peer::PeerOrFallbackIpKeyExtractor;
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{dev::HttpServiceFactory, web};
@@ -18,6 +19,7 @@ pub fn scope(
         .expect("API rate-limit configuration");
     web::scope("/api/v1")
         .wrap(Governor::new(&api_governor))
+        .wrap(AuditRateLimit429)
         .wrap(RequireUser)
         .service(blob::rest::scope(blob_upload_max_bytes))
         .service(collection::rest::scope())

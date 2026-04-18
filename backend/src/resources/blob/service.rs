@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use actix_files::NamedFile;
+use tracing::instrument;
 
 use shared::api::ListQuery;
 use shared::blob::{Blob, CreateBlob, PatchBlob};
@@ -33,6 +34,7 @@ impl<R, T, S> BlobService<R, T, S> {
 }
 
 impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn list_blobs_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -42,6 +44,7 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         self.repo.get_blobs(read_teams, pagination).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn count_blobs_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -51,6 +54,7 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         self.repo.count_blobs(read_teams, pagination).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn get_blob_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -60,6 +64,7 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         self.repo.get_blob(read_teams, id).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, blob))]
     pub async fn create_blob_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -70,6 +75,7 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         Ok(created)
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, blob))]
     pub async fn update_blob_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -82,6 +88,7 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         Ok(updated)
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, patch))]
     pub async fn patch_blob_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -98,6 +105,7 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         self.update_blob_for_user(perms, id, merged).await
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn delete_blob_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -109,6 +117,7 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         Ok(deleted)
     }
 
+    #[instrument(level = "debug", err, skip(self, perms, data))]
     pub async fn upload_blob_data_for_user(
         &self,
         perms: &UserPermissions<T>,
@@ -126,6 +135,7 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
         self.storage.write_blob_bytes(&blob, data)
     }
 
+    #[instrument(level = "debug", err, skip(self, perms))]
     pub async fn open_blob_data_file_for_user(
         &self,
         perms: &UserPermissions<T>,

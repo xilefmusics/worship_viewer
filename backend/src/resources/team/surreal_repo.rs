@@ -95,15 +95,18 @@ impl TeamRepository for SurrealTeamRepo {
         resource: (String, String),
         name: &str,
     ) -> Result<(), AppError> {
-        self.inner()
+        let mut response = self
+            .inner()
             .db
             .query("UPDATE $tid SET name = $name")
             .bind(("tid", Thing::from(resource)))
             .bind(("name", name.to_owned()))
-            .await?
-            .check()
-            .map(|_| ())
-            .map_err(AppError::database)
+            .await?;
+        crate::database::surreal_take_errors("team.update_team_name", &mut response)?;
+        let _ = response.check().map_err(|e| {
+            crate::log_and_convert!(AppError::database, "team.update_team_name.check", e)
+        })?;
+        Ok(())
     }
 
     async fn update_team_members(
@@ -111,40 +114,49 @@ impl TeamRepository for SurrealTeamRepo {
         resource: (String, String),
         members: Vec<DbTeamMember>,
     ) -> Result<(), AppError> {
-        self.inner()
+        let mut response = self
+            .inner()
             .db
             .query("UPDATE $tid SET members = $members")
             .bind(("tid", Thing::from(resource)))
             .bind(("members", members))
-            .await?
-            .check()
-            .map(|_| ())
-            .map_err(AppError::database)
+            .await?;
+        crate::database::surreal_take_errors("team.update_team_members", &mut response)?;
+        let _ = response.check().map_err(|e| {
+            crate::log_and_convert!(AppError::database, "team.update_team_members.check", e)
+        })?;
+        Ok(())
     }
 
     async fn delete_team_record(&self, resource: (String, String)) -> Result<(), AppError> {
         let tid = Thing::from(resource);
-        self.inner()
+        let mut response = self
+            .inner()
             .db
             .query("DELETE $tid")
             .bind(("tid", tid))
-            .await?
-            .check()
-            .map(|_| ())
-            .map_err(AppError::database)
+            .await?;
+        crate::database::surreal_take_errors("team.delete_team_record", &mut response)?;
+        let _ = response.check().map_err(|e| {
+            crate::log_and_convert!(AppError::database, "team.delete_team_record.check", e)
+        })?;
+        Ok(())
     }
 
     async fn reassign_content(&self, from: Thing, to: Thing) -> Result<(), AppError> {
         for table in ["blob", "song", "collection", "setlist"] {
             let q = format!("UPDATE {table} SET owner = $to WHERE owner = $from");
-            self.inner()
+            let mut response = self
+                .inner()
                 .db
                 .query(&q)
                 .bind(("to", to.clone()))
                 .bind(("from", from.clone()))
-                .await?
-                .check()
-                .map_err(AppError::database)?;
+                .await?;
+            crate::database::surreal_take_errors("team.reassign_content", &mut response)?;
+            let _ = response.check().map_err(|e| {
+                crate::log_and_convert!(AppError::database, "team.reassign_content.check", e)
+            })?;
         }
         Ok(())
     }

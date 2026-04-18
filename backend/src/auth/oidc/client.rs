@@ -6,6 +6,7 @@ use anyhow::{Context, Result as AnyResult};
 use openidconnect::core::{CoreClient, CoreProviderMetadata};
 use openidconnect::reqwest::async_http_client;
 use openidconnect::{ClientId, ClientSecret, IssuerUrl, RedirectUrl};
+use tracing::info;
 
 use crate::settings::Settings;
 
@@ -82,6 +83,14 @@ pub async fn build_clients(settings: &Settings) -> AnyResult<OidcClients> {
         &settings.oidc_redirect_url,
     )
     .await?;
+
+    info!(
+        event = "oidc.provider.registered",
+        provider = %OidcProvider::Google,
+        issuer = %settings.oidc_issuer_url,
+        scopes = ?settings.oidc_scopes.as_slice(),
+        "registered OIDC provider"
+    );
 
     Ok(OidcClients {
         google: OidcClientRegistration {

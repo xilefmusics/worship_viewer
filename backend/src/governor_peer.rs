@@ -4,7 +4,10 @@
 
 use std::net::{IpAddr, Ipv4Addr};
 
-use actix_governor::KeyExtractor;
+use actix_governor::governor::NotUntil;
+use actix_governor::governor::clock::QuantaInstant;
+use actix_governor::{KeyExtractor, PeerIpKeyExtractor};
+use actix_web::HttpResponse;
 use actix_web::dev::ServiceRequest;
 
 /// Same IPv6 /56 normalization as [`actix_governor::PeerIpKeyExtractor`].
@@ -30,5 +33,34 @@ impl KeyExtractor for PeerOrFallbackIpKeyExtractor {
             .map(|s| normalize_ip_key(s.ip()))
             .unwrap_or_else(|| IpAddr::V4(Ipv4Addr::LOCALHOST));
         Ok(ip)
+    }
+
+    fn exceed_rate_limit_response(
+        &self,
+        negative: &NotUntil<QuantaInstant>,
+        response: actix_web::HttpResponseBuilder,
+    ) -> HttpResponse {
+        crate::governor_audit::rate_limit_problem_response(negative, response, None)
+    }
+}
+
+/// Like [`PeerIpKeyExtractor`], but 429 responses use `application/problem+json`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProblemJsonPeerIpKeyExtractor;
+
+impl KeyExtractor for ProblemJsonPeerIpKeyExtractor {
+    type Key = IpAddr;
+    type KeyExtractionError = actix_governor::SimpleKeyExtractionError<&'static str>;
+
+    fn extract(&self, req: &ServiceRequest) -> Result<Self::Key, Self::KeyExtractionError> {
+        PeerIpKeyExtractor.extract(req)
+    }
+
+    fn exceed_rate_limit_response(
+        &self,
+        negative: &NotUntil<QuantaInstant>,
+        response: actix_web::HttpResponseBuilder,
+    ) -> HttpResponse {
+        crate::governor_audit::rate_limit_problem_response(negative, response, None)
     }
 }

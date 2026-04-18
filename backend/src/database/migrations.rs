@@ -96,18 +96,11 @@ async fn load_applied_migrations(db: &Surreal<Any>) -> AnyResult<HashMap<String,
 }
 
 fn log_surreal_error_chain(migration: &str, statement_index: usize, err: &surrealdb::Error) {
-    let mut sources: Vec<String> = Vec::new();
-    sources.push(err.to_string());
-    let mut cursor = std::error::Error::source(err);
-    while let Some(inner) = cursor {
-        sources.push(inner.to_string());
-        cursor = inner.source();
-    }
     error!(
         migration = %migration,
         statement_index = statement_index,
         error = %err,
-        error_source_chain = %sources.join(" <- "),
+        error_source_chain = %crate::observability::error_source_chain_string(err),
         error_debug = ?err,
         "SurrealDB query statement failed"
     );

@@ -397,3 +397,27 @@ teams on user registration.
 | **Team-scoped** | yes | yes | yes | yes | own ACL | no | no |
 | **Extra files** | `storage.rs` | `liked.rs` | — | — | `resolver.rs`, `invitation_model.rs`, `invitation_repository.rs`, `invitation_surreal_repo.rs` | — | — |
 | **Extra dependencies** | `BlobStorage` | `LikedSongIds`, `CollectionRepo`, `UserCollectionUpdater` | `LikedSongIds` | `LikedSongIds` | `TeamResolver` | `TeamRepository` | `UserRepository` |
+
+---
+
+## Audit event catalog
+
+Structured audit lines use `tracing` with **`audit = true`** and a stable **`event`** name (macro `audit!` in [backend/src/observability.rs](../../backend/src/observability.rs)). Field names follow [docs/logging-review.md](../logging-review.md) §5.
+
+| `event` | Where emitted | Typical fields |
+|---------|---------------|----------------|
+| `audit.auth.login.success` | OIDC callback success, OTP verify success | `provider`, `user_id`, `session_id` |
+| `audit.auth.login.failure` | OIDC / OTP error paths | `provider`, `reason`, `email_hash` (no raw email) |
+| `audit.auth.otp.requested` | After OTP mail send succeeds | `email_domain`, `delivered` |
+| `audit.auth.logout` | `/auth/logout` | `session_id`, `had_cookie` |
+| `audit.session.created` | `SessionService::create_session` | `session_id`, `user_id`, `ttl_seconds` |
+| `audit.session.revoked` | Logout, session DELETE handlers | `session_id`, `user_id`, `actor_user_id` |
+| `audit.user.created` | `UserService::create_user` | `user_id`, `email`, `role` |
+| `audit.user.deleted` | Admin delete user | `user_id`, `actor_user_id` |
+| `audit.team.role.changed` | Team member list update with role diff | `team_id`, `target_user_id`, `old_role`, `new_role`, `actor_user_id` |
+| `audit.team.invitation.accepted` | Invitation accept success | `team_id`, `invitation_id`, `user_id` |
+| `audit.rate_limit.rejected` | `AuditRateLimit429` middleware on HTTP 429 | `route`, `client_ip`, optional `user_id` |
+
+**Startup / OIDC registration (not audit-flagged):** `event = "startup"` in `main.rs`; `event = "oidc.provider.registered"` per provider in `auth/oidc/client.rs`.
+
+**Request correlation:** HTTP handling uses `tracing-actix-web` + request ID middleware; logs inherit `request_id` and (when authenticated) `user_id` on the root span.

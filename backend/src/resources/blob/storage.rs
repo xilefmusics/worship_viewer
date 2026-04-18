@@ -1,3 +1,4 @@
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use actix_files::NamedFile;
@@ -45,7 +46,24 @@ impl BlobStorage for FsBlobStorage {
     fn delete_blob_file(&self, blob: &Blob) {
         if let Some(name) = blob.file_name() {
             let path = Path::new(&self.blob_dir).join(name);
-            let _ = std::fs::remove_file(path);
+            match std::fs::remove_file(&path) {
+                Ok(()) => {}
+                Err(err) if err.kind() == ErrorKind::NotFound => {
+                    tracing::debug!(
+                        blob_id = %blob.id,
+                        path = %path.display(),
+                        "blob file already absent during delete"
+                    );
+                }
+                Err(err) => {
+                    tracing::warn!(
+                        blob_id = %blob.id,
+                        path = %path.display(),
+                        error = %err,
+                        "failed to delete blob file"
+                    );
+                }
+            }
         }
     }
 

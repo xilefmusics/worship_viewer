@@ -8,7 +8,7 @@ use serde::Deserialize;
 use shared::api::ListQuery;
 use shared::user::User;
 
-use crate::database::Database;
+use crate::database::{Database, surreal_take_errors};
 use crate::error::AppError;
 
 use super::model::{UserRecord, user_resource};
@@ -146,7 +146,7 @@ impl UserRepository for SurrealUserRepo {
         user_id: &str,
         collection_id: &str,
     ) -> Result<(), AppError> {
-        let _ = self
+        let mut response = self
             .inner()
             .db
             .query("UPDATE $user SET default_collection = $collection")
@@ -156,18 +156,26 @@ impl UserRepository for SurrealUserRepo {
                 Thing::from(("collection".to_owned(), collection_id.to_owned())),
             ))
             .await?;
+        surreal_take_errors("user.set_default_collection", &mut response)?;
+        let _ = response.check().map_err(|e| {
+            crate::log_and_convert!(AppError::database, "user.set_default_collection.check", e)
+        })?;
         Ok(())
     }
 }
 
 impl SurrealUserRepo {
     pub async fn clear_default_collection(&self, user_id: &str) -> Result<(), AppError> {
-        let _ = self
+        let mut response = self
             .inner()
             .db
             .query("UPDATE $user SET default_collection = NONE")
             .bind(("user", Thing::from(("user".to_owned(), user_id.to_owned()))))
             .await?;
+        surreal_take_errors("user.clear_default_collection", &mut response)?;
+        let _ = response.check().map_err(|e| {
+            crate::log_and_convert!(AppError::database, "user.clear_default_collection.check", e)
+        })?;
         Ok(())
     }
 }

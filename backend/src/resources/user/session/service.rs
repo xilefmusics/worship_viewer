@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use shared::user::Session;
+use tracing::instrument;
 
 use crate::database::Database;
 use crate::error::AppError;
@@ -24,22 +25,36 @@ impl<S, U> SessionService<S, U> {
 }
 
 impl<S: SessionRepository, U: UserRepository> SessionService<S, U> {
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn get_session(&self, id: &str) -> Result<Session, AppError> {
         self.repo.get_session(id).await
     }
 
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn get_session_for_user(&self, id: &str, user_id: &str) -> Result<Session, AppError> {
         self.repo.get_session_for_user(id, user_id).await
     }
 
+    #[instrument(level = "debug", err, skip(self, session))]
     pub async fn create_session(&self, session: Session) -> Result<Session, AppError> {
-        self.repo.create_session(session).await
+        let stored = self.repo.create_session(session).await?;
+        let ttl_seconds = (stored.expires_at - stored.created_at).num_seconds();
+        crate::audit!(
+            "audit.session.created",
+            session_id = tracing::field::display(&stored.id),
+            user_id = tracing::field::display(&stored.user.id),
+            ttl_seconds = tracing::field::display(&ttl_seconds)
+            ; "session created"
+        );
+        Ok(stored)
     }
 
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn delete_session(&self, id: &str) -> Result<Session, AppError> {
         self.repo.delete_session(id).await
     }
 
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn delete_session_for_user(
         &self,
         id: &str,
@@ -48,10 +63,12 @@ impl<S: SessionRepository, U: UserRepository> SessionService<S, U> {
         self.repo.delete_session_for_user(id, user_id).await
     }
 
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn get_sessions_by_user_id(&self, user_id: &str) -> Result<Vec<Session>, AppError> {
         self.repo.get_sessions_by_user_id(user_id).await
     }
 
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn validate_session_and_update_metrics(
         &self,
         id: &str,
@@ -60,6 +77,7 @@ impl<S: SessionRepository, U: UserRepository> SessionService<S, U> {
     }
 
     /// Look up a user by ID and create a session for them with the given TTL.
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn create_session_for_user_by_id(
         &self,
         user_id: &str,

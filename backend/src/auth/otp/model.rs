@@ -47,7 +47,7 @@ impl Model for Database {
             .bind(("code", otp_hmac(email, code, pepper)))
             .bind(("ttl_secs", ttl_seconds as i64))
             .await
-            .map_err(AppError::database)?;
+            .map_err(|e| crate::log_and_convert!(AppError::database, "otp.remember.query", e))?;
         Ok(())
     }
 
@@ -86,9 +86,9 @@ impl Model for Database {
             .bind(("email", email.to_owned()))
             .bind(("code", otp_hmac(email, code, pepper)))
             .await
-            .map_err(AppError::database)?
+            .map_err(|e| crate::log_and_convert!(AppError::database, "otp.validate.query", e))?
             .take::<Option<Outcome>>(7)
-            .map_err(AppError::database)?
+            .map_err(|e| crate::log_and_convert!(AppError::database, "otp.validate.take", e))?
             .ok_or_else(|| AppError::invalid_request("no otp request for that email"))?;
 
         if outcome.valid > 0 {
@@ -103,7 +103,9 @@ impl Model for Database {
                 .query("DELETE type::thing('otp', $email)")
                 .bind(("email", email.to_owned()))
                 .await
-                .map_err(AppError::database)?;
+                .map_err(|e| {
+                    crate::log_and_convert!(AppError::database, "otp.lockout_delete.query", e)
+                })?;
             return Err(AppError::too_many_requests(
                 "too many incorrect otp attempts; request a new code",
             ));

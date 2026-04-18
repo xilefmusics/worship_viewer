@@ -4,6 +4,7 @@ use actix_web::{HttpMessage, HttpResponse, ResponseError};
 use thiserror::Error;
 use tracing::error;
 
+use crate::observability;
 use shared::error::Problem;
 
 #[derive(Debug, Error)]
@@ -149,9 +150,13 @@ impl From<surrealdb::Error> for AppError {
                 surrealdb::error::Db::NoRecordFound | surrealdb::error::Db::IdNotFound { .. } => {
                     AppError::NotFound("record not found".into())
                 }
-                _ => Self::database(err),
+                _ => {
+                    observability::log_error_chain("surrealdb.app_error", &err);
+                    Self::database(err)
+                }
             }
         } else {
+            observability::log_error_chain("surrealdb.app_error", &err);
             Self::database(err)
         }
     }
@@ -165,6 +170,7 @@ impl From<chordlib::Error> for AppError {
 
 impl From<reqwest::Error> for AppError {
     fn from(err: reqwest::Error) -> Self {
+        observability::log_error_chain("reqwest", &err);
         AppError::Internal(format!("HTTP client error: {}", err))
     }
 }
@@ -236,7 +242,13 @@ impl ResponseError for AppError {
 
     fn error_response(&self) -> HttpResponse {
         if matches!(self, AppError::Internal(_)) {
-            error!("{}", self);
+            error!(
+                error.code = self.code(),
+                error = %self,
+                error_source_chain = %observability::error_source_chain_string(self),
+                error_debug = ?self,
+                "internal error"
+            );
         }
         let status = self.status_code().as_u16();
         let detail = self.detail_message();

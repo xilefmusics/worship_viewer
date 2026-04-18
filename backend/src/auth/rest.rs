@@ -1,4 +1,7 @@
 use actix_governor::{Governor, GovernorConfigBuilder};
+
+use crate::governor_audit::AuditRateLimit429;
+use crate::governor_peer::ProblemJsonPeerIpKeyExtractor;
 use actix_web::{
     HttpRequest, HttpResponse,
     cookie::{Cookie, SameSite},
@@ -17,6 +20,7 @@ pub fn scope(auth_rate_limit_rps: u64, auth_rate_limit_burst: u32) -> actix_web:
     let governor_conf = GovernorConfigBuilder::default()
         .requests_per_second(auth_rate_limit_rps)
         .burst_size(auth_rate_limit_burst)
+        .key_extractor(ProblemJsonPeerIpKeyExtractor)
         .finish()
         .expect("valid rate-limit configuration");
 
@@ -26,6 +30,7 @@ pub fn scope(auth_rate_limit_rps: u64, auth_rate_limit_burst: u32) -> actix_web:
         .service(
             web::scope("")
                 .wrap(Governor::new(&governor_conf))
+                .wrap(AuditRateLimit429)
                 .service(oidc::rest::login)
                 .service(otp::rest::otp_request)
                 .service(otp::rest::otp_verify)
@@ -54,10 +59,35 @@ async fn logout(
         .cookie(&cookie_cfg.name)
         .map(|cookie| cookie.value().to_owned());
 
-    if let Some(session_id) = bearer_session.as_deref().or(cookie_session.as_deref())
-        && let Err(err) = svc.delete_session(session_id).await
-    {
-        warn!(session = session_id, "failed to drop session: {}", err);
+    if let Some(session_id) = bearer_session.as_deref().or(cookie_session.as_deref()) {
+        match svc.delete_session(session_id).await {
+            Ok(deleted) => {
+                let had_cookie = cookie_session.is_some();
+                crate::audit!(
+                    "audit.auth.logout",
+                    session_id = tracing::field::display(session_id),
+                    had_cookie = tracing::field::display(&had_cookie)
+                    ; "logout"
+                );
+                crate::audit!(
+                    "audit.session.revoked",
+                    session_id = tracing::field::display(&deleted.id),
+                    user_id = tracing::field::display(&deleted.user.id),
+                    actor_user_id = tracing::field::display(&deleted.user.id)
+                    ; "session revoked"
+                );
+            }
+            Err(err) => {
+                warn!(session = session_id, "failed to drop session: {}", err);
+            }
+        }
+    } else {
+        crate::audit!(
+            "audit.auth.logout",
+            session_id = tracing::field::display(&"none"),
+            had_cookie = tracing::field::display(&cookie_session.is_some())
+            ; "logout"
+        );
     }
 
     let mut response = HttpResponse::NoContent();

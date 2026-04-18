@@ -12,6 +12,7 @@ use crate::resources::User;
 use crate::resources::user::Role as UserRole;
 use crate::resources::user::session::service::SessionServiceHandle;
 use crate::settings::CookieConfig;
+use tracing::debug;
 
 #[derive(Clone, Default)]
 pub struct RequireUser;
@@ -73,16 +74,23 @@ where
                 Err(err) => return Err(err),
             };
 
-            let session_id = authorization_bearer(&req)
-                .or_else(|| {
-                    req.cookie(&cookie_cfg.name)
-                        .map(|cookie| cookie.value().to_owned())
-                })
-                .ok_or_else(AppError::unauthorized)?;
+            let session_id = match authorization_bearer(&req).or_else(|| {
+                req.cookie(&cookie_cfg.name)
+                    .map(|cookie| cookie.value().to_owned())
+            }) {
+                Some(id) => id,
+                None => {
+                    debug!(reason = "missing_session", "unauthorized request");
+                    return Err(AppError::unauthorized().into());
+                }
+            };
 
             let user = match svc.validate_session_and_update_metrics(&session_id).await {
                 Ok(Some(session)) => session.user,
-                Ok(None) => return Err(AppError::unauthorized().into()),
+                Ok(None) => {
+                    debug!(reason = "expired_session", "session not found or expired");
+                    return Err(AppError::unauthorized().into());
+                }
                 Err(err) => return Err(err.into()),
             };
 

@@ -14,6 +14,7 @@ use openidconnect::reqwest::async_http_client;
 use openidconnect::{Nonce, Scope};
 use serde::Deserialize;
 use time::Duration as CookieDuration;
+use tracing::instrument;
 use utoipa::IntoParams;
 
 use super::{Model as OidcModel, OidcClients, OidcProvider, PendingOidc};
@@ -38,6 +39,7 @@ use crate::settings::CookieConfig;
     ),
     tag = "Auth"
 )]
+#[instrument(level = "debug", err, skip_all, fields(provider = "google"))]
 #[get("/login")]
 async fn login(
     db: Data<Database>,
@@ -98,6 +100,7 @@ async fn login(
     ),
     tag = "Auth"
 )]
+#[instrument(level = "debug", err, skip_all, fields(provider = "google"))]
 #[get("/callback")]
 async fn callback(
     db: Data<Database>,
@@ -108,10 +111,18 @@ async fn callback(
     query: web::Query<AuthCallbackQuery>,
 ) -> Result<HttpResponse, AppError> {
     db.cleanup_expired_oidc_states().await?;
-    let pending = db
-        .take_oidc_state(&query.state)
-        .await?
-        .ok_or_else(AppError::invalid_state)?;
+    let pending = match db.take_oidc_state(&query.state).await? {
+        Some(p) => p,
+        None => {
+            crate::audit!(
+                "audit.auth.login.failure",
+                provider = tracing::field::display(&"google"),
+                reason = tracing::field::display(&"invalid_oidc_state")
+                ; "oidc login failed"
+            );
+            return Err(AppError::invalid_state());
+        }
+    };
 
     let PendingOidc {
         pkce_verifier,
@@ -123,9 +134,18 @@ async fn callback(
     } = pending;
 
     let oidc_clients = oidc_clients.get_ref();
-    let registration = oidc_clients
-        .get(&provider)
-        .ok_or_else(|| AppError::invalid_request("oauth provider not configured"))?;
+    let registration = match oidc_clients.get(&provider) {
+        Some(r) => r,
+        None => {
+            crate::audit!(
+                "audit.auth.login.failure",
+                provider = tracing::field::display(&"google"),
+                reason = tracing::field::display(&"provider_not_configured")
+                ; "oidc login failed"
+            );
+            return Err(AppError::invalid_request("oauth provider not configured"));
+        }
+    };
     let oidc_client = registration.client();
 
     let mut token_request = oidc_client.exchange_code(AuthorizationCode::new(query.code.clone()));
@@ -134,23 +154,102 @@ async fn callback(
     let token_response = token_request
         .request_async(async_http_client)
         .await
-        .map_err(AppError::oidc)?;
+        .map_err(|e| {
+            crate::audit!(
+                "audit.auth.login.failure",
+                provider = tracing::field::display(&"google"),
+                reason = tracing::field::display(&"token_exchange_failed")
+                ; "oidc login failed"
+            );
+            crate::log_and_convert!(AppError::oidc, "oidc.token_exchange", e)
+        })?;
 
-    let id_token = token_response
-        .extra_fields()
-        .id_token()
-        .ok_or_else(|| AppError::invalid_request("provider response missing id_token"))?;
+    let id_token = match token_response.extra_fields().id_token() {
+        Some(t) => t,
+        None => {
+            crate::audit!(
+                "audit.auth.login.failure",
+                provider = tracing::field::display(&"google"),
+                reason = tracing::field::display(&"missing_id_token")
+                ; "oidc login failed"
+            );
+            return Err(AppError::invalid_request(
+                "provider response missing id_token",
+            ));
+        }
+    };
 
     let claims = id_token
         .claims(&oidc_client.id_token_verifier(), &nonce)
-        .map_err(AppError::oidc)?;
+        .map_err(|e| {
+            crate::audit!(
+                "audit.auth.login.failure",
+                provider = tracing::field::display(&"google"),
+                reason = tracing::field::display(&"id_token_invalid")
+                ; "oidc login failed"
+            );
+            crate::log_and_convert!(AppError::oidc, "oidc.id_token_claims", e)
+        })?;
 
-    let user = user_svc
-        .get_user_by_email_or_create(claims.email().ok_or(AppError::Unauthorized)?)
-        .await?;
-    let session = session_svc
-        .create_session(Session::new(user, cookie_cfg.session_ttl_seconds as i64))
-        .await?;
+    let Some(email_addr) = claims.email() else {
+        crate::audit!(
+            "audit.auth.login.failure",
+            provider = tracing::field::display(&"google"),
+            reason = tracing::field::display(&"missing_email_claim")
+            ; "oidc login failed"
+        );
+        return Err(AppError::Unauthorized);
+    };
+
+    let user = match user_svc
+        .get_user_by_email_or_create(email_addr.as_str())
+        .await
+    {
+        Ok(u) => u,
+        Err(e) => {
+            crate::audit!(
+                "audit.auth.login.failure",
+                provider = tracing::field::display(&"google"),
+                reason = tracing::field::display(&"user_provision_failed"),
+                email_hash = tracing::field::display(
+                    &crate::observability::audit_email_hash(email_addr.as_str())
+                )
+                ; "oidc login failed"
+            );
+            return Err(e);
+        }
+    };
+
+    let session = match session_svc
+        .create_session(Session::new(
+            user.clone(),
+            cookie_cfg.session_ttl_seconds as i64,
+        ))
+        .await
+    {
+        Ok(s) => s,
+        Err(e) => {
+            crate::audit!(
+                "audit.auth.login.failure",
+                provider = tracing::field::display(&"google"),
+                reason = tracing::field::display(&"session_create_failed"),
+                email_hash = tracing::field::display(
+                    &crate::observability::audit_email_hash(email_addr.as_str())
+                )
+                ; "oidc login failed"
+            );
+            return Err(e);
+        }
+    };
+
+    crate::audit!(
+        "audit.auth.login.success",
+        provider = tracing::field::display(&"google"),
+        user_id = tracing::field::display(&user.id),
+        session_id = tracing::field::display(&session.id)
+        ; "login succeeded"
+    );
+
     let redirect_target =
         resolve_frontend_redirect(&cookie_cfg.post_login_path, redirect_to.as_deref());
 

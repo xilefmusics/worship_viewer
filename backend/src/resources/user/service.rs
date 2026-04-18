@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use shared::api::ListQuery;
 use shared::user::User;
+use tracing::instrument;
 
 use crate::database::Database;
 use crate::error::AppError;
@@ -25,23 +26,28 @@ impl<R, T> UserService<R, T> {
 }
 
 impl<R: UserRepository, T: TeamRepository> UserService<R, T> {
+    #[instrument(level = "debug", err, skip(self, pagination))]
     pub async fn get_users(&self, pagination: ListQuery) -> Result<Vec<User>, AppError> {
         self.repo.get_users(pagination).await
     }
 
+    #[instrument(level = "debug", err, skip(self, query))]
     pub async fn count_users(&self, query: ListQuery) -> Result<u64, AppError> {
         self.repo.count_users(query).await
     }
 
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn get_user(&self, id: &str) -> Result<User, AppError> {
         self.repo.get_user(id).await
     }
 
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn get_user_by_email(&self, email: &str) -> Result<Option<User>, AppError> {
         self.repo.get_user_by_email(email).await
     }
 
     /// Create a user and their personal team.
+    #[instrument(level = "debug", err, skip(self, user))]
     pub async fn create_user(&self, user: User) -> Result<User, AppError> {
         let created = self.repo.create_user_record(user).await?;
         self.team_repo
@@ -51,13 +57,22 @@ impl<R: UserRepository, T: TeamRepository> UserService<R, T> {
                 members: vec![],
             })
             .await?;
+        crate::audit!(
+            "audit.user.created",
+            user_id = tracing::field::display(&created.id),
+            email = tracing::field::display(&created.email),
+            role = tracing::field::debug(&created.role)
+            ; "user created"
+        );
         Ok(created)
     }
 
+    #[instrument(level = "debug", err, skip(self, request))]
     pub async fn create_user_from_request(&self, request: CreateUser) -> Result<User, AppError> {
         self.create_user(request.into_user()).await
     }
 
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn get_user_by_email_or_create(&self, email: &str) -> Result<User, AppError> {
         if let Some(user) = self.repo.get_user_by_email(email).await? {
             return Ok(user);
@@ -65,10 +80,12 @@ impl<R: UserRepository, T: TeamRepository> UserService<R, T> {
         self.create_user(User::new(email.to_lowercase())).await
     }
 
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn delete_user(&self, id: &str) -> Result<User, AppError> {
         self.repo.delete_user(id).await
     }
 
+    #[instrument(level = "debug", err, skip(self))]
     pub async fn set_default_collection(
         &self,
         user_id: &str,
