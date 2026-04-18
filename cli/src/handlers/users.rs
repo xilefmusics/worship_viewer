@@ -1,6 +1,6 @@
 use shared::api::{ApiClient, ListQuery};
 use shared::net::DefaultHttpClient;
-use shared::user::CreateUserRequest;
+use shared::user::CreateUser;
 
 use crate::commands::UsersCommand;
 use crate::output::{self, OutputFormat};
@@ -33,7 +33,7 @@ pub async fn handle_users(
             output::print_json(&user, &output)
         }
         UsersCommand::Create { json } => {
-            let payload: CreateUserRequest = serde_json::from_str(&json)?;
+            let payload: CreateUser = serde_json::from_str(&json)?;
             if dry_run {
                 let planned = serde_json::json!({
                     "method": "POST",

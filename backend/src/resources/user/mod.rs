@@ -1,4 +1,4 @@
-pub use shared::user::{CreateUserRequest, Role, User};
+pub use shared::user::{CreateUser, Role, User};
 
 mod model;
 pub use model::UserRecord;

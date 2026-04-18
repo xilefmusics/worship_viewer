@@ -23,10 +23,14 @@ pub struct SongUserSpecificAddons {
 pub struct Song {
     pub id: String,
     pub owner: String,
+    /// When true, this record is not treated as a musical song (e.g. scripture or spoken content).
     pub not_a_song: bool,
+    /// Blob IDs for sheet-music or image assets linked to this song.
     pub blobs: Vec<String>,
+    /// ChordPro-derived payload (sections, lyrics, metadata). A dedicated `SongData` schema is planned.
     #[cfg_attr(feature = "backend", schema(value_type = Object, additional_properties = true))]
     pub data: SongData,
+    /// Per-request flags such as whether the current user liked this song.
     pub user_specific_addons: SongUserSpecificAddons,
 }
 
@@ -84,7 +88,9 @@ pub struct PatchSongData {
     #[cfg_attr(feature = "backend", schema(value_type = Option<String>))]
     pub key: Patch<SimpleChord>,
     pub artists: Option<Vec<String>>,
+    /// BCP 47 language tags (e.g. `en`, `de-CH`).
     pub languages: Option<Vec<String>>,
+    /// Tempo in BPM (beats per minute).
     #[serde(default)]
     #[cfg_attr(feature = "backend", schema(value_type = Option<u32>))]
     pub tempo: Patch<u32>,

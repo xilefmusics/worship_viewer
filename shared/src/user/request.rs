@@ -9,7 +9,7 @@ use super::User;
 #[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct CreateUserRequest {
+pub struct CreateUser {
     pub email: String,
     #[serde(default)]
     pub role: Role,
@@ -17,7 +17,7 @@ pub struct CreateUserRequest {
     pub default_collection: Option<String>,
 }
 
-impl CreateUserRequest {
+impl CreateUser {
     #[cfg(feature = "backend")]
     pub fn into_user(self) -> User {
         User {

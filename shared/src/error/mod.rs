@@ -1,3 +1,7 @@
+pub mod codes;
+
+pub use codes::ErrorCode;
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -6,6 +10,10 @@ use thiserror::Error;
 /// `code` is a stable, machine-readable identifier; `error` is a human-readable
 /// description.
 #[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(deprecated = true, title = "ErrorResponse")
+)]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ErrorResponse {
     /// Stable machine-readable error code, e.g. `"unauthorized"`, `"not_found"`.
@@ -16,26 +24,101 @@ pub struct ErrorResponse {
 
 /// [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) problem document (`application/problem+json`).
 ///
-/// Includes `code` and `error` alongside `detail` so older clients that only read `error` keep working.
+/// Canonical error body for HTTP 4xx/5xx responses. Extension members include `code` and legacy `error`
+/// (same value as `detail` when both are present).
 #[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "backend", schema(title = "Problem"))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ProblemDetails {
-    /// URI reference identifying the problem type; `about:blank` when omitted in responses.
+pub struct Problem {
+    /// URI reference identifying the problem type.
     #[serde(rename = "type")]
     pub type_uri: String,
     /// Short, stable summary of the problem class.
     pub title: String,
     /// HTTP status code.
     pub status: u16,
-    /// Human-readable explanation (same value as [`Self::error`]).
-    pub detail: String,
+    /// Stable machine-readable code (extension member).
+    pub code: String,
+    /// Human-readable explanation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
     /// Optional URI reference that identifies the specific occurrence.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instance: Option<String>,
-    /// Stable machine-readable code (extension member).
-    pub code: String,
     /// Same as `detail` (legacy alias).
-    pub error: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+impl Problem {
+    /// Build a problem document with `detail` and legacy `error` set to the same string.
+    pub fn new(
+        type_uri: String,
+        title: String,
+        status: u16,
+        code: impl Into<String>,
+        detail: String,
+        instance: Option<String>,
+    ) -> Self {
+        Self {
+            type_uri,
+            title,
+            status,
+            code: code.into(),
+            detail: Some(detail.clone()),
+            instance,
+            error: Some(detail),
+        }
+    }
+}
+
+/// Deprecated OpenAPI name for [`Problem`]; identical wire shape.
+#[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
+#[cfg_attr(
+    feature = "backend",
+    schema(deprecated = true, title = "ProblemDetails")
+)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ProblemDetails {
+    #[serde(rename = "type")]
+    pub type_uri: String,
+    pub title: String,
+    pub status: u16,
+    pub code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub instance: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+impl From<Problem> for ProblemDetails {
+    fn from(p: Problem) -> Self {
+        Self {
+            type_uri: p.type_uri,
+            title: p.title,
+            status: p.status,
+            code: p.code,
+            detail: p.detail,
+            instance: p.instance,
+            error: p.error,
+        }
+    }
+}
+
+impl From<ProblemDetails> for Problem {
+    fn from(p: ProblemDetails) -> Self {
+        Self {
+            type_uri: p.type_uri,
+            title: p.title,
+            status: p.status,
+            code: p.code,
+            detail: p.detail,
+            instance: p.instance,
+            error: p.error,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Error)]

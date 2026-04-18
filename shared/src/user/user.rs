@@ -14,6 +14,7 @@ pub struct User {
     pub created_at: DateTime<Utc>,
     #[serde(default)]
     pub last_login_at: Option<DateTime<Utc>>,
+    /// Approximate authenticated API request count for this user (diagnostic; semantics may evolve).
     #[serde(default)]
     pub request_count: u64,
 }

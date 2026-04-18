@@ -6,7 +6,7 @@ use actix_web::{
 
 use crate::accept::accepts_worship_player_json;
 #[allow(unused_imports)]
-use crate::docs::ProblemDetails;
+use crate::docs::Problem;
 use crate::error::AppError;
 use crate::http_cache::{if_none_match_matches, weak_etag_json};
 use crate::resources::User;
@@ -39,8 +39,8 @@ pub fn scope() -> Scope {
     get,
     path = "/api/v1/songs",
     params(
-        ("page" = Option<u32>, Query, description = "Zero-based page index (default 0). `X-Total-Count` is the total before pagination; the last page is when `items.len() < page_size` or the list is empty (see `docs/business-logic-constraints/list-pagination.md`)."),
-        ("page_size" = Option<u32>, Query, description = "Page size 1–500 (default 50)."),
+        ("page" = Option<u32>, Query, description = "Zero-based page index (default 0). `X-Total-Count` is the total before pagination; the last page is when `items.len() < page_size` or the list is empty (see `docs/business-logic-constraints/list-pagination.md`).", minimum = 0, nullable = true),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50.", minimum = 1, maximum = 500, example = 50, nullable = true),
         ("q" = Option<String>, Query, description = "Full-text search query (titles, artists, line lyrics); uses text_search analyzer (stemming)"),
         ("sort" = Option<String>, Query, description = "Sort: `id_desc` (default without q), `id_asc`, `title_asc`, `title_desc`, `relevance` (default with q; requires q when set explicitly)"),
         ("lang" = Option<String>, Query, description = "Filter: song must list this language in `data.languages`."),
@@ -48,9 +48,9 @@ pub fn scope() -> Scope {
     ),
     responses(
         (status = 200, description = "Return all songs. `X-Total-Count` header contains the total number of matching songs.", body = [Song]),
-        (status = 400, description = "Invalid pagination or filter parameters", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 500, description = "Failed to fetch songs", body = ProblemDetails)
+        (status = 400, description = "Invalid pagination or filter parameters", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to fetch songs", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Songs",
     security(
@@ -67,7 +67,7 @@ async fn get_songs(
     let query = query
         .into_inner()
         .validate()
-        .map_err(AppError::invalid_request)?;
+        .map_err(crate::error::map_list_query_error)?;
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let songs = svc.list_songs_for_user(&perms, query.clone()).await?;
     let total = svc.count_songs_for_user(&perms, &query).await?;
@@ -88,10 +88,10 @@ async fn get_songs(
     responses(
         (status = 200, description = "Return a single song. Response includes a weak `ETag`; send `If-None-Match` for conditional requests.", body = Song),
         (status = 304, description = "Not modified (when `If-None-Match` matches the current ETag)"),
-        (status = 400, description = "Invalid song identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Song not found", body = ProblemDetails),
-        (status = 500, description = "Failed to fetch song", body = ProblemDetails)
+        (status = 400, description = "Invalid song identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Song not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to fetch song", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Songs",
     security(
@@ -127,11 +127,11 @@ async fn get_song(
     ),
     responses(
         (status = 200, description = "Return player metadata for a song (`Content-Type: application/json`). Send `Accept: application/json`, `application/vnd.worship.player+json`, or `*/*`.", body = Player),
-        (status = 400, description = "Invalid song identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Song not found", body = ProblemDetails),
-        (status = 406, description = "No supported representation in Accept header", body = ProblemDetails),
-        (status = 500, description = "Failed to fetch song player data", body = ProblemDetails)
+        (status = 400, description = "Invalid song identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Song not found", body = Problem, content_type = "application/problem+json"),
+        (status = 406, description = "No supported representation in Accept header", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to fetch song player data", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Songs",
     security(
@@ -161,9 +161,9 @@ async fn get_song_player(
     request_body = CreateSong,
     responses(
         (status = 201, description = "Create a new song. If the user has no default collection yet, the server may create a system \"Default\" collection and set it as `user.default_collection` (BLC-SONG-010).", body = Song),
-        (status = 400, description = "Invalid song payload", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 500, description = "Failed to create song", body = ProblemDetails)
+        (status = 400, description = "Invalid song payload", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to create song", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Songs",
     security(
@@ -193,10 +193,10 @@ async fn create_song(
     responses(
         (status = 200, description = "Updated an existing song.", body = Song),
         (status = 201, description = "Created the song via PUT upsert (new id). Response includes `Location: /api/v1/songs/{id}`.", body = Song),
-        (status = 400, description = "Invalid song identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Song not found", body = ProblemDetails),
-        (status = 500, description = "Failed to update song", body = ProblemDetails)
+        (status = 400, description = "Invalid song identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Song not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to update song", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Songs",
     security(
@@ -231,10 +231,10 @@ async fn update_song(
     request_body = PatchSong,
     responses(
         (status = 200, description = "Partially update an existing song", body = Song),
-        (status = 400, description = "Invalid song identifier or payload", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Song not found", body = ProblemDetails),
-        (status = 500, description = "Failed to patch song", body = ProblemDetails)
+        (status = 400, description = "Invalid song identifier or payload", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Song not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to patch song", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Songs",
     security(
@@ -264,10 +264,10 @@ async fn patch_song(
     ),
     responses(
         (status = 204, description = "Song deleted"),
-        (status = 400, description = "Invalid song identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Song not found", body = ProblemDetails),
-        (status = 500, description = "Failed to delete song", body = ProblemDetails)
+        (status = 400, description = "Invalid song identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Song not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to delete song", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Songs",
     security(
@@ -294,10 +294,10 @@ async fn delete_song(
     ),
     responses(
         (status = 200, description = "Whether the current user likes this song", body = LikeStatus),
-        (status = 400, description = "Invalid song identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Song not found", body = ProblemDetails),
-        (status = 500, description = "Failed to get like status for a song", body = ProblemDetails)
+        (status = 400, description = "Invalid song identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Song not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to get like status for a song", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Songs",
     security(
@@ -323,10 +323,10 @@ async fn get_song_like_status(
     ),
     responses(
         (status = 204, description = "Current user now likes this song"),
-        (status = 400, description = "Invalid song identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Song not found", body = ProblemDetails),
-        (status = 500, description = "Failed to update like status for a song", body = ProblemDetails)
+        (status = 400, description = "Invalid song identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Song not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to update like status for a song", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Songs",
     security(
@@ -353,10 +353,10 @@ async fn put_song_like(
     ),
     responses(
         (status = 204, description = "Current user no longer likes this song"),
-        (status = 400, description = "Invalid song identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Song not found", body = ProblemDetails),
-        (status = 500, description = "Failed to update like status for a song", body = ProblemDetails)
+        (status = 400, description = "Invalid song identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Song not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to update like status for a song", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Songs",
     security(

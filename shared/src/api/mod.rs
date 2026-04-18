@@ -13,13 +13,13 @@ use crate::player::Player;
 use crate::setlist::{CreateSetlist, Setlist};
 use crate::song::{CreateSong, Song};
 use crate::team::{CreateTeam, Team, UpdateTeam};
-use crate::user::{CreateUserRequest, Session, User};
+use crate::user::{CreateUser, Session, User};
 use std::vec::Vec;
 
 mod list_query;
 mod song_list_query;
 
-pub use list_query::ListQuery;
+pub use list_query::{ListQuery, PageQuery};
 pub use song_list_query::{SongListQuery, SongSort};
 pub struct ApiClient<C: HttpClient> {
     client: C,
@@ -77,10 +77,7 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.get(&path).await
     }
 
-    pub async fn create_user(
-        &self,
-        payload: CreateUserRequest,
-    ) -> Result<User, NetworkClientError> {
+    pub async fn create_user(&self, payload: CreateUser) -> Result<User, NetworkClientError> {
         self.client.post("api/v1/users", &payload).await
     }
 

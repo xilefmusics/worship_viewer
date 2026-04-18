@@ -11,8 +11,8 @@ Applies to **GET** list routes that support paging: **`/users`** (admin), **`/bl
 ## Validation
 
 - **BLC-LP-004:** WHEN **`page`** or **`page_size`** is present but not a valid integer THEN the API responds **400**.
-- **BLC-LP-004a:** WHEN **`page_size`** IS **`0`** THEN the API responds **400** (zero is not a valid page size).
-- **BLC-LP-004b:** WHEN **`page_size`** EXCEEDS **500** THEN the API responds **400**.
+- **BLC-LP-004a:** WHEN **`page_size`** IS **`0`** THEN the API responds **400** (zero is not a valid page size) with Problem `code` **`invalid_page_size`**.
+- **BLC-LP-004b:** WHEN **`page_size`** EXCEEDS **500** THEN the API responds **400** with Problem `code` **`invalid_page_size`**.
 - **BLC-LP-005:** WHEN **`q`** IS only whitespace THEN it IS treated as absent: the same result as omitting **`q`**, after applying visibility rules for the caller.
 
 ## Pagination behavior

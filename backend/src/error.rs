@@ -4,7 +4,7 @@ use actix_web::{HttpMessage, HttpResponse, ResponseError};
 use thiserror::Error;
 use tracing::error;
 
-use shared::error::ProblemDetails;
+use shared::error::Problem;
 
 #[derive(Debug, Error)]
 pub enum AppError {
@@ -16,6 +16,8 @@ pub enum AppError {
     NotFound(String),
     #[error("invalid request: {0}")]
     InvalidRequest(String),
+    #[error("invalid page size: {0}")]
+    InvalidPageSize(String),
     #[error("{0}")]
     Conflict(String),
     #[error("too many requests: {0}")]
@@ -37,15 +39,14 @@ pub fn json_config() -> JsonConfig {
             .extensions()
             .get::<crate::request_id::ApiRequestTarget>()
             .map(|t| t.0.clone());
-        let problem = ProblemDetails {
-            type_uri: "https://worship-viewer.invalid/problems/invalid_request".into(),
-            title: "Bad Request".into(),
-            status: 400,
-            detail: message.clone(),
+        let problem = Problem::new(
+            "https://worship-viewer.invalid/problems/invalid_request".into(),
+            "Bad Request".into(),
+            400,
+            "invalid_request",
+            message.clone(),
             instance,
-            code: "invalid_request".into(),
-            error: message,
-        };
+        );
         actix_web::error::InternalError::from_response(
             err,
             HttpResponse::build(StatusCode::BAD_REQUEST)
@@ -67,6 +68,10 @@ impl AppError {
 
     pub fn invalid_request<T: Into<String>>(msg: T) -> Self {
         Self::InvalidRequest(msg.into())
+    }
+
+    pub fn invalid_page_size<T: Into<String>>(msg: T) -> Self {
+        Self::InvalidPageSize(msg.into())
     }
 
     pub fn invalid_state() -> Self {
@@ -95,6 +100,15 @@ impl AppError {
 
     pub fn too_many_requests<T: Into<String>>(msg: T) -> Self {
         Self::TooManyRequests(msg.into())
+    }
+}
+
+/// Map [`shared::api::ListQuery::validate`] / [`shared::api::SongListQuery::validate`] failures to the right `AppError` (`invalid_page_size` vs `invalid_request`).
+pub fn map_list_query_error(message: String) -> AppError {
+    if message.contains("page_size") {
+        AppError::invalid_page_size(message)
+    } else {
+        AppError::invalid_request(message)
     }
 }
 
@@ -157,6 +171,7 @@ impl AppError {
             AppError::Forbidden => "forbidden",
             AppError::NotFound(_) => "not_found",
             AppError::InvalidRequest(_) => "invalid_request",
+            AppError::InvalidPageSize(_) => "invalid_page_size",
             AppError::Conflict(_) => "conflict",
             AppError::TooManyRequests(_) => "too_many_requests",
             AppError::NotAcceptable(_) => "not_acceptable",
@@ -199,7 +214,7 @@ impl ResponseError for AppError {
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
             AppError::Forbidden => StatusCode::FORBIDDEN,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
-            AppError::InvalidRequest(_) => StatusCode::BAD_REQUEST,
+            AppError::InvalidRequest(_) | AppError::InvalidPageSize(_) => StatusCode::BAD_REQUEST,
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             AppError::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
@@ -213,15 +228,14 @@ impl ResponseError for AppError {
         }
         let status = self.status_code().as_u16();
         let detail = self.detail_message();
-        let problem = ProblemDetails {
-            type_uri: self.problem_type_uri(),
-            title: http_status_title(status).to_string(),
+        let problem = Problem::new(
+            self.problem_type_uri(),
+            http_status_title(status).to_string(),
             status,
-            detail: detail.clone(),
-            instance: None,
-            code: self.code().to_string(),
-            error: detail,
-        };
+            self.code(),
+            detail.clone(),
+            None,
+        );
         HttpResponse::build(self.status_code())
             .content_type("application/problem+json")
             .json(problem)

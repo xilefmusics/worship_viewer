@@ -5,10 +5,10 @@ use actix_web::{
 };
 use serde::Deserialize;
 
-use shared::api::ListQuery;
+use shared::api::{ListQuery, PageQuery};
 
 #[allow(unused_imports)]
-use crate::docs::ProblemDetails;
+use crate::docs::Problem;
 use crate::error::AppError;
 use crate::resources::User;
 use crate::settings::CookieConfig;
@@ -19,15 +19,14 @@ use super::service::SessionServiceHandle;
     get,
     path = "/api/v1/users/me/sessions",
     params(
-        ("page" = Option<u32>, Query, description = "Zero-based page. With `page_size`, `X-Total-Count` is pre-pagination total (`list-pagination.md`)."),
-        ("page_size" = Option<u32>, Query, description = "Items per page (1–500). Omit with `page` for full list."),
-        ("q" = Option<String>, Query, description = "Reserved.")
+        ("page" = Option<u32>, Query, description = "Zero-based page. With `page_size`, `X-Total-Count` is pre-pagination total (`list-pagination.md`).", minimum = 0, nullable = true),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.", minimum = 1, maximum = 500, example = 50, nullable = true),
     ),
     responses(
         (status = 200, description = "Returns active sessions for the current user. `X-Total-Count` is the total before paging.", body = [Session]),
-        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 500, description = "Failed to list sessions for current user", body = ProblemDetails)
+        (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to list sessions for current user", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Users",
     security(
@@ -39,14 +38,15 @@ use super::service::SessionServiceHandle;
 pub async fn get_sessions_for_current_user(
     svc: Data<SessionServiceHandle>,
     user: ReqData<User>,
-    query: Query<ListQuery>,
+    query: Query<PageQuery>,
 ) -> Result<HttpResponse, AppError> {
     let query = query
         .into_inner()
         .validate()
-        .map_err(AppError::invalid_request)?;
+        .map_err(crate::error::map_list_query_error)?;
     let sessions = svc.get_sessions_by_user_id(&user.id).await?;
-    let (page, total) = ListQuery::paginate_nested_vec(sessions, &query);
+    let lq = query.as_list_query();
+    let (page, total) = ListQuery::paginate_nested_vec(sessions, &lq);
     Ok(HttpResponse::Ok()
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
@@ -63,9 +63,9 @@ pub async fn get_sessions_for_current_user(
     ),
     responses(
         (status = 200, description = "Returns a session for the current user", body = Session),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Session not found for current user", body = ProblemDetails),
-        (status = 500, description = "Failed to fetch session", body = ProblemDetails)
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Session not found for current user", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to fetch session", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Users",
     security(
@@ -90,9 +90,9 @@ pub async fn get_session_for_current_user(
     ),
     responses(
         (status = 204, description = "Session deleted"),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Session not found for current user", body = ProblemDetails),
-        (status = 500, description = "Failed to delete session", body = ProblemDetails)
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Session not found for current user", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to delete session", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Users",
     security(
@@ -118,9 +118,9 @@ pub async fn delete_session_for_current_user(
     ),
     responses(
         (status = 201, description = "Creates a session for the specified user", body = Session),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 403, description = "Admin role required", body = ProblemDetails),
-        (status = 500, description = "Failed to create session", body = ProblemDetails)
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to create session", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Users",
     security(
@@ -146,16 +146,15 @@ pub async fn create_session_for_user(
     path = "/api/v1/users/{user_id}/sessions",
     params(
         ("user_id" = String, Path, description = "User identifier"),
-        ("page" = Option<u32>, Query, description = "Zero-based page. With `page_size`, `X-Total-Count` is pre-pagination total (`list-pagination.md`)."),
-        ("page_size" = Option<u32>, Query, description = "Items per page (1–500). Omit with `page` for full list."),
-        ("q" = Option<String>, Query, description = "Reserved.")
+        ("page" = Option<u32>, Query, description = "Zero-based page. With `page_size`, `X-Total-Count` is pre-pagination total (`list-pagination.md`).", minimum = 0, nullable = true),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.", minimum = 1, maximum = 500, example = 50, nullable = true),
     ),
     responses(
         (status = 200, description = "Returns active sessions for the specified user. `X-Total-Count` is the total before paging.", body = [Session]),
-        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 403, description = "Admin role required", body = ProblemDetails),
-        (status = 500, description = "Failed to list sessions", body = ProblemDetails)
+        (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to list sessions", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Users",
     security(
@@ -167,14 +166,15 @@ pub async fn create_session_for_user(
 pub async fn get_sessions_for_user(
     svc: Data<SessionServiceHandle>,
     path: Path<UserIdPath>,
-    query: Query<ListQuery>,
+    query: Query<PageQuery>,
 ) -> Result<HttpResponse, AppError> {
     let query = query
         .into_inner()
         .validate()
-        .map_err(AppError::invalid_request)?;
+        .map_err(crate::error::map_list_query_error)?;
     let sessions = svc.get_sessions_by_user_id(&path.user_id).await?;
-    let (page, total) = ListQuery::paginate_nested_vec(sessions, &query);
+    let lq = query.as_list_query();
+    let (page, total) = ListQuery::paginate_nested_vec(sessions, &lq);
     Ok(HttpResponse::Ok()
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
@@ -192,10 +192,10 @@ pub async fn get_sessions_for_user(
     ),
     responses(
         (status = 200, description = "Returns a session for the specified user", body = Session),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 403, description = "Admin role required", body = ProblemDetails),
-        (status = 404, description = "Session not found for specified user", body = ProblemDetails),
-        (status = 500, description = "Failed to fetch session", body = ProblemDetails)
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Session not found for specified user", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to fetch session", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Users",
     security(
@@ -220,10 +220,10 @@ pub async fn get_session_for_user(
     ),
     responses(
         (status = 204, description = "Session deleted"),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 403, description = "Admin role required", body = ProblemDetails),
-        (status = 404, description = "Session not found for specified user", body = ProblemDetails),
-        (status = 500, description = "Failed to delete session", body = ProblemDetails)
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Admin role required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Session not found for specified user", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to delete session", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Users",
     security(

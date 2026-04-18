@@ -18,8 +18,10 @@ pub struct Player {
     items: Vec<PlayerItem>,
     toc: Vec<TocItem>,
     scroll_type: ScrollType,
+    /// Scroll mode cached when toggling orientation (book/half-page behavior).
     scroll_type_cache_other_orientation: ScrollType,
     orientation: Orientation,
+    /// In book scroll mode, whether navigation jumps between whole items.
     between_items: bool,
     index: usize,
 }

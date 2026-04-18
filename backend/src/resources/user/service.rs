@@ -7,7 +7,7 @@ use crate::database::Database;
 use crate::error::AppError;
 use crate::resources::team::{SurrealTeamRepo, TeamCreatePayload, TeamRepository, user_thing};
 
-use super::CreateUserRequest;
+use super::CreateUser;
 use super::repository::UserRepository;
 use super::surreal_repo::SurrealUserRepo;
 
@@ -54,10 +54,7 @@ impl<R: UserRepository, T: TeamRepository> UserService<R, T> {
         Ok(created)
     }
 
-    pub async fn create_user_from_request(
-        &self,
-        request: CreateUserRequest,
-    ) -> Result<User, AppError> {
+    pub async fn create_user_from_request(&self, request: CreateUser) -> Result<User, AppError> {
         self.create_user(request.into_user()).await
     }
 

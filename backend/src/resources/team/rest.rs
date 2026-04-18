@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use crate::docs::ProblemDetails;
+use crate::docs::Problem;
 use crate::error::AppError;
 use crate::resources::User;
 use actix_web::http::header;
@@ -7,7 +7,7 @@ use actix_web::{
     HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
 };
-use shared::api::ListQuery;
+use shared::api::{ListQuery, PageQuery};
 #[allow(unused_imports)]
 use shared::team::Team;
 use shared::team::{CreateTeam, PatchTeam, UpdateTeam};
@@ -30,15 +30,14 @@ pub fn scope() -> Scope {
     get,
     path = "/api/v1/teams",
     params(
-        ("page" = Option<u32>, Query, description = "Page index, zero-based. Omit with `page_size` for full list (see nested pagination)."),
-        ("page_size" = Option<u32>, Query, description = "Items per page (1–500). Omit with `page` for full list."),
-        ("q" = Option<String>, Query, description = "Reserved; not used for teams.")
+        ("page" = Option<u32>, Query, description = "Page index, zero-based. Omit with `page_size` for full list (see nested pagination).", minimum = 0, nullable = true),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.", minimum = 1, maximum = 500, example = 50, nullable = true),
     ),
     responses(
         (status = 200, description = "Teams readable by the current user; platform admins receive all teams (except internal public). `X-Total-Count` is the total before paging.", body = [Team]),
-        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 500, description = "Failed to list teams", body = ProblemDetails)
+        (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to list teams", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
     security(
@@ -50,15 +49,16 @@ pub fn scope() -> Scope {
 async fn get_teams(
     svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
-    query: Query<ListQuery>,
+    query: Query<PageQuery>,
 ) -> Result<HttpResponse, AppError> {
     let query = query
         .into_inner()
         .validate()
-        .map_err(AppError::invalid_request)?;
+        .map_err(crate::error::map_list_query_error)?;
     let teams = svc.list_teams_for_user(&user).await?;
     let total = teams.len() as u64;
-    let (page, _) = ListQuery::paginate_nested_vec(teams, &query);
+    let lq = query.as_list_query();
+    let (page, _) = ListQuery::paginate_nested_vec(teams, &lq);
     Ok(HttpResponse::Ok()
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
@@ -75,9 +75,9 @@ async fn get_teams(
     ),
     responses(
         (status = 200, description = "Team details; platform admins may read any team except internal public", body = Team),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Team not found", body = ProblemDetails),
-        (status = 500, description = "Failed to fetch team", body = ProblemDetails)
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Team not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to fetch team", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
     security(
@@ -100,9 +100,9 @@ async fn get_team(
     request_body = CreateTeam,
     responses(
         (status = 201, description = "Shared team created", body = Team),
-        (status = 400, description = "Invalid request", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 500, description = "Failed to create team", body = ProblemDetails)
+        (status = 400, description = "Invalid request", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to create team", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
     security(
@@ -130,12 +130,12 @@ async fn create_team(
     request_body = UpdateTeam,
     responses(
         (status = 200, description = "Team updated", body = Team),
-        (status = 400, description = "Invalid request", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 403, description = "Insufficient team role", body = ProblemDetails),
-        (status = 404, description = "Team not found", body = ProblemDetails),
-        (status = 409, description = "Sole admin cannot remove all admins", body = ProblemDetails),
-        (status = 500, description = "Failed to update team", body = ProblemDetails)
+        (status = 400, description = "Invalid request", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Insufficient team role", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Team not found", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "Sole admin cannot remove all admins", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to update team", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
     security(
@@ -164,12 +164,12 @@ async fn update_team(
     request_body = PatchTeam,
     responses(
         (status = 200, description = "Team partially updated", body = Team),
-        (status = 400, description = "Invalid request", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 403, description = "Insufficient team role", body = ProblemDetails),
-        (status = 404, description = "Team not found", body = ProblemDetails),
-        (status = 409, description = "Sole admin cannot remove all admins", body = ProblemDetails),
-        (status = 500, description = "Failed to update team", body = ProblemDetails)
+        (status = 400, description = "Invalid request", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Insufficient team role", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Team not found", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "Sole admin cannot remove all admins", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to update team", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
     security(
@@ -198,10 +198,10 @@ async fn patch_team(
     ),
     responses(
         (status = 204, description = "Team deleted"),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 403, description = "Cannot delete personal team or insufficient role", body = ProblemDetails),
-        (status = 404, description = "Team not found", body = ProblemDetails),
-        (status = 500, description = "Failed to delete team", body = ProblemDetails)
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Cannot delete personal team or insufficient role", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Team not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to delete team", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
     security(

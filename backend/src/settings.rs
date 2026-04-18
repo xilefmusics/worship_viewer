@@ -47,17 +47,6 @@ pub struct Settings {
     pub oidc_redirect_url: String,
     pub oidc_scopes: Vec<String>,
 
-    #[serde(default)]
-    pub apple_issuer_url: Option<String>,
-    #[serde(default)]
-    pub apple_client_id: Option<String>,
-    #[serde(default)]
-    pub apple_client_secret: Option<String>,
-    #[serde(default)]
-    pub apple_redirect_url: Option<String>,
-    #[serde(default)]
-    pub apple_scopes: Option<Vec<String>>,
-
     pub initial_admin_user_email: Option<String>,
     pub initial_admin_user_test_session: bool,
 
@@ -100,11 +89,6 @@ impl Default for Settings {
             oidc_client_secret: None,
             oidc_redirect_url: "http://localhost:8080/auth/callback".into(),
             oidc_scopes: vec!["openid".into(), "profile".into(), "email".into()],
-            apple_issuer_url: None,
-            apple_client_id: None,
-            apple_client_secret: None,
-            apple_redirect_url: None,
-            apple_scopes: None,
             initial_admin_user_email: None,
             initial_admin_user_test_session: false,
             gmail_app_password: String::new(),

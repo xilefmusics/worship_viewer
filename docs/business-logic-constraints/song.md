@@ -23,6 +23,7 @@
 - **BLC-SONG-013:** WHEN **GET …/player** runs THEN visibility matches **GET /songs/{id}**.
 - **BLC-SONG-014:** WHEN **DELETE /songs/{id}** succeeds THEN the song no longer appears via the API under the same access rules as **PUT**.
 - **BLC-SONG-017:** WHEN **PUT /songs/{id}** body fails validation (e.g. empty **`data`**, or wrong types for fields such as **`tempo`** / **`time`**) THEN **400**.
+- **BLC-SONG-019:** WHEN **PATCH /songs/{id}** omits **`data`** and other patch fields THEN those properties remain unchanged; the request body lists only fields to update (see OpenAPI **`PatchSong`**).
 - **BLC-SONG-018:** WHEN **PUT /songs/{id}** uses an **`{id}`** that does not yet refer to an existing song THEN the API MAY create the song (**200**) with that **id** and **`owner`** the caller’s **personal** team, subject to **BLC-SONG-007** and **BLC-SONG-008** for **guest** vs **edit** rights on that team.
 
 ## Cascading deletes and collection/setlist references

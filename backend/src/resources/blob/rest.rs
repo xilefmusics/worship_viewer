@@ -5,7 +5,7 @@ use actix_web::{
 };
 
 #[allow(unused_imports)]
-use crate::docs::ProblemDetails;
+use crate::docs::Problem;
 use crate::error::AppError;
 use crate::http_cache::{if_none_match_matches, weak_etag_json};
 use crate::resources::User;
@@ -37,15 +37,15 @@ pub fn scope(blob_upload_max_bytes: usize) -> Scope {
     get,
     path = "/api/v1/blobs",
     params(
-        ("page" = Option<u32>, Query, description = "Zero-based page (default 0). Track A: `X-Total-Count` = pre-pagination total; last page when `items.len() < page_size` or empty. See `list-pagination.md`."),
-        ("page_size" = Option<u32>, Query, description = "Page size 1–500 (default 50)."),
+        ("page" = Option<u32>, Query, description = "Zero-based page (default 0). Track A: `X-Total-Count` = pre-pagination total; last page when `items.len() < page_size` or empty. See `list-pagination.md`.", minimum = 0, nullable = true),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50.", minimum = 1, maximum = 500, example = 50, nullable = true),
         ("q" = Option<String>, Query, description = "Optional case-insensitive substring filter on stored OCR text. Whitespace-only is treated as absent.")
     ),
     responses(
         (status = 200, description = "Return all blobs. `X-Total-Count` matches the filtered total.", body = [Blob]),
-        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 500, description = "Failed to fetch blobs", body = ProblemDetails)
+        (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to fetch blobs", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
     security(
@@ -62,7 +62,7 @@ async fn get_blobs(
     let query = query
         .into_inner()
         .validate()
-        .map_err(AppError::invalid_request)?;
+        .map_err(crate::error::map_list_query_error)?;
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let blobs = svc.list_blobs_for_user(&perms, query.clone()).await?;
     let total = svc.count_blobs_for_user(&perms, &query).await?;
@@ -83,10 +83,10 @@ async fn get_blobs(
     responses(
         (status = 200, description = "Return a single blob (weak `ETag`; `If-None-Match` supported)", body = Blob),
         (status = 304, description = "Not modified"),
-        (status = 400, description = "Invalid blob identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Blob not found", body = ProblemDetails),
-        (status = 500, description = "Failed to fetch blob", body = ProblemDetails)
+        (status = 400, description = "Invalid blob identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Blob not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to fetch blob", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
     security(
@@ -120,9 +120,9 @@ async fn get_blob(
     request_body = CreateBlob,
     responses(
         (status = 201, description = "Create a new blob", body = Blob),
-        (status = 400, description = "Invalid blob payload", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 500, description = "Failed to create blob", body = ProblemDetails)
+        (status = 400, description = "Invalid blob payload", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to create blob", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
     security(
@@ -152,10 +152,10 @@ async fn create_blob(
     request_body = CreateBlob,
     responses(
         (status = 200, description = "Update an existing blob", body = Blob),
-        (status = 400, description = "Invalid blob identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Blob not found", body = ProblemDetails),
-        (status = 500, description = "Failed to update blob", body = ProblemDetails)
+        (status = 400, description = "Invalid blob identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Blob not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to update blob", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
     security(
@@ -186,10 +186,10 @@ async fn update_blob(
     request_body = PatchBlob,
     responses(
         (status = 200, description = "Partially update an existing blob", body = Blob),
-        (status = 400, description = "Invalid blob identifier or payload", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Blob not found", body = ProblemDetails),
-        (status = 500, description = "Failed to patch blob", body = ProblemDetails)
+        (status = 400, description = "Invalid blob identifier or payload", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Blob not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to patch blob", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
     security(
@@ -219,10 +219,10 @@ async fn patch_blob(
     ),
     responses(
         (status = 204, description = "Blob deleted"),
-        (status = 400, description = "Invalid blob identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Blob not found", body = ProblemDetails),
-        (status = 500, description = "Failed to delete blob", body = ProblemDetails)
+        (status = 400, description = "Invalid blob identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Blob not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to delete blob", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
     security(
@@ -251,14 +251,14 @@ async fn delete_blob(
         (
             status = 200,
             description = "Binary image data. `Content-Type` reflects the stored file type \
-                           (`image/png`, `image/jpeg`, or `image/svg`).",
+                           (`image/png`, `image/jpeg`, or `image/svg+xml`).",
             content_type = "image/*",
             body = Vec<u8>
         ),
-        (status = 400, description = "Invalid blob identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Blob not found", body = ProblemDetails),
-        (status = 500, description = "Failed to download blob", body = ProblemDetails)
+        (status = 400, description = "Invalid blob identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Blob not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to download blob", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
     security(
@@ -280,6 +280,10 @@ async fn download_blob_image(
         .file_name()
         .unwrap_or_else(|| format!("blob-{}", blob.id));
     let mut res = file.into_response(&req);
+    res.headers_mut().insert(
+        header::CONTENT_TYPE,
+        header::HeaderValue::from_static(blob.file_type.mime()),
+    );
     res.headers_mut().insert(
         header::CONTENT_DISPOSITION,
         header::HeaderValue::from_str(&format!(
@@ -308,11 +312,11 @@ async fn download_blob_image(
     ),
     responses(
         (status = 204, description = "Blob content uploaded successfully"),
-        (status = 400, description = "Invalid blob identifier", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Blob not found or write access denied", body = ProblemDetails),
-        (status = 413, description = "Payload too large", body = ProblemDetails),
-        (status = 500, description = "Failed to store blob content", body = ProblemDetails)
+        (status = 400, description = "Invalid blob identifier", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Blob not found or write access denied", body = Problem, content_type = "application/problem+json"),
+        (status = 413, description = "Payload too large", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to store blob content", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Blobs",
     security(
