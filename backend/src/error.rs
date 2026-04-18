@@ -1,6 +1,6 @@
 use actix_web::http::StatusCode;
 use actix_web::web::JsonConfig;
-use actix_web::{HttpResponse, ResponseError};
+use actix_web::{HttpMessage, HttpResponse, ResponseError};
 use thiserror::Error;
 use tracing::error;
 
@@ -31,11 +31,26 @@ pub enum AppError {
 /// 400 `AppError::InvalidRequest` response instead of the default plain-text
 /// 400 from actix-web.
 pub fn json_config() -> JsonConfig {
-    JsonConfig::default().error_handler(|err, _req| {
+    JsonConfig::default().error_handler(|err, req| {
         let message = err.to_string();
+        let instance = req
+            .extensions()
+            .get::<crate::request_id::ApiRequestTarget>()
+            .map(|t| t.0.clone());
+        let problem = ProblemDetails {
+            type_uri: "https://worship-viewer.invalid/problems/invalid_request".into(),
+            title: "Bad Request".into(),
+            status: 400,
+            detail: message.clone(),
+            instance,
+            code: "invalid_request".into(),
+            error: message,
+        };
         actix_web::error::InternalError::from_response(
             err,
-            AppError::InvalidRequest(message).error_response(),
+            HttpResponse::build(StatusCode::BAD_REQUEST)
+                .content_type("application/problem+json")
+                .json(problem),
         )
         .into()
     })
@@ -90,7 +105,10 @@ impl From<surrealdb::Error> for AppError {
                 surrealdb::error::Db::IndexExists { .. }
                 | surrealdb::error::Db::RecordExists { .. }
                 | surrealdb::error::Db::TxKeyAlreadyExists
-                | surrealdb::error::Db::TxConditionNotMet => Self::conflict(dberr.to_string()),
+                | surrealdb::error::Db::TxConditionNotMet => {
+                    error!("database conflict: {dberr}");
+                    Self::conflict("request conflicts with existing data")
+                }
                 surrealdb::error::Db::FieldCheck { .. }
                 | surrealdb::error::Db::FieldValue { .. }
                 | surrealdb::error::Db::InvalidField { .. }

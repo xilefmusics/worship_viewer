@@ -13,6 +13,8 @@ pub struct OtpConfig {
     pub ttl_seconds: u64,
     pub pepper: String,
     pub max_attempts: u32,
+    /// When false, OTP verify rejects unknown emails instead of creating a user.
+    pub allow_self_signup: bool,
 }
 
 #[derive(Deserialize, Debug)]
@@ -28,6 +30,9 @@ pub struct Settings {
     pub otp_ttl_seconds: u64,
     pub otp_pepper: String,
     pub otp_max_attempts: u32,
+    /// When false, `/auth/otp/verify` requires an existing user (no implicit signup). Default true.
+    #[serde(default = "default_otp_allow_self_signup")]
+    pub otp_allow_self_signup: bool,
 
     pub db_address: String,
     pub db_namespace: String,
@@ -83,6 +88,7 @@ impl Default for Settings {
             otp_ttl_seconds: 300,
             otp_pepper: "changeme".into(),
             otp_max_attempts: 5,
+            otp_allow_self_signup: true,
             db_address: "mem://".into(),
             db_namespace: "app".into(),
             db_database: "app".into(),
@@ -112,9 +118,18 @@ impl Default for Settings {
     }
 }
 
+fn default_otp_allow_self_signup() -> bool {
+    true
+}
+
 impl Settings {
     pub fn from_env() -> Result<Self, envy::Error> {
-        envy::from_env::<Self>()
+        let mut s = envy::from_env::<Self>()?;
+        if let Ok(v) = std::env::var("WORSHIP_OTP_ALLOW_SELF_SIGNUP") {
+            s.otp_allow_self_signup =
+                !(v == "0" || v.eq_ignore_ascii_case("false") || v.eq_ignore_ascii_case("no"));
+        }
+        Ok(s)
     }
 
     pub fn cookie_config(&self) -> CookieConfig {
@@ -131,6 +146,7 @@ impl Settings {
             ttl_seconds: self.otp_ttl_seconds,
             pepper: self.otp_pepper.clone(),
             max_attempts: self.otp_max_attempts,
+            allow_self_signup: self.otp_allow_self_signup,
         }
     }
 }

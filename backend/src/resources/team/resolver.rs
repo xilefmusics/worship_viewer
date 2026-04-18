@@ -30,18 +30,18 @@ pub trait TeamResolver: Send + Sync {
 /// Per-request caching wrapper around a [`User`] and a [`TeamResolver`].
 ///
 /// Team lists are resolved lazily on first access and cached for the lifetime of
-/// this struct. Construct one at the start of a request handler and pass it into
-/// service methods instead of a bare `&User`.
-pub struct UserPermissions<'a, T: TeamResolver> {
-    user: &'a User,
-    resolver: &'a T,
+/// this struct. Construct with [`UserPermissions::from_ref`](UserPermissions::from_ref)
+/// (or [`UserPermissions::new`](UserPermissions::new) with `Arc`s) at the start of a handler.
+pub struct UserPermissions<T: TeamResolver> {
+    user: Arc<User>,
+    resolver: Arc<T>,
     read_teams: OnceCell<Vec<Thing>>,
     write_teams: OnceCell<Vec<Thing>>,
     personal_team: OnceCell<Thing>,
 }
 
-impl<'a, T: TeamResolver> UserPermissions<'a, T> {
-    pub fn new(user: &'a User, resolver: &'a T) -> Self {
+impl<T: TeamResolver> UserPermissions<T> {
+    pub fn new(user: Arc<User>, resolver: Arc<T>) -> Self {
         Self {
             user,
             resolver,
@@ -51,26 +51,31 @@ impl<'a, T: TeamResolver> UserPermissions<'a, T> {
         }
     }
 
+    /// Convenience for handlers and tests: clone `user` into an [`Arc`] and share `resolver`.
+    pub fn from_ref(user: &User, resolver: &Arc<T>) -> Self {
+        Self::new(Arc::new(user.clone()), Arc::clone(resolver))
+    }
+
     pub fn user(&self) -> &User {
-        self.user
+        self.user.as_ref()
     }
 
     /// Teams whose content the user may read. Resolved once; subsequent calls return the cached slice.
     pub async fn read_teams(&self) -> Result<&[Thing], AppError> {
-        let user = self.user;
-        let resolver = self.resolver;
+        let user = Arc::clone(&self.user);
+        let resolver = Arc::clone(&self.resolver);
         self.read_teams
-            .get_or_try_init(|| async move { resolver.content_read_teams(user).await })
+            .get_or_try_init(|| async move { resolver.content_read_teams(user.as_ref()).await })
             .await
             .map(Vec::as_slice)
     }
 
     /// Teams whose content the user may write. Resolved once; subsequent calls return the cached slice.
     pub async fn write_teams(&self) -> Result<&[Thing], AppError> {
-        let user = self.user;
-        let resolver = self.resolver;
+        let user = Arc::clone(&self.user);
+        let resolver = Arc::clone(&self.resolver);
         self.write_teams
-            .get_or_try_init(|| async move { resolver.content_write_teams(user).await })
+            .get_or_try_init(|| async move { resolver.content_write_teams(user.as_ref()).await })
             .await
             .map(Vec::as_slice)
     }
@@ -78,11 +83,26 @@ impl<'a, T: TeamResolver> UserPermissions<'a, T> {
     /// The user's personal team. Resolved once; subsequent calls return a clone.
     pub async fn personal_team(&self) -> Result<Thing, AppError> {
         let user_id = self.user.id.clone();
-        let resolver = self.resolver;
+        let resolver = Arc::clone(&self.resolver);
         self.personal_team
             .get_or_try_init(|| async move { resolver.personal_team(&user_id).await })
             .await
             .cloned()
+    }
+}
+
+#[async_trait]
+impl<T: TeamResolver + Send + Sync> TeamResolver for Arc<T> {
+    async fn content_read_teams(&self, user: &User) -> Result<Vec<Thing>, AppError> {
+        self.as_ref().content_read_teams(user).await
+    }
+
+    async fn content_write_teams(&self, user: &User) -> Result<Vec<Thing>, AppError> {
+        self.as_ref().content_write_teams(user).await
+    }
+
+    async fn personal_team(&self, user_id: &str) -> Result<Thing, AppError> {
+        self.as_ref().personal_team(user_id).await
     }
 }
 

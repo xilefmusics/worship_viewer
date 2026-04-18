@@ -102,11 +102,11 @@ mod tests {
         let db = test_db().await.expect("test db");
         let svc = SetlistService::new(
             SurrealSetlistRepo::new(db.clone()),
-            SurrealTeamResolver::new(db.clone()),
+            std::sync::Arc::new(SurrealTeamResolver::new(db.clone())),
             db.clone(),
         );
         let user = seed_user(&db).await.expect("seed user");
-        let perms = UserPermissions::new(&user, &svc.teams);
+        let perms = UserPermissions::from_ref(&user, &svc.teams);
         let created = svc
             .create_setlist_for_user(
                 &perms,

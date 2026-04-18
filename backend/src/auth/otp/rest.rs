@@ -12,7 +12,7 @@ use time::Duration as CookieDuration;
 use super::Model;
 use crate::database::Database;
 #[allow(unused_imports)]
-use crate::docs::ErrorResponse;
+use crate::docs::ProblemDetails;
 use crate::error::AppError;
 use crate::mail::MailService;
 use crate::resources::Session;
@@ -25,10 +25,10 @@ use crate::settings::{CookieConfig, OtpConfig};
     path = "/auth/otp/request",
     request_body = OtpRequest,
     responses(
-        (status = 204, description = "OTP generated and delivered out-of-band"),
-        (status = 400, description = "Email missing or invalid", body = ErrorResponse),
-        (status = 429, description = "Rate limit exceeded; slow down and retry", body = ErrorResponse),
-        (status = 500, description = "Failed to persist or deliver OTP", body = ErrorResponse)
+        (status = 204, description = "OTP generated and delivered out-of-band. Rate limits apply per IP (see server `auth_rate_limit_*` settings). Lockout after too many failed verify attempts is enforced on `/auth/otp/verify`."),
+        (status = 400, description = "Email missing or invalid", body = ProblemDetails),
+        (status = 429, description = "Rate limit exceeded; slow down and retry", body = ProblemDetails),
+        (status = 500, description = "Failed to persist or deliver OTP", body = ProblemDetails)
     ),
     tag = "Auth"
 )]
@@ -64,10 +64,10 @@ async fn otp_request(
     path = "/auth/otp/verify",
     request_body = OtpVerify,
     responses(
-        (status = 200, description = "OTP verified successfully; session cookie issued", body = Session),
-        (status = 400, description = "OTP verification failed", body = ErrorResponse),
-        (status = 429, description = "Too many incorrect attempts; request a new code", body = ErrorResponse),
-        (status = 500, description = "Failed to create session", body = ErrorResponse)
+        (status = 200, description = "OTP verified successfully; session cookie issued. When `WORSHIP_OTP_ALLOW_SELF_SIGNUP` is unset/true, a new user may be created for an unknown email; when false, the email must already exist.", body = Session),
+        (status = 400, description = "OTP verification failed, or signup disabled for unknown email", body = ProblemDetails),
+        (status = 429, description = "Too many incorrect attempts; request a new code", body = ProblemDetails),
+        (status = 500, description = "Failed to create session", body = ProblemDetails)
     ),
     tag = "Auth"
 )]
@@ -97,7 +97,15 @@ async fn otp_verify(
     db.validate_otp(&email, &code, &otp_cfg.pepper, otp_cfg.max_attempts)
         .await?;
 
-    let user = user_svc.get_user_by_email_or_create(&email).await?;
+    let user = if otp_cfg.allow_self_signup {
+        user_svc.get_user_by_email_or_create(&email).await?
+    } else {
+        user_svc.get_user_by_email(&email).await?.ok_or_else(|| {
+            AppError::invalid_request(
+                "no user exists for this email; self-signup via OTP is disabled",
+            )
+        })?
+    };
     let session = session_svc
         .create_session(Session::new(user, cookie_cfg.session_ttl_seconds as i64))
         .await?;

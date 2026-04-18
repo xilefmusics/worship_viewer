@@ -38,6 +38,25 @@ async fn main() -> AnyResult<()> {
 
     let settings = Settings::from_env()?;
 
+    let production = matches!(
+        std::env::var("WORSHIP_PRODUCTION").ok().as_deref(),
+        Some("true" | "1" | "yes")
+    ) || matches!(
+        std::env::var("RUST_ENV").ok().as_deref(),
+        Some("production")
+    );
+    if production && settings.initial_admin_user_test_session {
+        anyhow::bail!(
+            "refusing to start: initial_admin_user_test_session is enabled under WORSHIP_PRODUCTION or RUST_ENV=production"
+        );
+    }
+
+    let static_dir = std::fs::canonicalize(settings.static_dir.as_str())
+        .with_context(|| format!("static_dir {:?} could not be resolved", settings.static_dir))?
+        .to_string_lossy()
+        .into_owned();
+    info!("Serving static files from {}", static_dir);
+
     let cookie_config = Data::new(settings.cookie_config());
     let otp_config = Data::new(settings.otp_config());
 
@@ -115,17 +134,25 @@ async fn main() -> AnyResult<()> {
 
     let oidc_clients = Data::new(Arc::new(oidc::build_clients(&settings).await?));
 
-    let blob_service = BlobServiceHandle::build(db.clone(), settings.blob_dir.clone());
-    let collection_service = CollectionServiceHandle::build(db.clone());
-    let song_service = SongServiceHandle::build(db.clone());
+    let team_resolver = Arc::new(SurrealTeamResolver::new(db.clone()));
+    let blob_service = BlobServiceHandle::build_with_team_resolver(
+        db.clone(),
+        settings.blob_dir.clone(),
+        team_resolver.clone(),
+    );
+    let collection_service =
+        CollectionServiceHandle::build_with_team_resolver(db.clone(), team_resolver.clone());
+    let song_service =
+        SongServiceHandle::build_with_team_resolver(db.clone(), team_resolver.clone());
     let setlist_service = SetlistService::new(
         SurrealSetlistRepo::new(db.clone()),
-        SurrealTeamResolver::new(db.clone()),
+        team_resolver.clone(),
         db.clone(),
     );
-    let team_service = TeamServiceHandle::build(db.clone());
+    let team_service =
+        TeamServiceHandle::build_with_team_resolver(db.clone(), team_resolver.clone());
+    let team_resolver_data = Data::new(team_resolver);
     let invitation_service = InvitationServiceHandle::build(db.clone());
-    let static_dir = settings.static_dir.clone();
     let db_data = Data::from(db);
 
     info!(
@@ -143,6 +170,7 @@ async fn main() -> AnyResult<()> {
             .app_data(Data::new(collection_service.clone()))
             .app_data(Data::new(song_service.clone()))
             .app_data(Data::new(setlist_service.clone()))
+            .app_data(team_resolver_data.clone())
             .app_data(Data::new(team_service.clone()))
             .app_data(Data::new(invitation_service.clone()))
             .app_data(Data::new(user_service.clone()))
@@ -150,7 +178,9 @@ async fn main() -> AnyResult<()> {
             .app_data(oidc_clients.clone())
             .app_data(cookie_config.clone())
             .app_data(otp_config.clone())
-            .wrap(Logger::default())
+            .wrap(Logger::new(
+                r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
+            ))
             .service(auth::rest::scope(
                 settings.auth_rate_limit_rps,
                 settings.auth_rate_limit_burst,

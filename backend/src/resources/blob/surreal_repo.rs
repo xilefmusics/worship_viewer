@@ -31,6 +31,17 @@ impl SurrealBlobRepo {
     }
 }
 
+fn blob_list_q_needle(q: &ListQuery) -> Option<String> {
+    q.q.as_ref().and_then(|s| {
+        let t = s.trim();
+        if t.is_empty() {
+            None
+        } else {
+            Some(t.to_lowercase())
+        }
+    })
+}
+
 #[async_trait]
 impl BlobRepository for SurrealBlobRepo {
     async fn get_blobs(
@@ -40,17 +51,29 @@ impl BlobRepository for SurrealBlobRepo {
     ) -> Result<Vec<Blob>, AppError> {
         let db = self.inner();
         let (offset, limit) = pagination.effective_offset_limit();
-        let query =
-            String::from("SELECT * FROM blob WHERE owner IN $teams LIMIT $limit START $start");
+        let needle = blob_list_q_needle(&pagination);
 
-        let mut response = db
-            .db
-            .query(query)
-            .bind(("teams", read_teams.to_vec()))
-            .bind(("limit", limit))
-            .bind(("start", offset))
-            .await
-            .map_err(AppError::database)?;
+        let mut response = if let Some(needle) = needle {
+            db.db
+                .query(
+                    "SELECT * FROM blob WHERE owner IN $teams AND \
+                     string::contains(string::lowercase(ocr), $needle) LIMIT $limit START $start",
+                )
+                .bind(("teams", read_teams.to_vec()))
+                .bind(("needle", needle))
+                .bind(("limit", limit))
+                .bind(("start", offset))
+                .await
+                .map_err(AppError::database)?
+        } else {
+            db.db
+                .query("SELECT * FROM blob WHERE owner IN $teams LIMIT $limit START $start")
+                .bind(("teams", read_teams.to_vec()))
+                .bind(("limit", limit))
+                .bind(("start", offset))
+                .await
+                .map_err(AppError::database)?
+        };
 
         Ok(response
             .take::<Vec<BlobRecord>>(0)?
@@ -59,17 +82,33 @@ impl BlobRepository for SurrealBlobRepo {
             .collect())
     }
 
-    async fn count_blobs(&self, read_teams: &[Thing]) -> Result<u64, AppError> {
+    async fn count_blobs(
+        &self,
+        read_teams: &[Thing],
+        pagination: &ListQuery,
+    ) -> Result<u64, AppError> {
         #[derive(Deserialize)]
         struct CountResult {
             count: u64,
         }
-        let mut response = self
-            .inner()
-            .db
-            .query("SELECT count() FROM blob WHERE owner IN $teams GROUP ALL")
-            .bind(("teams", read_teams.to_vec()))
-            .await?;
+        let needle = blob_list_q_needle(pagination);
+        let mut response = if let Some(needle) = needle {
+            self.inner()
+                .db
+                .query(
+                    "SELECT count() FROM blob WHERE owner IN $teams AND \
+                     string::contains(string::lowercase(ocr), $needle) GROUP ALL",
+                )
+                .bind(("teams", read_teams.to_vec()))
+                .bind(("needle", needle))
+                .await?
+        } else {
+            self.inner()
+                .db
+                .query("SELECT count() FROM blob WHERE owner IN $teams GROUP ALL")
+                .bind(("teams", read_teams.to_vec()))
+                .await?
+        };
         Ok(response
             .take::<Vec<CountResult>>(0)?
             .into_iter()

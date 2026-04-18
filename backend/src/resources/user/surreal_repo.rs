@@ -33,13 +33,33 @@ impl SurrealUserRepo {
 impl UserRepository for SurrealUserRepo {
     async fn get_users(&self, pagination: ListQuery) -> Result<Vec<User>, AppError> {
         let (offset, limit) = pagination.effective_offset_limit();
-        let mut response = self
-            .inner()
-            .db
-            .query("SELECT * FROM user LIMIT $limit START $start")
-            .bind(("limit", limit))
-            .bind(("start", offset))
-            .await?;
+        let needle = pagination.q.as_ref().and_then(|s| {
+            let t = s.trim();
+            if t.is_empty() {
+                None
+            } else {
+                Some(t.to_lowercase())
+            }
+        });
+        let mut response = if let Some(needle) = needle {
+            self.inner()
+                .db
+                .query(
+                    "SELECT * FROM user WHERE string::contains(string::lowercase(email), $needle) \
+                     LIMIT $limit START $start",
+                )
+                .bind(("needle", needle))
+                .bind(("limit", limit))
+                .bind(("start", offset))
+                .await?
+        } else {
+            self.inner()
+                .db
+                .query("SELECT * FROM user LIMIT $limit START $start")
+                .bind(("limit", limit))
+                .bind(("start", offset))
+                .await?
+        };
         Ok(response
             .take::<Vec<UserRecord>>(0)?
             .into_iter()
@@ -47,16 +67,33 @@ impl UserRepository for SurrealUserRepo {
             .collect())
     }
 
-    async fn count_users(&self) -> Result<u64, AppError> {
+    async fn count_users(&self, query: ListQuery) -> Result<u64, AppError> {
         #[derive(Deserialize)]
         struct CountResult {
             count: u64,
         }
-        let mut response = self
-            .inner()
-            .db
-            .query("SELECT count() FROM user GROUP ALL")
-            .await?;
+        let needle = query.q.as_ref().and_then(|s| {
+            let t = s.trim();
+            if t.is_empty() {
+                None
+            } else {
+                Some(t.to_lowercase())
+            }
+        });
+        let mut response = if let Some(needle) = needle {
+            self.inner()
+                .db
+                .query(
+                    "SELECT count() FROM user WHERE string::contains(string::lowercase(email), $needle) GROUP ALL",
+                )
+                .bind(("needle", needle))
+                .await?
+        } else {
+            self.inner()
+                .db
+                .query("SELECT count() FROM user GROUP ALL")
+                .await?
+        };
         Ok(response
             .take::<Vec<CountResult>>(0)?
             .into_iter()
@@ -118,6 +155,18 @@ impl UserRepository for SurrealUserRepo {
                 "collection",
                 Thing::from(("collection".to_owned(), collection_id.to_owned())),
             ))
+            .await?;
+        Ok(())
+    }
+}
+
+impl SurrealUserRepo {
+    pub async fn clear_default_collection(&self, user_id: &str) -> Result<(), AppError> {
+        let _ = self
+            .inner()
+            .db
+            .query("UPDATE $user SET default_collection = NONE")
+            .bind(("user", Thing::from(("user".to_owned(), user_id.to_owned()))))
             .await?;
         Ok(())
     }

@@ -5,7 +5,7 @@ use actix_web::{
 };
 
 #[allow(unused_imports)]
-use crate::docs::ErrorResponse;
+use crate::docs::ProblemDetails;
 use crate::error::AppError;
 use crate::http_cache::{if_none_match_matches, weak_etag_json};
 use crate::resources::User;
@@ -37,14 +37,15 @@ pub fn scope(blob_upload_max_bytes: usize) -> Scope {
     get,
     path = "/api/v1/blobs",
     params(
-        ("page" = Option<u32>, Query, description = "Page index, zero-based. Defaults to 0."),
-        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50.")
+        ("page" = Option<u32>, Query, description = "Zero-based page (default 0). Track A: `X-Total-Count` = pre-pagination total; last page when `items.len() < page_size` or empty. See `list-pagination.md`."),
+        ("page_size" = Option<u32>, Query, description = "Page size 1–500 (default 50)."),
+        ("q" = Option<String>, Query, description = "Optional case-insensitive substring filter on stored OCR text. Whitespace-only is treated as absent.")
     ),
     responses(
-        (status = 200, description = "Return all blobs. `X-Total-Count` header contains the total number of blobs.", body = [Blob]),
-        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch blobs", body = ErrorResponse)
+        (status = 200, description = "Return all blobs. `X-Total-Count` matches the filtered total.", body = [Blob]),
+        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch blobs", body = ProblemDetails)
     ),
     tag = "Blobs",
     security(
@@ -62,9 +63,9 @@ async fn get_blobs(
         .into_inner()
         .validate()
         .map_err(AppError::invalid_request)?;
-    let perms = UserPermissions::new(&user, &svc.teams);
-    let blobs = svc.list_blobs_for_user(&perms, query).await?;
-    let total = svc.count_blobs_for_user(&perms).await?;
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
+    let blobs = svc.list_blobs_for_user(&perms, query.clone()).await?;
+    let total = svc.count_blobs_for_user(&perms, &query).await?;
     Ok(HttpResponse::Ok()
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
@@ -82,10 +83,10 @@ async fn get_blobs(
     responses(
         (status = 200, description = "Return a single blob (weak `ETag`; `If-None-Match` supported)", body = Blob),
         (status = 304, description = "Not modified"),
-        (status = 400, description = "Invalid blob identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Blob not found", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch blob", body = ErrorResponse)
+        (status = 400, description = "Invalid blob identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Blob not found", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch blob", body = ProblemDetails)
     ),
     tag = "Blobs",
     security(
@@ -100,7 +101,7 @@ async fn get_blob(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     let blob = svc.get_blob_for_user(&perms, &id).await?;
     let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
     if if_none_match_matches(&req, &etag) {
@@ -119,9 +120,9 @@ async fn get_blob(
     request_body = CreateBlob,
     responses(
         (status = 201, description = "Create a new blob", body = Blob),
-        (status = 400, description = "Invalid blob payload", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 500, description = "Failed to create blob", body = ErrorResponse)
+        (status = 400, description = "Invalid blob payload", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 500, description = "Failed to create blob", body = ProblemDetails)
     ),
     tag = "Blobs",
     security(
@@ -135,7 +136,7 @@ async fn create_blob(
     user: ReqData<User>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Created().json(
         svc.create_blob_for_user(&perms, payload.into_inner())
             .await?,
@@ -151,10 +152,10 @@ async fn create_blob(
     request_body = CreateBlob,
     responses(
         (status = 200, description = "Update an existing blob", body = Blob),
-        (status = 400, description = "Invalid blob identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Blob not found", body = ErrorResponse),
-        (status = 500, description = "Failed to update blob", body = ErrorResponse)
+        (status = 400, description = "Invalid blob identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Blob not found", body = ProblemDetails),
+        (status = 500, description = "Failed to update blob", body = ProblemDetails)
     ),
     tag = "Blobs",
     security(
@@ -169,7 +170,7 @@ async fn update_blob(
     id: PathParam<String>,
     payload: Json<CreateBlob>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
         svc.update_blob_for_user(&perms, &id, payload.into_inner())
             .await?,
@@ -185,10 +186,10 @@ async fn update_blob(
     request_body = PatchBlob,
     responses(
         (status = 200, description = "Partially update an existing blob", body = Blob),
-        (status = 400, description = "Invalid blob identifier or payload", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Blob not found", body = ErrorResponse),
-        (status = 500, description = "Failed to patch blob", body = ErrorResponse)
+        (status = 400, description = "Invalid blob identifier or payload", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Blob not found", body = ProblemDetails),
+        (status = 500, description = "Failed to patch blob", body = ProblemDetails)
     ),
     tag = "Blobs",
     security(
@@ -203,7 +204,7 @@ async fn patch_blob(
     id: PathParam<String>,
     payload: Json<PatchBlob>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
         svc.patch_blob_for_user(&perms, &id, payload.into_inner())
             .await?,
@@ -218,10 +219,10 @@ async fn patch_blob(
     ),
     responses(
         (status = 204, description = "Blob deleted"),
-        (status = 400, description = "Invalid blob identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Blob not found", body = ErrorResponse),
-        (status = 500, description = "Failed to delete blob", body = ErrorResponse)
+        (status = 400, description = "Invalid blob identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Blob not found", body = ProblemDetails),
+        (status = 500, description = "Failed to delete blob", body = ProblemDetails)
     ),
     tag = "Blobs",
     security(
@@ -235,7 +236,7 @@ async fn delete_blob(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     svc.delete_blob_for_user(&perms, &id).await?;
     Ok(HttpResponse::NoContent().finish())
 }
@@ -254,10 +255,10 @@ async fn delete_blob(
             content_type = "image/*",
             body = Vec<u8>
         ),
-        (status = 400, description = "Invalid blob identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Blob not found", body = ErrorResponse),
-        (status = 500, description = "Failed to download blob", body = ErrorResponse)
+        (status = 400, description = "Invalid blob identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Blob not found", body = ProblemDetails),
+        (status = 500, description = "Failed to download blob", body = ProblemDetails)
     ),
     tag = "Blobs",
     security(
@@ -272,7 +273,7 @@ async fn download_blob_image(
     user: ReqData<User>,
     id: PathParam<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     let id = id.into_inner();
     let (blob, file) = svc.open_blob_data_file_for_user(&perms, &id).await?;
     let filename = blob
@@ -307,11 +308,11 @@ async fn download_blob_image(
     ),
     responses(
         (status = 204, description = "Blob content uploaded successfully"),
-        (status = 400, description = "Invalid blob identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Blob not found or write access denied", body = ErrorResponse),
-        (status = 413, description = "Payload too large", body = ErrorResponse),
-        (status = 500, description = "Failed to store blob content", body = ErrorResponse)
+        (status = 400, description = "Invalid blob identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Blob not found or write access denied", body = ProblemDetails),
+        (status = 413, description = "Payload too large", body = ProblemDetails),
+        (status = 500, description = "Failed to store blob content", body = ProblemDetails)
     ),
     tag = "Blobs",
     security(
@@ -326,7 +327,7 @@ async fn upload_blob_data(
     id: PathParam<String>,
     body: Bytes,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     svc.upload_blob_data_for_user(&perms, &id, &body).await?;
     Ok(HttpResponse::NoContent().finish())
 }

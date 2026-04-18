@@ -23,11 +23,11 @@ use super::surreal_repo::SurrealTeamRepo;
 #[derive(Clone)]
 pub struct TeamService<R, TR> {
     pub repo: R,
-    pub resolver: TR,
+    pub resolver: Arc<TR>,
 }
 
 impl<R, TR> TeamService<R, TR> {
-    pub fn new(repo: R, resolver: TR) -> Self {
+    pub fn new(repo: R, resolver: Arc<TR>) -> Self {
         Self { repo, resolver }
     }
 }
@@ -193,7 +193,7 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
     }
 
     pub async fn delete_team_for_user(&self, user: &User, id: &str) -> Result<Team, AppError> {
-        let perms = UserPermissions::new(user, &self.resolver);
+        let perms = UserPermissions::from_ref(user, &self.resolver);
         let resource = team_resource_or_reject_public(id)?;
 
         let row = self
@@ -225,10 +225,17 @@ pub type TeamServiceHandle = TeamService<SurrealTeamRepo, super::resolver::Surre
 
 impl TeamServiceHandle {
     pub fn build(db: Arc<Database>) -> Self {
-        TeamService::new(
-            SurrealTeamRepo::new(db.clone()),
-            super::resolver::SurrealTeamResolver::new(db.clone()),
+        Self::build_with_team_resolver(
+            db.clone(),
+            Arc::new(super::resolver::SurrealTeamResolver::new(db.clone())),
         )
+    }
+
+    pub fn build_with_team_resolver(
+        db: Arc<Database>,
+        resolver: Arc<super::resolver::SurrealTeamResolver>,
+    ) -> Self {
+        TeamService::new(SurrealTeamRepo::new(db.clone()), resolver)
     }
 }
 
@@ -728,7 +735,7 @@ mod tests {
 
         // admin_user's personal team now owns the song.
         let admin_personal = personal_team_id(&db, &fx.admin_user).await.expect("pt");
-        let song_perms = UserPermissions::new(&fx.admin_user, &song_svc.teams);
+        let song_perms = UserPermissions::from_ref(&fx.admin_user, &song_svc.teams);
         let fetched = song_svc
             .get_song_for_user(&song_perms, &song.id)
             .await
@@ -748,7 +755,7 @@ mod tests {
         let coll_svc = collection_service(&db);
 
         // admin_user creates a collection (owned by their personal team).
-        let admin_perms_coll = UserPermissions::new(&fx.admin_user, &coll_svc.teams);
+        let admin_perms_coll = UserPermissions::from_ref(&fx.admin_user, &coll_svc.teams);
         let coll = coll_svc
             .create_collection_for_user(
                 &admin_perms_coll,

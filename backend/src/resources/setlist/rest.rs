@@ -6,7 +6,7 @@ use actix_web::{
 
 use crate::accept::accepts_worship_player_json;
 #[allow(unused_imports)]
-use crate::docs::{ErrorResponse, ProblemDetails};
+use crate::docs::ProblemDetails;
 use crate::error::AppError;
 use crate::http_cache::{if_none_match_matches, weak_etag_json};
 use crate::resources::User;
@@ -38,15 +38,15 @@ pub fn scope() -> Scope {
     get,
     path = "/api/v1/setlists",
     params(
-        ("page" = Option<u32>, Query, description = "Page index, zero-based. Defaults to 0."),
-        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50."),
+        ("page" = Option<u32>, Query, description = "Zero-based page (default 0). `X-Total-Count` = filtered total before pagination; last page when `items.len() < page_size` or empty (`list-pagination.md`)."),
+        ("page_size" = Option<u32>, Query, description = "Page size 1–500 (default 50)."),
         ("q" = Option<String>, Query, description = "Full-text search query (title); uses text_search analyzer (stemming)")
     ),
     responses(
         (status = 200, description = "Return all setlists. `X-Total-Count` header contains the total number of matching setlists.", body = [Setlist]),
-        (status = 400, description = "Invalid pagination parameters", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch setlists", body = ErrorResponse)
+        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch setlists", body = ProblemDetails)
     ),
     tag = "Setlists",
     security(
@@ -64,7 +64,7 @@ async fn get_setlists(
         .into_inner()
         .validate()
         .map_err(AppError::invalid_request)?;
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     let q_ref = query.q.clone();
     let setlists = svc.list_setlists_for_user(&perms, query).await?;
     let total = svc
@@ -87,10 +87,10 @@ async fn get_setlists(
     responses(
         (status = 200, description = "Return a single setlist (weak `ETag`; `If-None-Match` supported)", body = Setlist),
         (status = 304, description = "Not modified"),
-        (status = 400, description = "Invalid setlist identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Setlist not found", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch setlist", body = ErrorResponse)
+        (status = 400, description = "Invalid setlist identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Setlist not found", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch setlist", body = ProblemDetails)
     ),
     tag = "Setlists",
     security(
@@ -105,7 +105,7 @@ async fn get_setlist(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     let setlist = svc.get_setlist_for_user(&perms, &id).await?;
     let etag = weak_etag_json(&setlist).map_err(|e| AppError::Internal(e.to_string()))?;
     if if_none_match_matches(&req, &etag) {
@@ -150,7 +150,7 @@ async fn get_setlist_player(
             "supported Accept values include application/json, application/vnd.worship.player+json, and */*",
         ));
     }
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(svc.setlist_player_for_user(&perms, &id).await?))
 }
 
@@ -165,10 +165,10 @@ async fn get_setlist_player(
     ),
     responses(
         (status = 200, description = "Return the songs for a setlist. `X-Total-Count` is the total before paging.", body = [Song]),
-        (status = 400, description = "Invalid setlist identifier or pagination", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Setlist not found", body = ErrorResponse),
-        (status = 500, description = "Failed to fetch setlist songs", body = ErrorResponse)
+        (status = 400, description = "Invalid setlist identifier or pagination", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Setlist not found", body = ProblemDetails),
+        (status = 500, description = "Failed to fetch setlist songs", body = ProblemDetails)
     ),
     tag = "Setlists",
     security(
@@ -187,7 +187,7 @@ async fn get_setlist_songs(
         .into_inner()
         .validate()
         .map_err(AppError::invalid_request)?;
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     let (songs, total) = svc.setlist_songs_for_user(&perms, &id, query).await?;
     Ok(HttpResponse::Ok()
         .insert_header((
@@ -203,9 +203,9 @@ async fn get_setlist_songs(
     request_body = CreateSetlist,
     responses(
         (status = 201, description = "Create a new setlist", body = Setlist),
-        (status = 400, description = "Invalid setlist payload", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 500, description = "Failed to create setlist", body = ErrorResponse)
+        (status = 400, description = "Invalid setlist payload", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 500, description = "Failed to create setlist", body = ProblemDetails)
     ),
     tag = "Setlists",
     security(
@@ -219,7 +219,7 @@ async fn create_setlist(
     user: ReqData<User>,
     payload: Json<CreateSetlist>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Created().json(
         svc.create_setlist_for_user(&perms, payload.into_inner())
             .await?,
@@ -235,9 +235,10 @@ async fn create_setlist(
     request_body = CreateSetlist,
     responses(
         (status = 200, description = "Update an existing setlist", body = Setlist),
-        (status = 400, description = "Invalid setlist identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 500, description = "Failed to update setlist", body = ErrorResponse)
+        (status = 400, description = "Invalid setlist identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Setlist not found", body = ProblemDetails),
+        (status = 500, description = "Failed to update setlist", body = ProblemDetails)
     ),
     tag = "Setlists",
     security(
@@ -252,7 +253,7 @@ async fn update_setlist(
     id: Path<String>,
     payload: Json<CreateSetlist>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
         svc.update_setlist_for_user(&perms, &id, payload.into_inner())
             .await?,
@@ -268,10 +269,10 @@ async fn update_setlist(
     request_body = PatchSetlist,
     responses(
         (status = 200, description = "Partially update an existing setlist", body = Setlist),
-        (status = 400, description = "Invalid setlist identifier or payload", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Setlist not found", body = ErrorResponse),
-        (status = 500, description = "Failed to patch setlist", body = ErrorResponse)
+        (status = 400, description = "Invalid setlist identifier or payload", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Setlist not found", body = ProblemDetails),
+        (status = 500, description = "Failed to patch setlist", body = ProblemDetails)
     ),
     tag = "Setlists",
     security(
@@ -286,7 +287,7 @@ async fn patch_setlist(
     id: Path<String>,
     payload: Json<PatchSetlist>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     Ok(HttpResponse::Ok().json(
         svc.patch_setlist_for_user(&perms, &id, payload.into_inner())
             .await?,
@@ -301,10 +302,10 @@ async fn patch_setlist(
     ),
     responses(
         (status = 204, description = "Setlist deleted"),
-        (status = 400, description = "Invalid setlist identifier", body = ErrorResponse),
-        (status = 401, description = "Authentication required", body = ErrorResponse),
-        (status = 404, description = "Setlist not found", body = ErrorResponse),
-        (status = 500, description = "Failed to delete setlist", body = ErrorResponse)
+        (status = 400, description = "Invalid setlist identifier", body = ProblemDetails),
+        (status = 401, description = "Authentication required", body = ProblemDetails),
+        (status = 404, description = "Setlist not found", body = ProblemDetails),
+        (status = 500, description = "Failed to delete setlist", body = ProblemDetails)
     ),
     tag = "Setlists",
     security(
@@ -318,7 +319,7 @@ async fn delete_setlist(
     user: ReqData<User>,
     id: Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let perms = UserPermissions::new(&user, &svc.teams);
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
     svc.delete_setlist_for_user(&perms, &id).await?;
     Ok(HttpResponse::NoContent().finish())
 }

@@ -15,8 +15,12 @@ pub trait BlobRepository: Send + Sync {
         pagination: ListQuery,
     ) -> Result<Vec<Blob>, AppError>;
 
-    /// Count all blobs visible to `read_teams`.
-    async fn count_blobs(&self, read_teams: &[Thing]) -> Result<u64, AppError>;
+    /// Count blobs visible to `read_teams`, applying the same optional `q` OCR substring filter as [`get_blobs`](Self::get_blobs).
+    async fn count_blobs(
+        &self,
+        read_teams: &[Thing],
+        pagination: &ListQuery,
+    ) -> Result<u64, AppError>;
 
     async fn get_blob(&self, read_teams: &[Thing], id: &str) -> Result<Blob, AppError>;
 

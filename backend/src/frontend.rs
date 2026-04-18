@@ -1,7 +1,7 @@
 pub mod rest {
     use actix_files::{Files, NamedFile};
     use actix_web::dev::{ServiceRequest, ServiceResponse, fn_service};
-    use actix_web::{Error as ActixError, Scope, web};
+    use actix_web::{Error as ActixError, ResponseError, Scope, web};
     use std::path::PathBuf;
 
     use crate::error::AppError;
@@ -20,8 +20,13 @@ pub mod rest {
             move |req: ServiceRequest| {
                 let dir = dir.clone();
                 async move {
-                    let index = index_file(&dir).map_err(ActixError::from)?;
+                    let path = req.path().to_owned();
                     let (http_req, _) = req.into_parts();
+                    if path.starts_with("/api/") || path.starts_with("/auth/") {
+                        let response = AppError::NotFound("not found".into()).error_response();
+                        return Ok(ServiceResponse::new(http_req, response));
+                    }
+                    let index = index_file(&dir).map_err(ActixError::from)?;
                     let response = index.into_response(&http_req);
                     Ok(ServiceResponse::new(http_req, response))
                 }

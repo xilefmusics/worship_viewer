@@ -10,6 +10,7 @@ use crate::resources::{
     Blob, Collection, CreateBlob, CreateCollection, CreateSetlist, CreateSong, CreateUserRequest,
     Session, Setlist, Song, User,
 };
+use shared::api::{SongListQuery, SongSort};
 use shared::auth::otp::{OtpRequest, OtpVerify};
 use shared::blob::FileType;
 pub use shared::error::{ErrorResponse, ProblemDetails};
@@ -36,7 +37,7 @@ pub mod rest {
         title = "Worship Viewer API",
         version = "1.0.0",
         description = "Versioned REST API under `/api/v1`. Authentication flows live at `/auth/*` (unversioned); clients should treat that split as stable for this major API generation.\n\n\
-            **CSRF:** Cookie sessions use `SameSite=Lax`; state-changing methods are `POST`/`PUT`/`PATCH`/`DELETE` (not `GET`). Cross-site simple requests cannot mutate state via cookies under typical browser rules; API clients using bearer tokens should still avoid exposing tokens to third-party origins.\n\n\
+            **CSRF:** Cookie sessions use `SameSite=Lax`; state-changing methods are `POST`/`PUT`/`PATCH`/`DELETE` (not `GET`). Cross-site simple requests cannot mutate state via cookies under typical browser rules. Browser `fetch` from the SPA should use `credentials: 'same-origin'` (or include cookies only on same-site requests). API clients using bearer tokens should still avoid exposing tokens to third-party origins.\n\n\
             **Errors:** Error responses use `application/problem+json` ([RFC 7807](https://www.rfc-editor.org/rfc/rfc7807)) with `type`, `title`, `status`, `detail`, and `code`.\n\n\
             **Examples:** See schema `example` fields on core DTOs in the components section.",
         license(name = "MIT", url = "https://opensource.org/licenses/MIT")
@@ -116,6 +117,8 @@ pub mod rest {
             CreateUserRequest,
             OtpRequest,
             OtpVerify,
+            SongListQuery,
+            SongSort,
             ErrorResponse,
             ProblemDetails,
             Song,
