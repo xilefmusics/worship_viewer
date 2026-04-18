@@ -12,6 +12,7 @@ pub struct Blob {
     pub file_type: FileType,
     pub width: u32,
     pub height: u32,
+    /// OCR or extracted text used for search (may be empty).
     pub ocr: String,
 }
 
@@ -32,6 +33,7 @@ pub struct CreateBlob {
     pub file_type: FileType,
     pub width: u32,
     pub height: u32,
+    /// OCR or extracted text used for search (may be empty).
     pub ocr: String,
 }
 
@@ -43,6 +45,7 @@ pub struct PatchBlob {
     pub file_type: Option<FileType>,
     pub width: Option<u32>,
     pub height: Option<u32>,
+    /// OCR or extracted text used for search (may be empty).
     pub ocr: Option<String>,
 }
 

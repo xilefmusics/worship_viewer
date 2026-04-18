@@ -10,6 +10,7 @@ pub struct Collection {
     pub id: String,
     pub owner: String,
     pub title: String,
+    /// Cover art reference (client-resolved blob id or URL).
     pub cover: String,
     pub songs: Vec<SongLink>,
 }

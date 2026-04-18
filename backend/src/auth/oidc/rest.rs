@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use std::sync::Arc;
 
 use actix_web::{
@@ -20,7 +19,7 @@ use utoipa::IntoParams;
 use super::{Model as OidcModel, OidcClients, OidcProvider, PendingOidc};
 use crate::database::Database;
 #[allow(unused_imports)]
-use crate::docs::ProblemDetails;
+use crate::docs::Problem;
 use crate::error::AppError;
 use crate::resources::Session;
 use crate::resources::user::service::UserServiceHandle;
@@ -33,9 +32,9 @@ use crate::settings::CookieConfig;
     params(LoginQuery),
     responses(
         (status = 302, description = "Redirect to OIDC provider login page"),
-        (status = 400, description = "Invalid login request", body = ProblemDetails),
-        (status = 429, description = "Rate limit exceeded; slow down and retry", body = ProblemDetails),
-        (status = 500, description = "Failed to prepare login flow", body = ProblemDetails)
+        (status = 400, description = "Invalid login request", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "Rate limit exceeded; slow down and retry", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to prepare login flow", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Auth"
 )]
@@ -49,11 +48,7 @@ async fn login(
     let redirect_hint = query.redirect_to.as_deref().and_then(sanitize_redirect);
 
     let oidc_clients = oidc_clients.get_ref();
-    let provider = query
-        .provider
-        .as_deref()
-        .map_or(Ok(oidc_clients.default_provider()), OidcProvider::from_str)
-        .map_err(|_| AppError::invalid_request("unknown oauth provider"))?;
+    let provider = OidcProvider::Google;
     let registration = oidc_clients
         .get(&provider)
         .ok_or_else(|| AppError::invalid_request("oauth provider not configured"))?;
@@ -97,9 +92,9 @@ async fn login(
     params(AuthCallbackQuery),
     responses(
         (status = 302, description = "Successful callback exchange; redirects back to frontend"),
-        (status = 400, description = "Invalid OIDC state", body = ProblemDetails),
-        (status = 401, description = "OIDC user info missing required claims", body = ProblemDetails),
-        (status = 500, description = "OIDC provider or database error", body = ProblemDetails)
+        (status = 400, description = "Invalid OIDC state", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "OIDC user info missing required claims", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "OIDC provider or database error", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Auth"
 )]
@@ -193,16 +188,20 @@ fn sanitize_redirect(path: &str) -> Option<String> {
 }
 
 #[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 struct LoginQuery {
+    /// Optional same-origin path (`/…`) to use after login. Must start with `/` and must not be `//…` or `/http…`; otherwise it is ignored and the default post-login path is used (see `sanitize_redirect`).
     #[serde(default)]
+    #[param(required = false)]
     redirect_to: Option<String>,
-    #[serde(default)]
-    provider: Option<String>,
 }
 
 #[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 struct AuthCallbackQuery {
+    #[param(required = true)]
     code: String,
+    #[param(required = true)]
     state: String,
 }
 

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -10,38 +9,16 @@ use openidconnect::{ClientId, ClientSecret, IssuerUrl, RedirectUrl};
 
 use crate::settings::Settings;
 
+/// Supported OIDC identity provider (Google only in this deployment).
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum OidcProvider {
     Google,
-    Apple,
 }
 
 impl OidcProvider {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Google => "google",
-            Self::Apple => "apple",
-        }
-    }
-
-    fn issuer_error_message(&self) -> &'static str {
-        match self {
-            Self::Google => "invalid GOOGLE_ISSUER_URL value",
-            Self::Apple => "invalid APPLE_ISSUER_URL value",
-        }
-    }
-
-    fn metadata_error_message(&self) -> &'static str {
-        match self {
-            Self::Google => "unable to fetch Google provider metadata",
-            Self::Apple => "unable to fetch Apple provider metadata",
-        }
-    }
-
-    fn redirect_error_message(&self) -> &'static str {
-        match self {
-            Self::Google => "invalid GOOGLE_REDIRECT_URL value",
-            Self::Apple => "invalid APPLE_REDIRECT_URL value",
         }
     }
 }
@@ -58,7 +35,6 @@ impl FromStr for OidcProvider {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.to_ascii_lowercase().as_str() {
             "google" => Ok(Self::Google),
-            "apple" => Ok(Self::Apple),
             _ => Err(()),
         }
     }
@@ -82,23 +58,22 @@ impl OidcClientRegistration {
 
 #[derive(Debug)]
 pub struct OidcClients {
-    default_provider: OidcProvider,
-    registrations: HashMap<OidcProvider, OidcClientRegistration>,
+    google: OidcClientRegistration,
 }
 
 impl OidcClients {
     pub fn get(&self, provider: &OidcProvider) -> Option<&OidcClientRegistration> {
-        self.registrations.get(provider)
+        match provider {
+            OidcProvider::Google => Some(&self.google),
+        }
     }
 
     pub fn default_provider(&self) -> OidcProvider {
-        self.default_provider
+        OidcProvider::Google
     }
 }
 
 pub async fn build_clients(settings: &Settings) -> AnyResult<OidcClients> {
-    let mut registrations = HashMap::new();
-
     let google_client = build_client(
         OidcProvider::Google,
         &settings.oidc_issuer_url,
@@ -108,69 +83,28 @@ pub async fn build_clients(settings: &Settings) -> AnyResult<OidcClients> {
     )
     .await?;
 
-    registrations.insert(
-        OidcProvider::Google,
-        OidcClientRegistration {
+    Ok(OidcClients {
+        google: OidcClientRegistration {
             client: Arc::new(google_client),
             scopes: settings.oidc_scopes.clone(),
         },
-    );
-
-    if let Some(client_id) = settings
-        .apple_client_id
-        .as_deref()
-        .filter(|value| !value.is_empty())
-    {
-        let issuer_url = settings
-            .apple_issuer_url
-            .clone()
-            .unwrap_or_else(|| "https://appleid.apple.com".to_string());
-        let redirect_url = settings
-            .apple_redirect_url
-            .clone()
-            .unwrap_or_else(|| settings.oidc_redirect_url.clone());
-
-        let apple_client = build_client(
-            OidcProvider::Apple,
-            &issuer_url,
-            client_id,
-            settings.apple_client_secret.as_deref(),
-            &redirect_url,
-        )
-        .await?;
-
-        registrations.insert(
-            OidcProvider::Apple,
-            OidcClientRegistration {
-                client: Arc::new(apple_client),
-                scopes: settings
-                    .apple_scopes
-                    .clone()
-                    .unwrap_or_else(|| vec!["openid".into(), "email".into(), "name".into()]),
-            },
-        );
-    }
-
-    Ok(OidcClients {
-        default_provider: OidcProvider::Google,
-        registrations,
     })
 }
 
 async fn build_client(
-    provider: OidcProvider,
+    _provider: OidcProvider,
     issuer_url: &str,
     client_id: &str,
     client_secret: Option<&str>,
     redirect_url: &str,
 ) -> AnyResult<CoreClient> {
-    let issuer =
-        IssuerUrl::new(issuer_url.to_string()).with_context(|| provider.issuer_error_message())?;
+    let issuer = IssuerUrl::new(issuer_url.to_string())
+        .with_context(|| "invalid GOOGLE_ISSUER_URL value")?;
     let metadata = CoreProviderMetadata::discover_async(issuer, async_http_client)
         .await
-        .with_context(|| provider.metadata_error_message())?;
+        .with_context(|| "unable to fetch Google provider metadata")?;
     let redirect = RedirectUrl::new(redirect_url.to_string())
-        .with_context(|| provider.redirect_error_message())?;
+        .with_context(|| "invalid GOOGLE_REDIRECT_URL value")?;
 
     Ok(CoreClient::from_provider_metadata(
         metadata,

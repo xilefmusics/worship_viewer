@@ -228,6 +228,38 @@ mod openapi_endpoint {
         assert_eq!(resp.status(), StatusCode::OK);
     }
 
+    /// BLC-DOCS-003: `/auth/login` and `/auth/callback` declare query parameters as `in: query`.
+    #[actix_web::test]
+    async fn blc_docs_003_auth_params_are_query() {
+        let db = test_db().await.unwrap();
+        let app = test::init_service(build_app(db.clone())).await;
+        let req = test::TestRequest::get()
+            .uri("/api/docs/openapi.json")
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        let login = &body["paths"]["/auth/login"]["get"];
+        let params = login["parameters"].as_array().expect("login parameters");
+        for p in params {
+            assert_eq!(p["in"], "query", "login param: {p:?}");
+        }
+        let names: Vec<_> = params.iter().filter_map(|p| p["name"].as_str()).collect();
+        assert!(names.contains(&"redirect_to"));
+
+        let cb = &body["paths"]["/auth/callback"]["get"];
+        let cb_params = cb["parameters"].as_array().expect("callback parameters");
+        for p in cb_params {
+            assert_eq!(p["in"], "query", "callback param: {p:?}");
+        }
+        let cb_names: Vec<_> = cb_params
+            .iter()
+            .filter_map(|p| p["name"].as_str())
+            .collect();
+        assert!(cb_names.contains(&"code"));
+        assert!(cb_names.contains(&"state"));
+    }
+
     /// BLC-DOCS-001: GET /api/v1/docs/openapi.json (wrong prefix) returns 404.
     #[actix_web::test]
     async fn blc_docs_001_wrong_path_returns_404() {
@@ -240,6 +272,62 @@ mod openapi_endpoint {
             .uri("/api/v1/docs/openapi.json")
             .insert_header(("Authorization", format!("Bearer {token}")));
         assert_eq!(call_status!(app, req), StatusCode::NOT_FOUND);
+    }
+}
+
+/// BLC-DOCS-002: OpenAPI documents `Problem` and uses `application/problem+json` for 4xx/5xx bodies.
+#[cfg(test)]
+mod openapi_problem_schema {
+    use utoipa::OpenApi;
+
+    #[test]
+    fn blc_docs_002_openapi_problem_and_problem_json() {
+        let openapi = crate::docs::ApiDoc::openapi();
+        let v = serde_json::to_value(openapi).expect("openapi serializes to JSON");
+        let schemas = v["components"]["schemas"]
+            .as_object()
+            .expect("components.schemas");
+        assert!(
+            schemas.contains_key("Problem"),
+            "components.schemas must include Problem"
+        );
+
+        let paths = v["paths"].as_object().expect("paths");
+        for (path, path_item) in paths {
+            let path_item = path_item.as_object().expect("path item");
+            for method in ["get", "put", "post", "delete", "patch"] {
+                let Some(op) = path_item.get(method) else {
+                    continue;
+                };
+                let responses = op["responses"].as_object();
+                let Some(responses) = responses else {
+                    continue;
+                };
+                for (status, resp) in responses {
+                    let Ok(code) = status.parse::<u16>() else {
+                        continue;
+                    };
+                    if !(400..600).contains(&code) {
+                        continue;
+                    }
+                    let content = &resp["content"];
+                    assert!(
+                        content.is_object(),
+                        "{path} {method} {status}: missing content object"
+                    );
+                    assert!(
+                        content.get("application/problem+json").is_some(),
+                        "{path} {method} {status}: expected application/problem+json"
+                    );
+                    let schema_ref = &content["application/problem+json"]["schema"]["$ref"];
+                    let ok = schema_ref.as_str().is_some_and(|r| r.ends_with("/Problem"));
+                    assert!(
+                        ok,
+                        "{path} {method} {status}: schema $ref should point to Problem, got {schema_ref:?}"
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -882,6 +970,24 @@ mod list_pagination {
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(body["code"], "invalid_page_size");
+    }
+
+    /// BLC-LP-004b: page_size over 500 returns 400 with `invalid_page_size`.
+    #[actix_web::test]
+    async fn blc_lp_004b_page_size_over_max_returns_400_invalid_page_size() {
+        let db = test_db().await.unwrap();
+        let (_, token) = authed_user_and_token(&db, "lp004b@test.local").await;
+        let app = test::init_service(build_app(db.clone())).await;
+        let req = test::TestRequest::get()
+            .uri("/api/v1/songs?page_size=501")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(body["code"], "invalid_page_size");
     }
 
     /// BLC-LP-007: only `page` supplied (no page_size) returns 200.
@@ -976,6 +1082,43 @@ mod list_pagination {
             resp2.as_array().unwrap().len(),
             1,
             "page 1 of 3 matching with page_size=2 should return 1"
+        );
+    }
+}
+
+#[cfg(test)]
+mod song_patch_http {
+    use super::*;
+    use actix_web::http::StatusCode;
+
+    /// PATCH with only `not_a_song` (no `data`) is accepted; song data is unchanged.
+    #[actix_web::test]
+    async fn patch_song_not_a_song_only_without_data_is_200() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "patch-song-http@test.local")
+            .await
+            .unwrap();
+        let token = create_session_token(&db, user.clone()).await.unwrap();
+        let song = create_song_with_title(&db, &user, "PatchOnlyTitle")
+            .await
+            .unwrap();
+        assert!(!song.not_a_song);
+        let orig_title = song.data.title().to_string();
+
+        let app = test::init_service(build_app(db.clone())).await;
+        let req = test::TestRequest::patch()
+            .uri(&format!("/api/v1/songs/{}", song.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header(("Content-Type", "application/json"))
+            .set_payload(r#"{"not_a_song":true}"#)
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(body["not_a_song"], true);
+        assert_eq!(
+            body["data"]["titles"][0].as_str().unwrap(),
+            orig_title.as_str()
         );
     }
 }

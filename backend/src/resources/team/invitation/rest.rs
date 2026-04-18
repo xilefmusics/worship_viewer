@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use crate::docs::ProblemDetails;
+use crate::docs::Problem;
 use crate::error::AppError;
 use crate::resources::User;
 use actix_web::http::header;
@@ -8,7 +8,7 @@ use actix_web::{
     web::{self, Data, Path, Query, ReqData},
 };
 
-use shared::api::ListQuery;
+use shared::api::PageQuery;
 #[allow(unused_imports)]
 use shared::team::Team;
 #[allow(unused_imports)]
@@ -36,11 +36,11 @@ pub fn invitations_accept_scope() -> Scope {
     ),
     responses(
         (status = 201, description = "Invitation created", body = TeamInvitation),
-        (status = 400, description = "Team is not shared", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 403, description = "Not a team admin", body = ProblemDetails),
-        (status = 404, description = "Team not found", body = ProblemDetails),
-        (status = 500, description = "Database error", body = ProblemDetails)
+        (status = 400, description = "Team is not shared", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Not a team admin", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Team not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Database error", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
     security(
@@ -65,17 +65,16 @@ async fn create_team_invitation(
     path = "/api/v1/teams/{team_id}/invitations",
     params(
         ("team_id" = String, Path, description = "Shared team identifier"),
-        ("page" = Option<u32>, Query, description = "Page index, zero-based. Omit with `page_size` for full list."),
-        ("page_size" = Option<u32>, Query, description = "Items per page (1–500). Omit with `page` for full list."),
-        ("q" = Option<String>, Query, description = "Reserved.")
+        ("page" = Option<u32>, Query, description = "Page index, zero-based. Omit with `page_size` for full list.", minimum = 0, nullable = true),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.", minimum = 1, maximum = 500, example = 50, nullable = true),
     ),
     responses(
         (status = 200, description = "Invitations for the team. `X-Total-Count` is the total before paging.", body = [TeamInvitation]),
-        (status = 400, description = "Invalid pagination parameters", body = ProblemDetails),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 403, description = "Not a team admin", body = ProblemDetails),
-        (status = 404, description = "Team not found", body = ProblemDetails),
-        (status = 500, description = "Database error", body = ProblemDetails)
+        (status = 400, description = "Invalid pagination parameters", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Not a team admin", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Team not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Database error", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
     security(
@@ -88,14 +87,14 @@ async fn list_team_invitations(
     svc: Data<InvitationServiceHandle>,
     user: ReqData<User>,
     team_id: Path<String>,
-    query: Query<ListQuery>,
+    query: Query<PageQuery>,
 ) -> Result<HttpResponse, AppError> {
     let query = query
         .into_inner()
         .validate()
-        .map_err(AppError::invalid_request)?;
+        .map_err(crate::error::map_list_query_error)?;
     let (invitations, total) = svc
-        .list_invitations_for_user(&user, team_id.as_str(), query)
+        .list_invitations_for_user(&user, team_id.as_str(), query.as_list_query())
         .await?;
     Ok(HttpResponse::Ok()
         .insert_header((
@@ -114,10 +113,10 @@ async fn list_team_invitations(
     ),
     responses(
         (status = 200, description = "Invitation details", body = TeamInvitation),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 403, description = "Not a team admin", body = ProblemDetails),
-        (status = 404, description = "Team or invitation not found", body = ProblemDetails),
-        (status = 500, description = "Database error", body = ProblemDetails)
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Not a team admin", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Team or invitation not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Database error", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
     security(
@@ -147,10 +146,10 @@ async fn get_team_invitation(
     ),
     responses(
         (status = 204, description = "Invitation removed"),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 403, description = "Not a team admin", body = ProblemDetails),
-        (status = 404, description = "Team or invitation not found", body = ProblemDetails),
-        (status = 500, description = "Database error", body = ProblemDetails)
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "Not a team admin", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Team or invitation not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Database error", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
     security(
@@ -178,9 +177,9 @@ async fn delete_team_invitation(
     ),
     responses(
         (status = 200, description = "Current user is on the team (added as guest if needed)", body = Team),
-        (status = 401, description = "Authentication required", body = ProblemDetails),
-        (status = 404, description = "Invitation not found or not usable", body = ProblemDetails),
-        (status = 500, description = "Database error", body = ProblemDetails)
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Invitation not found or not usable", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Database error", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Teams",
     security(

@@ -11,6 +11,7 @@ chrono = { version = "0.4.44", default-features = false, features = [
 ] }
 serde = { version = "1.0.228", features = ["derive"] }
 uuid = { version = "1.23.0", features = ["v4"], optional = true }
+tracing = { version = "0.1", optional = true }
 utoipa = { version = "4", optional = true }
 thiserror = "1.0"
 async-trait = "0.1"
@@ -20,6 +21,6 @@ gloo-net = { version = "0.6", features = ["http"], optional = true }
 web-sys = { version = "0.3.94", features = ["RequestCredentials"], optional = true }
 
 [features]
-backend = ["utoipa", "uuid"]
+backend = ["utoipa", "tracing", "uuid"]
 cli = ["reqwest"]
 frontend = ["gloo-net", "web-sys"]

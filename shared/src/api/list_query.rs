@@ -129,3 +129,35 @@ fn encode_query_value(s: &str) -> String {
     }
     out
 }
+
+/// Pagination-only query (`page`, `page_size`). Used for list routes that do not support `q`.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
+pub struct PageQuery {
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
+impl PageQuery {
+    /// Same validation rules as [`ListQuery::validate`] (without `q`).
+    pub fn validate(self) -> Result<Self, String> {
+        ListQuery {
+            page: self.page,
+            page_size: self.page_size,
+            q: None,
+        }
+        .validate()
+        .map(|lq| Self {
+            page: lq.page,
+            page_size: lq.page_size,
+        })
+    }
+
+    pub fn as_list_query(&self) -> ListQuery {
+        ListQuery {
+            page: self.page,
+            page_size: self.page_size,
+            q: None,
+        }
+    }
+}

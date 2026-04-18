@@ -12,7 +12,7 @@ use time::Duration as CookieDuration;
 use super::Model;
 use crate::database::Database;
 #[allow(unused_imports)]
-use crate::docs::ProblemDetails;
+use crate::docs::Problem;
 use crate::error::AppError;
 use crate::mail::MailService;
 use crate::resources::Session;
@@ -26,9 +26,9 @@ use crate::settings::{CookieConfig, OtpConfig};
     request_body = OtpRequest,
     responses(
         (status = 204, description = "OTP generated and delivered out-of-band. Rate limits apply per IP (see server `auth_rate_limit_*` settings). Lockout after too many failed verify attempts is enforced on `/auth/otp/verify`."),
-        (status = 400, description = "Email missing or invalid", body = ProblemDetails),
-        (status = 429, description = "Rate limit exceeded; slow down and retry", body = ProblemDetails),
-        (status = 500, description = "Failed to persist or deliver OTP", body = ProblemDetails)
+        (status = 400, description = "Email missing or invalid", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "Rate limit exceeded; slow down and retry", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to persist or deliver OTP", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Auth"
 )]
@@ -65,9 +65,9 @@ async fn otp_request(
     request_body = OtpVerify,
     responses(
         (status = 200, description = "OTP verified successfully; session cookie issued. When `WORSHIP_OTP_ALLOW_SELF_SIGNUP` is unset/true, a new user may be created for an unknown email; when false, the email must already exist.", body = Session),
-        (status = 400, description = "OTP verification failed, or signup disabled for unknown email", body = ProblemDetails),
-        (status = 429, description = "Too many incorrect attempts; request a new code", body = ProblemDetails),
-        (status = 500, description = "Failed to create session", body = ProblemDetails)
+        (status = 400, description = "OTP verification failed, or signup disabled for unknown email", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "Too many incorrect attempts; request a new code", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to create session", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Auth"
 )]

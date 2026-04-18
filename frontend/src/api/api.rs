@@ -12,7 +12,7 @@ use shared::setlist::CreateSetlist;
 use shared::setlist::Setlist;
 use shared::song::CreateSong;
 use shared::song::Song;
-use shared::user::{CreateUserRequest, Session, User};
+use shared::user::{CreateUser, Session, User};
 
 use super::error::{ApiError, OperationType};
 use crate::route::Route;
@@ -128,7 +128,7 @@ impl Api {
     }
 
     #[allow(dead_code)]
-    pub async fn create_user(&self, payload: &CreateUserRequest) -> Result<User, ApiError> {
+    pub async fn create_user(&self, payload: &CreateUser) -> Result<User, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client
             .create_user(payload.clone())
