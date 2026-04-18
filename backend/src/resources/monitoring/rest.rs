@@ -12,9 +12,9 @@ use actix_web::{
 use shared::api::{PAGE_SIZE_DEFAULT, PageQuery};
 
 use super::MonitoringMetricsQuery;
+use super::repo::MonitoringRepo;
 #[allow(unused_imports)] // Only referenced from `utoipa::path` response schemas
 use super::{HttpAuditLog, MonitoringMetricsResponse};
-use super::repo::MonitoringRepo;
 
 pub fn scope() -> Scope {
     actix_web::web::scope("/monitoring").service(

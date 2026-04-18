@@ -10,7 +10,7 @@ use crate::resources::collection::PatchCollection;
 use crate::resources::monitoring::{
     ActivityCalendarMetrics, AdminMonitoringMetrics, EngagementMetrics, FamilyErrorRates,
     FamilyLatency, FeatureFamilyMetrics, HttpAuditLog, IdLike404Metrics, LatencyMetrics,
-    MetricsWindowWire, MethodLatency, MonitoringMetricsQuery, MonitoringMetricsResponse,
+    MethodLatency, MetricsWindowWire, MonitoringMetricsQuery, MonitoringMetricsResponse,
     MutationHealthMetrics, NewUserActivationMetrics, ReliabilityMetrics, RouteFamily,
     TopFailingRoute, TrafficMetrics, TrafficMixEntry,
 };
