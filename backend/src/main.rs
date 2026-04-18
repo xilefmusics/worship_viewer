@@ -171,6 +171,7 @@ async fn main() -> AnyResult<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(backend::request_id::RequestId)
+            .wrap(backend::http_audit::HttpAudit::new(db_data.clone()))
             .wrap(Compat::new(TracingLogger::<
                 backend::request_id::WorshipRootSpan,
             >::new()))

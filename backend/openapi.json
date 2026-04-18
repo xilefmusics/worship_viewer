@@ -307,6 +307,53 @@
         ],
         "type": "string"
       },
+      "HttpAuditLog": {
+        "description": "One persisted HTTP request audit row (admin monitoring API).",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "duration_ms": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "session_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status_code": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "user_id": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "request_id",
+          "method",
+          "path",
+          "status_code",
+          "duration_ms",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "LikeStatus": {
         "additionalProperties": false,
         "properties": {
@@ -3087,6 +3134,115 @@
         ],
         "tags": [
           "Teams"
+        ]
+      }
+    },
+    "/api/v1/monitoring/http-audit-logs": {
+      "get": {
+        "operationId": "list_http_audit_logs",
+        "parameters": [
+          {
+            "description": "Page index, zero-based. Defaults to 0.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Items per page. Must be 1–500. Defaults to 50.",
+            "example": 50,
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "nullable": true,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/crate.resources.monitoring.HttpAuditLog"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Paginated HTTP request audit log (newest first). `X-Total-Count` is the total row count."
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid pagination parameters"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Admin role required"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Failed to list audit logs"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Monitoring"
         ]
       }
     },
@@ -7316,6 +7472,14 @@
         "url": "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/authentication.md"
       },
       "name": "Auth"
+    },
+    {
+      "description": "Admin-only operational metrics and request audit listings under `/monitoring/`.",
+      "externalDocs": {
+        "description": "Business logic constraints (markdown in repository).",
+        "url": "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/monitoring.md"
+      },
+      "name": "Monitoring"
     },
     {
       "description": "Current user (`/users/me`), directory listing, sessions (own and admin), and admin user lifecycle.",

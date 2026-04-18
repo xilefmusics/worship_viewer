@@ -1,4 +1,4 @@
-use super::{blob, collection, setlist, song, team, user};
+use super::{blob, collection, monitoring, setlist, song, team, user};
 use crate::auth::middleware::RequireUser;
 use crate::governor_audit::AuditRateLimit429;
 use crate::governor_peer::PeerOrFallbackIpKeyExtractor;
@@ -27,5 +27,6 @@ pub fn scope(
         .service(song::rest::scope())
         .service(team::rest::scope())
         .service(team::invitations_accept_scope())
+        .service(monitoring::rest::scope())
         .service(user::rest::scope())
 }

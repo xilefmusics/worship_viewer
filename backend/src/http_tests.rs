@@ -8,6 +8,7 @@
 //! - Slice 4E: user admin gates (BLC-USER-005, BLC-USER-006, BLC-USER-007, BLC-USER-009)
 //! - Slice 4F: session admin gates (BLC-SESS-003, BLC-SESS-004, BLC-SESS-005, BLC-SESS-006, BLC-SESS-009)
 //! - Slice 4G: list pagination HTTP validation (BLC-LP-004 through BLC-LP-009)
+//! - Slice 4H: monitoring / HTTP audit logs (BLC-MON-002 through BLC-MON-004)
 //!
 //! # Middleware error note
 //!
@@ -72,6 +73,7 @@ pub(crate) fn build_app(
 
     App::new()
         .wrap(crate::request_id::RequestId)
+        .wrap(crate::http_audit::HttpAudit::new(Data::from(db.clone())))
         .wrap(Compat::new(tracing_actix_web::TracingLogger::<
             crate::request_id::WorshipRootSpan,
         >::new()))
@@ -1136,6 +1138,211 @@ mod list_pagination {
             1,
             "page 1 of 3 matching with page_size=2 should return 1"
         );
+    }
+}
+
+#[cfg(test)]
+mod monitoring_http {
+    use super::*;
+    use actix_web::http::StatusCode;
+    use serde::Deserialize;
+    use std::time::Duration;
+    use surrealdb::sql::Thing;
+
+    use shared::user::Role;
+
+    async fn make_admin(db: &Arc<Database>, email: &str) -> (User, String) {
+        let mut raw = User::new(email);
+        raw.role = Role::Admin;
+        let admin = crate::test_helpers::user_service(db)
+            .create_user(raw)
+            .await
+            .unwrap();
+        let token = create_session_token(db, admin.clone()).await.unwrap();
+        (admin, token)
+    }
+
+    async fn wait_audit_row(db: &Arc<Database>, request_id: &str) {
+        #[derive(Deserialize)]
+        struct CountRow {
+            count: i64,
+        }
+        for _ in 0..100 {
+            let mut r = db
+                .db
+                .query(
+                    "SELECT count() AS count FROM http_request_audit WHERE request_id = $rid GROUP ALL",
+                )
+                .bind(("rid", request_id.to_string()))
+                .await
+                .expect("audit select");
+            let counts: Vec<CountRow> = r.take(0).expect("take");
+            if counts.first().map(|c| c.count).unwrap_or(0) > 0 {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        panic!("timeout waiting for http_request_audit row request_id={request_id}");
+    }
+
+    #[derive(Deserialize)]
+    struct AuditLinks {
+        user: Option<Thing>,
+        session: Option<Thing>,
+    }
+
+    async fn audit_links_for_request(
+        db: &Arc<Database>,
+        request_id: &str,
+    ) -> (Option<String>, Option<String>) {
+        let mut r = db
+            .db
+            .query(
+                "SELECT user, session FROM http_request_audit WHERE request_id = $rid LIMIT 1",
+            )
+            .bind(("rid", request_id.to_string()))
+            .await
+            .expect("audit links");
+        let row: Option<AuditLinks> = r.take(0).expect("take links");
+        row.map(|x| {
+            (
+                x.user.as_ref().map(crate::database::record_id_string),
+                x.session.as_ref().map(crate::database::record_id_string),
+            )
+        })
+        .unwrap_or((None, None))
+    }
+
+    /// BLC-MON-004: unauthenticated GET /monitoring/http-audit-logs returns 401.
+    #[actix_web::test]
+    async fn blc_mon_004_unauthenticated_returns_401() {
+        let db = test_db().await.unwrap();
+        let app = test::init_service(build_app(db)).await;
+        let req = test::TestRequest::get().uri("/api/v1/monitoring/http-audit-logs");
+        assert_eq!(call_status!(app, req), StatusCode::UNAUTHORIZED);
+    }
+
+    /// BLC-MON-004: non-admin GET /monitoring/http-audit-logs returns 403.
+    #[actix_web::test]
+    async fn blc_mon_004_non_admin_returns_403() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "mon-nonadmin@test.local").await.unwrap();
+        let token = create_session_token(&db, user).await.unwrap();
+        let app = test::init_service(build_app(db)).await;
+        let req = test::TestRequest::get()
+            .uri("/api/v1/monitoring/http-audit-logs")
+            .insert_header(("Authorization", format!("Bearer {token}")));
+        assert_eq!(call_status!(app, req), StatusCode::FORBIDDEN);
+    }
+
+    /// BLC-MON-004: admin GET /monitoring/http-audit-logs returns 200 with pagination headers.
+    #[actix_web::test]
+    async fn blc_mon_004_admin_lists_returns_200() {
+        let db = test_db().await.unwrap();
+        let (_, token) = make_admin(&db, "mon-admin-list@test.local").await;
+        let app = test::init_service(build_app(db)).await;
+        let req = test::TestRequest::get()
+            .uri("/api/v1/monitoring/http-audit-logs")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(resp.headers().get("x-total-count").is_some());
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert!(body.is_array());
+    }
+
+    /// BLC-MON-002: authenticated API request stores user and session links on the audit row.
+    #[actix_web::test]
+    async fn blc_mon_002_authenticated_request_populates_user_and_session() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "mon-audit-links@test.local")
+            .await
+            .unwrap();
+        let token = create_session_token(&db, user.clone()).await.unwrap();
+        let app = test::init_service(build_app(db.clone())).await;
+        let req = test::TestRequest::get()
+            .uri("/api/v1/users/me")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let rid = resp
+            .headers()
+            .get("x-request-id")
+            .and_then(|h| h.to_str().ok())
+            .expect("x-request-id")
+            .to_string();
+        wait_audit_row(&db, &rid).await;
+        let (u, s) = audit_links_for_request(&db, &rid).await;
+        assert_eq!(u.as_deref(), Some(user.id.as_str()));
+        assert_eq!(s.as_deref(), Some(token.as_str()));
+    }
+
+    /// BLC-MON-003: deleting a session clears `session` on existing audit rows (row kept).
+    #[actix_web::test]
+    async fn blc_mon_003_delete_session_clears_session_link() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "mon-sess-del@test.local").await.unwrap();
+        let token = create_session_token(&db, user.clone()).await.unwrap();
+        let app = test::init_service(build_app(db.clone())).await;
+        let req = test::TestRequest::get()
+            .uri("/api/v1/users/me")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        let rid = resp
+            .headers()
+            .get("x-request-id")
+            .and_then(|h| h.to_str().ok())
+            .expect("x-request-id")
+            .to_string();
+        wait_audit_row(&db, &rid).await;
+
+        let del = test::TestRequest::delete()
+            .uri(&format!("/api/v1/users/me/sessions/{}", token))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let del_resp = test::call_service(&app, del).await;
+        assert_eq!(del_resp.status(), StatusCode::NO_CONTENT);
+
+        let (u, s) = audit_links_for_request(&db, &rid).await;
+        assert_eq!(u.as_deref(), Some(user.id.as_str()));
+        assert!(s.is_none(), "session link should clear after session delete");
+    }
+
+    /// BLC-MON-003: deleting a user clears `user` (and session) on existing audit rows (row kept).
+    #[actix_web::test]
+    async fn blc_mon_003_delete_user_clears_user_and_session_links() {
+        let db = test_db().await.unwrap();
+        let target = create_user(&db, "mon-user-del@test.local")
+            .await
+            .unwrap();
+        let target_token = create_session_token(&db, target.clone()).await.unwrap();
+        let app = test::init_service(build_app(db.clone())).await;
+        let req = test::TestRequest::get()
+            .uri("/api/v1/users/me")
+            .insert_header(("Authorization", format!("Bearer {target_token}")))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        let rid = resp
+            .headers()
+            .get("x-request-id")
+            .and_then(|h| h.to_str().ok())
+            .expect("x-request-id")
+            .to_string();
+        wait_audit_row(&db, &rid).await;
+
+        let (_, admin_token) = make_admin(&db, "mon-admin-del@test.local").await;
+        let del = test::TestRequest::delete()
+            .uri(&format!("/api/v1/users/{}", target.id))
+            .insert_header(("Authorization", format!("Bearer {admin_token}")))
+            .to_request();
+        let del_resp = test::call_service(&app, del).await;
+        assert_eq!(del_resp.status(), StatusCode::NO_CONTENT);
+
+        let (u, s) = audit_links_for_request(&db, &rid).await;
+        assert!(u.is_none() && s.is_none(), "user/session links cleared after user delete");
     }
 }
 

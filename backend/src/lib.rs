@@ -9,6 +9,7 @@ pub mod expand;
 pub mod frontend;
 pub mod governor_audit;
 pub mod governor_peer;
+pub mod http_audit;
 pub mod http_cache;
 pub mod mail;
 pub mod observability;

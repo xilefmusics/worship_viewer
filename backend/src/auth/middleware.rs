@@ -8,6 +8,7 @@ use futures_util::future::LocalBoxFuture;
 
 use super::authorization_bearer;
 use crate::error::AppError;
+use crate::http_audit::AuditSessionId;
 use crate::resources::User;
 use crate::resources::user::Role as UserRole;
 use crate::resources::user::session::service::SessionServiceHandle;
@@ -95,6 +96,7 @@ where
             };
 
             tracing::Span::current().record("user_id", tracing::field::display(&user.id));
+            req.extensions_mut().insert(AuditSessionId(session_id));
             req.extensions_mut().insert(user);
 
             let response = service.call(req).await?;

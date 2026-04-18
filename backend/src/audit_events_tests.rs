@@ -74,6 +74,7 @@ fn build_auth_app(
 
     App::new()
         .wrap(crate::request_id::RequestId)
+        .wrap(crate::http_audit::HttpAudit::new(Data::from(db.clone())))
         .wrap(Compat::new(tracing_actix_web::TracingLogger::<
             WorshipRootSpan,
         >::new()))
