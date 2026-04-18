@@ -13,9 +13,9 @@ use crate::http_cache::{
 use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::blob::Blob;
-use crate::resources::blob::{CreateBlob, UpdateBlob};
 use crate::resources::blob::PatchBlob;
 use crate::resources::blob::service::BlobServiceHandle;
+use crate::resources::blob::{CreateBlob, UpdateBlob};
 use crate::resources::team::UserPermissions;
 use shared::api::{ListQuery, PAGE_SIZE_DEFAULT};
 
@@ -198,10 +198,7 @@ async fn update_blob(
     let etag = weak_etag_json(&blob).map_err(|e| AppError::Internal(e.to_string()))?;
     check_if_match(&req, &etag)?;
     let payload = CreateBlob::from(payload.into_inner());
-    Ok(HttpResponse::Ok().json(
-        svc.update_blob_for_user(&perms, &id, payload)
-            .await?,
-    ))
+    Ok(HttpResponse::Ok().json(svc.update_blob_for_user(&perms, &id, payload).await?))
 }
 
 #[utoipa::path(

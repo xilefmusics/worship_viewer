@@ -12,9 +12,9 @@ use crate::http_cache::{check_if_match, if_none_match_matches, weak_etag_json};
 use crate::resources::User;
 #[allow(unused_imports)]
 use crate::resources::collection::Collection;
-use crate::resources::collection::{CreateCollection, UpdateCollection};
 use crate::resources::collection::PatchCollection;
 use crate::resources::collection::service::CollectionServiceHandle;
+use crate::resources::collection::{CreateCollection, UpdateCollection};
 #[allow(unused_imports)]
 use crate::resources::song::Song;
 use crate::resources::team::UserPermissions;
@@ -296,10 +296,7 @@ async fn update_collection(
     let etag = weak_etag_json(&collection).map_err(|e| AppError::Internal(e.to_string()))?;
     check_if_match(&req, &etag)?;
     let payload = CreateCollection::from(payload.into_inner());
-    Ok(HttpResponse::Ok().json(
-        svc.update_collection_for_user(&perms, &id, payload)
-            .await?,
-    ))
+    Ok(HttpResponse::Ok().json(svc.update_collection_for_user(&perms, &id, payload).await?))
 }
 
 #[utoipa::path(

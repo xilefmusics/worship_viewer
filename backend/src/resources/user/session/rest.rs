@@ -283,9 +283,7 @@ pub async fn get_session_for_user(
     path: Path<UserSessionPath>,
     expand: Query<ExpandQuery>,
 ) -> Result<HttpResponse, AppError> {
-    let session = svc
-        .get_session_for_user(&path.id, &path.user_id)
-        .await?;
+    let session = svc.get_session_for_user(&path.id, &path.user_id).await?;
     Ok(HttpResponse::Ok().json(SessionBody::from_session(
         session,
         expand_includes_user(&expand.expand),

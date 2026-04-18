@@ -15,10 +15,10 @@ use crate::database::Database;
 use crate::docs::Problem;
 use crate::error::AppError;
 use crate::mail::MailService;
-use shared::user::{Session, SessionBody};
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
 use crate::settings::{CookieConfig, OtpConfig};
+use shared::user::{Session, SessionBody};
 
 #[utoipa::path(
     post,

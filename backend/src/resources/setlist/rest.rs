@@ -10,11 +10,11 @@ use crate::docs::Problem;
 use crate::error::AppError;
 use crate::http_cache::{check_if_match, if_none_match_matches, weak_etag_json};
 use crate::resources::User;
-use crate::resources::setlist::{CreateSetlist, UpdateSetlist};
 use crate::resources::setlist::PatchSetlist;
 #[allow(unused_imports)]
 use crate::resources::setlist::Setlist;
 use crate::resources::setlist::SetlistServiceHandle;
+use crate::resources::setlist::{CreateSetlist, UpdateSetlist};
 #[allow(unused_imports)]
 use crate::resources::song::Song;
 use crate::resources::team::UserPermissions;
@@ -296,10 +296,7 @@ async fn update_setlist(
     let etag = weak_etag_json(&setlist).map_err(|e| AppError::Internal(e.to_string()))?;
     check_if_match(&req, &etag)?;
     let payload = CreateSetlist::from(payload.into_inner());
-    Ok(HttpResponse::Ok().json(
-        svc.update_setlist_for_user(&perms, &id, payload)
-            .await?,
-    ))
+    Ok(HttpResponse::Ok().json(svc.update_setlist_for_user(&perms, &id, payload).await?))
 }
 
 #[utoipa::path(

@@ -352,9 +352,9 @@ mod openapi_problem_schema {
                         for (key, child) in props {
                             assert!(
                                 key.chars().next().is_some_and(|c| c.is_ascii_lowercase())
-                                    && key
-                                        .chars()
-                                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'),
+                                    && key.chars().all(|c| c.is_ascii_lowercase()
+                                        || c.is_ascii_digit()
+                                        || c == '_'),
                                 "{ctx}: property key {key:?} must be snake_case ASCII",
                             );
                             check(child, &format!("{ctx}.{key}"));
