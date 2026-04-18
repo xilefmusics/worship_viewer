@@ -123,11 +123,7 @@ impl<C: HttpClient> ApiClient<C> {
     ) -> Result<SessionBody, NetworkClientError> {
         self.client
             .post(
-                &append_query_param(
-                    format!("api/v1/users/{user_id}/sessions"),
-                    "expand",
-                    "user",
-                ),
+                &append_query_param(format!("api/v1/users/{user_id}/sessions"), "expand", "user"),
                 &serde_json::json!({}),
             )
             .await
