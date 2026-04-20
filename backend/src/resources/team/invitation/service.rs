@@ -77,7 +77,7 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
             .into_iter()
             .map(|r| r.into_invitation())
             .collect::<Result<Vec<_>, _>>()?;
-        let (page, total) = ListQuery::paginate_nested_vec(invitations, &pagination);
+        let (page, total) = ListQuery::paginate_vec(invitations, &pagination);
         Ok((page, total))
     }
 

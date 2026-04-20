@@ -6299,7 +6299,7 @@
         "operationId": "get_teams",
         "parameters": [
           {
-            "description": "Page index, zero-based. Omit with `page_size` for full list (see nested pagination).",
+            "description": "Page index, zero-based; defaults to 0.",
             "in": "query",
             "name": "page",
             "required": false,
@@ -6311,7 +6311,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.",
+            "description": "Items per page. Must be 1–500. Defaults to 50 when omitted.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -7786,7 +7786,7 @@
         "operationId": "get_sessions_for_current_user",
         "parameters": [
           {
-            "description": "Zero-based page. With `page_size`, `X-Total-Count` is pre-pagination total (`list-pagination.md`).",
+            "description": "Zero-based page; defaults to 0. `X-Total-Count` is the total before paging (`list-pagination.md`).",
             "in": "query",
             "name": "page",
             "required": false,
@@ -7798,7 +7798,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.",
+            "description": "Items per page. Must be 1–500. Defaults to 50 when omitted.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -8232,7 +8232,7 @@
             }
           },
           {
-            "description": "Zero-based page. With `page_size`, `X-Total-Count` is pre-pagination total (`list-pagination.md`).",
+            "description": "Zero-based page; defaults to 0. `X-Total-Count` is the total before paging (`list-pagination.md`).",
             "in": "query",
             "name": "page",
             "required": false,
@@ -8244,7 +8244,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.",
+            "description": "Items per page. Must be 1–500. Defaults to 50 when omitted.",
             "example": 50,
             "in": "query",
             "name": "page_size",

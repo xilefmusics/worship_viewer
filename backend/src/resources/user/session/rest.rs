@@ -35,8 +35,8 @@ struct ExpandQuery {
     get,
     path = "/api/v1/users/me/sessions",
     params(
-        ("page" = Option<u32>, Query, description = "Zero-based page. With `page_size`, `X-Total-Count` is pre-pagination total (`list-pagination.md`).", minimum = 0, nullable = true),
-        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.", minimum = 1, maximum = 500, example = 50, nullable = true),
+        ("page" = Option<u32>, Query, description = "Zero-based page; defaults to 0. `X-Total-Count` is the total before paging (`list-pagination.md`).", minimum = 0, nullable = true),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50 when omitted.", minimum = 1, maximum = 500, example = 50, nullable = true),
         ("expand" = Option<String>, Query, description = "Optional comma-separated relations (`user` = embed full user on each session; default is `id`+`email` link only)."),
     ),
     responses(
@@ -69,7 +69,7 @@ pub async fn get_sessions_for_current_user(
     let page_size = page.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
     let sessions = svc.get_sessions_by_user_id(&user.id).await?;
     let lq = page.as_list_query();
-    let (sessions_page, total) = ListQuery::paginate_nested_vec(sessions, &lq);
+    let (sessions_page, total) = ListQuery::paginate_vec(sessions, &lq);
     let sessions_page: Vec<SessionBody> = sessions_page
         .into_iter()
         .map(|s| SessionBody::from_session(s, expand_user))
@@ -205,8 +205,8 @@ pub async fn create_session_for_user(
     path = "/api/v1/users/{user_id}/sessions",
     params(
         ("user_id" = String, Path, description = "User identifier"),
-        ("page" = Option<u32>, Query, description = "Zero-based page. With `page_size`, `X-Total-Count` is pre-pagination total (`list-pagination.md`).", minimum = 0, nullable = true),
-        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.", minimum = 1, maximum = 500, example = 50, nullable = true),
+        ("page" = Option<u32>, Query, description = "Zero-based page; defaults to 0. `X-Total-Count` is the total before paging (`list-pagination.md`).", minimum = 0, nullable = true),
+        ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50 when omitted.", minimum = 1, maximum = 500, example = 50, nullable = true),
         ("expand" = Option<String>, Query, description = "Optional comma-separated relations (`user` = full user per session)."),
     ),
     responses(
@@ -240,7 +240,7 @@ pub async fn get_sessions_for_user(
     let page_size = page.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
     let sessions = svc.get_sessions_by_user_id(&path.user_id).await?;
     let lq = page.as_list_query();
-    let (sessions_page, total) = ListQuery::paginate_nested_vec(sessions, &lq);
+    let (sessions_page, total) = ListQuery::paginate_vec(sessions, &lq);
     let sessions_page: Vec<SessionBody> = sessions_page
         .into_iter()
         .map(|s| SessionBody::from_session(s, expand_user))
