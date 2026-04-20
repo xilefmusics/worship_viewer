@@ -32,10 +32,14 @@ pub struct Setlist {
     feature = "backend",
     schema(example = json!({
         "title": "Easter Sunday",
-        "songs": [{ "id": "song_example", "nr": "1", "key": null }]
+        "songs": [{ "id": "song_example", "nr": "1", "key": null }],
+        "owner": "team_example_id"
     }))
 )]
 pub struct CreateSetlist {
+    /// Owning team id (same format as `Setlist.owner` in responses). Omit to create under the caller's personal team.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
     pub title: String,
     pub songs: Vec<SongLink>,
 }
@@ -61,6 +65,7 @@ impl From<CreateSetlist> for UpdateSetlist {
 impl From<UpdateSetlist> for CreateSetlist {
     fn from(value: UpdateSetlist) -> Self {
         Self {
+            owner: None,
             title: value.title,
             songs: value.songs,
         }
@@ -79,6 +84,7 @@ pub struct PatchSetlist {
 impl From<Setlist> for CreateSetlist {
     fn from(value: Setlist) -> Self {
         Self {
+            owner: None,
             title: value.title,
             songs: value.songs,
         }

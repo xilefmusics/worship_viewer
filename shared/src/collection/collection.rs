@@ -36,10 +36,14 @@ pub struct Collection {
     schema(example = json!({
         "title": "Sunday worship",
         "cover": "",
-        "songs": [{ "id": "song_example", "nr": null, "key": null }]
+        "songs": [{ "id": "song_example", "nr": null, "key": null }],
+        "owner": "team_example_id"
     }))
 )]
 pub struct CreateCollection {
+    /// Owning team id (`team` record id, same format as `Collection.owner` in responses). Omit to create under the caller's personal team.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
     pub title: String,
     pub cover: String,
     pub songs: Vec<SongLink>,
@@ -58,6 +62,7 @@ pub struct UpdateCollection {
 impl From<UpdateCollection> for CreateCollection {
     fn from(value: UpdateCollection) -> Self {
         Self {
+            owner: None,
             title: value.title,
             cover: value.cover,
             songs: value.songs,
@@ -78,6 +83,7 @@ pub struct PatchCollection {
 impl From<Collection> for CreateCollection {
     fn from(value: Collection) -> Self {
         Self {
+            owner: None,
             title: value.title,
             cover: value.cover,
             songs: value.songs,

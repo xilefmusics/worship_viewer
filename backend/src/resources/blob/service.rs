@@ -3,12 +3,15 @@ use std::sync::Arc;
 use actix_files::NamedFile;
 use tracing::instrument;
 
+use shared::MoveOwner;
 use shared::api::ListQuery;
 use shared::blob::{Blob, CreateBlob, PatchBlob};
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::team::{TeamResolver, UserPermissions};
+use crate::resources::team::{
+    TeamResolver, UserPermissions, parse_owner_record_id, thing_record_key,
+};
 
 use super::repository::BlobRepository;
 use super::storage::BlobStorage;
@@ -68,9 +71,17 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
     pub async fn create_blob_for_user(
         &self,
         perms: &UserPermissions<T>,
-        blob: CreateBlob,
+        mut blob: CreateBlob,
     ) -> Result<Blob, AppError> {
-        let created = self.repo.create_blob(&perms.user().id, blob).await?;
+        let owner = match blob.owner.take() {
+            None => perms.personal_team().await?,
+            Some(ref s) => {
+                let rid = parse_owner_record_id(s)?;
+                perms.require_write_access_to_owner(&rid).await?;
+                rid
+            }
+        };
+        let created = self.repo.create_blob(owner, blob).await?;
         self.storage.write_blob_file(&created)?;
         Ok(created)
     }
@@ -97,12 +108,32 @@ impl<R: BlobRepository, T: TeamResolver, S: BlobStorage> BlobService<R, T, S> {
     ) -> Result<Blob, AppError> {
         let current = self.get_blob_for_user(perms, id).await?;
         let merged = CreateBlob {
+            owner: None,
             file_type: patch.file_type.unwrap_or(current.file_type),
             width: patch.width.unwrap_or(current.width),
             height: patch.height.unwrap_or(current.height),
             ocr: patch.ocr.unwrap_or(current.ocr),
         };
         self.update_blob_for_user(perms, id, merged).await
+    }
+
+    #[instrument(level = "debug", err, skip(self, perms, payload))]
+    pub async fn move_blob_for_user(
+        &self,
+        perms: &UserPermissions<T>,
+        id: &str,
+        payload: MoveOwner,
+    ) -> Result<Blob, AppError> {
+        let blob = self.get_blob_for_user(perms, id).await?;
+        let current = parse_owner_record_id(&blob.owner)?;
+        let dest = parse_owner_record_id(&payload.owner)?;
+        if thing_record_key(&current) == thing_record_key(&dest) {
+            return Ok(blob);
+        }
+        perms.require_write_access_to_owner(&current).await?;
+        perms.require_write_access_to_owner(&dest).await?;
+        let write_teams = perms.write_teams().await?;
+        self.repo.move_blob_owner(write_teams, id, dest).await
     }
 
     #[instrument(level = "debug", err, skip(self, perms))]
@@ -221,7 +252,7 @@ mod tests {
                 .ok_or_else(|| AppError::NotFound("blob not found".into()))
         }
 
-        async fn create_blob(&self, _owner: &str, blob: CreateBlob) -> Result<Blob, AppError> {
+        async fn create_blob(&self, _owner: RecordId, blob: CreateBlob) -> Result<Blob, AppError> {
             Ok(Blob {
                 id: "new".into(),
                 owner: "team".into(),
@@ -254,6 +285,15 @@ mod tests {
                 .cloned()
                 .ok_or_else(|| AppError::NotFound("blob not found".into()))
         }
+
+        async fn move_blob_owner(
+            &self,
+            _write_teams: &[RecordId],
+            _id: &str,
+            _new_owner: RecordId,
+        ) -> Result<Blob, AppError> {
+            unreachable!("not used in these tests")
+        }
     }
 
     struct MockTeams;
@@ -266,8 +306,8 @@ mod tests {
         async fn content_write_teams(&self, _user: &User) -> Result<Vec<RecordId>, AppError> {
             Ok(vec![])
         }
-        async fn personal_team(&self, _user_id: &str) -> Result<RecordId, AppError> {
-            Err(AppError::database("unused"))
+        async fn personal_team(&self, user_id: &str) -> Result<RecordId, AppError> {
+            Ok(RecordId::new("team", user_id.to_owned()))
         }
     }
 
@@ -316,6 +356,7 @@ mod tests {
             .create_blob_for_user(
                 &perms,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::PNG,
                     width: 1,
                     height: 1,
@@ -370,6 +411,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_perms,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::PNG,
                     width: 10,
                     height: 10,
@@ -453,6 +495,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_p,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::PNG,
                     width: 1,
                     height: 1,
@@ -478,6 +521,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_p,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::PNG,
                     width: 1,
                     height: 1,
@@ -490,6 +534,7 @@ mod tests {
             &cm_p,
             &b.id,
             CreateBlob {
+                owner: None,
                 file_type: FileType::JPEG,
                 width: 2,
                 height: 2,
@@ -513,6 +558,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_p,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::PNG,
                     width: 1,
                     height: 1,
@@ -526,6 +572,7 @@ mod tests {
                 &guest_p,
                 &b.id,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::JPEG,
                     width: 2,
                     height: 2,
@@ -549,6 +596,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_p,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::PNG,
                     width: 1,
                     height: 1,
@@ -573,6 +621,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_p,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::PNG,
                     width: 1,
                     height: 1,
@@ -585,6 +634,7 @@ mod tests {
             &owner_p,
             &b.id,
             CreateBlob {
+                owner: None,
                 file_type: FileType::JPEG,
                 width: 5,
                 height: 5,
@@ -607,6 +657,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_p,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::PNG,
                     width: 1,
                     height: 1,
@@ -621,6 +672,7 @@ mod tests {
                 &owner_p,
                 &b.id,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::JPEG,
                     width: 2,
                     height: 2,
@@ -644,6 +696,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_p,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::PNG,
                     width: 1,
                     height: 1,
@@ -667,6 +720,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_p,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::JPEG,
                     width: 1,
                     height: 1,
@@ -690,6 +744,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_p,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::SVG,
                     width: 1,
                     height: 1,
@@ -715,6 +770,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_p,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::PNG,
                     width: 1,
                     height: 1,
@@ -760,6 +816,7 @@ mod tests {
             .create_blob_for_user(
                 &owner_p,
                 CreateBlob {
+                    owner: None,
                     file_type: FileType::PNG,
                     width: 100,
                     height: 200,
@@ -841,6 +898,7 @@ mod tests {
                 .create_blob_for_user(
                     &perms,
                     CreateBlob {
+                        owner: None,
                         file_type: FileType::PNG,
                         width: 100,
                         height: 200,
@@ -887,5 +945,60 @@ mod tests {
             );
             assert_eq!(patched.ocr, expected_ocr, "mask={mask:04b}: ocr mismatch");
         }
+    }
+
+    /// BLC-BLOB-017–018: move between shared teams and idempotent same-owner.
+    #[tokio::test]
+    async fn blc_blob_017_move_between_teams_and_idempotent() {
+        use crate::test_helpers::{blob_service, create_user, test_db, two_shared_teams_for_user};
+        use shared::MoveOwner;
+
+        let blob_dir = tempfile::tempdir().expect("tempdir");
+        let db = test_db().await.expect("db");
+        let svc = blob_service(&db, blob_dir.path().to_string_lossy().into_owned());
+        let mover = create_user(&db, "blob-move@test.local")
+            .await
+            .expect("mover");
+        let (team_a, team_b) = two_shared_teams_for_user(&db, &mover).await.expect("teams");
+        let p = UserPermissions::from_ref(&mover, &svc.teams);
+
+        let b = svc
+            .create_blob_for_user(
+                &p,
+                CreateBlob {
+                    owner: Some(team_a.clone()),
+                    file_type: FileType::PNG,
+                    width: 1,
+                    height: 1,
+                    ocr: String::new(),
+                },
+            )
+            .await
+            .expect("create");
+        assert_eq!(b.owner, team_a);
+
+        let on_b = svc
+            .move_blob_for_user(
+                &p,
+                &b.id,
+                MoveOwner {
+                    owner: team_b.clone(),
+                },
+            )
+            .await
+            .expect("to B");
+        assert_eq!(on_b.owner, team_b);
+
+        let idem = svc
+            .move_blob_for_user(
+                &p,
+                &b.id,
+                MoveOwner {
+                    owner: team_b.clone(),
+                },
+            )
+            .await
+            .expect("idem");
+        assert_eq!(idem.owner, team_b);
     }
 }

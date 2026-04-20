@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
+use shared::MoveOwner;
 use shared::api::SongListQuery;
 use shared::like::LikeStatus;
 use shared::patch::Patch;
@@ -14,7 +15,9 @@ use crate::database::Database;
 use crate::error::AppError;
 use crate::resources::collection::CollectionRepository;
 
-use crate::resources::team::{TeamResolver, UserPermissions};
+use crate::resources::team::{
+    TeamResolver, UserPermissions, parse_owner_record_id, thing_record_key,
+};
 use crate::resources::user::SurrealUserRepo;
 use crate::resources::user::UserRepository;
 use shared::collection::CreateCollection;
@@ -197,9 +200,25 @@ impl<
     pub async fn create_song_for_user(
         &self,
         perms: &UserPermissions<T>,
-        song: CreateSong,
+        mut song: CreateSong,
     ) -> Result<Song, AppError> {
-        let created = self.repo.create_song(&perms.user().id, song).await?;
+        let personal = perms.personal_team().await?;
+        let (owner, use_default_collection_flow) = match song.owner.take() {
+            None => (personal.clone(), true),
+            Some(ref s) => {
+                let rid = parse_owner_record_id(s)?;
+                perms.require_write_access_to_owner(&rid).await?;
+                let same_as_personal = thing_record_key(&rid) == thing_record_key(&personal);
+                (rid, same_as_personal)
+            }
+        };
+
+        let created = self.repo.create_song(owner, song).await?;
+
+        if !use_default_collection_flow {
+            return Ok(created);
+        }
+
         let mut default_id = perms.user().default_collection.clone();
 
         loop {
@@ -231,8 +250,9 @@ impl<
                 let collection = self
                     .collections
                     .create_collection(
-                        &perms.user().id,
+                        personal.clone(),
                         CreateCollection {
+                            owner: None,
                             title: "Default".to_string(),
                             cover: "mysongs".to_string(),
                             songs: vec![SongLink {
@@ -275,6 +295,7 @@ impl<
     ) -> Result<Song, AppError> {
         let current = self.get_song_for_user(perms, id).await?;
         let merged = CreateSong {
+            owner: None,
             not_a_song: patch.not_a_song.unwrap_or(current.not_a_song),
             blobs: patch.blobs.unwrap_or(current.blobs),
             data: patch
@@ -285,6 +306,25 @@ impl<
         self.update_song_for_user(perms, id, merged)
             .await
             .map(SongUpsertOutcome::into_song)
+    }
+
+    #[instrument(level = "debug", err, skip(self, perms, payload))]
+    pub async fn move_song_for_user(
+        &self,
+        perms: &UserPermissions<T>,
+        id: &str,
+        payload: MoveOwner,
+    ) -> Result<Song, AppError> {
+        let song = self.get_song_for_user(perms, id).await?;
+        let current = parse_owner_record_id(&song.owner)?;
+        let dest = parse_owner_record_id(&payload.owner)?;
+        if thing_record_key(&current) == thing_record_key(&dest) {
+            return Ok(song);
+        }
+        perms.require_write_access_to_owner(&current).await?;
+        perms.require_write_access_to_owner(&dest).await?;
+        let write_teams = perms.write_teams().await?;
+        self.repo.move_song_owner(write_teams, id, dest).await
     }
 
     #[instrument(level = "debug", err, skip(self, perms))]
@@ -365,9 +405,11 @@ mod tests {
     use crate::resources::team::UserPermissions;
     use crate::test_helpers::{
         configure_personal_team_members, create_song_with_title, create_user, personal_team_id,
-        setlist_service, setlist_with_songs, test_db,
+        setlist_service, setlist_with_songs, test_db, two_shared_teams_for_user,
     };
+    use shared::MoveOwner;
     use shared::api::ListQuery;
+    use shared::song::CreateSong;
     use shared::team::TeamRole;
 
     use super::SongServiceHandle;
@@ -501,6 +543,7 @@ mod tests {
             .await
             .expect("song");
         let create = CreateSong {
+            owner: None,
             not_a_song: false,
             blobs: vec![],
             data: crate::test_helpers::minimal_song_data(),
@@ -541,6 +584,7 @@ mod tests {
         let mut data = crate::test_helpers::minimal_song_data();
         data.titles = vec!["UpdatedTitle".into()];
         let create = CreateSong {
+            owner: None,
             not_a_song: false,
             blobs: vec![],
             data,
@@ -564,6 +608,7 @@ mod tests {
         assert_eq!(song.owner, tid);
         let data = crate::test_helpers::minimal_song_data();
         let create = CreateSong {
+            owner: None,
             not_a_song: false,
             blobs: vec![],
             data,
@@ -588,6 +633,7 @@ mod tests {
         data_with_artist.titles = vec!["SongByArtist".into()];
         data_with_artist.artists = vec!["UniqueArtistZZZ".into()];
         let create = shared::song::CreateSong {
+            owner: None,
             not_a_song: false,
             blobs: vec![],
             data: data_with_artist,
@@ -599,6 +645,7 @@ mod tests {
         let mut data_no_artist = crate::test_helpers::minimal_song_data();
         data_no_artist.titles = vec!["SongWithoutArtist".into()];
         let create2 = shared::song::CreateSong {
+            owner: None,
             not_a_song: false,
             blobs: vec![],
             data: data_no_artist,
@@ -703,6 +750,7 @@ mod tests {
         let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
         let data = crate::test_helpers::minimal_song_data();
         let create = CreateSong {
+            owner: None,
             not_a_song: false,
             blobs: vec![],
             data,
@@ -843,6 +891,7 @@ mod tests {
                 .create_song_for_user(
                     &owner_p,
                     CreateSong {
+                        owner: None,
                         not_a_song: false,
                         blobs: vec![BlobLink {
                             id: "base_blob".into(),
@@ -1105,6 +1154,7 @@ mod tests {
         let guest_p = UserPermissions::from_ref(&guest_u, &svc.teams);
         let data = crate::test_helpers::minimal_song_data();
         let create = CreateSong {
+            owner: None,
             not_a_song: false,
             blobs: vec![],
             data,
@@ -1119,6 +1169,61 @@ mod tests {
         assert_eq!(
             result.owner, guest_pt,
             "upserted song must be owned by guest's personal team"
+        );
+    }
+
+    /// BLC-SONG-009/010: POST with `owner` targeting another team skips personal default-collection flow.
+    #[tokio::test]
+    async fn blc_song_post_optional_owner_skips_default_collection_side_effect() {
+        use shared::song::CreateSong;
+        let (db, owner, cm, _guest, _nm, team_id) = four_user_song_fixture().await;
+        let svc = SongServiceHandle::build(db.clone());
+        let cm_p = UserPermissions::from_ref(&cm, &svc.teams);
+        let user_svc = crate::test_helpers::user_service(&db);
+        let cm_before = user_svc.get_user(&cm.id).await.expect("cm user");
+        assert!(
+            cm_before.default_collection.is_none(),
+            "fixture: cm has no default collection yet"
+        );
+
+        let song = svc
+            .create_song_for_user(
+                &cm_p,
+                CreateSong {
+                    owner: Some(team_id.clone()),
+                    not_a_song: false,
+                    blobs: vec![],
+                    data: crate::test_helpers::minimal_song_data(),
+                },
+            )
+            .await
+            .expect("create on another user's team as cm");
+
+        assert_eq!(song.owner, team_id);
+        let cm_after = user_svc.get_user(&cm.id).await.expect("cm user");
+        assert!(
+            cm_after.default_collection.is_none(),
+            "must not run BLC-SONG-010 default collection when POST owner is not caller personal team"
+        );
+
+        // Owner should still get default-collection behavior on their own POST (regression anchor).
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let _ = svc
+            .create_song_for_user(
+                &owner_p,
+                CreateSong {
+                    owner: None,
+                    not_a_song: false,
+                    blobs: vec![],
+                    data: crate::test_helpers::minimal_song_data(),
+                },
+            )
+            .await
+            .expect("owner personal song");
+        let owner_after = user_svc.get_user(&owner.id).await.expect("owner");
+        assert!(
+            owner_after.default_collection.is_some(),
+            "owner personal create still applies BLC-SONG-010"
         );
     }
 
@@ -1138,6 +1243,7 @@ mod tests {
             .create_song_for_user(
                 &perms,
                 shared::song::CreateSong {
+                    owner: None,
                     not_a_song: false,
                     blobs: vec![],
                     data: crate::test_helpers::minimal_song_data(),
@@ -1195,6 +1301,7 @@ mod tests {
             .create_song_for_user(
                 &perms,
                 shared::song::CreateSong {
+                    owner: None,
                     not_a_song: false,
                     blobs: vec![],
                     data: {
@@ -1222,6 +1329,7 @@ mod tests {
             .create_song_for_user(
                 &perms2,
                 shared::song::CreateSong {
+                    owner: None,
                     not_a_song: false,
                     blobs: vec![],
                     data: {
@@ -1289,5 +1397,56 @@ mod tests {
             .await
             .expect("get setlist");
         assert!(g.songs.is_empty());
+    }
+
+    /// BLC-SONG-020–021: move between shared teams and idempotent same-owner.
+    #[tokio::test]
+    async fn blc_song_020_move_between_teams_and_idempotent() {
+        let db = test_db().await.expect("db");
+        let mover = create_user(&db, "song-move@test.local")
+            .await
+            .expect("mover");
+        let (team_a, team_b) = two_shared_teams_for_user(&db, &mover).await.expect("teams");
+
+        let svc = SongServiceHandle::build(db.clone());
+        let p = UserPermissions::from_ref(&mover, &svc.teams);
+
+        let song = svc
+            .create_song_for_user(
+                &p,
+                CreateSong {
+                    owner: Some(team_a.clone()),
+                    not_a_song: false,
+                    blobs: vec![],
+                    data: crate::test_helpers::minimal_song_data(),
+                },
+            )
+            .await
+            .expect("create");
+        assert_eq!(song.owner, team_a);
+
+        let on_b = svc
+            .move_song_for_user(
+                &p,
+                &song.id,
+                MoveOwner {
+                    owner: team_b.clone(),
+                },
+            )
+            .await
+            .expect("to B");
+        assert_eq!(on_b.owner, team_b);
+
+        let idem = svc
+            .move_song_for_user(
+                &p,
+                &song.id,
+                MoveOwner {
+                    owner: team_b.clone(),
+                },
+            )
+            .await
+            .expect("idem");
+        assert_eq!(idem.owner, team_b);
     }
 }

@@ -159,6 +159,7 @@ pub fn setlist_editor(props: &Props) -> Html {
         let onsave_upstream = props.onsave.clone();
         Callback::from(move |_: MouseEvent| {
             let new_setlist = CreateSetlist {
+                owner: None,
                 title: (*title).clone(),
                 songs: (*items)
                     .iter()

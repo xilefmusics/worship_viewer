@@ -17,6 +17,7 @@ use crate::resources::song::SongUpsertOutcome;
 use crate::resources::song::service::SongServiceHandle;
 use crate::resources::song::{CreateSong, UpdateSong};
 use crate::resources::team::UserPermissions;
+use shared::MoveOwner;
 use shared::api::{PAGE_SIZE_DEFAULT, SongListQuery};
 #[allow(unused_imports)]
 use shared::player::Player;
@@ -29,6 +30,7 @@ pub fn scope() -> Scope {
         .service(create_song)
         .service(update_song)
         .service(patch_song)
+        .service(move_song)
         .service(delete_song)
         .service(get_song_like_status)
         .service(put_song_like)
@@ -177,9 +179,10 @@ async fn get_song_player(
     path = "/api/v1/songs",
     request_body = CreateSong,
     responses(
-        (status = 201, description = "Create a new song. If the user has no default collection yet, the server may create a system \"Default\" collection and set it as `user.default_collection` (BLC-SONG-010).", body = Song),
+        (status = 201, description = "Create a new song. Optional `owner` is a team id; omit for the caller's personal team. When the effective target is the personal team, default-collection behavior may apply (BLC-SONG-010). When `owner` names a different team the song is created there without that default-collection side effect. Library edit access is required on the target team.", body = Song),
         (status = 400, description = "Invalid song payload", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Target team not found or caller cannot edit that team's library", body = Problem, content_type = "application/problem+json"),
         (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to create song", body = Problem, content_type = "application/problem+json")
     ),
@@ -291,6 +294,41 @@ async fn patch_song(
     check_if_match(&req, &etag)?;
     Ok(HttpResponse::Ok().json(
         svc.patch_song_for_user(&perms, &id, payload.into_inner())
+            .await?,
+    ))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/songs/{id}/move",
+    params(
+        ("id" = String, Path, description = "Song identifier")
+    ),
+    request_body = MoveOwner,
+    responses(
+        (status = 200, description = "Song moved to the target team, or unchanged when already owned by that team (idempotent). Moving does not add or remove the song from collections.", body = Song),
+        (status = 400, description = "Invalid `owner` team id", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Song not found, target team not found, or caller lacks library write access on the current or destination team", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to move song", body = Problem, content_type = "application/problem+json")
+    ),
+    tag = "Songs",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[post("/{id}/move")]
+async fn move_song(
+    svc: Data<SongServiceHandle>,
+    user: ReqData<User>,
+    id: Path<String>,
+    payload: Json<MoveOwner>,
+) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(
+        svc.move_song_for_user(&perms, &id.into_inner(), payload.into_inner())
             .await?,
     ))
 }

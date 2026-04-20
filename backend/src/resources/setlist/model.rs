@@ -32,11 +32,12 @@ impl SetlistRecord {
         owner: Option<RecordId>,
         setlist: CreateSetlist,
     ) -> Self {
+        let CreateSetlist { title, songs, .. } = setlist;
         Self {
             id,
             owner,
-            title: setlist.title,
-            songs: setlist.songs.into_iter().map(Into::into).collect(),
+            title,
+            songs: songs.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -56,6 +57,7 @@ mod tests {
             Some(id.clone()),
             Some(owner.clone()),
             CreateSetlist {
+                owner: None,
                 title: "Sunday".into(),
                 songs: vec![SongLink {
                     id: "s1".into(),
@@ -89,6 +91,7 @@ mod tests {
             .create_setlist_for_user(
                 &perms,
                 CreateSetlist {
+                    owner: None,
                     title: "Smoke".to_string(),
                     songs: vec![],
                 },

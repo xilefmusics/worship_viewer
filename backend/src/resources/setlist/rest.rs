@@ -18,6 +18,7 @@ use crate::resources::setlist::{CreateSetlist, UpdateSetlist};
 #[allow(unused_imports)]
 use crate::resources::song::Song;
 use crate::resources::team::UserPermissions;
+use shared::MoveOwner;
 use shared::api::{ListQuery, PAGE_SIZE_DEFAULT, PageQuery};
 #[allow(unused_imports)]
 use shared::player::Player;
@@ -31,6 +32,7 @@ pub fn scope() -> Scope {
         .service(create_setlist)
         .service(update_setlist)
         .service(patch_setlist)
+        .service(move_setlist)
         .service(delete_setlist)
 }
 
@@ -236,9 +238,10 @@ async fn get_setlist_songs(
     path = "/api/v1/setlists",
     request_body = CreateSetlist,
     responses(
-        (status = 201, description = "Create a new setlist", body = Setlist),
+        (status = 201, description = "Create a new setlist. Optional `owner` is a team id; omit for the caller's personal team. Library edit access is required on the target team.", body = Setlist),
         (status = 400, description = "Invalid setlist payload", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Target team not found or caller cannot edit that team's library", body = Problem, content_type = "application/problem+json"),
         (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to create setlist", body = Problem, content_type = "application/problem+json")
     ),
@@ -339,6 +342,41 @@ async fn patch_setlist(
     check_if_match(&req, &etag)?;
     Ok(HttpResponse::Ok().json(
         svc.patch_setlist_for_user(&perms, &id, payload.into_inner())
+            .await?,
+    ))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/setlists/{id}/move",
+    params(
+        ("id" = String, Path, description = "Setlist identifier")
+    ),
+    request_body = MoveOwner,
+    responses(
+        (status = 200, description = "Setlist moved to the target team, or unchanged when already owned by that team (idempotent).", body = Setlist),
+        (status = 400, description = "Invalid `owner` team id", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Setlist not found, target team not found, or caller lacks library write access on the current or destination team", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to move setlist", body = Problem, content_type = "application/problem+json")
+    ),
+    tag = "Setlists",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[post("/{id}/move")]
+async fn move_setlist(
+    svc: Data<SetlistServiceHandle>,
+    user: ReqData<User>,
+    id: Path<String>,
+    payload: Json<MoveOwner>,
+) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(
+        svc.move_setlist_for_user(&perms, &id.into_inner(), payload.into_inner())
             .await?,
     ))
 }

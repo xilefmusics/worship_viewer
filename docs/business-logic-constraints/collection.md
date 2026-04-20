@@ -16,7 +16,7 @@
 - **BLC-COLL-006:** WHEN the caller may not read the owning team’s library THEN collection reads respond **404**.
 - **BLC-COLL-007:** WHEN the caller is **guest** on the owning team and attempts **POST**/**PUT**/**DELETE** THEN the API responds **404**.
 - **BLC-COLL-008:** WHEN the caller is the personal-team **owner**, or **admin** / **content_maintainer** on the owning team, THEN mutations are allowed (subject to validation).
-- **BLC-COLL-009:** WHEN **POST** creates a collection THEN **`owner`** IS ALWAYS the caller’s **personal** team.
+- **BLC-COLL-009:** WHEN **POST** omits **`owner`** THEN the new collection’s **`owner`** IS the caller’s **personal** team. WHEN **POST** includes **`owner`** THEN it MUST name a team id the caller may **edit** (library content); **guest** on that team THEN **404**; unknown team or no edit access THEN **404** (malformed id THEN **400**).
 - **BLC-COLL-010:** WHEN **GET /collections** runs THEN only collections whose **`owner`** team the caller may read are returned; optional **`q`** filters by **title**.
 - **BLC-COLL-011:** WHEN **GET /collections/{id}**, **…/songs**, or **…/player** runs THEN visibility matches **GET /collections/{id}**.
 - **BLC-COLL-012:** WHEN **GET …/songs** runs AND a stored song id does not resolve THEN the API MAY respond **500** rather than a partial list.
@@ -30,3 +30,9 @@
 - **BLC-COLL-017:** WHEN the **cover** blob IS **DELETE**d THEN **GET /collections/{id}** for that collection MAY return **404** until the collection is fixed or removed.
 - **BLC-COLL-018:** WHEN a **user** account IS deleted THEN collections owned by their **personal** team are removed with that team ([user.md](./user.md)).
 - **BLC-COLL-019:** WHEN a referenced **song** IS deleted THEN collection endpoints MAY error or show stale slots until **PUT** updates **songs** ([song.md](./song.md)).
+
+## Move (`POST /collections/{id}/move`)
+
+- **BLC-COLL-020:** **`POST /collections/{id}/move`** with body **`{ "owner": "<team id>" }`** requires **library edit** access on **both** the collection’s **current** owning team and the **target** team; if either check fails, or the target team id is unknown or illegal, the API responds **404** (or **400** for malformed **`owner`**), consistent with other ACL hiding. Platform **admin** MUST NOT bypass library write for this operation.
+- **BLC-COLL-021:** WHEN the target **`owner`** equals the **current** owning team THEN the handler returns **200** with an **unchanged** representation (idempotent).
+- **BLC-COLL-022:** **`POST …/move`** updates **only** the collection’s **`owner`**; it does **not** rewrite **songs** entries or other cross-team references (shallow move).

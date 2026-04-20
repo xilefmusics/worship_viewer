@@ -300,12 +300,11 @@ impl SongRepository for SurrealSongRepo {
             .unwrap_or(0))
     }
 
-    async fn create_song(&self, owner: &str, song: CreateSong) -> Result<Song, AppError> {
+    async fn create_song(&self, owner: RecordId, song: CreateSong) -> Result<Song, AppError> {
         let db = self.inner();
-        let owner_team = db.personal_team_thing_for_user(owner).await?;
         db.db
             .create("song")
-            .content(SongRecord::from_payload(None, Some(owner_team), song))
+            .content(SongRecord::from_payload(None, Some(owner), song))
             .await?
             .map(SongRecord::into_song)
             .ok_or_else(|| AppError::database("failed to create song"))
@@ -377,6 +376,32 @@ impl SongRepository for SurrealSongRepo {
             .query("DELETE FROM type::record($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
+            .bind(("teams", write_teams.to_vec()))
+            .await?;
+
+        let rows: Vec<SongRecord> = response.take(0)?;
+        rows.into_iter()
+            .next()
+            .map(SongRecord::into_song)
+            .ok_or_else(|| AppError::NotFound("song not found".into()))
+    }
+
+    async fn move_song_owner(
+        &self,
+        write_teams: &[RecordId],
+        id: &str,
+        new_owner: RecordId,
+    ) -> Result<Song, AppError> {
+        let db = self.inner();
+        let (tb, sid) = resource_id("song", id)?;
+        let mut response = db
+            .db
+            .query(
+                "UPDATE type::record($tb, $sid) SET owner = $new_owner WHERE owner IN $teams RETURN AFTER",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("new_owner", new_owner))
             .bind(("teams", write_teams.to_vec()))
             .await?;
 

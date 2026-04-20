@@ -21,6 +21,7 @@ use crate::resources::{
     Blob, Collection, CreateBlob, CreateCollection, CreateSetlist, CreateSong, CreateUser, Setlist,
     Song, UpdateBlob, UpdateCollection, UpdateSetlist, UpdateSong, User,
 };
+use shared::MoveOwner;
 use shared::api::SongListQuery;
 use shared::auth::otp::{OtpRequest, OtpVerify};
 use shared::blob::{BlobLink, FileType};
@@ -137,6 +138,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::song::rest::create_song,
         crate::resources::song::rest::update_song,
         crate::resources::song::rest::patch_song,
+        crate::resources::song::rest::move_song,
         crate::resources::song::rest::delete_song,
         crate::resources::song::rest::get_song_like_status,
         crate::resources::song::rest::put_song_like,
@@ -148,12 +150,14 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::collection::rest::create_collection,
         crate::resources::collection::rest::update_collection,
         crate::resources::collection::rest::patch_collection,
+        crate::resources::collection::rest::move_collection,
         crate::resources::collection::rest::delete_collection,
         crate::resources::blob::rest::get_blobs,
         crate::resources::blob::rest::get_blob,
         crate::resources::blob::rest::create_blob,
         crate::resources::blob::rest::update_blob,
         crate::resources::blob::rest::patch_blob,
+        crate::resources::blob::rest::move_blob,
         crate::resources::blob::rest::delete_blob,
         crate::resources::blob::rest::download_blob_image,
         crate::resources::blob::rest::upload_blob_data,
@@ -164,6 +168,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::setlist::rest::create_setlist,
         crate::resources::setlist::rest::update_setlist,
         crate::resources::setlist::rest::patch_setlist,
+        crate::resources::setlist::rest::move_setlist,
         crate::resources::setlist::rest::delete_setlist,
         crate::resources::team::rest::get_teams,
         crate::resources::team::rest::get_team,
@@ -193,6 +198,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             Problem,
             ErrorResponse,
             ProblemDetails,
+            MoveOwner,
             Song,
             CreateSong,
             UpdateSong,

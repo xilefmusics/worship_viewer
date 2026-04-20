@@ -47,10 +47,14 @@ pub struct Song {
     schema(example = json!({
         "not_a_song": false,
         "blobs": [],
-        "data": { "titles": ["Example Hymn"], "sections": [] }
+        "data": { "titles": ["Example Hymn"], "sections": [] },
+        "owner": "team_example_id"
     }))
 )]
 pub struct CreateSong {
+    /// Owning team id (same format as `Song.owner` in responses). Omit to create under the caller's personal team (and apply default-collection rules).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
     pub not_a_song: bool,
     pub blobs: Vec<BlobLink>,
     #[cfg_attr(feature = "backend", schema(value_type = SongDataSchema))]
@@ -79,6 +83,7 @@ pub struct UpdateSong {
 impl From<UpdateSong> for CreateSong {
     fn from(value: UpdateSong) -> Self {
         Self {
+            owner: None,
             not_a_song: value.not_a_song,
             blobs: value.blobs,
             data: value.data,
@@ -158,6 +163,7 @@ impl TryFrom<&str> for CreateSong {
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         Ok(Self {
+            owner: None,
             not_a_song: false,
             blobs: vec![],
             data: chord_pro::load_string(s)?,
@@ -197,6 +203,11 @@ impl CreateSong {
     /// Reject oversized blob reference lists before hitting the service layer.
     pub fn validate(&self) -> Result<(), String> {
         use crate::validation_limits::MAX_BLOBS_PER_SONG;
+        if let Some(ref o) = self.owner {
+            if o.trim().is_empty() {
+                return Err("owner must not be empty or whitespace-only".to_owned());
+            }
+        }
         if self.blobs.len() > MAX_BLOBS_PER_SONG {
             return Err(format!(
                 "too many blob references (max {MAX_BLOBS_PER_SONG})"
@@ -244,6 +255,7 @@ impl From<CreateSong> for Song {
 impl From<Song> for CreateSong {
     fn from(value: Song) -> Self {
         Self {
+            owner: None,
             not_a_song: value.not_a_song,
             blobs: value.blobs,
             data: value.data,
@@ -268,6 +280,7 @@ mod tests {
     fn create_song_validate_rejects_too_many_blobs() {
         use crate::validation_limits::MAX_BLOBS_PER_SONG;
         let mut s = CreateSong {
+            owner: None,
             not_a_song: false,
             blobs: vec![],
             data: chordlib::types::Song::default(),

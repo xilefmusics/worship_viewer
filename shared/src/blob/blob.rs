@@ -56,10 +56,14 @@ impl Blob {
         "file_type": "image/png",
         "width": 1200,
         "height": 800,
-        "ocr": ""
+        "ocr": "",
+        "owner": "team_example_id"
     }))
 )]
 pub struct CreateBlob {
+    /// Owning team id (same format as `Blob.owner` in responses). Omit to create under the caller's personal team.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
     pub file_type: FileType,
     pub width: u32,
     pub height: u32,
@@ -82,6 +86,7 @@ pub struct UpdateBlob {
 impl From<UpdateBlob> for CreateBlob {
     fn from(value: UpdateBlob) -> Self {
         Self {
+            owner: None,
             file_type: value.file_type,
             width: value.width,
             height: value.height,
@@ -105,6 +110,7 @@ pub struct PatchBlob {
 impl From<Blob> for CreateBlob {
     fn from(value: Blob) -> Self {
         Self {
+            owner: None,
             file_type: value.file_type,
             width: value.width,
             height: value.height,

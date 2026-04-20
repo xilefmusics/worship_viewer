@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use shared::MoveOwner;
 use shared::api::ListQuery;
 use shared::collection::{Collection, CreateCollection, PatchCollection};
 use shared::player::Player;
@@ -10,7 +11,9 @@ use crate::database::Database;
 use crate::error::AppError;
 use crate::resources::common::player_from_song_links;
 use crate::resources::song::LikedSongIds;
-use crate::resources::team::{TeamResolver, UserPermissions};
+use crate::resources::team::{
+    TeamResolver, UserPermissions, parse_owner_record_id, thing_record_key,
+};
 
 use super::repository::CollectionRepository;
 use super::surreal_repo::SurrealCollectionRepo;
@@ -103,11 +106,17 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
     pub async fn create_collection_for_user(
         &self,
         perms: &UserPermissions<T>,
-        collection: CreateCollection,
+        mut collection: CreateCollection,
     ) -> Result<Collection, AppError> {
-        self.repo
-            .create_collection(&perms.user().id, collection)
-            .await
+        let owner = match collection.owner.take() {
+            None => perms.personal_team().await?,
+            Some(ref s) => {
+                let rid = parse_owner_record_id(s)?;
+                perms.require_write_access_to_owner(&rid).await?;
+                rid
+            }
+        };
+        self.repo.create_collection(owner, collection).await
     }
 
     #[instrument(level = "debug", err, skip(self, perms, collection))]
@@ -132,11 +141,31 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
     ) -> Result<Collection, AppError> {
         let current = self.get_collection_for_user(perms, id).await?;
         let merged = CreateCollection {
+            owner: None,
             title: patch.title.unwrap_or(current.title),
             cover: patch.cover.unwrap_or(current.cover),
             songs: patch.songs.unwrap_or(current.songs),
         };
         self.update_collection_for_user(perms, id, merged).await
+    }
+
+    #[instrument(level = "debug", err, skip(self, perms, payload))]
+    pub async fn move_collection_for_user(
+        &self,
+        perms: &UserPermissions<T>,
+        id: &str,
+        payload: MoveOwner,
+    ) -> Result<Collection, AppError> {
+        let collection = self.get_collection_for_user(perms, id).await?;
+        let current = parse_owner_record_id(&collection.owner)?;
+        let dest = parse_owner_record_id(&payload.owner)?;
+        if thing_record_key(&current) == thing_record_key(&dest) {
+            return Ok(collection);
+        }
+        perms.require_write_access_to_owner(&current).await?;
+        perms.require_write_access_to_owner(&dest).await?;
+        let write_teams = perms.write_teams().await?;
+        self.repo.move_collection_owner(write_teams, id, dest).await
     }
 
     #[instrument(level = "debug", err, skip(self, perms))]
@@ -180,12 +209,13 @@ mod tests {
     use crate::error::AppError;
     use crate::resources::team::UserPermissions;
     use crate::test_helpers::{
-        configure_personal_team_members, create_song_with_title, create_user, personal_team_id,
-        test_db,
+        TeamFixture, configure_personal_team_members, create_song_with_title, create_user,
+        personal_team_id, team_service, test_db, two_shared_teams_for_user,
     };
+    use shared::MoveOwner;
     use shared::api::ListQuery;
     use shared::collection::CreateCollection;
-    use shared::team::TeamRole;
+    use shared::team::{TeamMemberInput, TeamRole, TeamUserRef, UpdateTeam};
 
     use super::CollectionServiceHandle;
 
@@ -217,6 +247,7 @@ mod tests {
             .create_collection_for_user(
                 &owner_perms,
                 CreateCollection {
+                    owner: None,
                     title: "My Collection".into(),
                     cover: "mysongs".into(),
                     songs: vec![SongLink {
@@ -246,6 +277,7 @@ mod tests {
                 &owner_perms,
                 &col.id,
                 CreateCollection {
+                    owner: None,
                     title: "Updated".into(),
                     cover: "mysongs".into(),
                     songs: vec![SongLink {
@@ -264,6 +296,7 @@ mod tests {
                 &guest_perms,
                 &col.id,
                 CreateCollection {
+                    owner: None,
                     title: "Nope".into(),
                     cover: "mysongs".into(),
                     songs: vec![],
@@ -316,6 +349,7 @@ mod tests {
 
     fn make_collection(title: &str) -> CreateCollection {
         CreateCollection {
+            owner: None,
             title: title.into(),
             cover: "mysongs".into(),
             songs: vec![],
@@ -437,6 +471,7 @@ mod tests {
             .create_collection_for_user(
                 &owner_p,
                 CreateCollection {
+                    owner: None,
                     title: "WithGhostSong".into(),
                     cover: "mysongs".into(),
                     songs: vec![shared::song::Link {
@@ -449,6 +484,42 @@ mod tests {
             .await
             .expect("non-existent song id accepted");
         assert!(!col.id.is_empty());
+    }
+
+    /// BLC-COLL-009: optional `owner` — content_maintainer can create on the team; guest cannot.
+    #[tokio::test]
+    async fn blc_coll_009_post_optional_owner_acl() {
+        let (db, _owner, cm, guest, _nm, tid) = four_user_coll_fixture().await;
+        let svc = CollectionServiceHandle::build(db.clone());
+        let cm_p = UserPermissions::from_ref(&cm, &svc.teams);
+        let guest_p = UserPermissions::from_ref(&guest, &svc.teams);
+
+        let col = svc
+            .create_collection_for_user(
+                &cm_p,
+                CreateCollection {
+                    owner: Some(tid.clone()),
+                    title: "OnTeam".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![],
+                },
+            )
+            .await
+            .expect("cm creates under team");
+        assert_eq!(col.owner, tid);
+
+        let r = svc
+            .create_collection_for_user(
+                &guest_p,
+                CreateCollection {
+                    owner: Some(tid.clone()),
+                    title: "GuestNo".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![],
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
     }
 
     /// BLC-COLL-005: list with `q` filter matches by title (single-token titles).
@@ -514,6 +585,7 @@ mod tests {
             .create_collection_for_user(
                 &owner_p,
                 CreateCollection {
+                    owner: None,
                     title: "SubTest".into(),
                     cover: "mysongs".into(),
                     songs: vec![shared::song::Link {
@@ -637,6 +709,7 @@ mod tests {
                 .create_collection_for_user(
                     &owner_p,
                     CreateCollection {
+                        owner: None,
                         title: "BaseTitle".into(),
                         cover: "mysongs".into(),
                         songs: vec![shared::song::Link {
@@ -712,6 +785,220 @@ mod tests {
             .expect("create");
         let r = svc
             .collection_songs_for_user(&nm_p, &col.id, ListQuery::default())
+            .await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    /// BLC-COLL-020–021: move between teams and idempotent same-owner.
+    #[tokio::test]
+    async fn blc_coll_020_move_between_teams_and_idempotent() {
+        let db = test_db().await.expect("db");
+        let mover = create_user(&db, "c-move-mover@test.local")
+            .await
+            .expect("mover");
+        let (team_a, team_b) = two_shared_teams_for_user(&db, &mover)
+            .await
+            .expect("two teams");
+
+        let svc = CollectionServiceHandle::build(db.clone());
+        let p = UserPermissions::from_ref(&mover, &svc.teams);
+
+        let col = svc
+            .create_collection_for_user(
+                &p,
+                CreateCollection {
+                    owner: Some(team_a.clone()),
+                    title: "OnA".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![],
+                },
+            )
+            .await
+            .expect("create");
+        assert_eq!(col.owner, team_a);
+
+        let on_b = svc
+            .move_collection_for_user(
+                &p,
+                &col.id,
+                MoveOwner {
+                    owner: team_b.clone(),
+                },
+            )
+            .await
+            .expect("move to B");
+        assert_eq!(on_b.owner, team_b);
+
+        let back = svc
+            .move_collection_for_user(
+                &p,
+                &col.id,
+                MoveOwner {
+                    owner: team_a.clone(),
+                },
+            )
+            .await
+            .expect("move to A");
+        assert_eq!(back.owner, team_a);
+
+        let idem = svc
+            .move_collection_for_user(
+                &p,
+                &col.id,
+                MoveOwner {
+                    owner: team_a.clone(),
+                },
+            )
+            .await
+            .expect("idem");
+        assert_eq!(idem.owner, team_a);
+    }
+
+    /// BLC-COLL-020: guest cannot move (no library write on source team).
+    #[tokio::test]
+    async fn blc_coll_021_move_guest_lacks_source_write() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fx");
+        let svc = CollectionServiceHandle::build(db.clone());
+        let admin_p = UserPermissions::from_ref(&fx.admin_user, &svc.teams);
+        let guest_p = UserPermissions::from_ref(&fx.guest, &svc.teams);
+
+        let col = svc
+            .create_collection_for_user(
+                &admin_p,
+                CreateCollection {
+                    owner: Some(fx.shared_team_id.clone()),
+                    title: "OnShared".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![],
+                },
+            )
+            .await
+            .expect("create");
+
+        let dest = personal_team_id(&db, &fx.guest).await.expect("g personal");
+        let r = svc
+            .move_collection_for_user(&guest_p, &col.id, MoveOwner { owner: dest })
+            .await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    /// BLC-COLL-020: destination team requires library write.
+    #[tokio::test]
+    async fn blc_coll_022_move_lacks_dest_write() {
+        let db = test_db().await.expect("db");
+        let lead = create_user(&db, "c-lead@test.local").await.expect("lead");
+        let cm = create_user(&db, "c-cmonly@test.local").await.expect("cm");
+        let (team_a, team_b) = two_shared_teams_for_user(&db, &lead).await.expect("teams");
+
+        team_service(&db)
+            .update_team_for_user(
+                &lead,
+                &team_a,
+                UpdateTeam {
+                    name: "Team A".into(),
+                    members: Some(vec![
+                        TeamMemberInput {
+                            user: TeamUserRef {
+                                id: lead.id.clone(),
+                            },
+                            role: TeamRole::Admin,
+                        },
+                        TeamMemberInput {
+                            user: TeamUserRef { id: cm.id.clone() },
+                            role: TeamRole::ContentMaintainer,
+                        },
+                    ]),
+                },
+            )
+            .await
+            .expect("add cm to A");
+
+        let svc = CollectionServiceHandle::build(db.clone());
+        let cm_p = UserPermissions::from_ref(&cm, &svc.teams);
+
+        let col = svc
+            .create_collection_for_user(
+                &cm_p,
+                CreateCollection {
+                    owner: Some(team_a.clone()),
+                    title: "OnA".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![],
+                },
+            )
+            .await
+            .expect("create");
+
+        let r = svc
+            .move_collection_for_user(
+                &cm_p,
+                &col.id,
+                MoveOwner {
+                    owner: team_b.clone(),
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(AppError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn blc_coll_023_move_empty_owner_bad_request() {
+        let db = test_db().await.expect("db");
+        let u = create_user(&db, "c-bad@test.local").await.expect("u");
+        let (a, _) = two_shared_teams_for_user(&db, &u).await.expect("teams");
+        let svc = CollectionServiceHandle::build(db.clone());
+        let p = UserPermissions::from_ref(&u, &svc.teams);
+        let col = svc
+            .create_collection_for_user(
+                &p,
+                CreateCollection {
+                    owner: Some(a),
+                    title: "X".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![],
+                },
+            )
+            .await
+            .expect("create");
+
+        let r = svc
+            .move_collection_for_user(
+                &p,
+                &col.id,
+                MoveOwner {
+                    owner: "   ".into(),
+                },
+            )
+            .await;
+        assert!(matches!(r, Err(AppError::InvalidRequest(_))));
+    }
+
+    /// BLC-COLL-020: platform admin does not gain move without library write.
+    #[tokio::test]
+    async fn blc_coll_024_platform_admin_move_requires_library_write() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fx");
+        let svc = CollectionServiceHandle::build(db.clone());
+        let admin_p = UserPermissions::from_ref(&fx.admin_user, &svc.teams);
+        let pa_p = UserPermissions::from_ref(&fx.platform_admin, &svc.teams);
+
+        let col = svc
+            .create_collection_for_user(
+                &admin_p,
+                CreateCollection {
+                    owner: Some(fx.shared_team_id.clone()),
+                    title: "OnShared".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![],
+                },
+            )
+            .await
+            .expect("create");
+
+        let dest = personal_team_id(&db, &fx.admin_user).await.expect("dest");
+        let r = svc
+            .move_collection_for_user(&pa_p, &col.id, MoveOwner { owner: dest })
             .await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
