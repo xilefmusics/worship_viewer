@@ -43,7 +43,7 @@ pub fn json_config() -> JsonConfig {
             .get::<crate::request_id::ApiRequestTarget>()
             .map(|t| t.0.clone());
         let problem = Problem::new(
-            "https://worship-viewer.invalid/problems/invalid_request".into(),
+            "https://worshipviewer.invalid/problems/invalid_request".into(),
             "Bad Request".into(),
             400,
             "invalid_request",
@@ -197,7 +197,7 @@ impl AppError {
     }
 
     fn problem_type_uri(&self) -> String {
-        format!("https://worship-viewer.invalid/problems/{}", self.code())
+        format!("https://worshipviewer.invalid/problems/{}", self.code())
     }
 
     fn detail_message(&self) -> String {

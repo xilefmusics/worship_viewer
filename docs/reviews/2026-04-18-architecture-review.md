@@ -14,7 +14,7 @@ These items are real in code or delivery pipelines but are **absent** from `docs
 
 | Item | Where it lives | Notes |
 |------|----------------|-------|
-| **Docker Hub image** `xilefmusics/worship-viewer` | `.github/workflows/backend-ci.yml` (`docker-publish` job), `README.md` | Multi-stage build + push on `main` and tags; not depicted in architecture docs. |
+| **Docker Hub image** `xilefmusics/worshipviewer` | `.github/workflows/backend-ci.yml` (`docker-publish` job), `README.md` | Multi-stage build + push on `main` and tags; not depicted in architecture docs. |
 | **Venom** HTTP black-box tests | `Dockerfile` `tester` stage | Downloads Venom binary; runs `backend/tests/*.yml` against a spawned process before the final image. |
 | **Trunk** WASM build | `Dockerfile`, `README.md` | Frontend is compiled in CI image build; architecture docs do not mention the WASM toolchain. |
 

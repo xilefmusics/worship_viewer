@@ -4,7 +4,7 @@ use crate::output::OutputFormat;
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "worship-viewer",
+    name = "worshipviewer",
     version,
     about = "CLI for the Worship Viewer REST API"
 )]
@@ -15,12 +15,12 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub sso_session: Option<String>,
 
-    #[arg(long, env = "WORSHIP_VIEWER_BEARER_TOKEN", global = true)]
+    #[arg(long, env = "WORSHIPVIEWER_BEARER_TOKEN", global = true)]
     pub bearer_token: Option<String>,
 
     #[arg(
         long,
-        env = "WORSHIP_VIEWER_OUTPUT",
+        env = "WORSHIPVIEWER_OUTPUT",
         default_value = "auto",
         global = true
     )]
@@ -29,7 +29,7 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub dry_run: bool,
 
-    #[arg(long, env = "WORSHIP_VIEWER_TIMEOUT_SECS", global = true)]
+    #[arg(long, env = "WORSHIPVIEWER_TIMEOUT_SECS", global = true)]
     pub timeout_secs: Option<u64>,
 
     #[command(subcommand)]

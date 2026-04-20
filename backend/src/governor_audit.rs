@@ -24,7 +24,7 @@ pub fn rate_limit_problem_response(
         .as_secs();
     let detail = format!("rate limit exceeded; retry after {wait_time}s");
     let problem = Problem::new(
-        "https://worship-viewer.invalid/problems/too_many_requests".into(),
+        "https://worshipviewer.invalid/problems/too_many_requests".into(),
         "Too Many Requests".into(),
         429,
         "too_many_requests",

@@ -55,7 +55,7 @@ pub fn openapi_document(settings: &Settings) -> utoipa::openapi::OpenApi {
 }
 
 const BLC_GITHUB_BASE: &str =
-    "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/";
+    "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/";
 
 fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: &Settings) {
     let tag_docs: &[(&str, &str)] = &[

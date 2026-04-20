@@ -48,7 +48,7 @@ SHELL ["/bin/sh", "-c"]
 
 COPY --from=builder /usr/local/bin/venom /usr/local/bin/venom
 COPY --from=builder /wrk/backend/tests /app/tests
-COPY --from=builder /wrk/backend/target/release/backend /app/worship_viewer
+COPY --from=builder /wrk/backend/target/release/backend /app/worshipviewer
 COPY --from=builder /wrk/backend/db-migrations /app/db-migrations
 COPY --from=builder /wrk/frontend/dist/ /app/static
 
@@ -58,7 +58,7 @@ ENV INITIAL_ADMIN_USER_EMAIL="admin@example.com" \
     INITIAL_ADMIN_USER_TEST_SESSION=true
 
 RUN set -eux; \
-    ./worship_viewer & \
+    ./worshipviewer & \
     backend_pid=$!; \
     trap "kill $backend_pid 2>/dev/null || true" EXIT; \
     sleep 5; \
@@ -82,10 +82,10 @@ COPY --from=builder /usr/lib/x86_64-linux-gnu/libzstd.so.1 /usr/lib/x86_64-linux
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /usr/lib/x86_64-linux-gnu/libstdc++.so.6
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-COPY --from=tester /app/worship_viewer /app/worship_viewer
+COPY --from=tester /app/worshipviewer /app/worshipviewer
 COPY --from=builder /wrk/backend/db-migrations/ /app/db-migrations
 COPY --from=builder /wrk/frontend/dist/ /app/static
 
 EXPOSE 8080
 WORKDIR /app
-ENTRYPOINT ["/app/worship_viewer"]
+ENTRYPOINT ["/app/worshipviewer"]

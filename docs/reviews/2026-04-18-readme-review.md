@@ -24,7 +24,7 @@ Review of the repository root [`README.md`](../../README.md) against the current
 
 - **Single-origin frontend:** The Yew app uses `window.location.origin` as the API base ([`frontend/src/api/provider.rs`](../../frontend/src/api/provider.rs)). Running **only** `trunk serve` on port 8081 while the API listens on 8080 sends browser requests to `http://localhost:8081/...`, not the backend, unless a reverse proxy (e.g. Caddy) or Trunk proxy is configured. The README lists backend, then frontend, then Caddy as optional—**the minimal two-process flow is misleading** without Caddy or without building the SPA into `STATIC_DIR` and running a single backend process.
 - **`wasm32` target:** Required for `trunk build` / `trunk serve`; README mentions adding the target (good). No note that the repo’s [Dockerfile](../../Dockerfile) pins Rust **1.94.1** and Trunk **0.21.14** for reproducible builds.
-- **CLI:** [`WORSHIP_VIEWER_OUTPUT`](../../cli/src/commands.rs) exists as an environment variable for the global `--output` flag; README documents flags only, not this env var. The CLI’s [`load_file_config`](../../cli/src/config.rs) may **create** `~/.worshipviewer/config.toml` with defaults on first access—worth a one-line note for onboarding.
+- **CLI:** [`WORSHIPVIEWER_OUTPUT`](../../cli/src/commands.rs) exists as an environment variable for the global `--output` flag; README documents flags only, not this env var. The CLI’s [`load_file_config`](../../cli/src/config.rs) may **create** `~/.worshipviewer/config.toml` with defaults on first access—worth a one-line note for onboarding.
 
 ### Prerequisites
 
@@ -33,7 +33,7 @@ Review of the repository root [`README.md`](../../README.md) against the current
 ## 2. Documented but stale, inaccurate, or mismatched
 
 - **CLI section:** “see the steps in **Install Prerequisites** below” — that section is **above** the CLI block, not below (wording error).
-- **Docker quick start:** `docker run ... xilefmusics/worship-viewer:latest` — on **Apple Silicon (linux/arm64)** Docker reported *no matching manifest* for this image (image appears **amd64-only**). README should state platform requirements or `docker run --platform linux/amd64` where appropriate.
+- **Docker quick start:** `docker run ... xilefmusics/worshipviewer:latest` — on **Apple Silicon (linux/arm64)** Docker reported *no matching manifest* for this image (image appears **amd64-only**). README should state platform requirements or `docker run --platform linux/amd64` where appropriate.
 - **Typos in README (quality / trust):** e.g. “slieds”, “Spirt”, “worhip”, “spontanious”, “helps you lead” → grammar (“help”).
 - **“A lot more to come”** under the tagline is vague; either remove or point to issues/roadmap if one exists.
 
@@ -50,9 +50,9 @@ Review of the repository root [`README.md`](../../README.md) against the current
 | Backend: `cd backend` + `INITIAL_ADMIN_USER_EMAIL=...` `INITIAL_ADMIN_USER_TEST_SESSION=true` `cargo build` | **Succeeded** |
 | Backend: short `cargo run` | Process started (`target/debug/backend`); terminated after a few seconds for the test |
 | Frontend: `trunk build` in `frontend/` | **Failed** with `NO_COLOR=1` in the environment (`invalid value '1' for '--no-color'`). **Succeeded** after `env -u NO_COLOR trunk build` |
-| CLI: `cargo install --path cli` from repo root | **Succeeded**; installs binary `worship-viewer` (crate name `worship-viewer-cli`) |
+| CLI: `cargo install --path cli` from repo root | **Succeeded**; installs binary `worshipviewer` (crate name `worshipviewer-cli`) |
 | `https://app.worshipviewer.com` | **Reached** (HTTP fetch returned page content) |
-| `docker pull xilefmusics/worship-viewer:latest` | **Failed on arm64** (no manifest for `linux/arm64/v8`) |
+| `docker pull xilefmusics/worshipviewer:latest` | **Failed on arm64** (no manifest for `linux/arm64/v8`) |
 
 **Not executed here:** Full `caddy run` with the pasted JSON (Caddy not verified in this run). The config shape matches Caddy 2 JSON apps style; still worth a maintainer re-check on their installed Caddy version.
 
@@ -79,7 +79,7 @@ Aligned with common “Standard README” / “Awesome README” expectations:
 1. Fix the **frontend + API origin** story in README (Caddy as default dev path, or document `STATIC_DIR` + `trunk build` output copied into `backend/static`, or Trunk `[build.proxy]` if adopted).
 2. Document **Docker platform** (amd64 vs arm64) and optional `--platform linux/amd64`.
 3. Add a concise **environment variable** subsection or link to `Settings` / internal ops doc.
-4. Correct **CLI “below”** → “above”, document **`WORSHIP_VIEWER_OUTPUT`**, and mention **auto-created** `~/.worshipviewer/config.toml`.
+4. Correct **CLI “below”** → “above”, document **`WORSHIPVIEWER_OUTPUT`**, and mention **auto-created** `~/.worshipviewer/config.toml`.
 5. Note **`NO_COLOR=1`** + Trunk incompatibility or upstream tracking issue.
 6. Proofread typos; add **CONTRIBUTING** (or link) if the project welcomes PRs.
 
