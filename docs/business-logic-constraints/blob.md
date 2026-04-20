@@ -5,8 +5,8 @@
 - **BLC-BLOB-001:** Every blob belongs to exactly one **owning team** (the **`owner`** in responses).
 - **BLC-BLOB-002:** Listing, fetching metadata, and downloading bytes require the caller to be allowed to **read that team’s library**; mutating or deleting a blob requires **library edit** rights on that team. Platform **admin** does **not** gain blob edit solely by role.
 - **BLC-BLOB-003:** **`PUT`** MUST NOT change **`owner`**.
-- **BLC-BLOB-004:** New blobs are created as metadata records; **GET …/data** MAY serve empty or placeholder bytes until binary content is supplied outside this HTTP API.
-- **BLC-BLOB-005:** **`file_type`** on create/update MUST be among the image types the API accepts (e.g. **`image/png`**, **`image/jpeg`**); unsupported values THEN **400**.
+- **BLC-BLOB-004:** New blobs are created as metadata records (**POST**). Binary bytes are supplied via **`PUT /api/v1/blobs/{id}/data`** with an appropriate **`Content-Type`** (same API surface as metadata **GET …/data**). Until bytes are written, **GET …/data** MAY serve empty or placeholder content.
+- **BLC-BLOB-005:** **`file_type`** on create/update MUST be among the image types the API accepts: **`image/png`**, **`image/jpeg`**, **`image/svg+xml`**, and the deprecated alias **`image/svg`**; unsupported values THEN **400**.
 
 ## List pagination
 
@@ -22,11 +22,12 @@
 - **BLC-BLOB-011:** WHEN **GET …/data** runs THEN the same visibility rules as metadata **GET** apply; IF bytes are available THEN they are served.
 - **BLC-BLOB-016:** **`GET /blobs/{id}/data`** responses include a weak **`ETag`** over stored bytes, **`Content-Length`**, and **`Cache-Control: private, max-age=3600, immutable`**. **`If-None-Match`** matching the current **`ETag`** yields **304** with an empty body.
 - **BLC-BLOB-012:** WHEN **PUT** runs THEN only **`file_type`**, **`width`**, **`height`**, and **`ocr`** may change.
+- **BLC-BLOB-020:** WHEN **PATCH /blobs/{id}** runs THEN only fields present in the body are updated; omitted fields are unchanged; unknown fields are rejected (**`deny_unknown_fields`**), matching the pattern in **BLC-SONG-019**. Optimistic concurrency uses **`If-Match`** with the resource **ETag**, consistent with other library resources.
 - **BLC-BLOB-013:** WHEN **DELETE** succeeds THEN the blob no longer appears in the API and associated stored bytes MAY be removed.
 
 ## Cascading deletes and dependents
 
-- **BLC-BLOB-014:** WHEN a blob used as a collection **`cover`** IS **DELETE**d THEN **GET** that collection MAY return **404** even if the collection id still exists until it is updated or removed.
+- **BLC-BLOB-014:** WHEN a blob used as a collection **`cover`** IS **DELETE**d THEN **GET** that collection MAY return **404** for the collection or expose inconsistent metadata until the collection is updated or removed; clients SHOULD refresh references after deletes.
 - **BLC-BLOB-015:** WHEN a **user** account IS deleted THEN blobs owned by their **personal** team disappear with that team (see [user.md](./user.md)).
 
 ## Move (`POST /blobs/{id}/move`)

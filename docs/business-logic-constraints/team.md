@@ -21,6 +21,9 @@
 - **BLC-TEAM-014:** WHEN someone tries to reassign a personal **`owner`** THEN the operation IS rejected.
 - **BLC-TEAM-015:** WHEN removing the last admin on a shared team THEN the API responds **409** until fixed or the team IS deleted.
 - **BLC-TEAM-016:** WHEN **DELETE** runs on a **shared** team THEN the actor MUST be **admin** (or equivalent); blobs, songs, collections, and setlists that belonged to that team become owned by the deleting **admin**’s **personal** team (they are not deleted).
+- **BLC-TEAM-019:** WHEN **PATCH /teams/{id}** runs THEN only fields present in the body are updated; omitted fields are unchanged; unknown fields are rejected, matching **BLC-SONG-019**. Optimistic concurrency uses **`If-Match`** with the resource **ETag** where applicable.
+
+Platform **admin** read vs write for team-scoped library content: [platform-admin-content.md](./platform-admin-content.md).
 
 ## Cascading deletes (user vs team)
 

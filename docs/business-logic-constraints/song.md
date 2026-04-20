@@ -24,7 +24,7 @@
 - **BLC-SONG-014:** WHEN **DELETE /songs/{id}** succeeds THEN the song no longer appears via the API under the same access rules as **PUT**.
 - **BLC-SONG-017:** WHEN **PUT /songs/{id}** body fails validation (e.g. empty **`data`**, or wrong types for fields such as **`tempo`** / **`time`**) THEN **400**.
 - **BLC-SONG-019:** WHEN **PATCH /songs/{id}** omits **`data`** and other patch fields THEN those properties remain unchanged; the request body lists only fields to update (see OpenAPI **`PatchSong`**).
-- **BLC-SONG-018:** WHEN **PUT /songs/{id}** uses an **`{id}`** that does not yet refer to an existing song THEN the API MAY create the song with that **id**; **`owner`** in the body selects the owning team when the caller may write that team, otherwise **`owner`** IS the caller’s **personal** team, subject to **BLC-SONG-007** and **BLC-SONG-008** for **guest** vs **edit** rights.
+- **BLC-SONG-018:** WHEN **PUT /songs/{id}** uses an **`{id}`** that does not yet refer to an existing song THEN the API **creates** the song with that **id** and responds **201 Created** with a **`Location`** header naming the new resource, consistent with [create-update-policy.md](./create-update-policy.md) (**Upsert**). **`owner`** in the body selects the owning team when the caller may write that team, otherwise **`owner`** IS the caller’s **personal** team, subject to **BLC-SONG-007** and **BLC-SONG-008** for **guest** vs **edit** rights. WHEN the **`{id}`** already refers to an existing song THEN the API responds **200 OK** with the updated body.
 
 ## Move (`POST /songs/{id}/move`)
 
@@ -34,5 +34,9 @@
 
 ## Cascading deletes and collection/setlist references
 
-- **BLC-SONG-015:** WHEN a song IS deleted THEN collections and setlists MAY still list its id until updated; **POST**/**PUT** MAY accept unknown ids; **GET …/collections/{id}/songs`** MAY return **500** or incomplete entries if a slot no longer resolves; clients SHOULD refresh after deletes.
+- **BLC-SONG-015:** WHEN a song IS deleted THEN collections and setlists MAY still list its id until updated; **POST**/**PUT** MAY accept unknown ids. Clients SHOULD refresh lists after deletes to avoid stale references.
+
+## Developer notes (non-normative)
+
+- Stale **song** ids inside collection/setlist **songs** arrays after a delete are a client-visible consistency concern; list and detail behavior for unresolved ids is defined by the implementation (see OpenAPI and tests), not by speculative **500** outcomes.
 - **BLC-SONG-016:** WHEN a **user** account IS deleted THEN songs owned by their **personal** team are removed with that team ([user.md](./user.md)).

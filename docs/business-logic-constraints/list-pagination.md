@@ -1,6 +1,6 @@
 # List endpoints: query parameters and pagination
 
-Applies to **GET** list routes that support paging: **`/users`** (admin), **`/blobs`**, **`/collections`**, **`/setlists`**, **`/songs`**.
+Applies to **GET** list routes that support paging, including **`/users`** (admin), **`/blobs`**, **`/collections`**, **`/setlists`**, **`/songs`**, **`/teams`**, **`/users/me/sessions`**, **`/users/{id}/sessions`** (admin), and **`/teams/{team}/invitations`**.
 
 ## Query parameters
 
@@ -18,7 +18,8 @@ Applies to **GET** list routes that support paging: **`/users`** (admin), **`/bl
 ## Pagination behavior
 
 - **BLC-LP-006:** ~~WHEN **`page_size`** IS **`0`** THEN no page-size cap IS applied~~ — **removed**: `page_size=0` is now rejected with `400` (see BLC-LP-004a).
-- **BLC-LP-007:** WHEN **`page`** is absent it defaults to **0**. WHEN **`page_size`** is absent it defaults to **50**. The server hard cap is **500**.
+- **BLC-LP-007:** WHEN **`page`** is absent it defaults to **0**. WHEN **`page_size`** is absent it defaults to **50**. The server hard cap is **500**. This default applies to all paginated list routes above.
+- **BLC-LP-007a (nested sub-lists):** For **GET** routes that list items **nested under another resource** (for example **`GET /collections/{id}/songs`**, **`GET /setlists/{id}/songs`**), when **both** **`page`** and **`page_size`** are **omitted**, the implementation MAY return **all** items in one response for backward compatibility. When **either** **`page`** or **`page_size`** is present, normal pagination (**BLC-LP-007**) applies.
 - **BLC-LP-008:** WHEN **`page`** IS beyond the last page THEN the API responds **200** with an **empty array** (not **404**).
 - **BLC-LP-009:** WHEN **`q`** IS combined with **`page`** / **`page_size`** THEN filtering runs first, then pagination over those results.
 
