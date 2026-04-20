@@ -75,6 +75,9 @@ impl Model for Database {
     }
 }
 
+/// Persisted shape for table `oidc_state` (SCHEMAFULL). Every serialized field here must have a
+/// matching `DEFINE FIELD` for `oidc_state` under `backend/db-migrations`; new columns require an
+/// additive `.surql` migration so existing databases stay migratable.
 #[derive(Debug, Serialize, Deserialize, SurrealValue)]
 struct OidcStateRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
