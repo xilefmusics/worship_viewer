@@ -3,7 +3,7 @@
 ## Static
 
 - **BLC-TINV-001:** An invitation IS ALWAYS for one **shared** team (not a **personal** team, not the reserved catalog team).
-- **BLC-TINV-002:** Creating, listing, fetching, and deleting invitations IS ALWAYS limited to team **admin** (platform **admin** has no special bypass unless the product adds it later).
+- **BLC-TINV-002:** Creating, listing, fetching, and deleting invitations requires **team admin** on that team. A **member** who is **not** admin receives **403**. Callers who are **not** members of the team (or use a wrong team id) receive **404** for list/get/delete, consistent with ACL hiding. Platform **admin** has no special bypass for these operations unless the product adds it later.
 - **BLC-TINV-003:** Invitations have **no expiry**, **no max uses**, and **no use counter** in the API contract.
 - **BLC-TINV-004:** **DELETE** permanently removes an invitation; there IS no separate “revoked but visible” state.
 - **BLC-TINV-005:** After **accept**, the invitation remains until an **admin** **DELETE**s it.

@@ -23,6 +23,7 @@
 - **BLC-SETL-010:** WHEN **GET /setlists** runs THEN only setlists whose **`owner`** team the caller may read are returned; optional **`q`** filters by **title**.
 - **BLC-SETL-011:** WHEN **GET /setlists/{id}**, **…/songs**, or **…/player** runs THEN visibility matches **GET /setlists/{id}**.
 - **BLC-SETL-012:** WHEN **DELETE** succeeds THEN the setlist no longer appears under the same read rules.
+- **BLC-SETL-018:** WHEN **PATCH /setlists/{id}** runs THEN only fields present in the body are updated; omitted fields are unchanged; unknown fields are rejected (**`deny_unknown_fields`**), matching **BLC-SONG-019**. Optimistic concurrency uses **`If-Match`** with the resource **ETag**.
 
 ## Cascading deletes
 

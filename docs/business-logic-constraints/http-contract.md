@@ -16,4 +16,16 @@ Rules that apply across several **`/api/v1`** resources (path validation, idempo
 
 ## API rate limiting (`/api/v1/*`)
 
-- **BLC-HTTP-004:** Versioned **`/api/v1/*`** routes are rate-limited **per client IP** (see `backend` settings **`API_RATE_LIMIT_RPS`** and **`API_RATE_LIMIT_BURST`**, defaults **50** RPS and burst **200**). WHEN the limit IS exceeded THEN the API responds **429 Too Many Requests** with **`Retry-After`** and **`X-RateLimit-*`** headers ([`actix-governor`](https://docs.rs/actix-governor/latest/actix_governor/)).
+- **BLC-HTTP-004:** Versioned **`/api/v1/*`** routes are rate-limited **per client IP** (see `backend` settings **`API_RATE_LIMIT_RPS`** and **`API_RATE_LIMIT_BURST`**, defaults **50** RPS and burst **200**). The governor uses the client address from the connection, with a fallback when the peer address is unavailable (see implementation). **`/auth/*`** routes use separate **`auth_rate_limit_*`** settings. WHEN the limit IS exceeded THEN the API responds **429 Too Many Requests** with **`Retry-After`** and **`X-RateLimit-*`** headers ([`actix-governor`](https://docs.rs/actix-governor/latest/actix_governor/)).
+
+## Conditional requests (ETag)
+
+- **BLC-HTTP-005:** Single-resource **GET**, **PATCH**, **PUT**, and **DELETE** on **songs**, **collections**, and **setlists** (JSON bodies) use a weak **`ETag`** over the canonical JSON representation. **`If-None-Match`** matching the current **`ETag`** on **GET** yields **304 Not Modified**. **`If-Match`** on mutating requests MUST match the current **`ETag`** or the API responds **412 Precondition Failed** (see **`http_cache`** in the backend). **Blob** byte responses follow **BLC-BLOB-016**.
+
+## Unknown routes under `/api` and `/auth`
+
+- **BLC-HTTP-006:** Requests to unrecognized paths under **`/api/**`** or **`/auth/**`** that are handled by the API return **`application/problem+json`** (not an HTML SPA fallback).
+
+## Platform admin vs team library writes
+
+- See [platform-admin-content.md](./platform-admin-content.md) (**BLC-ADMIN-001**, **BLC-ADMIN-002**).

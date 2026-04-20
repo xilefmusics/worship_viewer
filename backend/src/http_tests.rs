@@ -7,8 +7,9 @@
 //! - Slice 4D: HTTP contract — invalid path IDs + idempotent DELETE (BLC-HTTP-001, BLC-HTTP-002)
 //! - Slice 4E: user admin gates (BLC-USER-005, BLC-USER-006, BLC-USER-007, BLC-USER-009)
 //! - Slice 4F: session admin gates (BLC-SESS-003, BLC-SESS-004, BLC-SESS-005, BLC-SESS-006, BLC-SESS-009)
-//! - Slice 4G: list pagination HTTP validation (BLC-LP-004 through BLC-LP-009)
+//! - Slice 4G: list pagination HTTP validation (BLC-LP-004 through BLC-LP-010)
 //! - Slice 4H: monitoring / HTTP audit logs (BLC-MON-002 through BLC-MON-004)
+//! - API rate limit (**BLC-HTTP-004**), song ACL / upsert (**BLC-SONG-002**, **BLC-SONG-018**), blob create (**BLC-BLOB-005**)
 //!
 //! # Middleware error note
 //!
@@ -44,6 +45,23 @@ use crate::test_helpers::{create_song_with_title, create_user, session_service, 
 /// `frontend::rest::scope()` (needs a static file directory on disk).
 pub(crate) fn build_app(
     db: Arc<Database>,
+) -> App<
+    impl actix_web::dev::ServiceFactory<
+        actix_web::dev::ServiceRequest,
+        Config = (),
+        Response = actix_web::dev::ServiceResponse,
+        Error = actix_web::Error,
+        InitError = (),
+    >,
+> {
+    build_app_with_api_limits(db, 50, 200)
+}
+
+/// Same as [`build_app`] but with configurable `/api/v1` per-IP rate limits (for **BLC-HTTP-004** tests).
+fn build_app_with_api_limits(
+    db: Arc<Database>,
+    api_rate_limit_rps: u64,
+    api_rate_limit_burst: u32,
 ) -> App<
     impl actix_web::dev::ServiceFactory<
         actix_web::dev::ServiceRequest,
@@ -95,8 +113,8 @@ pub(crate) fn build_app(
         .service(resources::rest::scope(
             20 * 1024 * 1024,
             2 * 1024 * 1024,
-            50,
-            200,
+            api_rate_limit_rps,
+            api_rate_limit_burst,
         ))
 }
 
@@ -523,6 +541,36 @@ mod http_contract {
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+}
+
+#[cfg(test)]
+mod api_rate_limit_http {
+    use super::*;
+    use actix_web::http::StatusCode;
+
+    /// BLC-HTTP-004: when the per-IP API limit is exceeded, **429** includes **`Retry-After`** and **`X-RateLimit-*`** headers.
+    #[actix_web::test]
+    async fn blc_http_004_rate_limit_429_includes_headers() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "api-ratelimit@test.local").await.unwrap();
+        let token = create_session_token(&db, user).await.unwrap();
+        let app = test::init_service(build_app_with_api_limits(db, 1, 1)).await;
+        let uri = "/api/v1/songs";
+        let req1 = test::TestRequest::get()
+            .uri(uri)
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let resp1 = test::call_service(&app, req1).await;
+        assert_eq!(resp1.status(), StatusCode::OK);
+        let req2 = test::TestRequest::get()
+            .uri(uri)
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let resp2 = test::call_service(&app, req2).await;
+        assert_eq!(resp2.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert!(resp2.headers().get("retry-after").is_some());
+        assert!(resp2.headers().get("x-ratelimit-limit").is_some());
     }
 }
 
@@ -1168,6 +1216,38 @@ mod list_pagination {
             "page 1 of 3 matching with page_size=2 should return 1"
         );
     }
+
+    /// BLC-LP-010: list responses include a `Link` header with pagination relations.
+    #[actix_web::test]
+    async fn blc_lp_010_link_header_on_songs_list() {
+        use actix_web::http::header::LINK;
+
+        let db = test_db().await.unwrap();
+        let (user, token) = authed_user_and_token(&db, "lp010@test.local").await;
+        for i in 0..3 {
+            create_song_with_title(&db, &user, &format!("LP010 Song {i}"))
+                .await
+                .unwrap();
+        }
+
+        let app = test::init_service(build_app(db.clone())).await;
+        let req = test::TestRequest::get()
+            .uri("/api/v1/songs?page=0&page_size=1")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let link = resp
+            .headers()
+            .get(LINK)
+            .expect("Link header")
+            .to_str()
+            .unwrap();
+        assert!(
+            link.contains("rel=\"next\"") || link.contains("rel=next"),
+            "expected rel=next in Link, got {link:?}"
+        );
+    }
 }
 
 #[cfg(test)]
@@ -1554,6 +1634,95 @@ mod song_patch_http {
         assert_eq!(g2["data"]["titles"][1], "Second");
         assert_eq!(g2["data"]["subtitle"], "sub");
         assert_eq!(g2["data"]["tags"]["hymn_type"], "common");
+    }
+}
+
+#[cfg(test)]
+mod song_acl_http {
+    use super::*;
+    use crate::resources::User;
+    use crate::test_helpers::user_service;
+    use actix_web::http::{StatusCode, header::LOCATION};
+    use shared::user::Role;
+
+    /// BLC-SONG-002: platform admin cannot **PUT** another user's song without library edit (**404**).
+    #[actix_web::test]
+    async fn blc_song_002_platform_admin_put_other_users_song_returns_404() {
+        let db = test_db().await.unwrap();
+        let owner = create_user(&db, "song-owner-pa@test.local").await.unwrap();
+        let song = create_song_with_title(&db, &owner, "ProtectedTitle")
+            .await
+            .unwrap();
+
+        let mut admin_raw = User::new("platform-admin-song@test.local");
+        admin_raw.role = Role::Admin;
+        let admin = user_service(&db).create_user(admin_raw).await.unwrap();
+        let admin_token = create_session_token(&db, admin).await.unwrap();
+
+        let app = test::init_service(build_app(db.clone())).await;
+        let payload = r#"{
+            "not_a_song": false,
+            "blobs": [],
+            "data": { "titles": ["Hacked"], "sections": [] }
+        }"#;
+        let req = test::TestRequest::put()
+            .uri(&format!("/api/v1/songs/{}", song.id))
+            .insert_header(("Authorization", format!("Bearer {admin_token}")))
+            .insert_header(("Content-Type", "application/json"))
+            .set_payload(payload)
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    /// BLC-SONG-018: **PUT** with a previously unused id returns **201** and **`Location`**.
+    #[actix_web::test]
+    async fn blc_song_018_put_upsert_new_id_returns_201_with_location() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "song-upsert-http@test.local")
+            .await
+            .unwrap();
+        let token = create_session_token(&db, user).await.unwrap();
+        let app = test::init_service(build_app(db)).await;
+        let new_id = "http-upsert-new-song-id";
+        let payload = r#"{
+            "not_a_song": false,
+            "blobs": [],
+            "data": { "titles": ["Upsert Via PUT"], "sections": [] }
+        }"#;
+        let req = test::TestRequest::put()
+            .uri(&format!("/api/v1/songs/{new_id}"))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header(("Content-Type", "application/json"))
+            .set_payload(payload)
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let loc = resp.headers().get(LOCATION).unwrap().to_str().unwrap();
+        assert!(loc.ends_with(&format!("/api/v1/songs/{new_id}")));
+    }
+}
+
+#[cfg(test)]
+mod blob_create_http {
+    use super::*;
+    use actix_web::http::StatusCode;
+
+    /// BLC-BLOB-005: unsupported **`file_type`** on create returns **400**.
+    #[actix_web::test]
+    async fn blc_blob_005_unsupported_file_type_returns_400() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "blob-bad-ft@test.local").await.unwrap();
+        let token = create_session_token(&db, user).await.unwrap();
+        let app = test::init_service(build_app(db)).await;
+        let req = test::TestRequest::post()
+            .uri("/api/v1/blobs")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header(("Content-Type", "application/json"))
+            .set_payload(r#"{"file_type":"application/pdf","width":1,"height":1,"ocr":""}"#)
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 }
 

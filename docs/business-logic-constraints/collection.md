@@ -3,7 +3,7 @@
 ## Static
 
 - **BLC-COLL-001:** Every collection belongs to exactly one **owning team** (**`owner`** in responses).
-- **BLC-COLL-002:** Read paths (metadata, songs list, player) require **read** access to that team’s library; create/update/delete require **library edit** access. Platform **admin** MAY read but MUST NOT mutate collections solely by admin role.
+- **BLC-COLL-002:** Read paths (metadata, songs list, player) require **read** access to that team’s library; create/update/delete require **library edit** access. Platform **admin** MAY read but MUST NOT mutate collections solely by admin role (see [platform-admin-content.md](./platform-admin-content.md)).
 - **BLC-COLL-003:** **`PUT`** replaces **title**, **cover** (blob id), and the ordered **songs** list; **`PUT`** and **`PATCH`** MAY set **`owner`** when the body includes it and the caller may write both the current and target owning teams; omitting **`owner`** leaves it unchanged.
 - **BLC-COLL-004:** **POST**/**PUT** MAY accept **song** ids the caller cannot read or ids that do not exist; the API MAY still return **201**/**200** and persist those references.
 
@@ -19,9 +19,10 @@
 - **BLC-COLL-009:** WHEN **POST** omits **`owner`** THEN the new collection’s **`owner`** IS the caller’s **personal** team. WHEN **POST** includes **`owner`** THEN it MUST name a team id the caller may **edit** (library content); **guest** on that team THEN **404**; unknown team or no edit access THEN **404** (malformed id THEN **400**).
 - **BLC-COLL-010:** WHEN **GET /collections** runs THEN only collections whose **`owner`** team the caller may read are returned; optional **`q`** filters by **title**.
 - **BLC-COLL-011:** WHEN **GET /collections/{id}**, **…/songs**, or **…/player** runs THEN visibility matches **GET /collections/{id}**.
-- **BLC-COLL-012:** WHEN **GET …/songs** runs AND a stored song id does not resolve THEN the API MAY respond **500** rather than a partial list.
+- **BLC-COLL-012:** WHEN **GET …/songs** runs AND a stored song id does not resolve THEN behavior is defined by the implementation (partial list, omission, or error); **500** is reserved for genuine server/infrastructure failures, not as an optional substitute for **200**.
 - **BLC-COLL-013:** WHEN **PUT** includes a **song** id that does not exist THEN the API MAY still return **200** and persist the slot; clients SHOULD validate ids.
 - **BLC-COLL-014:** WHEN **GET …/songs** includes an entry pointing at a song the caller cannot read THEN the collection **owner** MAY still receive **200** with an entry while per-song detail MAY be incomplete.
+- **BLC-COLL-023:** WHEN **PATCH /collections/{id}** runs THEN only fields present in the body are updated; omitted fields are unchanged; unknown fields are rejected (**`deny_unknown_fields`**), matching **BLC-SONG-019**. Optimistic concurrency uses **`If-Match`** with the resource **ETag**.
 - **BLC-COLL-015:** WHEN **DELETE** succeeds THEN the collection no longer appears under the same rules as other reads.
 - **BLC-COLL-016:** WHEN a song IS appended to a collection automatically (e.g. after creating a song with a default collection) THEN the caller MUST be allowed to **edit** that collection’s owning team’s library.
 

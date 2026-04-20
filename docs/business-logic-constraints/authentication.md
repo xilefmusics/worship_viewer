@@ -4,12 +4,19 @@ Applies to routes under **`/api/v1`** that require an authenticated user session
 
 ## When / then
 
-- **BLC-AUTH-001:** WHEN a caller uses a route that **requires authentication** without an **`Authorization`** header whose value is interpreted as a **Bearer** session token (see **BLC-USER-006** for alternate accepted forms on **`GET /users/me`**) THEN the API responds **401**.
+- **BLC-AUTH-001:** WHEN a caller uses a route that **requires authentication** without an **`Authorization`** header whose value is interpreted as a **Bearer** session token (**BLC-USER-006**) THEN the API responds **401**.
 - **BLC-AUTH-002:** WHEN **`Authorization: Bearer <token>`** is present but **`<token>`** IS NOT a valid, active session THEN the API responds **401** before evaluating resource rules that would yield **403** or **404**.
 
 ## Relation to sessions
 
 Session lifecycle and **404**/**403** on **`/users/.../sessions`** are in [session.md](./session.md). **BLC-AUTH-002** applies when the token never identifies a session at all; after **BLC-SESS-008**/**BLC-SESS-009**, a once-valid token MAY also yield **401** on subsequent calls.
+
+## OIDC (browser login)
+
+- **BLC-AUTH-OIDC-001:** **`GET /auth/login`** starts the OIDC **authorization code** flow: the server responds with **302** to the configured identity provider (**`authorization_endpoint`**), passing **`state`** and **`nonce`** query parameters.
+- **BLC-AUTH-OIDC-002:** **`state`** is single-use and bound to the browser session; **`GET /auth/callback`** MUST receive a **`state`** that matches the pending login; mismatch or reuse yields **401** / error response per implementation.
+- **BLC-AUTH-OIDC-003:** Redirect URI used in the authorize request MUST be on the server allowlist; **`nonce`** is validated against the ID token where applicable.
+- **BLC-AUTH-OIDC-004:** Successful OIDC login issues the same session cookie semantics as OTP login (**`Set-Cookie`**, flags, path) unless deployment configuration differs.
 
 ## Email OTP
 

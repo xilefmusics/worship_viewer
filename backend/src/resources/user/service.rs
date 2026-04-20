@@ -74,7 +74,10 @@ impl<R: UserRepository, T: TeamRepository> UserService<R, T> {
 
     #[instrument(level = "debug", err, skip(self, request))]
     pub async fn create_user_from_request(&self, request: CreateUser) -> Result<User, AppError> {
-        self.create_user(request.into_user()).await
+        let user = request
+            .try_into_user()
+            .map_err(|e| AppError::invalid_request(e.to_string()))?;
+        self.create_user(user).await
     }
 
     #[instrument(level = "debug", err, skip(self))]
@@ -530,7 +533,7 @@ mod tests {
     mod integration {
         use crate::error::AppError;
         use crate::test_helpers::{personal_team_id, test_db, user_service};
-        use shared::user::User;
+        use shared::user::{CreateUser, Role, User};
 
         /// BLC-USER-003: creating a user also creates a personal team with the user as owner.
         #[tokio::test]
@@ -593,6 +596,46 @@ mod tests {
             // SurrealDB enforces uniqueness via DB constraints; duplicate insert returns an error.
             let r = svc.create_user(User::new("j3u004@test.local")).await;
             assert!(r.is_err(), "duplicate email must be rejected");
+        }
+
+        /// BLC-USER-001 / BLC-USER-008: `CreateUser` normalizes email; mixed case and whitespace collide.
+        #[tokio::test]
+        async fn blc_user_001_create_user_from_request_email_collision_after_normalize() {
+            let db = test_db().await.expect("db");
+            let svc = user_service(&db);
+            svc.create_user_from_request(CreateUser {
+                email: "MixEd@Case.Test.Local".into(),
+                role: Role::Default,
+                default_collection: None,
+            })
+            .await
+            .expect("first");
+            let r = svc
+                .create_user_from_request(CreateUser {
+                    email: "  mixed@case.test.local  ".into(),
+                    role: Role::Default,
+                    default_collection: None,
+                })
+                .await;
+            assert!(
+                matches!(r, Err(AppError::Conflict(_))),
+                "expected conflict after normalization, got {r:?}"
+            );
+        }
+
+        /// BLC-USER-008: malformed email on `CreateUser` is rejected before the database.
+        #[tokio::test]
+        async fn blc_user_008_invalid_email_from_request() {
+            let db = test_db().await.expect("db");
+            let svc = user_service(&db);
+            let r = svc
+                .create_user_from_request(CreateUser {
+                    email: "not-an-email".into(),
+                    role: Role::Default,
+                    default_collection: None,
+                })
+                .await;
+            assert!(matches!(r, Err(AppError::InvalidRequest(_))));
         }
 
         /// BLC-USER-014: deleting a user, then deleting the same ID again returns NotFound.

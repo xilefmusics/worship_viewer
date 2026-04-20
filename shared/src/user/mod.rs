@@ -4,6 +4,8 @@ mod session;
 mod user;
 
 pub use request::CreateUser;
+#[cfg(feature = "backend")]
+pub use request::CreateUserError;
 pub use role::Role;
 pub use session::{Session, SessionBody, SessionUserBody};
 pub use user::User;
