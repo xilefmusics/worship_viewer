@@ -27,7 +27,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         if let Ok(mut f) = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open("/Users/xilef/Git/worship_viewer/.cursor/debug-3dd3ca.log")
+            .open("/Users/xilef/Git/worshipviewer/.cursor/debug-3dd3ca.log")
         {
             let _ = writeln!(
                 f,

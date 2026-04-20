@@ -60,7 +60,7 @@ pub(crate) fn build_app(
 
     // Use a throwaway temp path for blob storage; blobs are not written in these tests.
     let blob_dir = std::env::temp_dir()
-        .join("worship_viewer_http_tests_blobs")
+        .join("worshipviewer_http_tests_blobs")
         .to_string_lossy()
         .into_owned();
 

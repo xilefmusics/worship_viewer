@@ -8179,7 +8179,7 @@
       "description": "OAuth/OIDC login, OTP email codes, and logout. Session cookies are set on successful auth (see authentication BLC).",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
-        "url": "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/authentication.md"
+        "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/authentication.md"
       },
       "name": "Auth"
     },
@@ -8187,7 +8187,7 @@
       "description": "Admin-only operational metrics and request audit listings under `/monitoring/`.",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
-        "url": "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/monitoring.md"
+        "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/monitoring.md"
       },
       "name": "Monitoring"
     },
@@ -8195,7 +8195,7 @@
       "description": "Current user (`/users/me`), directory listing, sessions (own and admin), and admin user lifecycle.",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
-        "url": "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/user.md"
+        "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/user.md"
       },
       "name": "Users"
     },
@@ -8203,7 +8203,7 @@
       "description": "Song CRUD, player JSON, likes, search/sort listing.",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
-        "url": "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/song.md"
+        "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/song.md"
       },
       "name": "Songs"
     },
@@ -8211,7 +8211,7 @@
       "description": "Owned song collections, nested songs, and player views.",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
-        "url": "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/collection.md"
+        "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/collection.md"
       },
       "name": "Collections"
     },
@@ -8219,7 +8219,7 @@
       "description": "Binary image assets: metadata, byte upload/download with cache headers.",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
-        "url": "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/blob.md"
+        "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/blob.md"
       },
       "name": "Blobs"
     },
@@ -8227,7 +8227,7 @@
       "description": "Ordered sets of songs and player payloads for services.",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
-        "url": "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/setlist.md"
+        "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/setlist.md"
       },
       "name": "Setlists"
     },
@@ -8235,7 +8235,7 @@
       "description": "Team membership, roles, and invitations (nested under `/teams/{id}/invitations`).",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
-        "url": "https://github.com/xilefmusics/worship_viewer/blob/main/docs/business-logic-constraints/team.md"
+        "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/team.md"
       },
       "name": "Teams"
     }

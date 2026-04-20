@@ -67,7 +67,7 @@ pub fn load_file_config() -> Result<FileConfig, Box<dyn std::error::Error>> {
 }
 
 fn resolve_base_url(cli_base: Option<String>, file_cfg: &FileConfig) -> String {
-    let env_base = env::var("WORSHIP_VIEWER_BASE_URL").ok();
+    let env_base = env::var("WORSHIPVIEWER_BASE_URL").ok();
     cli_base
         .or(env_base)
         .or(file_cfg.base_url.clone())
@@ -75,7 +75,7 @@ fn resolve_base_url(cli_base: Option<String>, file_cfg: &FileConfig) -> String {
 }
 
 fn resolve_sso_session(cli_sso: Option<String>, file_cfg: &FileConfig) -> Option<String> {
-    let env_sso = env::var("WORSHIP_VIEWER_SSO_SESSION").ok();
+    let env_sso = env::var("WORSHIPVIEWER_SSO_SESSION").ok();
     cli_sso.or(env_sso).or(file_cfg.sso_session.clone())
 }
 

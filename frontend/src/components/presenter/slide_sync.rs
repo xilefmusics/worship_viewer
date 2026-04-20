@@ -4,7 +4,7 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use web_sys::window;
 
-const STORAGE_KEY: &str = "worship_viewer_slide_data";
+const STORAGE_KEY: &str = "worshipviewer_slide_data";
 
 pub struct SlideSync {
     _closure: Rc<RefCell<Option<Closure<dyn FnMut(web_sys::StorageEvent)>>>>,

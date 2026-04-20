@@ -1,7 +1,7 @@
 # Worship Viewer
 
 A tool to help you lead worship — then step aside when the Spirit takes over.  
-Its main job is to manage and display digital sheet music; planned work and ideas are tracked in [GitHub issues](https://github.com/xilefmusics/worship_viewer/issues).
+Its main job is to manage and display digital sheet music; planned work and ideas are tracked in [GitHub issues](https://github.com/xilefmusics/worshipviewer/issues).
 
 ## Table of contents
 
@@ -26,13 +26,13 @@ Create your free account at [app.worshipviewer.com](https://app.worshipviewer.co
 Or run the published image locally (see [Local development](#local-development) to build from source):
 
 ```bash
-docker run --rm -p 8080:8080 xilefmusics/worship-viewer:latest
+docker run --rm -p 8080:8080 xilefmusics/worshipviewer:latest
 ```
 
 **Platform:** The image on Docker Hub is **linux/amd64**. On Apple Silicon or other **arm64** hosts, Docker may report *no matching manifest*; use emulation when needed:
 
 ```bash
-docker run --rm -p 8080:8080 --platform linux/amd64 xilefmusics/worship-viewer:latest
+docker run --rm -p 8080:8080 --platform linux/amd64 xilefmusics/worshipviewer:latest
 ```
 
 ## Local development
@@ -164,7 +164,7 @@ For authentication behavior (OTP, sessions, and constraints), see [`docs/busines
 
 ## Command-line interface (CLI)
 
-You can talk to the Worship Viewer REST API from the terminal with the AI-oriented CLI `worship-viewer`. It uses the same API as the frontend and is easy to script.
+You can talk to the Worship Viewer REST API from the terminal with the AI-oriented CLI `worshipviewer`. It uses the same API as the frontend and is easy to script.
 
 ### Installation
 
@@ -175,7 +175,7 @@ You can talk to the Worship Viewer REST API from the terminal with the AI-orient
 cargo install --path cli
 ```
 
-This installs a `worship-viewer` binary on your `$PATH`.
+This installs a `worshipviewer` binary on your `$PATH`.
 
 ### Configuration
 
@@ -193,14 +193,14 @@ The CLI can use flags, environment variables, or a config file. Precedence:
   ```
 - **Base URL** (backend address)
   - Flag: `--base-url`
-  - Env: `WORSHIP_VIEWER_BASE_URL`
+  - Env: `WORSHIPVIEWER_BASE_URL`
   - Config: `base_url`
   - Default: `http://127.0.0.1:8080`
 - **Authentication**
-  - Cookie (typical for local dev): `--sso-session`, env `WORSHIP_VIEWER_SSO_SESSION`, config `sso_session`. Sends `Cookie: sso_session=<value>` (backend cookie name is configurable; default matches).
-  - Bearer: `--bearer-token`, env `WORSHIP_VIEWER_BEARER_TOKEN` → `Authorization: Bearer …`.
-- **Timeout:** env `WORSHIP_VIEWER_TIMEOUT_SECS`, flag `--timeout-secs`.
-- **Output format:** global `--output auto|json|pretty|ndjson` or env **`WORSHIP_VIEWER_OUTPUT`** (same values).
+  - Cookie (typical for local dev): `--sso-session`, env `WORSHIPVIEWER_SSO_SESSION`, config `sso_session`. Sends `Cookie: sso_session=<value>` (backend cookie name is configurable; default matches).
+  - Bearer: `--bearer-token`, env `WORSHIPVIEWER_BEARER_TOKEN` → `Authorization: Bearer …`.
+- **Timeout:** env `WORSHIPVIEWER_TIMEOUT_SECS`, flag `--timeout-secs`.
+- **Output format:** global `--output auto|json|pretty|ndjson` or env **`WORSHIPVIEWER_OUTPUT`** (same values).
 
 ### Output and AI-friendly behavior
 
@@ -219,21 +219,21 @@ For scripts and agents, prefer `--output json` or `--output ndjson`.
 Inspect the API schema:
 
 ```bash
-worship-viewer schema --output json
-worship-viewer schema --path-prefix /api/v1/songs --output json
+worshipviewer schema --output json
+worshipviewer schema --path-prefix /api/v1/songs --output json
 ```
 
 List and get songs:
 
 ```bash
-worship-viewer songs list --output ndjson
-worship-viewer songs get --id <song_id> --output json
+worshipviewer songs list --output ndjson
+worshipviewer songs get --id <song_id> --output json
 ```
 
 Create or update with raw JSON:
 
 ```bash
-worship-viewer songs create \
+worshipviewer songs create \
   --json '{"not_a_song":false,"blobs":[],"data":{...}}' \
   --output json
 ```
@@ -241,7 +241,7 @@ worship-viewer songs create \
 Dry-run a mutating request:
 
 ```bash
-worship-viewer songs update \
+worshipviewer songs update \
   --id <song_id> \
   --json '{...}' \
   --dry-run \
@@ -262,14 +262,14 @@ sso_session = "admin"
 Then:
 
 ```bash
-worship-viewer songs list --output json
+worshipviewer songs list --output json
 ```
 
 ## Contribute
 
 This app is from worshippers for worshippers. Contributions are welcome — coding can be worship too.
 
-Use `cargo fmt` and `cargo clippy` on the crates you touch; open issues and pull requests on [GitHub](https://github.com/xilefmusics/worship_viewer).
+Use `cargo fmt` and `cargo clippy` on the crates you touch; open issues and pull requests on [GitHub](https://github.com/xilefmusics/worshipviewer).
 
 ## License
 
