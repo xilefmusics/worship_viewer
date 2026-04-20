@@ -58,7 +58,7 @@ pub(crate) fn build_app(
 }
 
 /// Same as [`build_app`] but with configurable `/api/v1` per-IP rate limits (for **BLC-HTTP-004** tests).
-pub(crate) fn build_app_with_api_limits(
+fn build_app_with_api_limits(
     db: Arc<Database>,
     api_rate_limit_rps: u64,
     api_rate_limit_burst: u32,
