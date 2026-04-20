@@ -21,4 +21,17 @@ pub trait UserRepository: Send + Sync {
         user_id: &str,
         collection_id: &str,
     ) -> Result<(), AppError>;
+
+    async fn set_oauth_picture_and_oauth_avatar_blob(
+        &self,
+        user_id: &str,
+        picture_url: &str,
+        oauth_blob_id: &str,
+    ) -> Result<(), AppError>;
+
+    async fn set_avatar_blob(
+        &self,
+        user_id: &str,
+        avatar_blob_id: Option<&str>,
+    ) -> Result<(), AppError>;
 }

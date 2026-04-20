@@ -12,6 +12,8 @@ pub use surreal_repo::SurrealUserRepo;
 pub mod service;
 pub use service::{UserService, UserServiceHandle};
 
+mod profile_picture;
+
 pub mod rest;
 
 pub mod session;

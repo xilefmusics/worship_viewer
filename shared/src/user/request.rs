@@ -35,6 +35,9 @@ impl CreateUser {
             created_at: Utc::now(),
             last_login_at: None,
             request_count: 0,
+            oauth_picture_url: None,
+            oauth_avatar_blob_id: None,
+            avatar_blob_id: None,
         }
     }
 }

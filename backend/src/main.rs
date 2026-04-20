@@ -94,6 +94,9 @@ async fn main() -> AnyResult<()> {
                     created_at: Utc::now(),
                     last_login_at: None,
                     request_count: 0,
+                    oauth_picture_url: None,
+                    oauth_avatar_blob_id: None,
+                    avatar_blob_id: None,
                 })
                 .await
                 .context("failed to create admin user")?;
@@ -167,6 +170,7 @@ async fn main() -> AnyResult<()> {
     let db_data = Data::from(db);
 
     let docs_settings = settings.clone();
+    let profile_picture_limits = Data::new(settings.profile_picture_limits());
 
     HttpServer::new(move || {
         App::new()
@@ -179,6 +183,7 @@ async fn main() -> AnyResult<()> {
             .app_data(db_data.clone())
             .app_data(Data::new(mail_service.clone()))
             .app_data(Data::new(blob_service.clone()))
+            .app_data(profile_picture_limits.clone())
             .app_data(Data::new(collection_service.clone()))
             .app_data(Data::new(song_service.clone()))
             .app_data(Data::new(setlist_service.clone()))
@@ -197,6 +202,7 @@ async fn main() -> AnyResult<()> {
             .service(docs::rest::scope(docs_settings.clone()))
             .service(resources::rest::scope(
                 settings.blob_upload_max_bytes,
+                settings.avatar_upload_max_bytes,
                 settings.api_rate_limit_rps,
                 settings.api_rate_limit_burst,
             ))

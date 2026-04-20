@@ -160,6 +160,60 @@ impl UserRepository for SurrealUserRepo {
         })?;
         Ok(())
     }
+
+    async fn set_oauth_picture_and_oauth_avatar_blob(
+        &self,
+        user_id: &str,
+        picture_url: &str,
+        oauth_blob_id: &str,
+    ) -> Result<(), AppError> {
+        let mut response = self
+            .inner()
+            .db
+            .query("UPDATE $user SET oauth_picture_url = $url, oauth_avatar_blob = $blob_ref")
+            .bind(("user", RecordId::new("user", user_id)))
+            .bind(("url", picture_url.to_owned()))
+            .bind(("blob_ref", RecordId::new("blob", oauth_blob_id)))
+            .await?;
+        surreal_take_errors(
+            "user.set_oauth_picture_and_oauth_avatar_blob",
+            &mut response,
+        )?;
+        let _ = response.check().map_err(|e| {
+            crate::log_and_convert!(
+                AppError::database,
+                "user.set_oauth_picture_and_oauth_avatar_blob.check",
+                e
+            )
+        })?;
+        Ok(())
+    }
+
+    async fn set_avatar_blob(
+        &self,
+        user_id: &str,
+        avatar_blob_id: Option<&str>,
+    ) -> Result<(), AppError> {
+        let mut response = if let Some(bid) = avatar_blob_id {
+            self.inner()
+                .db
+                .query("UPDATE $user SET avatar_blob = $blob_ref")
+                .bind(("user", RecordId::new("user", user_id)))
+                .bind(("blob_ref", RecordId::new("blob", bid)))
+                .await?
+        } else {
+            self.inner()
+                .db
+                .query("UPDATE $user SET avatar_blob = NONE")
+                .bind(("user", RecordId::new("user", user_id)))
+                .await?
+        };
+        surreal_take_errors("user.set_avatar_blob", &mut response)?;
+        let _ = response.check().map_err(|e| {
+            crate::log_and_convert!(AppError::database, "user.set_avatar_blob.check", e)
+        })?;
+        Ok(())
+    }
 }
 
 impl SurrealUserRepo {

@@ -18,9 +18,11 @@ async-trait = "0.1"
 serde_json = "1.0"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
 gloo-net = { version = "0.6", features = ["http"], optional = true }
+js-sys = { version = "0.3.94", optional = true }
+wasm-bindgen = { version = "0.2.117", optional = true }
 web-sys = { version = "0.3.94", features = ["RequestCredentials"], optional = true }
 
 [features]
 backend = ["utoipa", "tracing", "uuid"]
 cli = ["reqwest"]
-frontend = ["gloo-net", "web-sys"]
+frontend = ["gloo-net", "js-sys", "wasm-bindgen", "web-sys"]

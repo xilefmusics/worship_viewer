@@ -7,6 +7,7 @@ use actix_web::{dev::HttpServiceFactory, web};
 
 pub fn scope(
     blob_upload_max_bytes: usize,
+    avatar_upload_max_bytes: usize,
     api_rate_limit_rps: u64,
     api_rate_limit_burst: u32,
 ) -> impl HttpServiceFactory {
@@ -28,5 +29,5 @@ pub fn scope(
         .service(team::rest::scope())
         .service(team::invitations_accept_scope())
         .service(monitoring::rest::scope())
-        .service(user::rest::scope())
+        .service(user::rest::scope(avatar_upload_max_bytes))
 }

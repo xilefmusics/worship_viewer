@@ -51,6 +51,16 @@ pub trait HttpClient: Send + Sync {
 
     /// Send a PUT with no body and treat `204 No Content` as success.
     async fn put_no_content(&self, path: &str) -> Result<(), NetworkClientError>;
+
+    /// PUT raw bytes with the given `Content-Type` and parse a JSON response body.
+    async fn put_bytes_json<T>(
+        &self,
+        path: &str,
+        content_type: &str,
+        body: &[u8],
+    ) -> Result<T, NetworkClientError>
+    where
+        T: DeserializeOwned + Send + 'static;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -88,6 +98,16 @@ pub trait HttpClient: Send + Sync {
 
     /// Send a PUT with no body and treat `204 No Content` as success.
     async fn put_no_content(&self, path: &str) -> Result<(), NetworkClientError>;
+
+    /// PUT raw bytes with the given `Content-Type` and parse a JSON response body.
+    async fn put_bytes_json<T>(
+        &self,
+        path: &str,
+        content_type: &str,
+        body: &[u8],
+    ) -> Result<T, NetworkClientError>
+    where
+        T: DeserializeOwned + Send + 'static;
 }
 
 #[cfg(all(feature = "cli", not(target_arch = "wasm32")))]

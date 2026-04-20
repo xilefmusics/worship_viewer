@@ -192,4 +192,34 @@ impl HttpClient for DesktopHttpClient {
         response.error_for_status()?;
         Ok(())
     }
+
+    async fn put_bytes_json<T>(
+        &self,
+        path: &str,
+        content_type: &str,
+        body: &[u8],
+    ) -> Result<T, NetworkClientError>
+    where
+        T: DeserializeOwned + Send + 'static,
+    {
+        let url = self.make_url(path);
+
+        let mut request = self
+            .client
+            .put(url)
+            .header(reqwest::header::CONTENT_TYPE, content_type)
+            .body(body.to_vec());
+        if let Some(cookie) = &self.config.session_cookie {
+            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
+        }
+        if let Some(token) = &self.config.bearer_token {
+            request = request.bearer_auth(token);
+        }
+
+        let response = request.send().await?;
+        let response = response.error_for_status()?;
+        let value = response.json::<T>().await?;
+
+        Ok(value)
+    }
 }

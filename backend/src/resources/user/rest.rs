@@ -3,17 +3,25 @@ use crate::auth::middleware::RequireAdmin;
 #[allow(unused_imports)]
 use crate::docs::Problem;
 use crate::error::AppError;
+use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::user::service::UserServiceHandle;
+use crate::settings::ProfilePictureLimits;
 use actix_web::http::header;
 use actix_web::{
     HttpRequest, HttpResponse, Scope, delete, get, post,
-    web::{self, Data, Json, Path, Query, ReqData},
+    web::{self, Bytes, Data, Json, Path, Query, ReqData},
 };
 use shared::api::{ListQuery, PAGE_SIZE_DEFAULT};
 
-pub fn scope() -> Scope {
+pub fn scope(avatar_upload_max_bytes: usize) -> Scope {
     web::scope("/users")
         .service(get_users_me)
+        .service(
+            web::resource("/me/profile-picture")
+                .app_data(web::PayloadConfig::new(avatar_upload_max_bytes))
+                .route(web::put().to(put_profile_picture))
+                .route(web::delete().to(delete_profile_picture)),
+        )
         .service(session::rest::get_sessions_for_current_user)
         .service(session::rest::get_session_for_current_user)
         .service(session::rest::delete_session_for_current_user)
@@ -49,6 +57,75 @@ pub fn scope() -> Scope {
 #[get("/me")]
 async fn get_users_me(user: ReqData<User>) -> HttpResponse {
     HttpResponse::Ok().json(user.into_inner())
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/users/me/profile-picture",
+    request_body(content = Vec<u8>, description = "Raw JPEG or PNG bytes", content_type = "image/jpeg"),
+    responses(
+        (status = 200, description = "Uploaded; returns updated `User`", body = User),
+        (status = 400, description = "Invalid Content-Type or image", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 413, description = "Payload too large", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Server error", body = Problem, content_type = "application/problem+json")
+    ),
+    tag = "Users",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+async fn put_profile_picture(
+    user: ReqData<User>,
+    svc: Data<UserServiceHandle>,
+    blob_svc: Data<BlobServiceHandle>,
+    limits: Data<ProfilePictureLimits>,
+    req: HttpRequest,
+    body: Bytes,
+) -> Result<HttpResponse, AppError> {
+    let ct = req
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|h| h.to_str().ok())
+        .ok_or_else(|| AppError::invalid_request("missing Content-Type"))?;
+    let updated = svc
+        .upload_profile_picture(
+            blob_svc.get_ref(),
+            &user.into_inner(),
+            ct,
+            body.as_ref(),
+            limits.max_bytes,
+        )
+        .await?;
+    Ok(HttpResponse::Ok().json(updated))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/users/me/profile-picture",
+    responses(
+        (status = 200, description = "Removed uploaded avatar if any; returns updated `User`", body = User),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Server error", body = Problem, content_type = "application/problem+json")
+    ),
+    tag = "Users",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+async fn delete_profile_picture(
+    user: ReqData<User>,
+    svc: Data<UserServiceHandle>,
+    blob_svc: Data<BlobServiceHandle>,
+) -> Result<HttpResponse, AppError> {
+    let updated = svc
+        .clear_uploaded_profile_picture(blob_svc.get_ref(), &user.into_inner())
+        .await?;
+    Ok(HttpResponse::Ok().json(updated))
 }
 
 #[utoipa::path(

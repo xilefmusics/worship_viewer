@@ -30,7 +30,7 @@ use crate::database::Database;
 use crate::docs;
 use crate::resources;
 use crate::resources::User;
-use crate::settings::{CookieConfig, Settings};
+use crate::settings::{CookieConfig, ProfilePictureLimits, Settings};
 use crate::test_helpers::{create_song_with_title, create_user, session_service, test_db};
 
 // ─── Slice 4A: test harness helpers ──────────────────────────────────────────
@@ -86,10 +86,18 @@ pub(crate) fn build_app(
         .app_data(Data::new(invitation_service(&db)))
         .app_data(Data::new(user_service(&db)))
         .app_data(Data::new(session_service(&db)))
+        .app_data(Data::new(ProfilePictureLimits {
+            max_bytes: 2 * 1024 * 1024,
+        }))
         .app_data(cookie_cfg)
         .app_data(crate::error::json_config())
         .service(docs::rest::scope(Settings::default()))
-        .service(resources::rest::scope(20 * 1024 * 1024, 50, 200))
+        .service(resources::rest::scope(
+            20 * 1024 * 1024,
+            2 * 1024 * 1024,
+            50,
+            200,
+        ))
 }
 
 /// Create a session for `user` and return its raw ID (used as Bearer token).
