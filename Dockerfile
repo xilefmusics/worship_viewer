@@ -16,7 +16,9 @@ COPY ./shared ./shared
 WORKDIR /wrk
 COPY ./backend ./backend
 WORKDIR /wrk/backend
-RUN cargo build --release
+ARG GIT_COMMIT_SHA
+# Omit `GIT_COMMIT_SHA` from the environment when unset so `option_env!("GIT_COMMIT_SHA")` stays absent (CI passes `--build-arg`).
+RUN if [ -n "${GIT_COMMIT_SHA:-}" ]; then export GIT_COMMIT_SHA; else unset GIT_COMMIT_SHA; fi && cargo build --release
 
 WORKDIR /wrk
 COPY ./frontend ./frontend

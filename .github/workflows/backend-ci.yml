@@ -24,6 +24,9 @@ jobs:
   backend-validate:
     if: github.event_name == 'push' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    env:
+      # Baked into `backend` via `option_env!("GIT_COMMIT_SHA")` for `GET /api/v1/about`.
+      GIT_COMMIT_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -97,5 +100,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_COMMIT_SHA=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

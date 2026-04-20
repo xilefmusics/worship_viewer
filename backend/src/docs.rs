@@ -3,6 +3,7 @@ use utoipa::openapi::info::ContactBuilder;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
+use crate::about::AboutResponse;
 use crate::settings::Settings;
 
 use crate::resources::blob::PatchBlob;
@@ -95,7 +96,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
     info(
         title = "Worship Viewer API",
         version = "2.0.0",
-        description = "Versioned REST API under `/api/v1`. Authentication flows live at `/auth/*` (unversioned); clients should treat that split as stable for this major API generation.\n\n\
+        description = "Versioned REST API under `/api/v1`. Authentication flows live at `/auth/*` (unversioned); clients should treat that split as stable for this major API generation. Public deployment metadata is available at `GET /api/v1/about` (no authentication).\n\n\
             **Breaking 2.0:** See `docs/api-breaking-2-0.md` for migration (`PlayerItem`, `Song.blobs` as link objects, `Session` wire model, `Problem` without `error`, PUT bodies use `Update*` types in the spec).\n\n\
             **Timestamps:** All timestamps are UTC and use RFC 3339 with a `Z` suffix (e.g. `2026-04-18T12:00:00Z`).\n\n\
             **Identifiers:** Resource IDs are opaque printable strings returned by the API; treat them as opaque and do not parse their internal structure.\n\n\
@@ -113,6 +114,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         (url = "https://app.worshipviewer.com", description = "Production deployment (public web app).")
     ),
     paths(
+        crate::about::get_about,
         crate::auth::oidc::rest::login,
         crate::auth::oidc::rest::callback,
         crate::auth::otp::rest::otp_request,
@@ -187,6 +189,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
     ),
     components(
         schemas(
+            AboutResponse,
             User,
             SessionBody,
             SessionUserBody,
@@ -262,6 +265,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         )
     ),
     tags(
+        (name = "About", description = "Public server build and environment metadata (`GET /api/v1/about`)."),
         (name = "Auth", description = "OAuth/OIDC login, OTP email codes, and logout. Session cookies are set on successful auth (see authentication BLC)."),
         (name = "Monitoring", description = "Admin-only operational metrics and request audit listings under `/monitoring/`."),
         (name = "Users", description = "Current user (`/users/me`), directory listing, sessions (own and admin), and admin user lifecycle."),

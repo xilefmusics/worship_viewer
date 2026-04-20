@@ -289,6 +289,27 @@ mod openapi_endpoint {
     }
 }
 
+/// Public `GET /api/v1/about` (no session).
+#[cfg(test)]
+mod about_endpoint {
+    use super::*;
+    use actix_web::http::StatusCode;
+
+    #[actix_web::test]
+    async fn get_api_v1_about_without_auth_returns_200() {
+        let db = test_db().await.unwrap();
+        let app = test::init_service(build_app(db.clone())).await;
+        let req = test::TestRequest::get().uri("/api/v1/about").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(body["service"], "worshipviewer-backend");
+        assert!(body["version"].as_str().is_some());
+        assert!(body.get("git_commit").is_some());
+        assert!(body["production"].is_boolean());
+    }
+}
+
 /// BLC-DOCS-002: OpenAPI documents `Problem` and uses `application/problem+json` for 4xx/5xx bodies.
 #[cfg(test)]
 mod openapi_problem_schema {

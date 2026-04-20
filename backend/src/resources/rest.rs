@@ -1,4 +1,5 @@
 use super::{blob, collection, monitoring, setlist, song, team, user};
+use crate::about;
 use crate::auth::middleware::RequireUser;
 use crate::governor_audit::AuditRateLimit429;
 use crate::governor_peer::PeerOrFallbackIpKeyExtractor;
@@ -21,13 +22,17 @@ pub fn scope(
     web::scope("/api/v1")
         .wrap(Governor::new(&api_governor))
         .wrap(AuditRateLimit429)
-        .wrap(RequireUser)
-        .service(blob::rest::scope(blob_upload_max_bytes))
-        .service(collection::rest::scope())
-        .service(setlist::rest::scope())
-        .service(song::rest::scope())
-        .service(team::rest::scope())
-        .service(team::invitations_accept_scope())
-        .service(monitoring::rest::scope())
-        .service(user::rest::scope(avatar_upload_max_bytes))
+        .service(about::get_about)
+        .service(
+            web::scope("")
+                .wrap(RequireUser)
+                .service(blob::rest::scope(blob_upload_max_bytes))
+                .service(collection::rest::scope())
+                .service(setlist::rest::scope())
+                .service(song::rest::scope())
+                .service(team::rest::scope())
+                .service(team::invitations_accept_scope())
+                .service(monitoring::rest::scope())
+                .service(user::rest::scope(avatar_upload_max_bytes)),
+        )
 }
