@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use async_trait::async_trait;
-use surrealdb::sql::Thing;
+use surrealdb::types::RecordId;
 
 use shared::api::SongListQuery;
 use shared::song::{CreateSong, Song};
@@ -23,16 +23,16 @@ impl SongUpsertOutcome {
     }
 }
 
-/// Pure song data access (no user ACL — callers pass pre-resolved team [`Thing`]s).
+/// Pure song data access (no user ACL — callers pass pre-resolved team [`RecordId`]s).
 #[async_trait]
 pub trait SongRepository: Send + Sync {
     async fn get_songs(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         query: SongListQuery,
     ) -> Result<Vec<Song>, AppError>;
 
-    async fn get_song(&self, read_teams: &[Thing], id: &str) -> Result<Song, AppError>;
+    async fn get_song(&self, read_teams: &[RecordId], id: &str) -> Result<Song, AppError>;
 
     async fn create_song(&self, owner: &str, song: CreateSong) -> Result<Song, AppError>;
 
@@ -49,31 +49,31 @@ pub trait SongRepository: Send + Sync {
     /// - Otherwise returns [`AppError::NotFound`].
     async fn update_song(
         &self,
-        write_teams: &[Thing],
+        write_teams: &[RecordId],
         actor_user_id: &str,
         id: &str,
         song: CreateSong,
     ) -> Result<SongUpsertOutcome, AppError>;
 
-    async fn delete_song(&self, write_teams: &[Thing], id: &str) -> Result<Song, AppError>;
+    async fn delete_song(&self, write_teams: &[RecordId], id: &str) -> Result<Song, AppError>;
 
     /// Count songs matching the same filters as [`get_songs`](SongRepository::get_songs).
     async fn count_songs(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         query: &SongListQuery,
     ) -> Result<u64, AppError>;
 
     async fn get_song_like(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         user_id: &str,
         id: &str,
     ) -> Result<bool, AppError>;
 
     async fn set_song_like(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         user_id: &str,
         id: &str,
         liked: bool,

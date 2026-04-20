@@ -9,9 +9,10 @@ use ring::digest::{SHA256, digest};
 use serde::Deserialize;
 use surrealdb::Surreal;
 use surrealdb::engine::any::Any;
+use surrealdb::types::SurrealValue;
 use tracing::info;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, SurrealValue)]
 struct AppliedMigration {
     script_name: String,
     checksum: String,
@@ -64,11 +65,11 @@ pub async fn run(db: &Surreal<Any>, migration_root: &str) -> AnyResult<()> {
 
 async fn ensure_migration_table(db: &Surreal<Any>) -> AnyResult<()> {
     db.query(
-        "DEFINE TABLE OVERWRITE migration_script SCHEMAFULL;
-DEFINE FIELD OVERWRITE script_name ON migration_script TYPE string;
-DEFINE FIELD OVERWRITE checksum ON migration_script TYPE string;
-DEFINE FIELD OVERWRITE executed_at ON migration_script TYPE datetime VALUE time::now() READONLY;
-DEFINE INDEX OVERWRITE migration_script_script_name_unique ON migration_script COLUMNS script_name UNIQUE;",
+        "DEFINE TABLE OVERWRITE migration_script TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE checksum ON migration_script TYPE string PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE executed_at ON migration_script TYPE datetime READONLY VALUE time::now() PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE script_name ON migration_script TYPE string PERMISSIONS FULL;
+DEFINE INDEX OVERWRITE migration_script_script_name_unique ON migration_script FIELDS script_name UNIQUE CONCURRENTLY;",
     )
     .await
     .map_err(|err| anyhow!(err))
@@ -98,7 +99,7 @@ async fn load_applied_migrations(db: &Surreal<Any>) -> AnyResult<HashMap<String,
 fn ensure_no_statement_errors(
     migration: &str,
     context: &str,
-    response: &mut surrealdb::Response,
+    response: &mut surrealdb::IndexedResults,
 ) -> AnyResult<()> {
     let errors = response.take_errors();
     if errors.is_empty() {

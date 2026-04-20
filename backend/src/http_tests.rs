@@ -1147,7 +1147,7 @@ mod monitoring_http {
     use actix_web::http::StatusCode;
     use serde::Deserialize;
     use std::time::Duration;
-    use surrealdb::sql::Thing;
+    use surrealdb::types::{RecordId, SurrealValue};
 
     use shared::user::Role;
 
@@ -1163,7 +1163,7 @@ mod monitoring_http {
     }
 
     async fn wait_audit_row(db: &Arc<Database>, request_id: &str) {
-        #[derive(Deserialize)]
+        #[derive(Deserialize, SurrealValue)]
         struct CountRow {
             count: i64,
         }
@@ -1185,10 +1185,10 @@ mod monitoring_http {
         panic!("timeout waiting for http_request_audit row request_id={request_id}");
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, SurrealValue)]
     struct AuditLinks {
-        user: Option<Thing>,
-        session: Option<Thing>,
+        user: Option<RecordId>,
+        session: Option<RecordId>,
     }
 
     async fn audit_links_for_request(

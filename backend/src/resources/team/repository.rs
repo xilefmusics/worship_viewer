@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use surrealdb::sql::Thing;
+use surrealdb::types::RecordId;
 
 use shared::team::Team;
 
@@ -45,7 +45,7 @@ pub trait TeamRepository: Send + Sync {
     async fn delete_team_record(&self, resource: (String, String)) -> Result<(), AppError>;
 
     /// Reassign all content (`blob`, `song`, `collection`, `setlist`) owned by `from` to `to`.
-    async fn reassign_content(&self, from: Thing, to: Thing) -> Result<(), AppError>;
+    async fn reassign_content(&self, from: RecordId, to: RecordId) -> Result<(), AppError>;
 
     /// Fetch the full `Team` DTO for a known team (for post-mutation returns).
     async fn load_team_display(&self, id: &str) -> Result<Team, AppError>;

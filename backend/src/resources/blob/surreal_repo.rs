@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::Utc;
-use surrealdb::sql::Thing;
+use surrealdb::types::RecordId;
 
 use serde::Deserialize;
+use surrealdb::types::SurrealValue;
 
 use shared::api::ListQuery;
 use shared::blob::{Blob, CreateBlob};
@@ -13,7 +14,7 @@ use crate::database::Database;
 use crate::error::AppError;
 use crate::resources::common::{belongs_to, resource_id};
 
-use super::model::BlobRecord;
+use super::model::{BlobRecord, FileTypeField};
 use super::repository::BlobRepository;
 
 #[derive(Clone)]
@@ -46,7 +47,7 @@ fn blob_list_q_needle(q: &ListQuery) -> Option<String> {
 impl BlobRepository for SurrealBlobRepo {
     async fn get_blobs(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         pagination: ListQuery,
     ) -> Result<Vec<Blob>, AppError> {
         let db = self.inner();
@@ -84,10 +85,10 @@ impl BlobRepository for SurrealBlobRepo {
 
     async fn count_blobs(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         pagination: &ListQuery,
     ) -> Result<u64, AppError> {
-        #[derive(Deserialize)]
+        #[derive(Deserialize, SurrealValue)]
         struct CountResult {
             count: u64,
         }
@@ -117,7 +118,7 @@ impl BlobRepository for SurrealBlobRepo {
             .unwrap_or(0))
     }
 
-    async fn get_blob(&self, read_teams: &[Thing], id: &str) -> Result<Blob, AppError> {
+    async fn get_blob(&self, read_teams: &[RecordId], id: &str) -> Result<Blob, AppError> {
         let db = self.inner();
         let record: Option<BlobRecord> = db.db.select(resource_id("blob", id)?).await?;
         match record {
@@ -144,7 +145,7 @@ impl BlobRepository for SurrealBlobRepo {
 
     async fn update_blob(
         &self,
-        write_teams: &[Thing],
+        write_teams: &[RecordId],
         id: &str,
         blob: CreateBlob,
     ) -> Result<Blob, AppError> {
@@ -154,12 +155,12 @@ impl BlobRepository for SurrealBlobRepo {
         let mut response = db
             .db
             .query(
-                "UPDATE type::thing($tb, $sid) SET file_type = $file_type, width = $width, \
+                "UPDATE type::record($tb, $sid) SET file_type = $file_type, width = $width, \
                  height = $height, ocr = $ocr WHERE owner IN $teams RETURN AFTER",
             )
             .bind(("tb", tb))
             .bind(("sid", sid))
-            .bind(("file_type", blob.file_type))
+            .bind(("file_type", FileTypeField(blob.file_type)))
             .bind(("width", blob.width))
             .bind(("height", blob.height))
             .bind(("ocr", blob.ocr.clone()))
@@ -173,12 +174,12 @@ impl BlobRepository for SurrealBlobRepo {
             .ok_or_else(|| AppError::NotFound("blob not found".into()))
     }
 
-    async fn delete_blob(&self, write_teams: &[Thing], id: &str) -> Result<Blob, AppError> {
+    async fn delete_blob(&self, write_teams: &[RecordId], id: &str) -> Result<Blob, AppError> {
         let db = self.inner();
         let (tb, sid) = resource_id("blob", id)?;
         let mut response = db
             .db
-            .query("DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
+            .query("DELETE FROM type::record($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
             .bind(("teams", write_teams.to_vec()))

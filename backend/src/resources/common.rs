@@ -1,13 +1,44 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+use chordlib::types::SimpleChord;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
+use surrealdb::Surreal;
+use surrealdb::engine::any::Any;
+use surrealdb::types::{Kind, RecordId, SurrealValue, Value, kind};
 
 use shared::player::Player;
-use shared::song::{Link as SongLink, LinkOwned as SongLinkOwned, SimpleChord};
+use shared::song::{Link as SongLink, LinkOwned as SongLinkOwned};
 
+use crate::database::record_id_string;
 use crate::error::AppError;
 use crate::resources::song::SongRecord;
+
+/// Newtype for chordlib [`SimpleChord`] in SurrealDB `SurrealValue` contexts.
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[serde(transparent)]
+pub struct SimpleChordField(pub SimpleChord);
+
+impl SurrealValue for SimpleChordField {
+    fn kind_of() -> Kind {
+        kind!(any)
+    }
+
+    fn is_value(_value: &Value) -> bool {
+        true
+    }
+
+    fn into_value(self) -> Value {
+        let j = serde_json::to_value(self.0).unwrap_or(serde_json::Value::Null);
+        j.into_value()
+    }
+
+    fn from_value(value: Value) -> surrealdb::Result<Self> {
+        let j = serde_json::Value::from_value(value)?;
+        serde_json::from_value(j)
+            .map(SimpleChordField)
+            .map_err(|e| surrealdb::Error::internal(e.to_string()))
+    }
+}
 
 /// Parse and validate a resource ID for the given table.
 ///
@@ -21,28 +52,24 @@ pub fn resource_id(table: &str, id: &str) -> Result<(String, String), AppError> 
 }
 
 /// Return `true` when `owner` is present and contained in `teams`.
-pub fn belongs_to(owner: &Option<Thing>, teams: &[Thing]) -> bool {
+pub fn belongs_to(owner: &Option<RecordId>, teams: &[RecordId]) -> bool {
     owner.as_ref().map(|t| teams.contains(t)).unwrap_or(false)
 }
 
-/// Coerce a string to a `song:…` [`Thing`], validating the table prefix when present.
-pub fn song_thing(id: &str) -> Thing {
-    if let Ok(thing) = id.parse::<Thing>()
-        && thing.tb == "song"
-    {
-        return thing;
+/// Coerce a string to a `song:…` [`RecordId`], validating the table prefix when present.
+pub fn song_thing(id: &str) -> RecordId {
+    match RecordId::parse_simple(id) {
+        Ok(rid) if rid.table.as_str() == "song" => rid,
+        _ => RecordId::new("song", id.to_owned()),
     }
-    Thing::from(("song".to_owned(), id.to_owned()))
 }
 
-/// Coerce a string to a `blob:…` [`Thing`], validating the table prefix when present.
-pub fn blob_thing(id: &str) -> Thing {
-    if let Ok(thing) = id.parse::<Thing>()
-        && thing.tb == "blob"
-    {
-        return thing;
+/// Coerce a string to a `blob:…` [`RecordId`], validating the table prefix when present.
+pub fn blob_thing(id: &str) -> RecordId {
+    match RecordId::parse_simple(id) {
+        Ok(rid) if rid.table.as_str() == "blob" => rid,
+        _ => RecordId::new("blob", id.to_owned()),
     }
-    Thing::from(("blob".to_owned(), id.to_owned()))
 }
 
 /// Build a [`Player`] from fetched song links, populating liked flags and
@@ -67,22 +94,75 @@ pub fn player_from_song_links(
         })
 }
 
+/// Owner + embedded song link rows (collection / setlist `songs` field).
+#[derive(Deserialize, SurrealValue)]
+pub struct SongLinkListRow {
+    #[serde(default)]
+    pub owner: Option<RecordId>,
+    #[serde(default)]
+    pub songs: Vec<SongLinkRecord>,
+}
+
+/// Load full [`Song`] values for setlist/collection link rows (`array<object>` with `id: record<song>`).
+///
+/// SurrealDB 3.0.x does not apply multi-part `FETCH` paths per array element the way 2.x did, so we batch `song` rows.
+pub async fn song_links_to_owned(
+    db: &Surreal<Any>,
+    links: Vec<SongLinkRecord>,
+) -> Result<Vec<SongLinkOwned>, AppError> {
+    if links.is_empty() {
+        return Ok(vec![]);
+    }
+    let ids: Vec<RecordId> = links.iter().map(|l| l.id.clone()).collect();
+    let mut response = db
+        .query("SELECT * FROM song WHERE id INSIDE $ids")
+        .bind(("ids", ids))
+        .await
+        .map_err(|e| crate::log_and_convert!(AppError::database, "song.batch_by_id", e))?;
+    let records: Vec<SongRecord> = response
+        .take(0)
+        .map_err(|e| crate::log_and_convert!(AppError::database, "song.batch_by_id.take", e))?;
+    let mut by_id: HashMap<String, SongRecord> = HashMap::with_capacity(records.len());
+    for r in records {
+        let Some(ref rid) = r.id else {
+            continue;
+        };
+        by_id.insert(record_id_string(rid), r);
+    }
+    let mut out = Vec::with_capacity(links.len());
+    for link in links {
+        let sid = record_id_string(&link.id);
+        let rec = by_id.remove(&sid).ok_or_else(|| {
+            AppError::database(
+                "referenced song not found (collection or setlist data may be inconsistent)",
+            )
+        })?;
+        out.push(SongLinkOwned {
+            song: rec.into_song(),
+            nr: link.nr,
+            key: link.key.map(|k| k.0),
+            liked: false,
+        });
+    }
+    Ok(out)
+}
+
 /// DB record for a song reference stored on a setlist or collection.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, SurrealValue)]
 pub struct SongLinkRecord {
-    id: Thing,
+    id: RecordId,
     #[serde(default)]
     nr: Option<String>,
     #[serde(default)]
-    key: Option<SimpleChord>,
+    key: Option<SimpleChordField>,
 }
 
 impl From<SongLinkRecord> for SongLink {
     fn from(record: SongLinkRecord) -> Self {
         Self {
-            id: record.id.id.to_string(),
+            id: record_id_string(&record.id),
             nr: record.nr,
-            key: record.key,
+            key: record.key.map(|k| k.0),
         }
     }
 }
@@ -92,33 +172,7 @@ impl From<SongLink> for SongLinkRecord {
         Self {
             id: song_thing(&link.id),
             nr: link.nr,
-            key: link.key,
-        }
-    }
-}
-
-/// A fully-fetched song record returned when querying setlist / collection songs via `FETCH songs.id`.
-///
-/// The `id` field holds the fetched [`SongRecord`]; the other fields come from the link itself.
-#[derive(Deserialize)]
-pub struct FetchedSongRecord {
-    #[serde(rename = "id")]
-    song: SongRecord,
-    #[serde(default)]
-    nr: Option<String>,
-    #[serde(default)]
-    key: Option<SimpleChord>,
-    #[serde(default)]
-    liked: bool,
-}
-
-impl FetchedSongRecord {
-    pub fn into_song_link_owned(self) -> SongLinkOwned {
-        SongLinkOwned {
-            song: self.song.into_song(),
-            nr: self.nr,
-            key: self.key,
-            liked: self.liked,
+            key: link.key.map(SimpleChordField),
         }
     }
 }
@@ -128,7 +182,7 @@ mod tests {
     use std::collections::HashSet;
 
     use shared::song::Song;
-    use surrealdb::sql::Thing;
+    use surrealdb::types::RecordId;
 
     use super::*;
     use crate::error::AppError;
@@ -167,28 +221,22 @@ mod tests {
 
     #[test]
     fn belongs_to_returns_true_when_owner_in_teams() {
-        let owner = Thing::from(("team".to_owned(), "t1".to_owned()));
+        let owner = RecordId::new("team", "t1");
         assert!(belongs_to(
             &Some(owner.clone()),
-            &[owner, Thing::from(("team".to_owned(), "t2".to_owned()))]
+            &[owner, RecordId::new("team", "t2")]
         ));
     }
 
     #[test]
     fn belongs_to_returns_false_when_owner_missing() {
-        assert!(!belongs_to(
-            &None,
-            &[Thing::from(("team".to_owned(), "t1".to_owned()))]
-        ));
+        assert!(!belongs_to(&None, &[RecordId::new("team", "t1")]));
     }
 
     #[test]
     fn belongs_to_returns_false_when_owner_not_in_teams() {
-        let owner = Thing::from(("team".to_owned(), "mine".to_owned()));
-        assert!(!belongs_to(
-            &Some(owner),
-            &[Thing::from(("team".to_owned(), "other".to_owned()))]
-        ));
+        let owner = RecordId::new("team", "mine");
+        assert!(!belongs_to(&Some(owner), &[RecordId::new("team", "other")]));
     }
 
     #[test]

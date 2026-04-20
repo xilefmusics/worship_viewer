@@ -179,7 +179,7 @@ mod tests {
     use std::sync::Arc;
 
     use async_trait::async_trait;
-    use surrealdb::sql::Thing;
+    use surrealdb::types::RecordId;
 
     use shared::api::ListQuery;
     use shared::blob::{Blob, CreateBlob, FileType};
@@ -200,7 +200,7 @@ mod tests {
     impl BlobRepository for MockBlobRepo {
         async fn get_blobs(
             &self,
-            _read_teams: &[Thing],
+            _read_teams: &[RecordId],
             _pagination: ListQuery,
         ) -> Result<Vec<Blob>, AppError> {
             Ok(self.blobs.clone())
@@ -208,13 +208,13 @@ mod tests {
 
         async fn count_blobs(
             &self,
-            _read_teams: &[Thing],
+            _read_teams: &[RecordId],
             _pagination: &ListQuery,
         ) -> Result<u64, AppError> {
             Ok(self.blobs.len() as u64)
         }
 
-        async fn get_blob(&self, _read_teams: &[Thing], _id: &str) -> Result<Blob, AppError> {
+        async fn get_blob(&self, _read_teams: &[RecordId], _id: &str) -> Result<Blob, AppError> {
             self.blobs
                 .first()
                 .cloned()
@@ -234,7 +234,7 @@ mod tests {
 
         async fn update_blob(
             &self,
-            _write_teams: &[Thing],
+            _write_teams: &[RecordId],
             _id: &str,
             _blob: CreateBlob,
         ) -> Result<Blob, AppError> {
@@ -244,7 +244,11 @@ mod tests {
                 .ok_or_else(|| AppError::NotFound("blob not found".into()))
         }
 
-        async fn delete_blob(&self, _write_teams: &[Thing], _id: &str) -> Result<Blob, AppError> {
+        async fn delete_blob(
+            &self,
+            _write_teams: &[RecordId],
+            _id: &str,
+        ) -> Result<Blob, AppError> {
             self.blobs
                 .first()
                 .cloned()
@@ -256,13 +260,13 @@ mod tests {
 
     #[async_trait]
     impl TeamResolver for MockTeams {
-        async fn content_read_teams(&self, _user: &User) -> Result<Vec<Thing>, AppError> {
+        async fn content_read_teams(&self, _user: &User) -> Result<Vec<RecordId>, AppError> {
             Ok(vec![])
         }
-        async fn content_write_teams(&self, _user: &User) -> Result<Vec<Thing>, AppError> {
+        async fn content_write_teams(&self, _user: &User) -> Result<Vec<RecordId>, AppError> {
             Ok(vec![])
         }
-        async fn personal_team(&self, _user_id: &str) -> Result<Thing, AppError> {
+        async fn personal_team(&self, _user_id: &str) -> Result<RecordId, AppError> {
             Err(AppError::database("unused"))
         }
     }

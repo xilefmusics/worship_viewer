@@ -1,29 +1,56 @@
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Datetime, Thing};
+use surrealdb::types::{Datetime, Kind, RecordId, SurrealValue, Value, kind};
 
 use super::{Role, User};
+use crate::database::record_id_string;
 use crate::error::AppError;
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(transparent)]
+struct RoleField(pub Role);
+
+impl SurrealValue for RoleField {
+    fn kind_of() -> Kind {
+        kind!(any)
+    }
+
+    fn is_value(_value: &Value) -> bool {
+        true
+    }
+
+    fn into_value(self) -> Value {
+        let j = serde_json::to_value(self.0).unwrap_or(serde_json::Value::Null);
+        j.into_value()
+    }
+
+    fn from_value(value: Value) -> surrealdb::Result<Self> {
+        let j = serde_json::Value::from_value(value)?;
+        serde_json::from_value(j)
+            .map(RoleField)
+            .map_err(|e| surrealdb::Error::internal(e.to_string()))
+    }
+}
+
 pub fn user_resource(id: &str) -> Result<(String, String), AppError> {
-    if let Ok(thing) = id.parse::<Thing>() {
-        if thing.tb == "user" {
-            return Ok((thing.tb, thing.id.to_string()));
+    if let Ok(rid) = RecordId::parse_simple(id) {
+        if rid.table.as_str() == "user" {
+            return Ok(("user".to_owned(), record_id_string(&rid)));
         }
         return Err(AppError::invalid_request("invalid user id"));
     }
     Ok(("user".to_owned(), id.to_owned()))
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, SurrealValue)]
 pub struct UserRecord {
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<Thing>,
+    id: Option<RecordId>,
     email: String,
     #[serde(default)]
-    role: Role,
+    role: RoleField,
     #[serde(default)]
-    default_collection: Option<Thing>,
+    default_collection: Option<RecordId>,
     created_at: Datetime,
     #[serde(default)]
     last_login_at: Option<Datetime>,
@@ -34,10 +61,10 @@ pub struct UserRecord {
 impl UserRecord {
     pub fn into_user(self) -> User {
         User {
-            id: self.id.unwrap().id.to_string(),
+            id: self.id.map(|id| record_id_string(&id)).unwrap_or_default(),
             email: self.email,
-            role: self.role,
-            default_collection: self.default_collection.map(|id| id.id.to_string()),
+            role: self.role.0,
+            default_collection: self.default_collection.map(|id| record_id_string(&id)),
             created_at: self.created_at.into(),
             last_login_at: self.last_login_at.map(Into::into),
             request_count: self.request_count,
@@ -47,15 +74,15 @@ impl UserRecord {
     pub fn from_user(user: User) -> Self {
         Self {
             id: if !user.id.is_empty() {
-                Some(Thing::from(("user".to_owned(), user.id)))
+                Some(RecordId::new("user", user.id))
             } else {
                 None
             },
             email: user.email,
-            role: user.role,
+            role: RoleField(user.role),
             default_collection: user
                 .default_collection
-                .map(|id| Thing::from(("collection".to_owned(), id))),
+                .map(|id| RecordId::new("collection", id)),
             created_at: user.created_at.into(),
             last_login_at: user.last_login_at.map(Into::into),
             request_count: user.request_count,
@@ -75,7 +102,7 @@ mod tests {
         assert_eq!(result, ("user".to_owned(), "some-uuid".to_owned()));
     }
 
-    /// "user:someid" Thing string is parsed correctly.
+    /// "user:someid" record id string is parsed correctly.
     #[test]
     fn user_resource_thing_string_ok() {
         let result = user_resource("user:someid").unwrap();

@@ -114,7 +114,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use async_trait::async_trait;
-    use surrealdb::sql::Thing;
+    use surrealdb::types::RecordId;
 
     use shared::api::ListQuery;
     use shared::team::Team;
@@ -211,7 +211,7 @@ mod tests {
     // ── MockTeamRepo ──────────────────────────────────────────────────────────
 
     struct MockTeamRepo {
-        captured_owner: Arc<Mutex<Option<Thing>>>,
+        captured_owner: Arc<Mutex<Option<RecordId>>>,
     }
 
     impl MockTeamRepo {
@@ -265,7 +265,7 @@ mod tests {
             unreachable!("not used in user tests")
         }
 
-        async fn reassign_content(&self, _from: Thing, _to: Thing) -> Result<(), AppError> {
+        async fn reassign_content(&self, _from: RecordId, _to: RecordId) -> Result<(), AppError> {
             unreachable!("not used in user tests")
         }
 
@@ -288,7 +288,7 @@ mod tests {
         let owner_thing = owner
             .as_ref()
             .expect("create_team must be called with an owner");
-        assert_eq!(owner_thing.tb, "user");
+        assert_eq!(owner_thing.table.as_str(), "user");
         assert_eq!(record_id_string(owner_thing), result.id);
     }
 

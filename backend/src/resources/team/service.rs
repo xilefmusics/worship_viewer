@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 
 use std::sync::Arc;
 
+use surrealdb::types::RecordId;
+
 use shared::patch::Patch;
 use shared::team::{CreateTeam, PatchTeam, Team, UpdateTeam};
 use shared::user::{Role as UserRole, User};
@@ -249,7 +251,7 @@ impl<R: TeamRepository, TR: TeamResolver> TeamService<R, TR> {
 
         let team = row.into_team()?;
         let personal = perms.personal_team().await?;
-        let from = surrealdb::sql::Thing::from(resource.clone());
+        let from = RecordId::new(resource.0.clone(), resource.1.clone());
         self.repo.reassign_content(from, personal).await?;
         self.repo.delete_team_record(resource).await?;
 
@@ -1091,7 +1093,7 @@ mod tests {
                 let stored = team_fetched_to_stored(row).expect("stored");
                 can_read_team(&u.id, &stored, app_admin)
             })
-            .map(|row| row.id.id.to_string())
+            .map(|row| crate::database::record_id_string(&row.id))
             .collect();
 
         assert_eq!(

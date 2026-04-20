@@ -1,19 +1,19 @@
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
+use surrealdb::types::{RecordId, SurrealValue};
 
 use shared::collection::{Collection, CreateCollection};
-use shared::song::LinkOwned as SongLinkOwned;
 
-use crate::resources::common::{FetchedSongRecord, SongLinkRecord, blob_thing};
+use crate::database::record_id_string;
+use crate::resources::common::{SongLinkRecord, blob_thing};
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default, SurrealValue)]
 pub struct CollectionRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub id: Option<Thing>,
+    pub id: Option<RecordId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub owner: Option<Thing>,
+    pub owner: Option<RecordId>,
     pub title: String,
-    pub cover: Option<Thing>,
+    pub cover: Option<RecordId>,
     #[serde(default)]
     pub songs: Vec<SongLinkRecord>,
 }
@@ -21,26 +21,17 @@ pub struct CollectionRecord {
 impl CollectionRecord {
     pub fn into_collection(self) -> Collection {
         Collection {
-            id: self
-                .id
-                .map(|thing| thing.id.to_string())
-                .unwrap_or_default(),
-            owner: self
-                .owner
-                .map(|thing| thing.id.to_string())
-                .unwrap_or_default(),
+            id: self.id.map(|r| record_id_string(&r)).unwrap_or_default(),
+            owner: self.owner.map(|r| record_id_string(&r)).unwrap_or_default(),
             title: self.title,
-            cover: self
-                .cover
-                .map(|thing| thing.id.to_string())
-                .unwrap_or_default(),
+            cover: self.cover.map(|r| record_id_string(&r)).unwrap_or_default(),
             songs: self.songs.into_iter().map(Into::into).collect(),
         }
     }
 
     pub fn from_payload(
-        id: Option<Thing>,
-        owner: Option<Thing>,
+        id: Option<RecordId>,
+        owner: Option<RecordId>,
         collection: CreateCollection,
     ) -> Self {
         Self {
@@ -53,23 +44,6 @@ impl CollectionRecord {
     }
 }
 
-#[derive(Deserialize)]
-pub struct CollectionSongsRecord {
-    #[serde(default)]
-    pub owner: Option<Thing>,
-    #[serde(default)]
-    pub songs: Vec<FetchedSongRecord>,
-}
-
-impl CollectionSongsRecord {
-    pub fn into_songs(self) -> Vec<SongLinkOwned> {
-        self.songs
-            .into_iter()
-            .map(|record| record.into_song_link_owned())
-            .collect()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use shared::song::Link as SongLink;
@@ -78,8 +52,8 @@ mod tests {
 
     #[test]
     fn collection_record_from_payload_into_collection() {
-        let id = Thing::from(("collection".to_owned(), "c1".to_owned()));
-        let owner = Thing::from(("team".to_owned(), "tm".to_owned()));
+        let id = RecordId::new("collection", "c1");
+        let owner = RecordId::new("team", "tm");
         let record = CollectionRecord::from_payload(
             Some(id.clone()),
             Some(owner.clone()),

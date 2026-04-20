@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use surrealdb::sql::Thing;
+use surrealdb::types::RecordId;
 
 use crate::error::AppError;
 
@@ -11,13 +11,13 @@ pub trait TeamInvitationRepository: Send + Sync {
     /// Insert a new invitation record.
     async fn create_invitation(
         &self,
-        team: Thing,
-        created_by: Thing,
+        team: RecordId,
+        created_by: RecordId,
         inv_id: &str,
     ) -> Result<(), AppError>;
 
     /// List all invitations for a team (ordered by created_at ASC, FETCH created_by).
-    async fn list_invitations(&self, team: Thing) -> Result<Vec<InvitationRow>, AppError>;
+    async fn list_invitations(&self, team: RecordId) -> Result<Vec<InvitationRow>, AppError>;
 
     /// Get a single invitation with created_by fetched.
     async fn get_invitation(&self, inv_id: &str) -> Result<Option<InvitationRow>, AppError>;

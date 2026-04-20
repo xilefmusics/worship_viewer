@@ -156,7 +156,7 @@ mod tests {
     use std::sync::Arc;
 
     use async_trait::async_trait;
-    use surrealdb::sql::Thing;
+    use surrealdb::types::RecordId;
 
     use shared::api::ListQuery;
     use shared::setlist::{CreateSetlist, Setlist};
@@ -185,7 +185,7 @@ mod tests {
     impl SetlistRepository for MockRepo {
         async fn get_setlists(
             &self,
-            _read_teams: &[Thing],
+            _read_teams: &[RecordId],
             _pagination: ListQuery,
         ) -> Result<Vec<Setlist>, AppError> {
             Ok(self.setlists.clone())
@@ -193,13 +193,17 @@ mod tests {
 
         async fn count_setlists(
             &self,
-            _read_teams: &[Thing],
+            _read_teams: &[RecordId],
             _q: Option<&str>,
         ) -> Result<u64, AppError> {
             Ok(self.setlists.len() as u64)
         }
 
-        async fn get_setlist(&self, _read_teams: &[Thing], _id: &str) -> Result<Setlist, AppError> {
+        async fn get_setlist(
+            &self,
+            _read_teams: &[RecordId],
+            _id: &str,
+        ) -> Result<Setlist, AppError> {
             self.get_returns
                 .clone()
                 .ok_or_else(|| AppError::NotFound("setlist not found".into()))
@@ -207,7 +211,7 @@ mod tests {
 
         async fn get_setlist_songs(
             &self,
-            _read_teams: &[Thing],
+            _read_teams: &[RecordId],
             _id: &str,
         ) -> Result<Vec<SongLinkOwned>, AppError> {
             Ok(vec![])
@@ -223,7 +227,7 @@ mod tests {
 
         async fn update_setlist(
             &self,
-            _write_teams: &[Thing],
+            _write_teams: &[RecordId],
             _id: &str,
             _setlist: CreateSetlist,
         ) -> Result<Setlist, AppError> {
@@ -241,7 +245,7 @@ mod tests {
 
         async fn delete_setlist(
             &self,
-            _write_teams: &[Thing],
+            _write_teams: &[RecordId],
             _id: &str,
         ) -> Result<Setlist, AppError> {
             Err(AppError::NotFound("setlist not found".into()))
@@ -249,21 +253,21 @@ mod tests {
     }
 
     struct MockTeams {
-        read: Vec<Thing>,
-        write: Vec<Thing>,
+        read: Vec<RecordId>,
+        write: Vec<RecordId>,
     }
 
     #[async_trait]
     impl TeamResolver for MockTeams {
-        async fn content_read_teams(&self, _user: &User) -> Result<Vec<Thing>, AppError> {
+        async fn content_read_teams(&self, _user: &User) -> Result<Vec<RecordId>, AppError> {
             Ok(self.read.clone())
         }
 
-        async fn content_write_teams(&self, _user: &User) -> Result<Vec<Thing>, AppError> {
+        async fn content_write_teams(&self, _user: &User) -> Result<Vec<RecordId>, AppError> {
             Ok(self.write.clone())
         }
 
-        async fn personal_team(&self, _user_id: &str) -> Result<Thing, AppError> {
+        async fn personal_team(&self, _user_id: &str) -> Result<RecordId, AppError> {
             Err(AppError::database("unused"))
         }
     }
@@ -279,12 +283,12 @@ mod tests {
         }
     }
 
-    fn team_a() -> Thing {
-        Thing::from(("team".to_owned(), "a".to_owned()))
+    fn team_a() -> RecordId {
+        RecordId::new("team", "a")
     }
 
-    fn team_b() -> Thing {
-        Thing::from(("team".to_owned(), "b".to_owned()))
+    fn team_b() -> RecordId {
+        RecordId::new("team", "b")
     }
 
     fn test_user() -> User {

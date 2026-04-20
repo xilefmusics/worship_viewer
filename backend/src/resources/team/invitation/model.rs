@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Datetime, Thing};
+use surrealdb::types::{Datetime, RecordId, SurrealValue};
 
 use shared::team::{TeamInvitation, TeamUser};
 
@@ -7,23 +7,23 @@ use crate::database::record_id_string;
 use crate::error::AppError;
 use crate::resources::user::UserRecord;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, SurrealValue)]
 pub struct InvitationRow {
-    pub id: Thing,
-    pub team: Thing,
+    pub id: RecordId,
+    pub team: RecordId,
     pub created_by: UserRecord,
     pub created_at: Datetime,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, SurrealValue)]
 pub struct InvitationAcceptRow {
     pub team: super::super::model::TeamFetched,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, SurrealValue)]
 pub struct InvitationCreate {
-    pub team: Thing,
-    pub created_by: Thing,
+    pub team: RecordId,
+    pub created_by: RecordId,
 }
 
 impl InvitationRow {
@@ -41,39 +41,39 @@ impl InvitationRow {
     }
 }
 
-pub fn invitation_thing(invitation_id: &str) -> Result<Thing, AppError> {
+pub fn invitation_thing(invitation_id: &str) -> Result<RecordId, AppError> {
     let id = invitation_id.trim();
     if id.is_empty() {
         return Err(AppError::NotFound("invitation not found".into()));
     }
-    if let Ok(thing) = id.parse::<Thing>()
-        && thing.tb == "team_invitation"
+    if let Ok(rid) = RecordId::parse_simple(id)
+        && rid.table.as_str() == "team_invitation"
     {
-        return Ok(thing);
+        return Ok(rid);
     }
-    Ok(Thing::from(("team_invitation".to_owned(), id.to_owned())))
+    Ok(RecordId::new("team_invitation", id))
 }
 
-pub fn team_things_match(a: &Thing, b: &Thing) -> bool {
-    a.tb == b.tb && record_id_string(a) == record_id_string(b)
+pub fn team_things_match(a: &RecordId, b: &RecordId) -> bool {
+    a.table == b.table && record_id_string(a) == record_id_string(b)
 }
 
 #[cfg(test)]
 mod tests {
-    use surrealdb::sql::Thing;
+    use surrealdb::types::RecordId;
 
     use super::*;
     use crate::error::AppError;
 
-    fn make_thing(table: &str, id: &str) -> Thing {
-        Thing::from((table.to_owned(), id.to_owned()))
+    fn make_thing(table: &str, id: &str) -> RecordId {
+        RecordId::new(table, id.to_owned())
     }
 
-    /// BLC-TINV-006: plain UUID produces a team_invitation Thing.
+    /// BLC-TINV-006: plain UUID produces a team_invitation RecordId.
     #[test]
     fn blc_tinv_006_invitation_thing_plain_uuid_ok() {
         let thing = invitation_thing("valid-uuid").unwrap();
-        assert_eq!(thing.tb, "team_invitation");
+        assert_eq!(thing.table.as_str(), "team_invitation");
         assert_eq!(record_id_string(&thing), "valid-uuid");
     }
 
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn invitation_thing_prefixed_id_parsed_ok() {
         let thing = invitation_thing("team_invitation:abc").unwrap();
-        assert_eq!(thing.tb, "team_invitation");
+        assert_eq!(thing.table.as_str(), "team_invitation");
         assert_eq!(record_id_string(&thing), "abc");
     }
 
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn invitation_thing_wrong_table_prefix_falls_back() {
         let thing = invitation_thing("other_table:abc").unwrap();
-        assert_eq!(thing.tb, "team_invitation");
+        assert_eq!(thing.table.as_str(), "team_invitation");
     }
 
     /// Same table and same id returns true.

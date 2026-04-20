@@ -127,43 +127,41 @@ pub fn map_list_query_error(message: String) -> AppError {
 
 impl From<surrealdb::Error> for AppError {
     fn from(err: surrealdb::Error) -> Self {
-        if let surrealdb::Error::Db(dberr) = &err {
-            match dberr {
-                surrealdb::error::Db::IndexExists { .. }
-                | surrealdb::error::Db::RecordExists { .. }
-                | surrealdb::error::Db::TxKeyAlreadyExists
-                | surrealdb::error::Db::TxConditionNotMet => {
-                    error!("database conflict: {dberr}");
-                    Self::conflict("request conflicts with existing data")
-                }
-                surrealdb::error::Db::FieldCheck { .. }
-                | surrealdb::error::Db::FieldValue { .. }
-                | surrealdb::error::Db::InvalidField { .. }
-                | surrealdb::error::Db::InvalidArguments { .. }
-                | surrealdb::error::Db::InvalidParam { .. }
-                | surrealdb::error::Db::InvalidPatch { .. }
-                | surrealdb::error::Db::InvalidQuery { .. }
-                | surrealdb::error::Db::IdInvalid { .. }
-                | surrealdb::error::Db::InvalidUrl { .. }
-                | surrealdb::error::Db::SetCheck { .. }
-                | surrealdb::error::Db::TableCheck { .. } => {
-                    // Log the raw DB error (contains internal field/index names) and
-                    // return a sanitized message so database internals are not leaked
-                    // to clients.
-                    error!("database validation error: {dberr}");
-                    AppError::invalid_request("invalid request")
-                }
-                surrealdb::error::Db::NoRecordFound | surrealdb::error::Db::IdNotFound { .. } => {
-                    AppError::NotFound("record not found".into())
-                }
-                _ => {
-                    observability::log_error_chain("surrealdb.app_error", &err);
-                    Self::database(err)
-                }
+        use surrealdb::types::{ErrorDetails, NotFoundError, QueryError};
+
+        let msg = err.to_string();
+        // SurrealDB 3.x surfaces unique indexes and field ASSERT failures as internal errors; map for HTTP.
+        if msg.contains("user_email_unique") && msg.contains("already contains") {
+            return Self::conflict("email already exists");
+        }
+        if msg.contains("field `email`") && msg.contains("string::is_email") {
+            return Self::invalid_request("invalid email address");
+        }
+        if msg.contains("field `title`") && msg.contains("string::len(string::trim($value)) > 0") {
+            return Self::invalid_request("title must not be empty");
+        }
+
+        match err.details() {
+            ErrorDetails::AlreadyExists(_) => {
+                error!("database conflict: {err}");
+                Self::conflict("request conflicts with existing data")
             }
-        } else {
-            observability::log_error_chain("surrealdb.app_error", &err);
-            Self::database(err)
+            ErrorDetails::Query(Some(QueryError::TransactionConflict)) => {
+                error!("database conflict: {err}");
+                Self::conflict("request conflicts with existing data")
+            }
+            ErrorDetails::NotFound(Some(NotFoundError::Record { .. })) => {
+                AppError::NotFound("record not found".into())
+            }
+            ErrorDetails::NotFound(_) => AppError::NotFound("record not found".into()),
+            ErrorDetails::Validation(_) | ErrorDetails::Thrown => {
+                error!("database validation error: {err}");
+                AppError::invalid_request("invalid request")
+            }
+            _ => {
+                observability::log_error_chain("surrealdb.app_error", &err);
+                Self::database(err)
+            }
         }
     }
 }

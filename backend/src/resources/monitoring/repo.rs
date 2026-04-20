@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Duration, Utc};
 use serde::Deserialize;
-use surrealdb::sql::{Datetime, Thing};
+use surrealdb::types::{Datetime, RecordId, SurrealValue};
 
 use shared::api::ListQuery;
 
@@ -25,37 +25,37 @@ fn surreal_query_err(ctx: &'static str, err: surrealdb::Error) -> AppError {
     AppError::database(err.to_string())
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, SurrealValue)]
 struct CountRow {
     count: i64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, SurrealValue)]
 struct PctRow {
     p95: Option<serde_json::Value>,
     p99: Option<serde_json::Value>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, SurrealValue)]
 struct FailPathRow {
     path: String,
     error_count: i64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, SurrealValue)]
 struct MethodOnlyRow {
     method: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, SurrealValue)]
 struct NewUserRow {
-    id: Thing,
+    id: RecordId,
     created_at: Datetime,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, SurrealValue)]
 struct AuditActivationRow {
-    user: Thing,
+    user: RecordId,
     #[allow(dead_code)]
     path: String,
     created_at: Datetime,
@@ -63,7 +63,7 @@ struct AuditActivationRow {
 
 impl MonitoringRepo {
     pub async fn count_http_audit_logs(db: &Database) -> Result<u64, AppError> {
-        #[derive(Deserialize)]
+        #[derive(Deserialize, SurrealValue)]
         struct CountResult {
             count: u64,
         }
@@ -524,8 +524,8 @@ async fn count_audit(
     let mut response = db
         .db
         .query(q)
-        .bind(("start", start.clone()))
-        .bind(("end", end.clone()))
+        .bind(("start", *start))
+        .bind(("end", *end))
         .await
         .map_err(|e| surreal_query_err(ctx, e))?;
     let rows: Vec<CountRow> = response
@@ -566,8 +566,8 @@ async fn distinct_users_product(
     let mut response = db
         .db
         .query(q)
-        .bind(("start", range_start.clone()))
-        .bind(("end", range_end.clone()))
+        .bind(("start", *range_start))
+        .bind(("end", *range_end))
         .await
         .map_err(|e| surreal_query_err(ctx, e))?;
     let rows: Vec<CountRow> = response
@@ -601,8 +601,8 @@ async fn distinct_sessions_in_range(
     let mut response = db
         .db
         .query(q)
-        .bind(("start", range_start.clone()))
-        .bind(("end", range_end.clone()))
+        .bind(("start", *range_start))
+        .bind(("end", *range_end))
         .await
         .map_err(|e| surreal_query_err(ctx, e))?;
     let rows: Vec<CountRow> = response
@@ -629,8 +629,8 @@ async fn distinct_admins_monitoring(
     let mut response = db
         .db
         .query(q)
-        .bind(("start", start.clone()))
-        .bind(("end", end.clone()))
+        .bind(("start", *start))
+        .bind(("end", *end))
         .await
         .map_err(|e| surreal_query_err("metrics.adm_dist", e))?;
     let rows: Vec<CountRow> = response
@@ -678,8 +678,8 @@ async fn percentiles_global(
     let mut response = db
         .db
         .query(q)
-        .bind(("start", start.clone()))
-        .bind(("end", end.clone()))
+        .bind(("start", *start))
+        .bind(("end", *end))
         .await
         .map_err(|e| surreal_query_err(ctx, e))?;
     let rows: Vec<PctRow> = response
@@ -708,8 +708,8 @@ async fn percentiles_by_method(
     let mut response = db
         .db
         .query(q_methods)
-        .bind(("start", start.clone()))
-        .bind(("end", end.clone()))
+        .bind(("start", *start))
+        .bind(("end", *end))
         .await
         .map_err(|e| surreal_query_err("metrics.p_method.list", e))?;
     let methods: Vec<MethodOnlyRow> = response
@@ -741,8 +741,8 @@ async fn percentiles_by_method(
         let mut response = db
             .db
             .query(q)
-            .bind(("start", start.clone()))
-            .bind(("end", end.clone()))
+            .bind(("start", *start))
+            .bind(("end", *end))
             .await
             .map_err(|e| surreal_query_err("metrics.p_method.pct", e))?;
         let pct_rows: Vec<PctRow> = response
@@ -784,8 +784,8 @@ async fn top_failing_paths(
     let mut response = db
         .db
         .query(q)
-        .bind(("start", start.clone()))
-        .bind(("end", end.clone()))
+        .bind(("start", *start))
+        .bind(("end", *end))
         .await
         .map_err(|e| surreal_query_err("metrics.fail_paths", e))?;
     let rows: Vec<FailPathRow> = response
@@ -838,8 +838,8 @@ async fn id_like_404_metrics(
     let mut response = db
         .db
         .query(q)
-        .bind(("start", start.clone()))
-        .bind(("end", end.clone()))
+        .bind(("start", *start))
+        .bind(("end", *end))
         .await
         .map_err(|e| surreal_query_err("metrics.id404_group", e))?;
     let rows: Vec<FailPathRow> = response
@@ -934,8 +934,8 @@ async fn distinct_from_subquery(
     let mut response = db
         .db
         .query(q)
-        .bind(("start", start.clone()))
-        .bind(("end", end.clone()))
+        .bind(("start", *start))
+        .bind(("end", *end))
         .await
         .map_err(|e| surreal_query_err(ctx, e))?;
     let rows: Vec<CountRow> = response
@@ -966,8 +966,8 @@ async fn compute_activation(
     let mut response = db
         .db
         .query(q)
-        .bind(("start", start.clone()))
-        .bind(("end", end.clone()))
+        .bind(("start", *start))
+        .bind(("end", *end))
         .await
         .map_err(|e| surreal_query_err("metrics.act_users", e))?;
     let rows: Vec<NewUserRow> = response
@@ -992,7 +992,7 @@ async fn compute_activation(
     let mut user_created: HashMap<String, DateTime<Utc>> = HashMap::new();
     for r in &rows {
         let id = record_id_string(&r.id);
-        let ct: DateTime<Utc> = r.created_at.clone().into();
+        let ct: DateTime<Utc> = r.created_at.into();
         user_created.insert(id, ct);
         min_t = Some(match min_t {
             Some(m) => m.min(ct),
@@ -1006,7 +1006,7 @@ async fn compute_activation(
     let audit_min = Datetime::from(min_t.expect("non-empty rows"));
     let audit_max = Datetime::from(max_t.expect("non-empty rows") + Duration::days(7));
 
-    let user_things: Vec<Thing> = rows.iter().map(|r| r.id.clone()).collect();
+    let user_things: Vec<RecordId> = rows.iter().map(|r| r.id.clone()).collect();
     let q2 = "SELECT user, path, created_at FROM http_request_audit \
               WHERE user IN $users AND created_at >= $a_start AND created_at < $a_end";
     let mut response = db
@@ -1027,7 +1027,7 @@ async fn compute_activation(
         let Some(&signup) = user_created.get(&uid) else {
             continue;
         };
-        let at: DateTime<Utc> = h.created_at.clone().into();
+        let at: DateTime<Utc> = h.created_at.into();
         if at < signup || at >= signup + Duration::days(7) {
             continue;
         }

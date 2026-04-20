@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use surrealdb::sql::Thing;
+use surrealdb::types::{RecordId, SurrealValue};
 
 use shared::team::{Team, TeamMember, TeamMemberInput, TeamRole, TeamUser, TeamUserRef};
 
@@ -8,8 +8,8 @@ use crate::database::record_id_string;
 use crate::error::AppError;
 use crate::resources::user::UserRecord;
 
-pub fn thing_record_key(t: &Thing) -> String {
-    format!("{}:{}", t.tb, record_id_string(t))
+pub fn thing_record_key(t: &RecordId) -> String {
+    format!("{}:{}", t.table, record_id_string(t))
 }
 
 #[cfg(test)]
@@ -147,23 +147,23 @@ pub fn validate_personal_members_not_owner(
     Ok(())
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, SurrealValue)]
 pub struct TeamCreatePayload {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub owner: Option<Thing>,
+    pub owner: Option<RecordId>,
     pub members: Vec<DbTeamMember>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, SurrealValue)]
 pub struct DbTeamMember {
-    pub user: Thing,
+    pub user: RecordId,
     pub role: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, SurrealValue)]
 pub struct TeamFetched {
-    pub id: Thing,
+    pub id: RecordId,
     pub name: String,
     #[serde(default)]
     pub owner: Option<UserRecord>,
@@ -171,7 +171,7 @@ pub struct TeamFetched {
     pub members: Vec<TeamMemberFetched>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, SurrealValue)]
 pub struct TeamMemberFetched {
     pub user: UserRecord,
     pub role: String,
@@ -179,7 +179,7 @@ pub struct TeamMemberFetched {
 
 impl TeamFetched {
     pub fn into_team(self) -> Result<Team, AppError> {
-        let id = self.id.id.to_string();
+        let id = record_id_string(&self.id);
         let owner = self.owner.map(user_record_to_team_user).transpose()?;
         let mut members = Vec::with_capacity(self.members.len());
         for m in self.members {
@@ -205,14 +205,14 @@ fn user_record_to_team_user(rec: UserRecord) -> Result<TeamUser, AppError> {
     })
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, SurrealValue)]
 pub struct TeamIdRow {
-    pub id: Thing,
+    pub id: RecordId,
 }
 
 #[derive(Clone, Debug)]
 pub struct TeamStored {
-    pub owner: Option<Thing>,
+    pub owner: Option<RecordId>,
     pub members: Vec<DbTeamMember>,
 }
 
@@ -232,12 +232,12 @@ pub fn team_fetched_to_stored(row: &TeamFetched) -> Result<TeamStored, AppError>
     Ok(TeamStored { owner, members })
 }
 
-pub fn user_thing(user_id: &str) -> Thing {
-    Thing::from(("user".to_owned(), user_id.to_owned()))
+pub fn user_thing(user_id: &str) -> RecordId {
+    RecordId::new("user", user_id.to_owned())
 }
 
-pub fn public_team_thing() -> Thing {
-    Thing::from(("team".to_owned(), "public".to_owned()))
+pub fn public_team_thing() -> RecordId {
+    RecordId::new("team", "public")
 }
 
 pub fn is_public_resource(resource: &(String, String)) -> bool {
@@ -257,16 +257,16 @@ fn team_resource(id: &str) -> Result<(String, String), AppError> {
     if id == "public" {
         return Ok(("team".to_owned(), "public".to_owned()));
     }
-    if let Ok(thing) = id.parse::<Thing>()
-        && thing.tb == "team"
+    if let Ok(rid) = RecordId::parse_simple(id)
+        && rid.table.as_str() == "team"
     {
-        return Ok((thing.tb, thing.id.to_string()));
+        return Ok(("team".to_owned(), record_id_string(&rid)));
     }
     Ok(("team".to_owned(), id.to_owned()))
 }
 
-pub fn thing_user_id(t: &Thing) -> String {
-    t.id.to_string()
+pub fn thing_user_id(t: &RecordId) -> String {
+    record_id_string(t)
 }
 
 pub fn member_or_owner_readable(user_id: &str, stored: &TeamStored) -> bool {
@@ -691,7 +691,7 @@ mod tests {
         assert_eq!(result, ("team".to_owned(), "some-uuid".to_owned()));
     }
 
-    /// BLC-TEAM-007: a "team:someid" Thing string is accepted and parsed.
+    /// BLC-TEAM-007: a "team:someid" RecordId string is accepted and parsed.
     #[test]
     fn blc_team_007_team_resource_or_reject_public_thing_string_ok() {
         let result = team_resource_or_reject_public("team:someid").unwrap();

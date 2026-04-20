@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use surrealdb::sql::Thing;
+use surrealdb::types::RecordId;
 
 use serde::Deserialize;
+use surrealdb::types::SurrealValue;
 
 use shared::api::ListQuery;
 use shared::setlist::{CreateSetlist, Setlist};
@@ -12,9 +13,11 @@ use shared::song::LinkOwned as SongLinkOwned;
 use crate::database::Database;
 use crate::error::AppError;
 
-use crate::resources::common::{SongLinkRecord, belongs_to, resource_id};
+use crate::resources::common::{
+    SongLinkListRow, SongLinkRecord, belongs_to, resource_id, song_links_to_owned,
+};
 
-use super::model::{SetlistRecord, SetlistSongsRecord};
+use super::model::SetlistRecord;
 use super::repository::SetlistRepository;
 
 #[derive(Clone)]
@@ -36,7 +39,7 @@ impl SurrealSetlistRepo {
 impl SetlistRepository for SurrealSetlistRepo {
     async fn get_setlists(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         pagination: ListQuery,
     ) -> Result<Vec<Setlist>, AppError> {
         let db = self.inner();
@@ -70,8 +73,12 @@ impl SetlistRepository for SurrealSetlistRepo {
             .collect())
     }
 
-    async fn count_setlists(&self, read_teams: &[Thing], q: Option<&str>) -> Result<u64, AppError> {
-        #[derive(Deserialize)]
+    async fn count_setlists(
+        &self,
+        read_teams: &[RecordId],
+        q: Option<&str>,
+    ) -> Result<u64, AppError> {
+        #[derive(Deserialize, SurrealValue)]
         struct CountResult {
             count: u64,
         }
@@ -99,7 +106,7 @@ impl SetlistRepository for SurrealSetlistRepo {
             .unwrap_or(0))
     }
 
-    async fn get_setlist(&self, read_teams: &[Thing], id: &str) -> Result<Setlist, AppError> {
+    async fn get_setlist(&self, read_teams: &[RecordId], id: &str) -> Result<Setlist, AppError> {
         let db = self.inner();
         let record: Option<SetlistRecord> = db.db.select(resource_id("setlist", id)?).await?;
         match record {
@@ -110,26 +117,26 @@ impl SetlistRepository for SurrealSetlistRepo {
 
     async fn get_setlist_songs(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         id: &str,
     ) -> Result<Vec<SongLinkOwned>, AppError> {
         let db = self.inner();
         let resource = resource_id("setlist", id)?;
         let mut response = db
             .db
-            .query("SELECT owner, songs FROM setlist WHERE id = $id FETCH songs.id")
-            .bind(("id", Thing::from(resource.clone())))
+            .query("SELECT owner, songs FROM setlist WHERE id = $id")
+            .bind(("id", RecordId::new(resource.0.clone(), resource.1.clone())))
             .await?;
 
         let record = response
-            .take::<Option<SetlistSongsRecord>>(0)?
+            .take::<Option<SongLinkListRow>>(0)?
             .ok_or_else(|| AppError::NotFound("setlist not found".into()))?;
 
-        if !record.belongs_to(read_teams) {
+        if !belongs_to(&record.owner, read_teams) {
             return Err(AppError::NotFound("setlist not found".into()));
         }
 
-        Ok(record.into_songs())
+        song_links_to_owned(&db.db, record.songs).await
     }
 
     async fn create_setlist(
@@ -149,7 +156,7 @@ impl SetlistRepository for SurrealSetlistRepo {
 
     async fn update_setlist(
         &self,
-        write_teams: &[Thing],
+        write_teams: &[RecordId],
         id: &str,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
@@ -161,7 +168,7 @@ impl SetlistRepository for SurrealSetlistRepo {
         let mut response = db
             .db
             .query(
-                "UPDATE type::thing($tb, $sid) SET title = $title, songs = $songs \
+                "UPDATE type::record($tb, $sid) SET title = $title, songs = $songs \
                  WHERE owner IN $teams RETURN AFTER",
             )
             .bind(("tb", tb))
@@ -178,12 +185,16 @@ impl SetlistRepository for SurrealSetlistRepo {
             .ok_or_else(|| AppError::NotFound("setlist not found".into()))
     }
 
-    async fn delete_setlist(&self, write_teams: &[Thing], id: &str) -> Result<Setlist, AppError> {
+    async fn delete_setlist(
+        &self,
+        write_teams: &[RecordId],
+        id: &str,
+    ) -> Result<Setlist, AppError> {
         let db = self.inner();
         let (tb, sid) = resource_id("setlist", id)?;
         let mut response = db
             .db
-            .query("DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
+            .query("DELETE FROM type::record($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
             .bind(("teams", write_teams.to_vec()))

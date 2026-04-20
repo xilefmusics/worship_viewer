@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use surrealdb::sql::Thing;
+use surrealdb::types::RecordId;
 
 use shared::user::Session;
 
-use crate::database::Database;
+use crate::database::{Database, record_id_string};
 use crate::error::AppError;
 
 use super::model::{SessionCreateRecord, SessionIdRecord, SessionRecord};
@@ -32,7 +32,7 @@ impl SessionRepository for SurrealSessionRepo {
         self.inner()
             .db
             .query("SELECT * FROM session WHERE id = $id FETCH user")
-            .bind(("id", Thing::from(("session".to_owned(), id.to_string()))))
+            .bind(("id", RecordId::new("session", id.to_string())))
             .await?
             .take::<Option<SessionRecord>>(0)?
             .map(SessionRecord::into_session)
@@ -43,8 +43,8 @@ impl SessionRepository for SurrealSessionRepo {
         self.inner()
             .db
             .query("SELECT * FROM session WHERE id = $id AND user = $user FETCH user")
-            .bind(("id", Thing::from(("session".to_owned(), id.to_string()))))
-            .bind(("user", Thing::from(("user".to_owned(), user_id.to_owned()))))
+            .bind(("id", RecordId::new("session", id.to_string())))
+            .bind(("user", RecordId::new("user", user_id.to_owned())))
             .await?
             .take::<Option<SessionRecord>>(0)?
             .map(SessionRecord::into_session)
@@ -60,7 +60,7 @@ impl SessionRepository for SurrealSessionRepo {
             .await?
             .ok_or_else(|| AppError::database("Failed to create session"))?;
 
-        self.get_session(&record.id.id.to_raw()).await
+        self.get_session(&record_id_string(&record.id)).await
     }
 
     async fn delete_session(&self, id: &str) -> Result<Session, AppError> {
@@ -80,7 +80,7 @@ impl SessionRepository for SurrealSessionRepo {
             .inner()
             .db
             .query("SELECT * FROM session WHERE user = $user FETCH user")
-            .bind(("user", Thing::from(("user".to_owned(), user_id.to_owned()))))
+            .bind(("user", RecordId::new("user", user_id.to_owned())))
             .await?
             .take::<Vec<SessionRecord>>(0)?
             .into_iter()
@@ -97,7 +97,7 @@ impl SessionRepository for SurrealSessionRepo {
             .db
             .query(
                 r#"
-            LET $sid = type::thing("session", $id);
+            LET $sid = type::record("session", $id);
                         
             DELETE $sid
             WHERE expires_at != NONE

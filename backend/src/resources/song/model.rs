@@ -1,23 +1,84 @@
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Id, Thing};
+use surrealdb::types::{Kind, RecordId, SurrealValue, Value, kind};
 
 use chordlib::types::Song as SongData;
 use shared::blob::BlobLink;
 use shared::song::{CreateSong, Song, SongUserSpecificAddons};
 
+use crate::database::record_id_string;
 use crate::resources::common::blob_thing;
 
+/// Newtype so [`SongData`] can round-trip through SurrealDB 3.x `SurrealValue` query results.
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[serde(transparent)]
+pub struct SongDataField(pub SongData);
+
+impl std::ops::Deref for SongDataField {
+    type Target = SongData;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for SongDataField {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl SurrealValue for SongDataField {
+    fn kind_of() -> Kind {
+        kind!(any)
+    }
+
+    fn is_value(_value: &Value) -> bool {
+        true
+    }
+
+    fn into_value(self) -> Value {
+        let j = serde_json::to_value(self.0).unwrap_or(serde_json::Value::Null);
+        json_strip_nulls(j).into_value()
+    }
+
+    fn from_value(value: Value) -> surrealdb::Result<Self> {
+        let j = serde_json::Value::from_value(value)?;
+        serde_json::from_value(j)
+            .map(SongDataField)
+            .map_err(|e| surrealdb::Error::internal(e.to_string()))
+    }
+}
+
+/// SurrealDB 3 `SCHEMAFULL` maps JSON `null` to `NULL`, which does not satisfy `none | T` fields; omit keys instead.
+fn json_strip_nulls(value: serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(map) => {
+            let mut out = serde_json::Map::with_capacity(map.len());
+            for (k, v) in map {
+                if v.is_null() {
+                    continue;
+                }
+                out.insert(k, json_strip_nulls(v));
+            }
+            serde_json::Value::Object(out)
+        }
+        serde_json::Value::Array(items) => {
+            serde_json::Value::Array(items.into_iter().map(json_strip_nulls).collect())
+        }
+        other => other,
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default, SurrealValue)]
 pub struct SongRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub id: Option<Thing>,
+    pub id: Option<RecordId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub owner: Option<Thing>,
+    pub owner: Option<RecordId>,
     #[serde(default)]
     pub not_a_song: bool,
     #[serde(default)]
-    pub blobs: Vec<Thing>,
-    pub data: SongData,
+    pub blobs: Vec<RecordId>,
+    pub data: SongDataField,
     #[serde(default)]
     pub search_content: String,
 }
@@ -25,22 +86,22 @@ pub struct SongRecord {
 impl SongRecord {
     pub fn into_song(self) -> Song {
         Song {
-            id: self.id.map(id_from_thing).unwrap_or_default(),
-            owner: self.owner.map(id_from_thing).unwrap_or_default(),
+            id: self.id.map(id_from_record).unwrap_or_default(),
+            owner: self.owner.map(id_from_record).unwrap_or_default(),
             not_a_song: self.not_a_song,
             blobs: self
                 .blobs
                 .into_iter()
                 .map(|t| BlobLink {
-                    id: id_from_thing(t),
+                    id: id_from_record(t),
                 })
                 .collect(),
-            data: self.data,
+            data: self.data.0,
             user_specific_addons: SongUserSpecificAddons::default(),
         }
     }
 
-    pub fn from_payload(id: Option<Thing>, owner: Option<Thing>, song: CreateSong) -> Self {
+    pub fn from_payload(id: Option<RecordId>, owner: Option<RecordId>, song: CreateSong) -> Self {
         let search_content = search_content_from_song_data(&song.data);
         Self {
             id,
@@ -51,7 +112,7 @@ impl SongRecord {
                 .into_iter()
                 .map(|blob| blob_thing(&blob.id))
                 .collect(),
-            data: song.data,
+            data: SongDataField(song.data),
             search_content,
         }
     }
@@ -73,29 +134,20 @@ pub fn search_content_from_song_data(data: &SongData) -> String {
     pieces.join(" ")
 }
 
-pub fn id_from_thing(thing: Thing) -> String {
-    id_to_plain_string(thing.id)
+pub fn id_from_record(rid: RecordId) -> String {
+    record_id_string(&rid)
 }
 
-fn id_to_plain_string(id: Id) -> String {
-    match id {
-        Id::String(value) => value,
-        Id::Number(number) => format!("{number}"),
-        Id::Uuid(uuid) => uuid.to_string(),
-        _ => id.to_string(),
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, SurrealValue)]
 pub struct LikeRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub id: Option<Thing>,
-    pub owner: Thing,
-    pub song: Thing,
+    pub id: Option<RecordId>,
+    pub owner: RecordId,
+    pub song: RecordId,
 }
 
 impl LikeRecord {
-    pub fn new(owner: Thing, song: Thing) -> Self {
+    pub fn new(owner: RecordId, song: RecordId) -> Self {
         Self {
             id: None,
             owner,
@@ -111,11 +163,11 @@ mod tests {
     #[test]
     fn song_record_into_song_maps_string_ids() {
         let record = SongRecord {
-            id: Some(Thing::from(("song".to_owned(), "s1".to_owned()))),
-            owner: Some(Thing::from(("team".to_owned(), "t9".to_owned()))),
+            id: Some(RecordId::new("song", "s1")),
+            owner: Some(RecordId::new("team", "t9")),
             not_a_song: true,
-            blobs: vec![Thing::from(("blob".to_owned(), "b1".to_owned()))],
-            data: SongData::default(),
+            blobs: vec![RecordId::new("blob", "b1")],
+            data: SongDataField(SongData::default()),
             search_content: String::new(),
         };
         let song = record.into_song();
@@ -161,8 +213,8 @@ mod tests {
         };
         let record = SongRecord::from_payload(None, None, create);
         assert_eq!(record.blobs.len(), 2);
-        assert_eq!(record.blobs[0].tb, "blob");
-        assert_eq!(record.blobs[1].tb, "blob");
+        assert_eq!(record.blobs[0].table.as_str(), "blob");
+        assert_eq!(record.blobs[1].table.as_str(), "blob");
         assert_eq!(record.search_content, "Hello world");
     }
 

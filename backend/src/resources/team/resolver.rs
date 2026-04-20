@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde::Deserialize;
-use surrealdb::sql::Thing;
+use surrealdb::types::{RecordId, SurrealValue};
 use tokio::sync::OnceCell;
 use tracing::instrument;
 
@@ -15,17 +15,17 @@ use crate::error::AppError;
 
 use super::model::{public_team_thing, thing_record_key, user_thing};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, SurrealValue)]
 struct TeamIdRow {
-    id: Thing,
+    id: RecordId,
 }
 
-/// Resolves which team [`Thing`]s apply for content ACL (read vs write).
+/// Resolves which team [`RecordId`]s apply for content ACL (read vs write).
 #[async_trait]
 pub trait TeamResolver: Send + Sync {
-    async fn content_read_teams(&self, user: &User) -> Result<Vec<Thing>, AppError>;
-    async fn content_write_teams(&self, user: &User) -> Result<Vec<Thing>, AppError>;
-    async fn personal_team(&self, user_id: &str) -> Result<Thing, AppError>;
+    async fn content_read_teams(&self, user: &User) -> Result<Vec<RecordId>, AppError>;
+    async fn content_write_teams(&self, user: &User) -> Result<Vec<RecordId>, AppError>;
+    async fn personal_team(&self, user_id: &str) -> Result<RecordId, AppError>;
 }
 
 /// Per-request caching wrapper around a [`User`] and a [`TeamResolver`].
@@ -36,9 +36,9 @@ pub trait TeamResolver: Send + Sync {
 pub struct UserPermissions<T: TeamResolver> {
     user: Arc<User>,
     resolver: Arc<T>,
-    read_teams: OnceCell<Vec<Thing>>,
-    write_teams: OnceCell<Vec<Thing>>,
-    personal_team: OnceCell<Thing>,
+    read_teams: OnceCell<Vec<RecordId>>,
+    write_teams: OnceCell<Vec<RecordId>>,
+    personal_team: OnceCell<RecordId>,
 }
 
 impl<T: TeamResolver> UserPermissions<T> {
@@ -62,7 +62,7 @@ impl<T: TeamResolver> UserPermissions<T> {
     }
 
     /// Teams whose content the user may read. Resolved once; subsequent calls return the cached slice.
-    pub async fn read_teams(&self) -> Result<&[Thing], AppError> {
+    pub async fn read_teams(&self) -> Result<&[RecordId], AppError> {
         let user = Arc::clone(&self.user);
         let resolver = Arc::clone(&self.resolver);
         self.read_teams
@@ -72,7 +72,7 @@ impl<T: TeamResolver> UserPermissions<T> {
     }
 
     /// Teams whose content the user may write. Resolved once; subsequent calls return the cached slice.
-    pub async fn write_teams(&self) -> Result<&[Thing], AppError> {
+    pub async fn write_teams(&self) -> Result<&[RecordId], AppError> {
         let user = Arc::clone(&self.user);
         let resolver = Arc::clone(&self.resolver);
         self.write_teams
@@ -82,7 +82,7 @@ impl<T: TeamResolver> UserPermissions<T> {
     }
 
     /// The user's personal team. Resolved once; subsequent calls return a clone.
-    pub async fn personal_team(&self) -> Result<Thing, AppError> {
+    pub async fn personal_team(&self) -> Result<RecordId, AppError> {
         let user_id = self.user.id.clone();
         let resolver = Arc::clone(&self.resolver);
         self.personal_team
@@ -94,15 +94,15 @@ impl<T: TeamResolver> UserPermissions<T> {
 
 #[async_trait]
 impl<T: TeamResolver + Send + Sync> TeamResolver for Arc<T> {
-    async fn content_read_teams(&self, user: &User) -> Result<Vec<Thing>, AppError> {
+    async fn content_read_teams(&self, user: &User) -> Result<Vec<RecordId>, AppError> {
         self.as_ref().content_read_teams(user).await
     }
 
-    async fn content_write_teams(&self, user: &User) -> Result<Vec<Thing>, AppError> {
+    async fn content_write_teams(&self, user: &User) -> Result<Vec<RecordId>, AppError> {
         self.as_ref().content_write_teams(user).await
     }
 
-    async fn personal_team(&self, user_id: &str) -> Result<Thing, AppError> {
+    async fn personal_team(&self, user_id: &str) -> Result<RecordId, AppError> {
         self.as_ref().personal_team(user_id).await
     }
 }
@@ -122,31 +122,34 @@ impl SurrealTeamResolver {
 #[async_trait]
 impl TeamResolver for SurrealTeamResolver {
     #[instrument(level = "debug", err, skip(self, user), fields(user_id = %user.id))]
-    async fn content_read_teams(&self, user: &User) -> Result<Vec<Thing>, AppError> {
+    async fn content_read_teams(&self, user: &User) -> Result<Vec<RecordId>, AppError> {
         content_read_team_things(&self.db, user).await
     }
 
     #[instrument(level = "debug", err, skip(self, user), fields(user_id = %user.id))]
-    async fn content_write_teams(&self, user: &User) -> Result<Vec<Thing>, AppError> {
+    async fn content_write_teams(&self, user: &User) -> Result<Vec<RecordId>, AppError> {
         content_write_team_things(&self.db, user).await
     }
 
     #[instrument(level = "debug", err, skip(self), fields(user_id = %user_id))]
-    async fn personal_team(&self, user_id: &str) -> Result<Thing, AppError> {
+    async fn personal_team(&self, user_id: &str) -> Result<RecordId, AppError> {
         self.db.personal_team_thing_for_user(user_id).await
     }
 }
 
 /// Teams whose content the user may list/read (GET), including `team:public` for catalog.
-pub async fn content_read_team_things(db: &Database, user: &User) -> Result<Vec<Thing>, AppError> {
+pub async fn content_read_team_things(
+    db: &Database,
+    user: &User,
+) -> Result<Vec<RecordId>, AppError> {
     let app_admin = user.role == UserRole::Admin;
     let public_thing = public_team_thing();
     let ut = user_thing(&user.id);
 
-    let mut out: Vec<Thing> = Vec::new();
+    let mut out: Vec<RecordId> = Vec::new();
     let mut seen: BTreeSet<String> = BTreeSet::new();
 
-    let mut push = |t: Thing| {
+    let mut push = |t: RecordId| {
         let key = thing_record_key(&t);
         if seen.insert(key) {
             out.push(t);
@@ -181,7 +184,10 @@ pub async fn content_read_team_things(db: &Database, user: &User) -> Result<Vec<
 }
 
 /// Teams whose content the user may create/update/delete. Platform admin does not imply global write.
-pub async fn content_write_team_things(db: &Database, user: &User) -> Result<Vec<Thing>, AppError> {
+pub async fn content_write_team_things(
+    db: &Database,
+    user: &User,
+) -> Result<Vec<RecordId>, AppError> {
     let public_thing = public_team_thing();
     let ut = user_thing(&user.id);
 
@@ -197,7 +203,7 @@ pub async fn content_write_team_things(db: &Database, user: &User) -> Result<Vec
         .await?
         .take(0)?;
 
-    let mut out: Vec<Thing> = Vec::new();
+    let mut out: Vec<RecordId> = Vec::new();
     let mut seen: BTreeSet<String> = BTreeSet::new();
 
     for row in rows {
@@ -219,11 +225,11 @@ mod tests {
         TeamFetched, can_read_team, team_content_writable, team_fetched_to_stored,
     };
 
-    fn thing_key_set(things: &[Thing]) -> BTreeSet<String> {
+    fn thing_key_set(things: &[RecordId]) -> BTreeSet<String> {
         things.iter().map(thing_record_key).collect()
     }
 
-    async fn naive_read_teams(db: &Database, user: &User) -> Result<Vec<Thing>, AppError> {
+    async fn naive_read_teams(db: &Database, user: &User) -> Result<Vec<RecordId>, AppError> {
         let app_admin = user.role == UserRole::Admin;
         let public_thing = public_team_thing();
         let rows = db
@@ -233,9 +239,9 @@ mod tests {
             .await?
             .take::<Vec<TeamFetched>>(0)?;
 
-        let mut out: Vec<Thing> = Vec::new();
+        let mut out: Vec<RecordId> = Vec::new();
         let mut seen: BTreeSet<String> = BTreeSet::new();
-        let mut push = |t: Thing| {
+        let mut push = |t: RecordId| {
             let key = thing_record_key(&t);
             if seen.insert(key) {
                 out.push(t);
@@ -251,7 +257,7 @@ mod tests {
         Ok(out)
     }
 
-    async fn naive_write_teams(db: &Database, user: &User) -> Result<Vec<Thing>, AppError> {
+    async fn naive_write_teams(db: &Database, user: &User) -> Result<Vec<RecordId>, AppError> {
         let public_thing = public_team_thing();
         let rows = db
             .db
@@ -260,7 +266,7 @@ mod tests {
             .await?
             .take::<Vec<TeamFetched>>(0)?;
 
-        let mut out: Vec<Thing> = Vec::new();
+        let mut out: Vec<RecordId> = Vec::new();
         let mut seen: BTreeSet<String> = BTreeSet::new();
         for row in rows {
             let stored = team_fetched_to_stored(&row)?;

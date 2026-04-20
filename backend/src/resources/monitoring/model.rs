@@ -1,6 +1,6 @@
 use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc};
 use serde::Serialize;
-use surrealdb::sql::{Datetime, Thing};
+use surrealdb::types::{Datetime, RecordId, SurrealValue};
 use utoipa::{IntoParams, ToSchema};
 
 use crate::database::record_id_string;
@@ -91,19 +91,19 @@ impl MetricsWindow {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, SurrealValue)]
 pub struct HttpAuditRecord {
     #[serde(default)]
-    pub id: Option<Thing>,
+    pub id: Option<RecordId>,
     pub request_id: String,
     pub method: String,
     pub path: String,
     pub status_code: i64,
     pub duration_ms: i64,
     #[serde(default)]
-    pub user: Option<Thing>,
+    pub user: Option<RecordId>,
     #[serde(default)]
-    pub session: Option<Thing>,
+    pub session: Option<RecordId>,
     pub created_at: Datetime,
 }
 

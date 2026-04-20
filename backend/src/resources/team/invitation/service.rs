@@ -3,6 +3,8 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use surrealdb::types::RecordId;
+
 use shared::api::ListQuery;
 use shared::team::{Team, TeamInvitation};
 use shared::user::User;
@@ -144,7 +146,7 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
 
         let team_row = row.team;
         let res = (
-            team_row.id.tb.clone(),
+            team_row.id.table.to_string(),
             crate::database::record_id_string(&team_row.id),
         );
         if is_public_resource(&res) {
@@ -183,7 +185,7 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         );
         let members: Vec<DbTeamMember> = map.into_values().collect();
         let resource = (
-            team_row.id.tb.clone(),
+            team_row.id.table.to_string(),
             crate::database::record_id_string(&team_row.id),
         );
         self.team_repo
@@ -211,14 +213,14 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
     }
 
     /// Asserts that a team exists, is a shared team, and the user is an admin of it.
-    /// Returns the team `Thing` for binding into queries.
+    /// Returns the team `RecordId` for binding into queries.
     async fn assert_shared_team_admin(
         &self,
         user_id: &str,
         team_id: &str,
-    ) -> Result<surrealdb::sql::Thing, AppError> {
+    ) -> Result<RecordId, AppError> {
         let resource = team_resource_or_reject_public(team_id)?;
-        let team_thing = surrealdb::sql::Thing::from(resource);
+        let team_thing = RecordId::new(resource.0, resource.1);
         let row = self
             .team_repo
             .fetch_team(team_id)
@@ -258,7 +260,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use async_trait::async_trait;
-    use surrealdb::sql::{Datetime, Thing};
+    use surrealdb::types::{Datetime, RecordId};
 
     use shared::api::ListQuery;
     use shared::team::Team;
@@ -283,12 +285,12 @@ mod tests {
         u
     }
 
-    fn team_thing(id: &str) -> Thing {
-        Thing::from(("team".to_owned(), id.to_owned()))
+    fn team_thing(id: &str) -> RecordId {
+        RecordId::new("team", id)
     }
 
-    fn inv_thing(id: &str) -> Thing {
-        Thing::from(("team_invitation".to_owned(), id.to_owned()))
+    fn inv_thing(id: &str) -> RecordId {
+        RecordId::new("team_invitation", id)
     }
 
     fn member_fetched(user_id: &str, role: &str) -> TeamMemberFetched {
@@ -318,7 +320,7 @@ mod tests {
 
     fn public_team_fetched() -> TeamFetched {
         TeamFetched {
-            id: Thing::from(("team".to_owned(), "public".to_owned())),
+            id: RecordId::new("team", "public"),
             name: "Public".to_owned(),
             owner: None,
             members: vec![],
@@ -420,7 +422,7 @@ mod tests {
             unreachable!("not used in invitation tests")
         }
 
-        async fn reassign_content(&self, _from: Thing, _to: Thing) -> Result<(), AppError> {
+        async fn reassign_content(&self, _from: RecordId, _to: RecordId) -> Result<(), AppError> {
             unreachable!("not used in invitation tests")
         }
     }
@@ -476,14 +478,14 @@ mod tests {
     impl TeamInvitationRepository for MockInvRepo {
         async fn create_invitation(
             &self,
-            _team: Thing,
-            _created_by: Thing,
+            _team: RecordId,
+            _created_by: RecordId,
             _inv_id: &str,
         ) -> Result<(), AppError> {
             Ok(())
         }
 
-        async fn list_invitations(&self, _team: Thing) -> Result<Vec<InvitationRow>, AppError> {
+        async fn list_invitations(&self, _team: RecordId) -> Result<Vec<InvitationRow>, AppError> {
             Ok(self.list.clone())
         }
 
