@@ -57,6 +57,9 @@ pub struct UpdateCollection {
     pub title: String,
     pub cover: String,
     pub songs: Vec<SongLink>,
+    /// Target team id for the collection's `owner`; omit or `null` to keep the current owner.
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
 impl From<UpdateCollection> for CreateCollection {
@@ -78,6 +81,8 @@ pub struct PatchCollection {
     pub title: Option<String>,
     pub cover: Option<String>,
     pub songs: Option<Vec<SongLink>>,
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
 impl From<Collection> for CreateCollection {

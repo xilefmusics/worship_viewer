@@ -42,6 +42,7 @@ pub trait SetlistRepository: Send + Sync {
         write_teams: &[RecordId],
         id: &str,
         setlist: CreateSetlist,
+        owner: Option<RecordId>,
     ) -> Result<Setlist, AppError>;
 
     async fn delete_setlist(&self, write_teams: &[RecordId], id: &str)

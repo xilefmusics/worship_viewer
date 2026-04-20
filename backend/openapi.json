@@ -938,6 +938,10 @@
             "nullable": true,
             "type": "string"
           },
+          "owner": {
+            "nullable": true,
+            "type": "string"
+          },
           "songs": {
             "items": {
               "$ref": "#/components/schemas/SongLink"
@@ -956,6 +960,10 @@
         "additionalProperties": false,
         "description": "Partial update for a setlist. Absent fields are left unchanged.",
         "properties": {
+          "owner": {
+            "nullable": true,
+            "type": "string"
+          },
           "songs": {
             "items": {
               "$ref": "#/components/schemas/SongLink"
@@ -990,6 +998,11 @@
           "not_a_song": {
             "nullable": true,
             "type": "boolean"
+          },
+          "owner": {
+            "description": "Set the song's owning team id; omit to leave unchanged.",
+            "nullable": true,
+            "type": "string"
           }
         },
         "required": [
@@ -1958,6 +1971,11 @@
           "cover": {
             "type": "string"
           },
+          "owner": {
+            "description": "Target team id for the collection's `owner`; omit or `null` to keep the current owner.",
+            "nullable": true,
+            "type": "string"
+          },
           "songs": {
             "items": {
               "$ref": "#/components/schemas/SongLink"
@@ -1979,6 +1997,11 @@
         "additionalProperties": false,
         "description": "Full replacement body for `PUT /api/v1/setlists/{id}`.",
         "properties": {
+          "owner": {
+            "description": "Target team id for the setlist's `owner`; omit or `null` to keep the current owner.",
+            "nullable": true,
+            "type": "string"
+          },
           "songs": {
             "items": {
               "$ref": "#/components/schemas/SongLink"
@@ -2020,6 +2043,11 @@
           },
           "not_a_song": {
             "type": "boolean"
+          },
+          "owner": {
+            "description": "Target team id for the song's `owner`; omit or `null` to keep the current owner.",
+            "nullable": true,
+            "type": "string"
           }
         },
         "required": [

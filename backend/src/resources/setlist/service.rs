@@ -8,6 +8,7 @@ use shared::song::Song;
 use tracing::instrument;
 
 use crate::error::AppError;
+use crate::resources::common::resolve_owner_team;
 use crate::resources::song::LikedSongIds;
 use crate::resources::team::{
     TeamResolver, UserPermissions, parse_owner_record_id, thing_record_key,
@@ -123,9 +124,13 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         perms: &UserPermissions<T>,
         id: &str,
         setlist: CreateSetlist,
+        owner: Option<String>,
     ) -> Result<Setlist, AppError> {
         let write_teams = perms.write_teams().await?;
-        self.repo.update_setlist(write_teams, id, setlist).await
+        let owner = resolve_owner_team(write_teams, owner)?;
+        self.repo
+            .update_setlist(write_teams, id, setlist, owner)
+            .await
     }
 
     #[instrument(level = "debug", err, skip(self, perms, patch))]
@@ -135,13 +140,14 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
         id: &str,
         patch: PatchSetlist,
     ) -> Result<Setlist, AppError> {
+        let owner = patch.owner.clone();
         let current = self.get_setlist_for_user(perms, id).await?;
         let merged = CreateSetlist {
             owner: None,
             title: patch.title.unwrap_or(current.title),
             songs: patch.songs.unwrap_or(current.songs),
         };
-        self.update_setlist_for_user(perms, id, merged).await
+        self.update_setlist_for_user(perms, id, merged, owner).await
     }
 
     #[instrument(level = "debug", err, skip(self, perms, payload))]
@@ -200,8 +206,8 @@ mod tests {
     use crate::resources::song::LikedSongIds;
     use crate::resources::team::{TeamResolver, UserPermissions};
     use crate::test_helpers::{
-        configure_personal_team_members, create_song_with_title, create_user, personal_team_id,
-        setlist_service, setlist_with_songs, test_db, two_shared_teams_for_user,
+        TeamFixture, configure_personal_team_members, create_song_with_title, create_user,
+        personal_team_id, setlist_service, setlist_with_songs, test_db, two_shared_teams_for_user,
     };
     use shared::MoveOwner;
 
@@ -262,6 +268,7 @@ mod tests {
             _write_teams: &[RecordId],
             _id: &str,
             _setlist: CreateSetlist,
+            _owner: Option<RecordId>,
         ) -> Result<Setlist, AppError> {
             if self.update_ok {
                 Ok(Setlist {
@@ -419,6 +426,7 @@ mod tests {
                     title: "t".into(),
                     songs: vec![],
                 },
+                None,
             )
             .await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
@@ -452,6 +460,7 @@ mod tests {
                     title: "t".into(),
                     songs: vec![],
                 },
+                None,
             )
             .await;
         assert!(r.is_ok());
@@ -462,6 +471,36 @@ mod tests {
     #[tokio::test]
     async fn blc_setl_002_team_acl_configured() {
         let (_db, _owner, _read, _write, _noperm, _team) = four_user_setlist_fixture().await;
+    }
+
+    #[tokio::test]
+    async fn blc_setl_put_moves_owner_when_target_writable() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let sl = setlist_service(&db);
+        let s1 = create_song_with_title(&db, &fx.admin_user, "S")
+            .await
+            .expect("s");
+        let admin_p = UserPermissions::from_ref(&fx.admin_user, &sl.teams);
+        let created = sl
+            .create_setlist_for_user(
+                &admin_p,
+                setlist_with_songs("MoveSet", &[(s1.id.as_str(), None)]),
+            )
+            .await
+            .expect("create");
+        let personal = personal_team_id(&db, &fx.admin_user).await.expect("pt");
+        assert_eq!(created.owner, personal);
+        let updated = sl
+            .update_setlist_for_user(
+                &admin_p,
+                &created.id,
+                setlist_with_songs("MoveSet", &[(s1.id.as_str(), None)]),
+                Some(fx.shared_team_id.clone()),
+            )
+            .await
+            .expect("move");
+        assert_eq!(updated.owner, fx.shared_team_id);
     }
 
     /// BLC-SETL-009a: create sets owner to the owner's personal team and stores title/songs.
@@ -844,6 +883,7 @@ mod tests {
                     "Owner Updated Title",
                     &[(s1.id.as_str(), Some("1")), (s2.id.as_str(), Some("2"))],
                 ),
+                None,
             )
             .await
             .expect("update owner");
@@ -857,6 +897,7 @@ mod tests {
                     "Write User Updated Title",
                     &[(s1.id.as_str(), Some("10")), (s2.id.as_str(), Some("20"))],
                 ),
+                None,
             )
             .await
             .expect("update write user");
@@ -873,6 +914,7 @@ mod tests {
                 &read_p,
                 &created.id,
                 setlist_with_songs("Read User Put", &[(s1.id.as_str(), None)]),
+                None,
             )
             .await;
         assert!(matches!(put_read, Err(AppError::NotFound(_))));
@@ -882,6 +924,7 @@ mod tests {
                 &noperm_p,
                 &created.id,
                 setlist_with_songs("Should Fail", &[(s1.id.as_str(), None)]),
+                None,
             )
             .await;
         assert!(matches!(put_noperm, Err(AppError::NotFound(_))));
@@ -891,6 +934,7 @@ mod tests {
                 &owner_p,
                 "song:invalid",
                 setlist_with_songs("x", &[(s1.id.as_str(), None)]),
+                None,
             )
             .await;
         assert!(matches!(put_bad, Err(AppError::InvalidRequest(_))));
@@ -900,6 +944,7 @@ mod tests {
                 &owner_p,
                 "never-created-setlist",
                 setlist_with_songs("Unknown", &[(s1.id.as_str(), None)]),
+                None,
             )
             .await;
         assert!(matches!(put_nf, Err(AppError::NotFound(_))));
@@ -931,6 +976,7 @@ mod tests {
                 PatchSetlist {
                     title: Some("New Title".into()),
                     songs: None,
+                    owner: None,
                 },
             )
             .await
@@ -958,6 +1004,7 @@ mod tests {
                 PatchSetlist {
                     title: Some("x".into()),
                     songs: None,
+                    owner: None,
                 },
             )
             .await;
@@ -989,6 +1036,7 @@ mod tests {
                 PatchSetlist {
                     title: Some("Hacked".into()),
                     songs: None,
+                    owner: None,
                 },
             )
             .await;
@@ -1032,6 +1080,7 @@ mod tests {
                             nr: Some("9".into()),
                             key: None,
                         }]),
+                        owner: None,
                     },
                 )
                 .await

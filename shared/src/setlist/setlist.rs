@@ -51,6 +51,9 @@ pub struct CreateSetlist {
 pub struct UpdateSetlist {
     pub title: String,
     pub songs: Vec<SongLink>,
+    /// Target team id for the setlist's `owner`; omit or `null` to keep the current owner.
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
 impl From<CreateSetlist> for UpdateSetlist {
@@ -58,6 +61,7 @@ impl From<CreateSetlist> for UpdateSetlist {
         Self {
             title: value.title,
             songs: value.songs,
+            owner: None,
         }
     }
 }
@@ -79,6 +83,8 @@ impl From<UpdateSetlist> for CreateSetlist {
 pub struct PatchSetlist {
     pub title: Option<String>,
     pub songs: Option<Vec<SongLink>>,
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
 impl From<Setlist> for CreateSetlist {

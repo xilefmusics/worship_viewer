@@ -72,6 +72,31 @@ pub fn blob_thing(id: &str) -> RecordId {
     }
 }
 
+/// Parse a plain team id (API `owner` string) into a `team:…` [`RecordId`].
+pub fn team_thing(id: &str) -> Result<RecordId, AppError> {
+    let (tb, sid) = resource_id("team", id)?;
+    Ok(RecordId::new(tb, sid))
+}
+
+/// Resolve optional `owner` from PUT/PATCH bodies: must be a team the caller may write.
+pub fn resolve_owner_team(
+    write_teams: &[RecordId],
+    owner: Option<String>,
+) -> Result<Option<RecordId>, AppError> {
+    let Some(s) = owner else {
+        return Ok(None);
+    };
+    if s.is_empty() {
+        return Err(AppError::invalid_request("owner must not be empty"));
+    }
+    let tid = team_thing(&s)?;
+    if write_teams.contains(&tid) {
+        Ok(Some(tid))
+    } else {
+        Err(AppError::NotFound("resource not found".into()))
+    }
+}
+
 /// Build a [`Player`] from fetched song links, populating liked flags and
 /// filling in default track numbers where absent.
 pub fn player_from_song_links(

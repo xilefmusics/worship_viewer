@@ -14,6 +14,7 @@ use shared::song::{
 use crate::database::Database;
 use crate::error::AppError;
 use crate::resources::collection::CollectionRepository;
+use crate::resources::common::resolve_owner_team;
 
 use crate::resources::team::{
     TeamResolver, UserPermissions, parse_owner_record_id, thing_record_key,
@@ -279,10 +280,12 @@ impl<
         perms: &UserPermissions<T>,
         id: &str,
         song: CreateSong,
+        owner: Option<String>,
     ) -> Result<SongUpsertOutcome, AppError> {
         let write_teams = perms.write_teams().await?;
+        let owner = resolve_owner_team(write_teams, owner)?;
         self.repo
-            .update_song(write_teams, &perms.user().id, id, song)
+            .update_song(write_teams, &perms.user().id, id, song, owner)
             .await
     }
 
@@ -293,6 +296,7 @@ impl<
         id: &str,
         patch: PatchSong,
     ) -> Result<Song, AppError> {
+        let owner = patch.owner.clone();
         let current = self.get_song_for_user(perms, id).await?;
         let merged = CreateSong {
             owner: None,
@@ -303,7 +307,7 @@ impl<
                 .map(|song_data_patch| Self::merge_song_data(current.data.clone(), song_data_patch))
                 .unwrap_or(current.data),
         };
-        self.update_song_for_user(perms, id, merged)
+        self.update_song_for_user(perms, id, merged, owner)
             .await
             .map(SongUpsertOutcome::into_song)
     }
@@ -404,8 +408,8 @@ mod tests {
 
     use crate::resources::team::UserPermissions;
     use crate::test_helpers::{
-        configure_personal_team_members, create_song_with_title, create_user, personal_team_id,
-        setlist_service, setlist_with_songs, test_db, two_shared_teams_for_user,
+        TeamFixture, configure_personal_team_members, create_song_with_title, create_user,
+        personal_team_id, setlist_service, setlist_with_songs, test_db, two_shared_teams_for_user,
     };
     use shared::MoveOwner;
     use shared::api::ListQuery;
@@ -548,7 +552,9 @@ mod tests {
             blobs: vec![],
             data: crate::test_helpers::minimal_song_data(),
         };
-        let r = svc.update_song_for_user(&guest_p, &song.id, create).await;
+        let r = svc
+            .update_song_for_user(&guest_p, &song.id, create, None)
+            .await;
         assert!(matches!(r, Err(crate::error::AppError::NotFound(_))));
     }
 
@@ -589,7 +595,7 @@ mod tests {
             blobs: vec![],
             data,
         };
-        svc.update_song_for_user(&cm_p, &song.id, create)
+        svc.update_song_for_user(&cm_p, &song.id, create, None)
             .await
             .expect("cm update")
             .into_song();
@@ -614,11 +620,67 @@ mod tests {
             data,
         };
         let updated = svc
-            .update_song_for_user(&owner_p, &song.id, create)
+            .update_song_for_user(&owner_p, &song.id, create, None)
             .await
             .expect("update")
             .into_song();
-        assert_eq!(updated.owner, tid, "owner must not change on PUT");
+        assert_eq!(
+            updated.owner, tid,
+            "owner must not change on PUT when omitted"
+        );
+    }
+
+    /// PUT with `owner` moves the song when the actor can write both teams.
+    #[tokio::test]
+    async fn blc_song_put_moves_owner_when_target_writable() {
+        use shared::song::CreateSong;
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = SongServiceHandle::build(db.clone());
+        let admin_p = UserPermissions::from_ref(&fx.admin_user, &svc.teams);
+        let song = create_song_with_title(&db, &fx.admin_user, "MoveMeSong")
+            .await
+            .expect("song");
+        let personal = personal_team_id(&db, &fx.admin_user)
+            .await
+            .expect("personal");
+        assert_eq!(song.owner, personal);
+        let data = crate::test_helpers::minimal_song_data();
+        let create = CreateSong {
+            owner: None,
+            not_a_song: false,
+            blobs: vec![],
+            data,
+        };
+        let updated = svc
+            .update_song_for_user(&admin_p, &song.id, create, Some(fx.shared_team_id.clone()))
+            .await
+            .expect("move owner")
+            .into_song();
+        assert_eq!(updated.owner, fx.shared_team_id);
+    }
+
+    /// PUT with `owner` the actor cannot write returns NotFound.
+    #[tokio::test]
+    async fn blc_song_put_rejects_unwritable_target_owner() {
+        use shared::song::CreateSong;
+        let (db, owner, _cm, _guest, nm, _tid) = four_user_song_fixture().await;
+        let svc = SongServiceHandle::build(db.clone());
+        let owner_p = UserPermissions::from_ref(&owner, &svc.teams);
+        let nm_pt = personal_team_id(&db, &nm).await.expect("nm personal");
+        let song = create_song_with_title(&db, &owner, "StayMine")
+            .await
+            .expect("song");
+        let create = CreateSong {
+            owner: None,
+            not_a_song: false,
+            blobs: vec![],
+            data: crate::test_helpers::minimal_song_data(),
+        };
+        let r = svc
+            .update_song_for_user(&owner_p, &song.id, create, Some(nm_pt))
+            .await;
+        assert!(matches!(r, Err(crate::error::AppError::NotFound(_))));
     }
 
     /// BLC-SONG-011: list songs filtered by artist name matches.
@@ -756,7 +818,7 @@ mod tests {
             data,
         };
         let result = svc
-            .update_song_for_user(&owner_p, "brand-new-id", create)
+            .update_song_for_user(&owner_p, "brand-new-id", create, None)
             .await;
         assert!(
             result.is_ok(),
@@ -786,6 +848,7 @@ mod tests {
                     not_a_song: Some(true),
                     blobs: None,
                     data: None,
+                    owner: None,
                 },
             )
             .await
@@ -818,6 +881,7 @@ mod tests {
                     not_a_song: Some(true),
                     blobs: None,
                     data: None,
+                    owner: None,
                 },
             )
             .await;
@@ -839,6 +903,7 @@ mod tests {
                     not_a_song: Some(true),
                     blobs: None,
                     data: None,
+                    owner: None,
                 },
             )
             .await;
@@ -863,6 +928,7 @@ mod tests {
                     not_a_song: None,
                     blobs: None,
                     data: None,
+                    owner: None,
                 },
             )
             .await
@@ -931,6 +997,7 @@ mod tests {
                             id: "patched_blob".into(),
                         }]),
                         data: include_data.then_some(patch_data.clone()),
+                        owner: None,
                     },
                 )
                 .await
@@ -1161,7 +1228,7 @@ mod tests {
         };
         // Guest can create songs on their own personal team via upsert.
         let result = svc
-            .update_song_for_user(&guest_p, "brand-new-guest-created-id", create)
+            .update_song_for_user(&guest_p, "brand-new-guest-created-id", create, None)
             .await
             .expect("guest can upsert to own personal team")
             .into_song();

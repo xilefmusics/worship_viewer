@@ -4,7 +4,7 @@
 
 - **BLC-COLL-001:** Every collection belongs to exactly one **owning team** (**`owner`** in responses).
 - **BLC-COLL-002:** Read paths (metadata, songs list, player) require **read** access to that team’s library; create/update/delete require **library edit** access. Platform **admin** MAY read but MUST NOT mutate collections solely by admin role.
-- **BLC-COLL-003:** **`PUT`** MUST NOT change **`owner`**; it replaces **title**, **cover** (blob id), and the ordered **songs** list.
+- **BLC-COLL-003:** **`PUT`** replaces **title**, **cover** (blob id), and the ordered **songs** list; **`PUT`** and **`PATCH`** MAY set **`owner`** when the body includes it and the caller may write both the current and target owning teams; omitting **`owner`** leaves it unchanged.
 - **BLC-COLL-004:** **POST**/**PUT** MAY accept **song** ids the caller cannot read or ids that do not exist; the API MAY still return **201**/**200** and persist those references.
 
 ## List pagination and search

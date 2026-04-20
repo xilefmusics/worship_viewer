@@ -300,8 +300,13 @@ async fn update_setlist(
     let etag =
         weak_etag_json(&setlist).map_err(|e| AppError::internal_from_err("setlist.rest", e))?;
     check_if_match(&req, &etag)?;
-    let payload = CreateSetlist::from(payload.into_inner());
-    Ok(HttpResponse::Ok().json(svc.update_setlist_for_user(&perms, &id, payload).await?))
+    let payload = payload.into_inner();
+    let owner = payload.owner.clone();
+    let payload = CreateSetlist::from(payload);
+    Ok(HttpResponse::Ok().json(
+        svc.update_setlist_for_user(&perms, &id, payload, owner)
+            .await?,
+    ))
 }
 
 #[utoipa::path(
