@@ -1,16 +1,17 @@
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
+use surrealdb::types::{RecordId, SurrealValue};
 
 use shared::setlist::{CreateSetlist, Setlist};
 
-use crate::resources::common::{FetchedSongRecord, SongLinkRecord, belongs_to};
+use crate::database::record_id_string;
+use crate::resources::common::SongLinkRecord;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default, SurrealValue)]
 pub struct SetlistRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    id: Option<Thing>,
+    id: Option<RecordId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub owner: Option<Thing>,
+    pub owner: Option<RecordId>,
     title: String,
     #[serde(default)]
     songs: Vec<SongLinkRecord>,
@@ -19,47 +20,24 @@ pub struct SetlistRecord {
 impl SetlistRecord {
     pub fn into_setlist(self) -> Setlist {
         Setlist {
-            id: self
-                .id
-                .map(|thing| thing.id.to_string())
-                .unwrap_or_default(),
-            owner: self
-                .owner
-                .map(|thing| thing.id.to_string())
-                .unwrap_or_default(),
+            id: self.id.map(|r| record_id_string(&r)).unwrap_or_default(),
+            owner: self.owner.map(|r| record_id_string(&r)).unwrap_or_default(),
             title: self.title,
             songs: self.songs.into_iter().map(Into::into).collect(),
         }
     }
 
-    pub fn from_payload(id: Option<Thing>, owner: Option<Thing>, setlist: CreateSetlist) -> Self {
+    pub fn from_payload(
+        id: Option<RecordId>,
+        owner: Option<RecordId>,
+        setlist: CreateSetlist,
+    ) -> Self {
         Self {
             id,
             owner,
             title: setlist.title,
             songs: setlist.songs.into_iter().map(Into::into).collect(),
         }
-    }
-}
-
-#[derive(Deserialize)]
-pub struct SetlistSongsRecord {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    owner: Option<Thing>,
-    #[serde(default)]
-    songs: Vec<FetchedSongRecord>,
-}
-
-impl SetlistSongsRecord {
-    pub fn belongs_to(&self, teams: &[Thing]) -> bool {
-        belongs_to(&self.owner, teams)
-    }
-
-    pub fn into_songs(self) -> Vec<shared::song::LinkOwned> {
-        self.songs
-            .into_iter()
-            .map(|record| record.into_song_link_owned())
-            .collect()
     }
 }
 
@@ -72,8 +50,8 @@ mod tests {
 
     #[test]
     fn setlist_record_from_payload_into_setlist() {
-        let id = Thing::from(("setlist".to_owned(), "sl1".to_owned()));
-        let owner = Thing::from(("team".to_owned(), "tm".to_owned()));
+        let id = RecordId::new("setlist", "sl1");
+        let owner = RecordId::new("team", "tm");
         let record = SetlistRecord::from_payload(
             Some(id.clone()),
             Some(owner.clone()),

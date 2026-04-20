@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use surrealdb::sql::Thing;
+use surrealdb::types::RecordId;
 
 use shared::team::Team;
 
@@ -78,7 +78,7 @@ impl TeamRepository for SurrealTeamRepo {
             .inner()
             .db
             .query("SELECT * FROM $tid FETCH owner, members.user")
-            .bind(("tid", Thing::from(resource)))
+            .bind(("tid", RecordId::new(resource.0, resource.1)))
             .await?
             .take::<Option<TeamFetched>>(0)?)
     }
@@ -87,7 +87,7 @@ impl TeamRepository for SurrealTeamRepo {
         let created: Option<TeamIdRow> = self.inner().db.create("team").content(payload).await?;
         created
             .ok_or_else(|| AppError::database("failed to create team"))
-            .map(|row| row.id.id.to_string())
+            .map(|row| crate::database::record_id_string(&row.id))
     }
 
     async fn update_team_name(
@@ -99,7 +99,7 @@ impl TeamRepository for SurrealTeamRepo {
             .inner()
             .db
             .query("UPDATE $tid SET name = $name")
-            .bind(("tid", Thing::from(resource)))
+            .bind(("tid", RecordId::new(resource.0, resource.1)))
             .bind(("name", name.to_owned()))
             .await?;
         crate::database::surreal_take_errors("team.update_team_name", &mut response)?;
@@ -118,7 +118,7 @@ impl TeamRepository for SurrealTeamRepo {
             .inner()
             .db
             .query("UPDATE $tid SET members = $members")
-            .bind(("tid", Thing::from(resource)))
+            .bind(("tid", RecordId::new(resource.0, resource.1)))
             .bind(("members", members))
             .await?;
         crate::database::surreal_take_errors("team.update_team_members", &mut response)?;
@@ -129,7 +129,7 @@ impl TeamRepository for SurrealTeamRepo {
     }
 
     async fn delete_team_record(&self, resource: (String, String)) -> Result<(), AppError> {
-        let tid = Thing::from(resource);
+        let tid = RecordId::new(resource.0, resource.1);
         let mut response = self
             .inner()
             .db
@@ -143,7 +143,7 @@ impl TeamRepository for SurrealTeamRepo {
         Ok(())
     }
 
-    async fn reassign_content(&self, from: Thing, to: Thing) -> Result<(), AppError> {
+    async fn reassign_content(&self, from: RecordId, to: RecordId) -> Result<(), AppError> {
         for table in ["blob", "song", "collection", "setlist"] {
             let q = format!("UPDATE {table} SET owner = $to WHERE owner = $from");
             let mut response = self
@@ -167,7 +167,7 @@ impl TeamRepository for SurrealTeamRepo {
             .inner()
             .db
             .query("SELECT * FROM $tid FETCH owner, members.user")
-            .bind(("tid", Thing::from(resource)))
+            .bind(("tid", RecordId::new(resource.0, resource.1)))
             .await?
             .take::<Option<TeamFetched>>(0)?
             .ok_or_else(|| AppError::NotFound("team not found".into()))?;

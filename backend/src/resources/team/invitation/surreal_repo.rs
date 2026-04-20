@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde::Deserialize;
-use surrealdb::sql::Thing;
+use surrealdb::types::{RecordId, SurrealValue};
 
 use crate::database::Database;
 use crate::error::AppError;
@@ -10,10 +10,10 @@ use crate::error::AppError;
 use super::model::{InvitationAcceptRow, InvitationCreate, InvitationRow};
 use super::repository::TeamInvitationRepository;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, SurrealValue)]
 struct InvitationCreated {
     #[allow(dead_code)]
-    id: Thing,
+    id: RecordId,
 }
 
 #[derive(Clone)]
@@ -35,8 +35,8 @@ impl SurrealTeamInvitationRepo {
 impl TeamInvitationRepository for SurrealTeamInvitationRepo {
     async fn create_invitation(
         &self,
-        team: Thing,
-        created_by: Thing,
+        team: RecordId,
+        created_by: RecordId,
         inv_id: &str,
     ) -> Result<(), AppError> {
         let create = InvitationCreate { team, created_by };
@@ -59,7 +59,7 @@ impl TeamInvitationRepository for SurrealTeamInvitationRepo {
         Ok(())
     }
 
-    async fn list_invitations(&self, team: Thing) -> Result<Vec<InvitationRow>, AppError> {
+    async fn list_invitations(&self, team: RecordId) -> Result<Vec<InvitationRow>, AppError> {
         Ok(self
             .inner()
             .db
@@ -109,17 +109,17 @@ impl TeamInvitationRepository for SurrealTeamInvitationRepo {
     }
 }
 
-fn invitation_thing_from_id(id: &str) -> Result<Thing, crate::error::AppError> {
+fn invitation_thing_from_id(id: &str) -> Result<RecordId, crate::error::AppError> {
     let id = id.trim();
     if id.is_empty() {
         return Err(crate::error::AppError::NotFound(
             "invitation not found".into(),
         ));
     }
-    if let Ok(thing) = id.parse::<Thing>()
-        && thing.tb == "team_invitation"
+    if let Ok(rid) = RecordId::parse_simple(id)
+        && rid.table.as_str() == "team_invitation"
     {
-        return Ok(thing);
+        return Ok(rid);
     }
-    Ok(Thing::from(("team_invitation".to_owned(), id.to_owned())))
+    Ok(RecordId::new("team_invitation", id))
 }

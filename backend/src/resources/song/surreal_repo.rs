@@ -1,24 +1,24 @@
-use std::collections::HashSet;
-
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use surrealdb::sql::Thing;
-
 use serde::Deserialize;
+use surrealdb::types::{RecordId, SurrealValue};
 
 use shared::api::{SongListQuery, SongSort};
 use shared::song::{CreateSong, Song};
 
 use crate::database::Database;
+use crate::database::record_id_string;
 use crate::error::AppError;
 use crate::resources::common::{belongs_to, blob_thing, resource_id};
 
-use super::model::{LikeRecord, SongRecord, search_content_from_song_data};
+use super::model::{LikeRecord, SongDataField, SongRecord, search_content_from_song_data};
 use super::repository::{SongRepository, SongUpsertOutcome};
 
-fn owner_thing(user_id: &str) -> Thing {
-    Thing::from(("user".to_owned(), user_id.to_owned()))
+fn owner_thing(user_id: &str) -> RecordId {
+    RecordId::new("user", user_id.to_owned())
 }
 
 /// Extra `AND ...` fragments for `lang` / `tag` filters and bound parameter names.
@@ -55,6 +55,112 @@ fn song_order_clause(sort: SongSort, q_nonempty: bool) -> &'static str {
     }
 }
 
+/// Per-field full-text hit with BM25 score (row shape is stable without `flatten` on nested `data`).
+#[derive(Deserialize, SurrealValue)]
+struct SongIdScoreRow {
+    id: Option<RecordId>,
+    #[serde(default)]
+    rel_score: f64,
+}
+
+const FULLTEXT_FRAGMENTS: &[&str] = &[
+    "data.titles @0@ $q",
+    "data.artists @0@ $q",
+    "search_content @0@ $q",
+];
+
+const FULLTEXT_WEIGHTS: &[f64] = &[100.0, 10.0, 1.0];
+
+async fn song_fulltext_combined_scores(
+    db: &Database,
+    read_teams: &[RecordId],
+    extra_where: &str,
+    extra_binds: &[(&'static str, String)],
+    q_trimmed: &str,
+) -> Result<HashMap<String, f64>, AppError> {
+    let mut scores: HashMap<String, f64> = HashMap::new();
+    for (&fragment, &weight) in FULLTEXT_FRAGMENTS.iter().zip(FULLTEXT_WEIGHTS.iter()) {
+        let sql = format!(
+            "SELECT id, (search::score(0) ?? 0) AS rel_score FROM song WHERE owner IN $teams{extra_where} AND {fragment}",
+        );
+        let mut request = db
+            .db
+            .query(sql)
+            .bind(("teams", read_teams.to_vec()))
+            .bind(("q", q_trimmed.to_string()));
+        for &(k, ref v) in extra_binds {
+            request = request.bind((k, v.clone()));
+        }
+        let mut response = request.await?;
+        let rows: Vec<SongIdScoreRow> = response.take(0)?;
+        for row in rows {
+            let Some(ref rid) = row.id else {
+                continue;
+            };
+            let id = record_id_string(rid);
+            if id.is_empty() {
+                continue;
+            }
+            *scores.entry(id).or_insert(0.0) += row.rel_score * weight;
+        }
+    }
+    Ok(scores)
+}
+
+async fn songs_by_ids(
+    db: &Database,
+    ids: Vec<RecordId>,
+) -> Result<HashMap<String, SongRecord>, AppError> {
+    if ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let mut response = db
+        .db
+        .query("SELECT * FROM song WHERE id INSIDE $ids")
+        .bind(("ids", ids))
+        .await?;
+    let records: Vec<SongRecord> = response.take(0)?;
+    let mut by_id = HashMap::with_capacity(records.len());
+    for r in records {
+        let Some(ref rid) = r.id else {
+            continue;
+        };
+        by_id.insert(record_id_string(rid), r);
+    }
+    Ok(by_id)
+}
+
+fn sort_merged_song_rows(
+    items: &mut [(String, SongRecord, f64)],
+    sort: SongSort,
+    q_nonempty: bool,
+) {
+    match sort {
+        SongSort::Relevance if q_nonempty => {
+            items.sort_by(|a, b| {
+                b.2.partial_cmp(&a.2)
+                    .unwrap_or(Ordering::Equal)
+                    .then_with(|| b.0.cmp(&a.0))
+            });
+        }
+        SongSort::Relevance => {
+            items.sort_by(|a, b| b.0.cmp(&a.0));
+        }
+        SongSort::IdDesc => items.sort_by(|a, b| b.0.cmp(&a.0)),
+        SongSort::IdAsc => items.sort_by(|a, b| a.0.cmp(&b.0)),
+        SongSort::TitleAsc => items.sort_by(|a, b| {
+            let ta = a.1.data.titles.first().map(String::as_str).unwrap_or("");
+            let tb = b.1.data.titles.first().map(String::as_str).unwrap_or("");
+            ta.cmp(tb).then_with(|| a.0.cmp(&b.0))
+        }),
+        SongSort::TitleDesc => items.sort_by(|a, b| {
+            let ta = a.1.data.titles.first().map(String::as_str).unwrap_or("");
+            let tb = b.1.data.titles.first().map(String::as_str).unwrap_or("");
+            tb.cmp(ta).then_with(|| a.0.cmp(&b.0))
+        }),
+    }
+}
+
 #[derive(Clone)]
 pub struct SurrealSongRepo {
     db: Arc<Database>,
@@ -74,7 +180,7 @@ impl SurrealSongRepo {
 impl SongRepository for SurrealSongRepo {
     async fn get_songs(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         query: SongListQuery,
     ) -> Result<Vec<Song>, AppError> {
         let db = self.inner();
@@ -83,30 +189,46 @@ impl SongRepository for SurrealSongRepo {
         let pagination = query.list_query();
         let q_nonempty = pagination.q.as_ref().is_some_and(|q| !q.trim().is_empty());
 
-        let mut sql = if q_nonempty {
-            format!(
-                "SELECT *, ((search::score(0) ?? 0) * 100 + (search::score(1) ?? 0) * 10 + (search::score(2) ?? 0) * 1) AS score FROM song WHERE owner IN $teams{extra_where}",
-            )
-        } else {
-            format!("SELECT * FROM song WHERE owner IN $teams{extra_where}")
-        };
-
         if q_nonempty {
-            sql.push_str(
-                " AND (data.titles @0@ $q OR data.artists @1@ $q OR search_content @2@ $q)",
-            );
+            let q_trimmed = pagination
+                .q
+                .as_ref()
+                .map(|s| s.trim().to_string())
+                .unwrap_or_default();
+            let scores = song_fulltext_combined_scores(
+                db,
+                read_teams,
+                &extra_where,
+                &extra_binds,
+                &q_trimmed,
+            )
+            .await?;
+            let ids: Vec<RecordId> = scores
+                .keys()
+                .map(|id| RecordId::new("song", id.as_str()))
+                .collect();
+            let mut by_id = songs_by_ids(db, ids).await?;
+            let mut items: Vec<(String, SongRecord, f64)> = scores
+                .into_iter()
+                .filter_map(|(id, score)| by_id.remove(&id).map(|rec| (id, rec, score)))
+                .collect();
+            sort_merged_song_rows(&mut items, sort, true);
+            let (offset, limit) = pagination.effective_offset_limit();
+            return Ok(items
+                .into_iter()
+                .skip(offset as usize)
+                .take(limit as usize)
+                .map(|(_, rec, _)| rec.into_song())
+                .collect());
         }
+
+        let mut sql = format!("SELECT * FROM song WHERE owner IN $teams{extra_where}");
         sql.push(' ');
-        sql.push_str(song_order_clause(sort, q_nonempty));
+        sql.push_str(song_order_clause(sort, false));
         let (offset, limit) = pagination.effective_offset_limit();
         sql.push_str(" LIMIT $limit START $start");
 
         let mut request = db.db.query(sql).bind(("teams", read_teams.to_vec()));
-        if let Some(ref q) = pagination.q
-            && !q.trim().is_empty()
-        {
-            request = request.bind(("q", q.trim().to_string()));
-        }
         for (k, v) in extra_binds {
             request = request.bind((k, v));
         }
@@ -121,7 +243,7 @@ impl SongRepository for SurrealSongRepo {
             .collect())
     }
 
-    async fn get_song(&self, read_teams: &[Thing], id: &str) -> Result<Song, AppError> {
+    async fn get_song(&self, read_teams: &[RecordId], id: &str) -> Result<Song, AppError> {
         let db = self.inner();
         let record: Option<SongRecord> = db.db.select(resource_id("song", id)?).await?;
         match record {
@@ -132,35 +254,39 @@ impl SongRepository for SurrealSongRepo {
 
     async fn count_songs(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         query: &SongListQuery,
     ) -> Result<u64, AppError> {
         let db = self.inner();
         let q_nonempty = query.q.as_ref().is_some_and(|s| !s.trim().is_empty());
         let (extra_where, extra_binds) = song_extra_filters(query);
 
-        let mut query_s = format!("SELECT count() FROM song WHERE owner IN $teams{extra_where}");
         if q_nonempty {
-            query_s.push_str(
-                " AND (data.titles @0@ $q OR data.artists @1@ $q OR search_content @2@ $q)",
-            );
-        }
-        query_s.push_str(" GROUP ALL");
-
-        let mut request = db.db.query(query_s).bind(("teams", read_teams.to_vec()));
-        if q_nonempty {
-            let q = query
+            let q_trimmed = query
                 .q
                 .as_ref()
                 .map(|s| s.trim().to_string())
                 .unwrap_or_default();
-            request = request.bind(("q", q));
+            let scores = song_fulltext_combined_scores(
+                db,
+                read_teams,
+                &extra_where,
+                &extra_binds,
+                &q_trimmed,
+            )
+            .await?;
+            return Ok(scores.len() as u64);
         }
+
+        let query_s =
+            format!("SELECT count() FROM song WHERE owner IN $teams{extra_where} GROUP ALL");
+
+        let mut request = db.db.query(query_s).bind(("teams", read_teams.to_vec()));
         for (k, v) in extra_binds {
             request = request.bind((k, v));
         }
 
-        #[derive(Deserialize)]
+        #[derive(Deserialize, SurrealValue)]
         struct CountResult {
             count: u64,
         }
@@ -191,7 +317,7 @@ impl SongRepository for SurrealSongRepo {
     /// 3. If missing: `CREATE` with the given ID under the actor's personal team.
     async fn update_song(
         &self,
-        write_teams: &[Thing],
+        write_teams: &[RecordId],
         actor_user_id: &str,
         id: &str,
         song: CreateSong,
@@ -200,19 +326,19 @@ impl SongRepository for SurrealSongRepo {
         let resource = resource_id("song", id)?;
         let (tb, sid) = resource.clone();
         let search_content = search_content_from_song_data(&song.data);
-        let blobs: Vec<Thing> = song.blobs.iter().map(|b| blob_thing(&b.id)).collect();
+        let blobs: Vec<RecordId> = song.blobs.iter().map(|b| blob_thing(&b.id)).collect();
 
         let mut response = db
             .db
             .query(
-                "UPDATE type::thing($tb, $sid) SET not_a_song = $not_a_song, blobs = $blobs, \
+                "UPDATE type::record($tb, $sid) SET not_a_song = $not_a_song, blobs = $blobs, \
                  data = $data, search_content = $search_content WHERE owner IN $teams RETURN AFTER",
             )
             .bind(("tb", tb))
             .bind(("sid", sid))
             .bind(("not_a_song", song.not_a_song))
             .bind(("blobs", blobs))
-            .bind(("data", song.data.clone()))
+            .bind(("data", SongDataField(song.data.clone())))
             .bind(("search_content", search_content))
             .bind(("teams", write_teams.to_vec()))
             .await?;
@@ -231,7 +357,7 @@ impl SongRepository for SurrealSongRepo {
         if !write_teams.contains(&personal) {
             return Err(AppError::NotFound("song not found".into()));
         }
-        let record_id = Thing::from(resource.clone());
+        let record_id = RecordId::new(resource.0.clone(), resource.1.clone());
         let record = SongRecord::from_payload(Some(record_id), Some(personal), song);
         let created = db
             .db
@@ -243,12 +369,12 @@ impl SongRepository for SurrealSongRepo {
         Ok(SongUpsertOutcome::Created(created))
     }
 
-    async fn delete_song(&self, write_teams: &[Thing], id: &str) -> Result<Song, AppError> {
+    async fn delete_song(&self, write_teams: &[RecordId], id: &str) -> Result<Song, AppError> {
         let db = self.inner();
         let (tb, sid) = resource_id("song", id)?;
         let mut response = db
             .db
-            .query("DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
+            .query("DELETE FROM type::record($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
             .bind(("teams", write_teams.to_vec()))
@@ -263,7 +389,7 @@ impl SongRepository for SurrealSongRepo {
 
     async fn get_song_like(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         user_id: &str,
         id: &str,
     ) -> Result<bool, AppError> {
@@ -280,7 +406,7 @@ impl SongRepository for SurrealSongRepo {
         }
 
         let owner = owner_thing(user_id);
-        let song = Thing::from(resource);
+        let song = RecordId::new(resource.0, resource.1);
 
         let mut response = db
             .db
@@ -295,7 +421,7 @@ impl SongRepository for SurrealSongRepo {
 
     async fn set_song_like(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         user_id: &str,
         id: &str,
         liked: bool,
@@ -313,7 +439,7 @@ impl SongRepository for SurrealSongRepo {
         }
 
         let owner = owner_thing(user_id);
-        let song = Thing::from(resource);
+        let song = RecordId::new(resource.0, resource.1);
 
         let mut response = db
             .db
@@ -335,8 +461,7 @@ impl SongRepository for SurrealSongRepo {
             }
             Ok(true)
         } else if let Some(record) = existing_like.and_then(|like| like.id) {
-            let resource = (record.tb.clone(), record.id.to_string());
-            let _: Option<LikeRecord> = db.db.delete(resource).await?;
+            let _: Option<LikeRecord> = db.db.delete(record).await?;
             Ok(false)
         } else {
             Ok(false)
@@ -354,7 +479,7 @@ impl SongRepository for SurrealSongRepo {
         let likes: Vec<LikeRecord> = response.take(0)?;
         Ok(likes
             .into_iter()
-            .map(|like| like.song.id.to_string())
+            .map(|like| crate::database::record_id_string(&like.song))
             .collect())
     }
 }

@@ -1,5 +1,6 @@
 use ring::hmac;
 use serde::Deserialize;
+use surrealdb::types::SurrealValue;
 
 use crate::database::Database;
 use crate::error::AppError;
@@ -33,11 +34,11 @@ impl Model for Database {
             .query(
                 r#"
                 DELETE otp WHERE expires_at <= time::now();
-                LET $thing = type::thing('otp', $email);
+                LET $thing = type::record('otp', $email);
                 DELETE $thing;
                 UPSERT $thing CONTENT {
                   code: $code,
-                  expires_at: time::now() + duration::from::secs($ttl_secs),
+                  expires_at: time::now() + duration::from_secs($ttl_secs),
                   created_at: time::now(),
                   failed_attempts: 0
                 };
@@ -58,7 +59,7 @@ impl Model for Database {
         pepper: &str,
         max_attempts: u32,
     ) -> Result<(), AppError> {
-        #[derive(Deserialize)]
+        #[derive(Deserialize, SurrealValue)]
         struct Outcome {
             exists: i64,
             valid: i64,
@@ -74,7 +75,7 @@ impl Model for Database {
             .query(
                 r#"
             DELETE otp WHERE expires_at <= time::now();
-            LET $thing = type::thing('otp', $email);
+            LET $thing = type::record('otp', $email);
             LET $exists = array::len(SELECT * FROM $thing WHERE expires_at > time::now());
             LET $valid  = array::len(SELECT * FROM $thing WHERE code = $code AND expires_at > time::now());
             DELETE $thing WHERE code = $code AND expires_at > time::now() RETURN NONE;
@@ -100,7 +101,7 @@ impl Model for Database {
         if outcome.failed_attempts >= max_attempts as i64 {
             // The row is still present but locked; delete it so further requests are also rejected.
             self.db
-                .query("DELETE type::thing('otp', $email)")
+                .query("DELETE type::record('otp', $email)")
                 .bind(("email", email.to_owned()))
                 .await
                 .map_err(|e| {

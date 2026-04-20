@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use surrealdb::sql::Thing;
+use surrealdb::types::RecordId;
 
 use serde::Deserialize;
+use surrealdb::types::SurrealValue;
 
 use shared::api::ListQuery;
 use shared::collection::{Collection, CreateCollection};
@@ -11,9 +12,11 @@ use shared::song::{Link as SongLink, LinkOwned as SongLinkOwned};
 
 use crate::database::{Database, surreal_take_errors};
 use crate::error::AppError;
-use crate::resources::common::{SongLinkRecord, belongs_to, blob_thing, resource_id};
+use crate::resources::common::{
+    SongLinkListRow, SongLinkRecord, belongs_to, blob_thing, resource_id, song_links_to_owned,
+};
 
-use super::model::{CollectionRecord, CollectionSongsRecord};
+use super::model::CollectionRecord;
 use super::repository::CollectionRepository;
 
 #[derive(Clone)]
@@ -35,7 +38,7 @@ impl SurrealCollectionRepo {
 impl CollectionRepository for SurrealCollectionRepo {
     async fn get_collections(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         pagination: ListQuery,
     ) -> Result<Vec<Collection>, AppError> {
         let db = self.inner();
@@ -72,10 +75,10 @@ impl CollectionRepository for SurrealCollectionRepo {
 
     async fn count_collections(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         q: Option<&str>,
     ) -> Result<u64, AppError> {
-        #[derive(Deserialize)]
+        #[derive(Deserialize, SurrealValue)]
         struct CountResult {
             count: u64,
         }
@@ -103,7 +106,11 @@ impl CollectionRepository for SurrealCollectionRepo {
             .unwrap_or(0))
     }
 
-    async fn get_collection(&self, read_teams: &[Thing], id: &str) -> Result<Collection, AppError> {
+    async fn get_collection(
+        &self,
+        read_teams: &[RecordId],
+        id: &str,
+    ) -> Result<Collection, AppError> {
         let db = self.inner();
         let record: Option<CollectionRecord> = db.db.select(resource_id("collection", id)?).await?;
         match record {
@@ -114,26 +121,26 @@ impl CollectionRepository for SurrealCollectionRepo {
 
     async fn get_collection_songs(
         &self,
-        read_teams: &[Thing],
+        read_teams: &[RecordId],
         id: &str,
     ) -> Result<Vec<SongLinkOwned>, AppError> {
         let db = self.inner();
         let resource = resource_id("collection", id)?;
         let mut response = db
             .db
-            .query("SELECT owner, songs FROM collection WHERE id = $id FETCH songs.id")
-            .bind(("id", Thing::from(resource.clone())))
+            .query("SELECT owner, songs FROM collection WHERE id = $id")
+            .bind(("id", RecordId::new(resource.0.clone(), resource.1.clone())))
             .await?;
 
         let record = response
-            .take::<Option<CollectionSongsRecord>>(0)?
+            .take::<Option<SongLinkListRow>>(0)?
             .ok_or_else(|| AppError::NotFound("collection not found".into()))?;
 
         if !belongs_to(&record.owner, read_teams) {
             return Err(AppError::NotFound("collection not found".into()));
         }
 
-        Ok(record.into_songs())
+        song_links_to_owned(&db.db, record.songs).await
     }
 
     async fn create_collection(
@@ -157,7 +164,7 @@ impl CollectionRepository for SurrealCollectionRepo {
 
     async fn update_collection(
         &self,
-        write_teams: &[Thing],
+        write_teams: &[RecordId],
         id: &str,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
@@ -170,7 +177,7 @@ impl CollectionRepository for SurrealCollectionRepo {
         let mut response = db
             .db
             .query(
-                "UPDATE type::thing($tb, $sid) SET title = $title, cover = $cover, songs = $songs \
+                "UPDATE type::record($tb, $sid) SET title = $title, cover = $cover, songs = $songs \
                  WHERE owner IN $teams RETURN AFTER",
             )
             .bind(("tb", tb))
@@ -190,14 +197,14 @@ impl CollectionRepository for SurrealCollectionRepo {
 
     async fn delete_collection(
         &self,
-        write_teams: &[Thing],
+        write_teams: &[RecordId],
         id: &str,
     ) -> Result<Collection, AppError> {
         let db = self.inner();
         let (tb, sid) = resource_id("collection", id)?;
         let mut response = db
             .db
-            .query("DELETE FROM type::thing($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
+            .query("DELETE FROM type::record($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
             .bind(("teams", write_teams.to_vec()))
@@ -212,7 +219,7 @@ impl CollectionRepository for SurrealCollectionRepo {
 
     async fn add_song_to_collection(
         &self,
-        write_teams: &[Thing],
+        write_teams: &[RecordId],
         id: &str,
         song_link: SongLink,
     ) -> Result<(), AppError> {
@@ -220,7 +227,7 @@ impl CollectionRepository for SurrealCollectionRepo {
         let mut response = db
             .db
             .query(
-                r#"UPDATE type::thing("collection", $id) SET songs = array::append(songs, $song) WHERE owner IN $teams;"#,
+                r#"UPDATE type::record("collection", $id) SET songs = array::append(songs, $song) WHERE owner IN $teams;"#,
             )
             .bind(("id", id.to_owned()))
             .bind(("teams", write_teams.to_vec()))

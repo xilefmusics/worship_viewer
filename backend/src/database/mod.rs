@@ -5,15 +5,15 @@ use serde::Deserialize;
 use surrealdb::Surreal;
 use surrealdb::engine::any::{Any, connect};
 use surrealdb::opt::auth::Database as DbAuth;
-use surrealdb::sql::{Id, Thing};
+use surrealdb::types::{RecordId, RecordIdKey, SqlFormat, SurrealValue, ToSql};
 use tracing::instrument;
 
 use crate::error::AppError;
 
-/// Inspect Surreal [`surrealdb::Response`] for per-statement failures (mirrors migration checks).
+/// Inspect Surreal [`surrealdb::IndexedResults`] for per-statement failures (mirrors migration checks).
 pub(crate) fn surreal_take_errors(
     context: &'static str,
-    response: &mut surrealdb::Response,
+    response: &mut surrealdb::IndexedResults,
 ) -> Result<(), AppError> {
     let errors = response.take_errors();
     if errors.is_empty() {
@@ -35,18 +35,22 @@ pub(crate) fn surreal_take_errors(
     )))
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, SurrealValue)]
 struct TeamIdOnly {
-    id: Thing,
+    id: RecordId,
 }
 
-/// Stable string id for a `Thing` (matches API / legacy `id_to_plain_string` behavior).
-pub fn record_id_string(thing: &Thing) -> String {
-    match &thing.id {
-        Id::String(value) => value.clone(),
-        Id::Number(number) => format!("{number}"),
-        Id::Uuid(uuid) => uuid.to_string(),
-        _ => thing.id.to_string(),
+/// Stable string id for the key portion of a [`RecordId`] (matches API / legacy `id_to_plain_string` behavior).
+pub fn record_id_string(rid: &RecordId) -> String {
+    match &rid.key {
+        RecordIdKey::String(value) => value.clone(),
+        RecordIdKey::Number(number) => format!("{number}"),
+        RecordIdKey::Uuid(uuid) => uuid.to_string(),
+        _ => {
+            let mut out = String::new();
+            rid.key.fmt_sql(&mut out, SqlFormat::SingleLine);
+            out
+        }
     }
 }
 
@@ -81,10 +85,10 @@ impl Database {
         match (username, password) {
             (Some(username), Some(password)) => {
                 db.signin(DbAuth {
-                    namespace,
-                    database,
-                    username,
-                    password,
+                    namespace: namespace.to_owned(),
+                    database: database.to_owned(),
+                    username: username.to_owned(),
+                    password: password.to_owned(),
                 })
                 .await
                 .with_context(|| "failed to sign into SurrealDB with provided credentials")?;
@@ -121,8 +125,8 @@ impl Database {
     }
 
     /// The `team` row where `owner` is this user (their personal team).
-    pub async fn personal_team_thing_for_user(&self, user_id: &str) -> Result<Thing, AppError> {
-        let user = Thing::from(("user".to_owned(), user_id.to_owned()));
+    pub async fn personal_team_thing_for_user(&self, user_id: &str) -> Result<RecordId, AppError> {
+        let user = RecordId::new("user", user_id.to_owned());
         let mut response = self
             .db
             .query("SELECT id FROM team WHERE owner = $user LIMIT 1")

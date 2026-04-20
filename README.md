@@ -133,7 +133,7 @@ Then open `http://127.0.0.1:8082` (or adjust the listen address in the JSON). Ve
 
 ```bash
 # Start the database as a separate process
-docker run --rm -p 8000:8000 surrealdb/surrealdb:v2.4.0-dev start --log debug --user root --pass root memory
+docker run --rm -p 8000:8000 surrealdb/surrealdb:v3.0.5 start --log debug --user root --pass root memory
 
 # Start the backend connected to that database
 cd backend && \

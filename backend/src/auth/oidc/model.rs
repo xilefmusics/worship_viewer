@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use oauth2::PkceCodeVerifier;
 use openidconnect::Nonce;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Datetime, Thing};
+use surrealdb::types::{Datetime, RecordId, SurrealValue};
 
 use crate::database::Database;
 use crate::error::AppError;
@@ -75,10 +75,10 @@ impl Model for Database {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, SurrealValue)]
 struct OidcStateRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    id: Option<Thing>,
+    id: Option<RecordId>,
     pkce_verifier: String,
     nonce: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

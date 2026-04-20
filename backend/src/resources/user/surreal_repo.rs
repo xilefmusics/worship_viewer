@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use surrealdb::sql::Thing;
+use surrealdb::types::RecordId;
 
 use serde::Deserialize;
+use surrealdb::types::SurrealValue;
 
 use shared::api::ListQuery;
 use shared::user::User;
@@ -68,7 +69,7 @@ impl UserRepository for SurrealUserRepo {
     }
 
     async fn count_users(&self, query: ListQuery) -> Result<u64, AppError> {
-        #[derive(Deserialize)]
+        #[derive(Deserialize, SurrealValue)]
         struct CountResult {
             count: u64,
         }
@@ -150,11 +151,8 @@ impl UserRepository for SurrealUserRepo {
             .inner()
             .db
             .query("UPDATE $user SET default_collection = $collection")
-            .bind(("user", Thing::from(("user".to_owned(), user_id.to_owned()))))
-            .bind((
-                "collection",
-                Thing::from(("collection".to_owned(), collection_id.to_owned())),
-            ))
+            .bind(("user", RecordId::new("user", user_id)))
+            .bind(("collection", RecordId::new("collection", collection_id)))
             .await?;
         surreal_take_errors("user.set_default_collection", &mut response)?;
         let _ = response.check().map_err(|e| {
@@ -170,7 +168,7 @@ impl SurrealUserRepo {
             .inner()
             .db
             .query("UPDATE $user SET default_collection = NONE")
-            .bind(("user", Thing::from(("user".to_owned(), user_id.to_owned()))))
+            .bind(("user", RecordId::new("user", user_id)))
             .await?;
         surreal_take_errors("user.clear_default_collection", &mut response)?;
         let _ = response.check().map_err(|e| {

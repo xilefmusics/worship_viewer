@@ -154,8 +154,8 @@ async fn insert_row(db: &Database, row: HttpAuditInsert) -> Result<(), surrealdb
         .query(
             "CREATE http_request_audit SET request_id = $request_id, method = $method, \
              path = $path, status_code = $status_code, duration_ms = $duration_ms, \
-             user = IF $user_id = NONE THEN NONE ELSE type::thing('user', $user_id) END, \
-             session = IF $session_id = NONE THEN NONE ELSE type::thing('session', $session_id) END;",
+             user = IF $user_id = NONE THEN NONE ELSE type::record('user', $user_id) END, \
+             session = IF $session_id = NONE THEN NONE ELSE type::record('session', $session_id) END;",
         )
         .bind(("request_id", row.request_id))
         .bind(("method", row.method))

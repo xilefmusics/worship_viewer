@@ -1,15 +1,43 @@
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Datetime, Thing};
+use surrealdb::types::{Datetime, Kind, RecordId, SurrealValue, Value, kind};
 
-use shared::blob::{Blob, CreateBlob};
+use shared::blob::{Blob, CreateBlob, FileType};
+
+use crate::database::record_id_string;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct FileTypeField(pub FileType);
+
+impl SurrealValue for FileTypeField {
+    fn kind_of() -> Kind {
+        kind!(any)
+    }
+
+    fn is_value(_value: &Value) -> bool {
+        true
+    }
+
+    fn into_value(self) -> Value {
+        let j = serde_json::to_value(self.0).unwrap_or(serde_json::Value::Null);
+        j.into_value()
+    }
+
+    fn from_value(value: Value) -> surrealdb::Result<Self> {
+        let j = serde_json::Value::from_value(value)?;
+        serde_json::from_value(j)
+            .map(FileTypeField)
+            .map_err(|e| surrealdb::Error::internal(e.to_string()))
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, SurrealValue)]
 pub struct BlobRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub id: Option<Thing>,
+    pub id: Option<RecordId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub owner: Option<Thing>,
-    pub file_type: shared::blob::FileType,
+    pub owner: Option<RecordId>,
+    pub file_type: FileTypeField,
     pub width: u32,
     pub height: u32,
     #[serde(default)]
@@ -21,15 +49,9 @@ pub struct BlobRecord {
 impl BlobRecord {
     pub fn into_blob(self) -> Blob {
         Blob {
-            id: self
-                .id
-                .map(|thing| thing.id.to_string())
-                .unwrap_or_default(),
-            owner: self
-                .owner
-                .map(|thing| thing.id.to_string())
-                .unwrap_or_default(),
-            file_type: self.file_type,
+            id: self.id.map(|r| record_id_string(&r)).unwrap_or_default(),
+            owner: self.owner.map(|r| record_id_string(&r)).unwrap_or_default(),
+            file_type: self.file_type.0,
             width: self.width,
             height: self.height,
             ocr: self.ocr,
@@ -37,15 +59,15 @@ impl BlobRecord {
     }
 
     pub fn from_payload(
-        id: Option<Thing>,
-        owner: Option<Thing>,
+        id: Option<RecordId>,
+        owner: Option<RecordId>,
         created_at: Option<Datetime>,
         blob: CreateBlob,
     ) -> Self {
         Self {
             id,
             owner,
-            file_type: blob.file_type,
+            file_type: FileTypeField(blob.file_type),
             width: blob.width,
             height: blob.height,
             ocr: blob.ocr,
@@ -57,12 +79,11 @@ impl BlobRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use shared::blob::FileType;
 
     #[test]
     fn blob_record_from_payload_into_blob() {
-        let id = Thing::from(("blob".to_owned(), "b99".to_owned()));
-        let owner = Thing::from(("team".to_owned(), "tm".to_owned()));
+        let id = RecordId::new("blob", "b99");
+        let owner = RecordId::new("team", "tm");
         let record = BlobRecord::from_payload(
             Some(id.clone()),
             Some(owner.clone()),
