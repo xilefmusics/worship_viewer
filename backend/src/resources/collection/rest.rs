@@ -300,8 +300,13 @@ async fn update_collection(
     let etag = weak_etag_json(&collection)
         .map_err(|e| AppError::internal_from_err("collection.rest", e))?;
     check_if_match(&req, &etag)?;
-    let payload = CreateCollection::from(payload.into_inner());
-    Ok(HttpResponse::Ok().json(svc.update_collection_for_user(&perms, &id, payload).await?))
+    let payload = payload.into_inner();
+    let owner = payload.owner.clone();
+    let payload = CreateCollection::from(payload);
+    Ok(HttpResponse::Ok().json(
+        svc.update_collection_for_user(&perms, &id, payload, owner)
+            .await?,
+    ))
 }
 
 #[utoipa::path(

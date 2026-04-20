@@ -158,24 +158,39 @@ impl SetlistRepository for SurrealSetlistRepo {
         write_teams: &[RecordId],
         id: &str,
         setlist: CreateSetlist,
+        owner: Option<RecordId>,
     ) -> Result<Setlist, AppError> {
         let db = self.inner();
         let (tb, sid) = resource_id("setlist", id)?;
         let songs: Vec<SongLinkRecord> = setlist.songs.into_iter().map(Into::into).collect();
         let title = setlist.title;
 
-        let mut response = db
-            .db
-            .query(
-                "UPDATE type::record($tb, $sid) SET title = $title, songs = $songs \
-                 WHERE owner IN $teams RETURN AFTER",
-            )
-            .bind(("tb", tb))
-            .bind(("sid", sid))
-            .bind(("title", title))
-            .bind(("songs", songs))
-            .bind(("teams", write_teams.to_vec()))
-            .await?;
+        let mut response = if let Some(ref owner_rid) = owner {
+            db.db
+                .query(
+                    "UPDATE type::record($tb, $sid) SET title = $title, songs = $songs, owner = $owner \
+                     WHERE owner IN $teams RETURN AFTER",
+                )
+                .bind(("tb", tb))
+                .bind(("sid", sid))
+                .bind(("title", title))
+                .bind(("songs", songs))
+                .bind(("owner", owner_rid.clone()))
+                .bind(("teams", write_teams.to_vec()))
+                .await?
+        } else {
+            db.db
+                .query(
+                    "UPDATE type::record($tb, $sid) SET title = $title, songs = $songs \
+                     WHERE owner IN $teams RETURN AFTER",
+                )
+                .bind(("tb", tb))
+                .bind(("sid", sid))
+                .bind(("title", title))
+                .bind(("songs", songs))
+                .bind(("teams", write_teams.to_vec()))
+                .await?
+        };
 
         let rows: Vec<SetlistRecord> = response.take(0)?;
         rows.into_iter()

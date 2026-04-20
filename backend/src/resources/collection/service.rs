@@ -9,7 +9,7 @@ use tracing::instrument;
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::common::player_from_song_links;
+use crate::resources::common::{player_from_song_links, resolve_owner_team};
 use crate::resources::song::LikedSongIds;
 use crate::resources::team::{
     TeamResolver, UserPermissions, parse_owner_record_id, thing_record_key,
@@ -125,10 +125,12 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         perms: &UserPermissions<T>,
         id: &str,
         collection: CreateCollection,
+        owner: Option<String>,
     ) -> Result<Collection, AppError> {
         let write_teams = perms.write_teams().await?;
+        let owner = resolve_owner_team(write_teams, owner)?;
         self.repo
-            .update_collection(write_teams, id, collection)
+            .update_collection(write_teams, id, collection, owner)
             .await
     }
 
@@ -139,6 +141,7 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
         id: &str,
         patch: PatchCollection,
     ) -> Result<Collection, AppError> {
+        let owner = patch.owner.clone();
         let current = self.get_collection_for_user(perms, id).await?;
         let merged = CreateCollection {
             owner: None,
@@ -146,7 +149,8 @@ impl<R: CollectionRepository, T: TeamResolver, L: LikedSongIds> CollectionServic
             cover: patch.cover.unwrap_or(current.cover),
             songs: patch.songs.unwrap_or(current.songs),
         };
-        self.update_collection_for_user(perms, id, merged).await
+        self.update_collection_for_user(perms, id, merged, owner)
+            .await
     }
 
     #[instrument(level = "debug", err, skip(self, perms, payload))]
@@ -286,6 +290,7 @@ mod tests {
                         key: None,
                     }],
                 },
+                None,
             )
             .await
             .expect("update");
@@ -301,6 +306,7 @@ mod tests {
                     cover: "mysongs".into(),
                     songs: vec![],
                 },
+                None,
             )
             .await;
         assert!(matches!(put_guest, Err(AppError::NotFound(_))));
@@ -398,7 +404,7 @@ mod tests {
             .create_collection_for_user(&owner_p, make_collection("CMTest"))
             .await
             .expect("create");
-        svc.update_collection_for_user(&cm_p, &col.id, make_collection("CMUpdated"))
+        svc.update_collection_for_user(&cm_p, &col.id, make_collection("CMUpdated"), None)
             .await
             .expect("cm update");
     }
@@ -423,7 +429,7 @@ mod tests {
             .await
             .expect("create");
         let r = svc
-            .update_collection_for_user(&guest_p, &col.id, make_collection("Hack"))
+            .update_collection_for_user(&guest_p, &col.id, make_collection("Hack"), None)
             .await;
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
@@ -455,10 +461,50 @@ mod tests {
             .expect("create");
         assert_eq!(col.owner, tid);
         let updated = svc
-            .update_collection_for_user(&owner_p, &col.id, make_collection("Renamed"))
+            .update_collection_for_user(&owner_p, &col.id, make_collection("Renamed"), None)
             .await
             .expect("update");
-        assert_eq!(updated.owner, tid, "owner must not change on PUT");
+        assert_eq!(
+            updated.owner, tid,
+            "owner must not change on PUT when omitted"
+        );
+    }
+
+    #[tokio::test]
+    async fn blc_coll_put_moves_owner_when_target_writable() {
+        let db = test_db().await.expect("db");
+        let fx = TeamFixture::build(&db).await.expect("fixture");
+        let svc = CollectionServiceHandle::build(db.clone());
+        let admin_p = UserPermissions::from_ref(&fx.admin_user, &svc.teams);
+        let col = svc
+            .create_collection_for_user(
+                &admin_p,
+                CreateCollection {
+                    owner: None,
+                    title: "MoveCol".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![],
+                },
+            )
+            .await
+            .expect("create");
+        let personal = personal_team_id(&db, &fx.admin_user).await.expect("pt");
+        assert_eq!(col.owner, personal);
+        let updated = svc
+            .update_collection_for_user(
+                &admin_p,
+                &col.id,
+                CreateCollection {
+                    owner: None,
+                    title: "MoveCol".into(),
+                    cover: "mysongs".into(),
+                    songs: vec![],
+                },
+                Some(fx.shared_team_id.clone()),
+            )
+            .await
+            .expect("move");
+        assert_eq!(updated.owner, fx.shared_team_id);
     }
 
     /// BLC-COLL-004: POST with a non-existent song ID succeeds (no existence check).
@@ -625,6 +671,7 @@ mod tests {
                     title: Some("New Title".into()),
                     cover: None,
                     songs: None,
+                    owner: None,
                 },
             )
             .await
@@ -660,6 +707,7 @@ mod tests {
                     title: None,
                     cover: Some("newheart".into()),
                     songs: None,
+                    owner: None,
                 },
             )
             .await
@@ -684,6 +732,7 @@ mod tests {
                     title: Some("x".into()),
                     cover: None,
                     songs: None,
+                    owner: None,
                 },
             )
             .await;
@@ -738,6 +787,7 @@ mod tests {
                             nr: Some("9".into()),
                             key: None,
                         }]),
+                        owner: None,
                     },
                 )
                 .await

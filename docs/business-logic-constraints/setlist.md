@@ -4,7 +4,7 @@
 
 - **BLC-SETL-001:** Every setlist belongs to exactly one **owning team** (**`owner`** in responses).
 - **BLC-SETL-002:** Reads (metadata, songs, player) require **read** access to that team’s library; **PUT** and **DELETE** require **library edit** access. Platform **admin** MAY read but MUST NOT mutate setlists solely by admin role.
-- **BLC-SETL-003:** **`PUT`** MUST NOT change **`owner`**; it replaces **title**, ordered **songs**, and related fields exposed by the API.
+- **BLC-SETL-003:** **`PUT`** replaces **title**, ordered **songs**, and related fields; **`PUT`** and **`PATCH`** MAY set **`owner`** when the body includes it and the caller may write both the current and target owning teams (see **BLC-SONG-003** pattern); omitting **`owner`** leaves it unchanged.
 
 ## Create payload validation
 

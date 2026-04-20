@@ -238,6 +238,7 @@ async fn update_song(
     let perms = UserPermissions::from_ref(&user, &svc.teams);
     let payload = payload.into_inner();
     payload.validate().map_err(AppError::invalid_request)?;
+    let owner = payload.owner.clone();
     let payload = CreateSong::from(payload);
     let id = id.into_inner();
     match svc.get_song_for_user(&perms, &id).await {
@@ -249,7 +250,10 @@ async fn update_song(
         Err(AppError::NotFound(_)) => {}
         Err(e) => return Err(e),
     }
-    match svc.update_song_for_user(&perms, &id, payload).await? {
+    match svc
+        .update_song_for_user(&perms, &id, payload, owner)
+        .await?
+    {
         SongUpsertOutcome::Created(song) => Ok(HttpResponse::Created()
             .insert_header((header::LOCATION, format!("/api/v1/songs/{}", song.id)))
             .json(song)),

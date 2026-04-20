@@ -320,6 +320,7 @@ impl SongRepository for SurrealSongRepo {
         actor_user_id: &str,
         id: &str,
         song: CreateSong,
+        owner: Option<RecordId>,
     ) -> Result<SongUpsertOutcome, AppError> {
         let db = self.inner();
         let resource = resource_id("song", id)?;
@@ -327,20 +328,37 @@ impl SongRepository for SurrealSongRepo {
         let search_content = search_content_from_song_data(&song.data);
         let blobs: Vec<RecordId> = song.blobs.iter().map(|b| blob_thing(&b.id)).collect();
 
-        let mut response = db
-            .db
-            .query(
-                "UPDATE type::record($tb, $sid) SET not_a_song = $not_a_song, blobs = $blobs, \
-                 data = $data, search_content = $search_content WHERE owner IN $teams RETURN AFTER",
-            )
-            .bind(("tb", tb))
-            .bind(("sid", sid))
-            .bind(("not_a_song", song.not_a_song))
-            .bind(("blobs", blobs))
-            .bind(("data", SongDataField(song.data.clone())))
-            .bind(("search_content", search_content))
-            .bind(("teams", write_teams.to_vec()))
-            .await?;
+        let mut response = if let Some(ref owner_rid) = owner {
+            db.db
+                .query(
+                    "UPDATE type::record($tb, $sid) SET not_a_song = $not_a_song, blobs = $blobs, \
+                     data = $data, search_content = $search_content, owner = $owner \
+                     WHERE owner IN $teams RETURN AFTER",
+                )
+                .bind(("tb", tb.clone()))
+                .bind(("sid", sid.clone()))
+                .bind(("not_a_song", song.not_a_song))
+                .bind(("blobs", blobs.clone()))
+                .bind(("data", SongDataField(song.data.clone())))
+                .bind(("search_content", search_content.clone()))
+                .bind(("owner", owner_rid.clone()))
+                .bind(("teams", write_teams.to_vec()))
+                .await?
+        } else {
+            db.db
+                .query(
+                    "UPDATE type::record($tb, $sid) SET not_a_song = $not_a_song, blobs = $blobs, \
+                     data = $data, search_content = $search_content WHERE owner IN $teams RETURN AFTER",
+                )
+                .bind(("tb", tb.clone()))
+                .bind(("sid", sid.clone()))
+                .bind(("not_a_song", song.not_a_song))
+                .bind(("blobs", blobs.clone()))
+                .bind(("data", SongDataField(song.data.clone())))
+                .bind(("search_content", search_content.clone()))
+                .bind(("teams", write_teams.to_vec()))
+                .await?
+        };
 
         let rows: Vec<SongRecord> = response.take(0)?;
         if let Some(updated) = rows.into_iter().next() {
@@ -352,12 +370,16 @@ impl SongRepository for SurrealSongRepo {
             return Err(AppError::NotFound("song not found".into()));
         }
 
-        let personal = db.personal_team_thing_for_user(actor_user_id).await?;
-        if !write_teams.contains(&personal) {
+        let owner_team = if let Some(o) = owner {
+            o
+        } else {
+            db.personal_team_thing_for_user(actor_user_id).await?
+        };
+        if !write_teams.contains(&owner_team) {
             return Err(AppError::NotFound("song not found".into()));
         }
         let record_id = RecordId::new(resource.0.clone(), resource.1.clone());
-        let record = SongRecord::from_payload(Some(record_id), Some(personal), song);
+        let record = SongRecord::from_payload(Some(record_id), Some(owner_team), song);
         let created = db
             .db
             .create(resource)

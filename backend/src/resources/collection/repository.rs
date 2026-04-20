@@ -46,6 +46,7 @@ pub trait CollectionRepository: Send + Sync {
         write_teams: &[RecordId],
         id: &str,
         collection: CreateCollection,
+        owner: Option<RecordId>,
     ) -> Result<Collection, AppError>;
 
     async fn delete_collection(

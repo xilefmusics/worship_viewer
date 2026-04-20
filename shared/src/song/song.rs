@@ -78,6 +78,9 @@ pub struct UpdateSong {
     pub blobs: Vec<BlobLink>,
     #[cfg_attr(feature = "backend", schema(value_type = SongDataSchema))]
     pub data: ChordSong,
+    /// Target team id for the song's `owner`; omit or `null` to keep the current owner.
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
 impl From<UpdateSong> for CreateSong {
@@ -97,6 +100,7 @@ impl From<CreateSong> for UpdateSong {
             not_a_song: value.not_a_song,
             blobs: value.blobs,
             data: value.data,
+            owner: None,
         }
     }
 }
@@ -120,6 +124,9 @@ pub struct PatchSong {
     pub blobs: Option<Vec<BlobLink>>,
     #[cfg_attr(feature = "backend", schema(value_type = PatchSongData))]
     pub data: Option<PatchSongData>,
+    /// Set the song's owning team id; omit to leave unchanged.
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
 /// Partial update for song metadata.

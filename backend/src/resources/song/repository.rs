@@ -47,12 +47,16 @@ pub trait SongRepository: Send + Sync {
     /// - If the song does not exist and the actor's personal team is in
     ///   `write_teams`, creates it with the given `id` under that team.
     /// - Otherwise returns [`AppError::NotFound`].
+    ///
+    /// When `owner` is `Some`, the row's `owner` is set to that team (caller must
+    /// already have write access to both the existing and new owner teams).
     async fn update_song(
         &self,
         write_teams: &[RecordId],
         actor_user_id: &str,
         id: &str,
         song: CreateSong,
+        owner: Option<RecordId>,
     ) -> Result<SongUpsertOutcome, AppError>;
 
     async fn delete_song(&self, write_teams: &[RecordId], id: &str) -> Result<Song, AppError>;

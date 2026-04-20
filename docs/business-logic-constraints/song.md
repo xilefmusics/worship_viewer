@@ -4,7 +4,7 @@
 
 - **BLC-SONG-001:** Every song belongs to exactly one **owning team** (**`owner`** in responses).
 - **BLC-SONG-002:** Listing, single-song **GET**, player, and like endpoints require **read** access to that team’s library; **PUT** and **DELETE** require **library edit** access. Platform **admin** does **not** gain song edit solely by role.
-- **BLC-SONG-003:** **`PUT`** MUST NOT change **`owner`**. Changing the owning team is only via **`POST /songs/{id}/move`** with **`{ "owner": "<team id>" }`**.
+- **BLC-SONG-003:** **`PUT`** and **`PATCH`** MAY change **`owner`** when the body includes **`owner`** (team id) and the caller has **library edit** access to both the song’s current owning team and the target team; omitting **`owner`** leaves it unchanged. Changing the owning team is also available via **`POST /songs/{id}/move`** with **`{ "owner": "<team id>" }`** (see BLC-SONG-020–021).
 - **BLC-SONG-004:** **Like** state IS per **current user** and **song**; anyone who may read the song MAY read like status via **GET** `/songs/{id}/like`, set liked via **PUT** `/songs/{id}/like` (204), or remove like via **DELETE** `/songs/{id}/like` (204).
 
 ## List pagination and search
@@ -24,7 +24,7 @@
 - **BLC-SONG-014:** WHEN **DELETE /songs/{id}** succeeds THEN the song no longer appears via the API under the same access rules as **PUT**.
 - **BLC-SONG-017:** WHEN **PUT /songs/{id}** body fails validation (e.g. empty **`data`**, or wrong types for fields such as **`tempo`** / **`time`**) THEN **400**.
 - **BLC-SONG-019:** WHEN **PATCH /songs/{id}** omits **`data`** and other patch fields THEN those properties remain unchanged; the request body lists only fields to update (see OpenAPI **`PatchSong`**).
-- **BLC-SONG-018:** WHEN **PUT /songs/{id}** uses an **`{id}`** that does not yet refer to an existing song THEN the API MAY create the song (**200**) with that **id** and **`owner`** the caller’s **personal** team, subject to **BLC-SONG-007** and **BLC-SONG-008** for **guest** vs **edit** rights on that team.
+- **BLC-SONG-018:** WHEN **PUT /songs/{id}** uses an **`{id}`** that does not yet refer to an existing song THEN the API MAY create the song with that **id**; **`owner`** in the body selects the owning team when the caller may write that team, otherwise **`owner`** IS the caller’s **personal** team, subject to **BLC-SONG-007** and **BLC-SONG-008** for **guest** vs **edit** rights.
 
 ## Move (`POST /songs/{id}/move`)
 
