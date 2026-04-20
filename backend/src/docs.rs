@@ -118,6 +118,8 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::auth::otp::rest::otp_verify,
         crate::auth::rest::logout,
         crate::resources::user::rest::get_users_me,
+        crate::resources::user::rest::put_profile_picture,
+        crate::resources::user::rest::delete_profile_picture,
         crate::resources::user::rest::get_users,
         crate::resources::user::rest::get_user,
         crate::resources::user::rest::create_user,

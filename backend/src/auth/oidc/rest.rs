@@ -23,9 +23,10 @@ use crate::database::Database;
 use crate::docs::Problem;
 use crate::error::AppError;
 use crate::resources::Session;
+use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
-use crate::settings::CookieConfig;
+use crate::settings::{CookieConfig, ProfilePictureLimits};
 
 #[utoipa::path(
     get,
@@ -102,10 +103,13 @@ async fn login(
 )]
 #[instrument(level = "debug", err, skip_all, fields(provider = "google"))]
 #[get("/callback")]
+#[allow(clippy::too_many_arguments)] // Actix injects one `Data<_>` per dependency.
 async fn callback(
     db: Data<Database>,
     user_svc: Data<UserServiceHandle>,
     session_svc: Data<SessionServiceHandle>,
+    blob_svc: Data<BlobServiceHandle>,
+    pic_limits: Data<ProfilePictureLimits>,
     oidc_clients: Data<Arc<OidcClients>>,
     cookie_cfg: Data<CookieConfig>,
     query: web::Query<AuthCallbackQuery>,
@@ -201,6 +205,11 @@ async fn callback(
         return Err(AppError::Unauthorized);
     };
 
+    let picture_url = claims
+        .picture()
+        .and_then(|p| p.get(None))
+        .map(|u| u.to_string());
+
     let user = match user_svc
         .get_user_by_email_or_create(email_addr.as_str())
         .await
@@ -211,6 +220,31 @@ async fn callback(
                 "audit.auth.login.failure",
                 provider = tracing::field::display(&"google"),
                 reason = tracing::field::display(&"user_provision_failed"),
+                email_hash = tracing::field::display(
+                    &crate::observability::audit_email_hash(email_addr.as_str())
+                )
+                ; "oidc login failed"
+            );
+            return Err(e);
+        }
+    };
+
+    let _ = user_svc
+        .cache_oauth_profile_picture_if_needed(
+            blob_svc.get_ref(),
+            &user,
+            picture_url,
+            pic_limits.max_bytes,
+        )
+        .await;
+
+    let user = match user_svc.get_user(&user.id).await {
+        Ok(u) => u,
+        Err(e) => {
+            crate::audit!(
+                "audit.auth.login.failure",
+                provider = tracing::field::display(&"google"),
+                reason = tracing::field::display(&"user_reload_failed"),
                 email_hash = tracing::field::display(
                     &crate::observability::audit_email_hash(email_addr.as_str())
                 )

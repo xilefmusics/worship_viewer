@@ -14,7 +14,9 @@ gloo-net = "0.6.0"
 gloo-console = "0.3.0"
 yew-hooks = "0.3.4"
 web-sys = { version = "0.3.94", features = [
+    "Blob",
     "DragEvent",
+    "File",
     "HtmlInputElement",
     "Location",
     "MouseEvent",
@@ -33,7 +35,7 @@ web-sys = { version = "0.3.94", features = [
     "Element",
     "HtmlElement",
 ] }
-gloo = "0.11.0"
+gloo = { version = "0.11.0", features = ["futures"] }
 serde = { version = "1.0.228", features = ["derive"] }
 url = "2.5.8"
 getrandom_0_3 = { package = "getrandom", version = "0.3.4", features = [

@@ -18,7 +18,10 @@ use super::Role;
         "default_collection": null,
         "created_at": "2026-01-01T12:00:00Z",
         "last_login_at": null,
-        "request_count": 0
+        "request_count": 0,
+        "oauth_picture_url": null,
+        "oauth_avatar_blob_id": null,
+        "avatar_blob_id": null
     }))
 )]
 pub struct User {
@@ -33,6 +36,15 @@ pub struct User {
     /// Approximate authenticated API request count for this user (diagnostic; semantics may evolve).
     #[serde(default)]
     pub request_count: u64,
+    /// Last `picture` claim URL seen from OIDC (used to detect when to re-fetch the cached avatar).
+    #[serde(default)]
+    pub oauth_picture_url: Option<String>,
+    /// Backend-cached OAuth profile image (`GET /api/v1/blobs/{id}/data`).
+    #[serde(default)]
+    pub oauth_avatar_blob_id: Option<String>,
+    /// User-uploaded profile image; takes precedence over [`Self::oauth_avatar_blob_id`].
+    #[serde(default)]
+    pub avatar_blob_id: Option<String>,
 }
 
 impl User {
@@ -46,6 +58,9 @@ impl User {
             created_at: Utc::now(),
             last_login_at: None,
             request_count: 0,
+            oauth_picture_url: None,
+            oauth_avatar_blob_id: None,
+            avatar_blob_id: None,
         }
     }
 }

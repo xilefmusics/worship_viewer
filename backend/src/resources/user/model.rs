@@ -56,6 +56,12 @@ pub struct UserRecord {
     last_login_at: Option<Datetime>,
     #[serde(default)]
     request_count: u64,
+    #[serde(default)]
+    oauth_picture_url: Option<String>,
+    #[serde(default)]
+    oauth_avatar_blob: Option<RecordId>,
+    #[serde(default)]
+    avatar_blob: Option<RecordId>,
 }
 
 impl UserRecord {
@@ -68,6 +74,9 @@ impl UserRecord {
             created_at: self.created_at.into(),
             last_login_at: self.last_login_at.map(Into::into),
             request_count: self.request_count,
+            oauth_picture_url: self.oauth_picture_url,
+            oauth_avatar_blob_id: self.oauth_avatar_blob.map(|id| record_id_string(&id)),
+            avatar_blob_id: self.avatar_blob.map(|id| record_id_string(&id)),
         }
     }
 
@@ -86,6 +95,15 @@ impl UserRecord {
             created_at: user.created_at.into(),
             last_login_at: user.last_login_at.map(Into::into),
             request_count: user.request_count,
+            oauth_picture_url: user.oauth_picture_url,
+            oauth_avatar_blob: user
+                .oauth_avatar_blob_id
+                .as_deref()
+                .map(|id| RecordId::new("blob", id)),
+            avatar_blob: user
+                .avatar_blob_id
+                .as_deref()
+                .map(|id| RecordId::new("blob", id)),
         }
     }
 }

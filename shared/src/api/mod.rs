@@ -70,6 +70,20 @@ impl<C: HttpClient> ApiClient<C> {
         self.client.get("api/v1/users/me").await
     }
 
+    pub async fn upload_profile_picture(
+        &self,
+        content_type: &str,
+        body: &[u8],
+    ) -> Result<User, NetworkClientError> {
+        self.client
+            .put_bytes_json("api/v1/users/me/profile-picture", content_type, body)
+            .await
+    }
+
+    pub async fn delete_profile_picture(&self) -> Result<User, NetworkClientError> {
+        self.client.delete("api/v1/users/me/profile-picture").await
+    }
+
     pub async fn get_user(&self, id: &str) -> Result<User, NetworkClientError> {
         self.client.get(&format!("api/v1/users/{id}")).await
     }

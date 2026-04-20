@@ -50,6 +50,7 @@ actix-governor = "0.10"
 shared = { path = "../shared", features = ["backend"] }
 chordlib = { version = "0.8.1", features = ["html"] }
 zip = "6.0.0"
+imagesize = "0.13"
 
 [dev-dependencies]
 anyhow = "1"

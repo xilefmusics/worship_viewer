@@ -2011,15 +2011,23 @@
       },
       "User": {
         "example": {
+          "avatar_blob_id": null,
           "created_at": "2026-01-01T12:00:00Z",
           "default_collection": null,
           "email": "singer@example.com",
           "id": "usr_example",
           "last_login_at": null,
+          "oauth_avatar_blob_id": null,
+          "oauth_picture_url": null,
           "request_count": 0,
           "role": "default"
         },
         "properties": {
+          "avatar_blob_id": {
+            "description": "User-uploaded profile image; takes precedence over [`Self::oauth_avatar_blob_id`].",
+            "nullable": true,
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "type": "string"
@@ -2036,6 +2044,16 @@
           },
           "last_login_at": {
             "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "oauth_avatar_blob_id": {
+            "description": "Backend-cached OAuth profile image (`GET /api/v1/blobs/{id}/data`).",
+            "nullable": true,
+            "type": "string"
+          },
+          "oauth_picture_url": {
+            "description": "Last `picture` claim URL seen from OIDC (used to detect when to re-fetch the cached avatar).",
             "nullable": true,
             "type": "string"
           },
@@ -7049,6 +7067,152 @@
               }
             },
             "description": "Failed to load user session"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/me/profile-picture": {
+      "delete": {
+        "operationId": "delete_profile_picture",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            },
+            "description": "Removed uploaded avatar if any; returns updated `User`"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "API rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Users"
+        ]
+      },
+      "put": {
+        "operationId": "put_profile_picture",
+        "requestBody": {
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "Raw JPEG or PNG bytes",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            },
+            "description": "Uploaded; returns updated `User`"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid Content-Type or image"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "API rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Server error"
           }
         },
         "security": [

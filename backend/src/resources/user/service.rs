@@ -1,14 +1,19 @@
 use std::sync::Arc;
 
 use shared::api::ListQuery;
+use shared::blob::CreateBlob;
 use shared::user::User;
 use tracing::instrument;
 
 use crate::database::Database;
 use crate::error::AppError;
-use crate::resources::team::{SurrealTeamRepo, TeamCreatePayload, TeamRepository, user_thing};
+use crate::resources::blob::service::BlobServiceHandle;
+use crate::resources::team::{
+    SurrealTeamRepo, TeamCreatePayload, TeamRepository, UserPermissions, user_thing,
+};
 
 use super::CreateUser;
+use super::profile_picture;
 use super::repository::UserRepository;
 use super::surreal_repo::SurrealUserRepo;
 
@@ -107,6 +112,172 @@ impl UserServiceHandle {
             SurrealTeamRepo::new(db.clone()),
         )
     }
+
+    /// Fetch OIDC `picture` URL and store as `oauth_avatar_blob` when the URL changed or cache missing.
+    /// Logs and returns `Ok(())` on fetch/validation failures (keeps existing cache).
+    #[instrument(level = "debug", skip(self, blob_svc, user), fields(user_id = %user.id))]
+    pub async fn cache_oauth_profile_picture_if_needed(
+        &self,
+        blob_svc: &BlobServiceHandle,
+        user: &User,
+        picture_url: Option<String>,
+        max_bytes: usize,
+    ) -> Result<(), AppError> {
+        let Some(ref url) = picture_url else {
+            return Ok(());
+        };
+        if user.oauth_picture_url.as_deref() == Some(url.as_str())
+            && user.oauth_avatar_blob_id.is_some()
+        {
+            return Ok(());
+        }
+
+        let client = profile_picture::oauth_fetch_client()?;
+        let bytes = match profile_picture::fetch_oauth_picture_bytes(&client, url, max_bytes).await
+        {
+            Ok(b) => b,
+            Err(e) => {
+                tracing::warn!(
+                    user_id = %user.id,
+                    error = %e,
+                    "oauth profile picture fetch failed"
+                );
+                return Ok(());
+            }
+        };
+        let file_type = match profile_picture::avatar_file_type_from_magic(&bytes) {
+            Ok(t) => t,
+            Err(e) => {
+                tracing::warn!(
+                    user_id = %user.id,
+                    error = %e,
+                    "oauth profile picture validation failed"
+                );
+                return Ok(());
+            }
+        };
+        let (w, h) = match profile_picture::avatar_dimensions(&bytes) {
+            Ok(d) => d,
+            Err(e) => {
+                tracing::warn!(
+                    user_id = %user.id,
+                    error = %e,
+                    "oauth profile picture dimensions failed"
+                );
+                return Ok(());
+            }
+        };
+
+        let perms = UserPermissions::from_ref(user, &blob_svc.teams);
+        if let Some(ref old) = user.oauth_avatar_blob_id
+            && let Err(e) = blob_svc.delete_blob_for_user(&perms, old).await
+        {
+            tracing::warn!(
+                user_id = %user.id,
+                blob_id = %old,
+                error = %e,
+                "failed to delete previous oauth avatar blob"
+            );
+        }
+
+        let created = blob_svc
+            .create_blob_for_user(
+                &perms,
+                CreateBlob {
+                    file_type,
+                    width: w,
+                    height: h,
+                    ocr: String::new(),
+                },
+            )
+            .await?;
+
+        if let Err(e) = blob_svc
+            .upload_blob_data_for_user(&perms, &created.id, &bytes)
+            .await
+        {
+            tracing::warn!(
+                user_id = %user.id,
+                error = %e,
+                "failed to write oauth avatar bytes; cleaning up blob"
+            );
+            let _ = blob_svc.delete_blob_for_user(&perms, &created.id).await;
+            return Ok(());
+        }
+
+        if let Err(e) = self
+            .repo
+            .set_oauth_picture_and_oauth_avatar_blob(&user.id, url, &created.id)
+            .await
+        {
+            tracing::warn!(
+                user_id = %user.id,
+                error = %e,
+                "failed to link oauth avatar on user"
+            );
+        }
+        Ok(())
+    }
+
+    #[instrument(level = "debug", err, skip(self, blob_svc, user, body))]
+    pub async fn upload_profile_picture(
+        &self,
+        blob_svc: &BlobServiceHandle,
+        user: &User,
+        content_type: &str,
+        body: &[u8],
+        max_bytes: usize,
+    ) -> Result<User, AppError> {
+        if body.len() > max_bytes {
+            return Err(AppError::invalid_request(
+                "profile picture exceeds size limit",
+            ));
+        }
+        let file_type = profile_picture::file_type_from_content_type(content_type)?;
+        profile_picture::assert_magic_matches_content_type(body, &file_type)?;
+        let (w, h) = profile_picture::avatar_dimensions(body)?;
+
+        let perms = UserPermissions::from_ref(user, &blob_svc.teams);
+
+        if let Some(ref old) = user.avatar_blob_id {
+            let _ = blob_svc.delete_blob_for_user(&perms, old).await;
+        }
+
+        let created = blob_svc
+            .create_blob_for_user(
+                &perms,
+                CreateBlob {
+                    file_type,
+                    width: w,
+                    height: h,
+                    ocr: String::new(),
+                },
+            )
+            .await?;
+
+        blob_svc
+            .upload_blob_data_for_user(&perms, &created.id, body)
+            .await?;
+
+        self.repo
+            .set_avatar_blob(&user.id, Some(&created.id))
+            .await?;
+        self.repo.get_user(&user.id).await
+    }
+
+    #[instrument(level = "debug", err, skip(self, blob_svc, user))]
+    pub async fn clear_uploaded_profile_picture(
+        &self,
+        blob_svc: &BlobServiceHandle,
+        user: &User,
+    ) -> Result<User, AppError> {
+        if let Some(ref old) = user.avatar_blob_id {
+            let perms = UserPermissions::from_ref(user, &blob_svc.teams);
+            let _ = blob_svc.delete_blob_for_user(&perms, old).await;
+            self.repo.set_avatar_blob(&user.id, None).await?;
+        }
+        self.repo.get_user(&user.id).await
+    }
 }
 
 #[cfg(test)]
@@ -203,6 +374,23 @@ mod tests {
             &self,
             _user_id: &str,
             _collection_id: &str,
+        ) -> Result<(), AppError> {
+            unreachable!("not used in these tests")
+        }
+
+        async fn set_oauth_picture_and_oauth_avatar_blob(
+            &self,
+            _user_id: &str,
+            _picture_url: &str,
+            _oauth_blob_id: &str,
+        ) -> Result<(), AppError> {
+            unreachable!("not used in these tests")
+        }
+
+        async fn set_avatar_blob(
+            &self,
+            _user_id: &str,
+            _avatar_blob_id: Option<&str>,
         ) -> Result<(), AppError> {
             unreachable!("not used in these tests")
         }

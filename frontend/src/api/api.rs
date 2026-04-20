@@ -154,6 +154,26 @@ impl Api {
             .map_err(|e| self.handle_error(e))
     }
 
+    pub async fn upload_profile_picture(
+        &self,
+        content_type: &str,
+        body: &[u8],
+    ) -> Result<User, ApiError> {
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .upload_profile_picture(content_type, body)
+            .await
+            .map_err(|e| self.handle_error(e))
+    }
+
+    pub async fn delete_uploaded_profile_picture(&self) -> Result<User, ApiError> {
+        ApiError::check_and_notify_offline(OperationType::Write);
+        self.client
+            .delete_profile_picture()
+            .await
+            .map_err(|e| self.handle_error(e))
+    }
+
     #[allow(dead_code)]
     pub async fn get_sessions_for_current_user(&self) -> Result<Vec<SessionBody>, ApiError> {
         ApiError::check_and_notify_offline(OperationType::Read);

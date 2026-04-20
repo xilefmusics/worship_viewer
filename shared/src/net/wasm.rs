@@ -1,8 +1,10 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use wasm_bindgen::JsValue;
 
 use super::{HttpClient, HttpClientConfig};
 use crate::error::NetworkClientError;
+use js_sys::Uint8Array;
 use web_sys::RequestCredentials;
 
 #[derive(Clone)]
@@ -223,5 +225,40 @@ impl HttpClient for WasmHttpClient {
         }
 
         Ok(())
+    }
+
+    async fn put_bytes_json<T>(
+        &self,
+        path: &str,
+        content_type: &str,
+        body: &[u8],
+    ) -> Result<T, NetworkClientError>
+    where
+        T: DeserializeOwned + Send + 'static,
+    {
+        let url = self.make_url(path);
+
+        let buf = Uint8Array::new_with_length(body.len() as u32);
+        buf.copy_from(body);
+
+        let response = gloo_net::http::Request::put(&url)
+            .header("Content-Type", content_type)
+            .credentials(RequestCredentials::Include)
+            .body(JsValue::from(buf))?
+            .send()
+            .await?;
+
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+
+        if !(200..300).contains(&status) {
+            return Err(NetworkClientError::RequestFailed {
+                status: Some(status as u16),
+                message: text,
+            });
+        }
+
+        let value = serde_json::from_str::<T>(&text)?;
+        Ok(value)
     }
 }

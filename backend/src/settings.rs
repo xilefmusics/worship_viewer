@@ -61,6 +61,10 @@ pub struct Settings {
     /// Default: 20 MiB.
     pub blob_upload_max_bytes: usize,
 
+    /// Max size for profile picture uploads and OAuth profile image fetches. Default: 2 MiB.
+    #[serde(default = "default_avatar_upload_max_bytes")]
+    pub avatar_upload_max_bytes: usize,
+
     /// Requests per second allowed per IP on sensitive auth endpoints (OTP + login).
     /// Default: 1 request per second with a burst of 5.
     pub auth_rate_limit_rps: u64,
@@ -118,6 +122,7 @@ impl fmt::Debug for Settings {
             .field("static_dir", &self.static_dir)
             .field("blob_dir", &self.blob_dir)
             .field("blob_upload_max_bytes", &self.blob_upload_max_bytes)
+            .field("avatar_upload_max_bytes", &self.avatar_upload_max_bytes)
             .field("auth_rate_limit_rps", &self.auth_rate_limit_rps)
             .field("auth_rate_limit_burst", &self.auth_rate_limit_burst)
             .field("api_rate_limit_rps", &self.api_rate_limit_rps)
@@ -159,6 +164,7 @@ impl Default for Settings {
             static_dir: "static".into(),
             blob_dir: "blobs".into(),
             blob_upload_max_bytes: 20 * 1024 * 1024,
+            avatar_upload_max_bytes: default_avatar_upload_max_bytes(),
             auth_rate_limit_rps: 1,
             auth_rate_limit_burst: 5,
             api_rate_limit_rps: 50,
@@ -173,7 +179,23 @@ fn default_otp_allow_self_signup() -> bool {
     true
 }
 
+fn default_avatar_upload_max_bytes() -> usize {
+    2 * 1024 * 1024
+}
+
+/// Limits for `PUT /users/me/profile-picture` and OAuth profile image fetches.
+#[derive(Clone, Copy, Debug)]
+pub struct ProfilePictureLimits {
+    pub max_bytes: usize,
+}
+
 impl Settings {
+    pub fn profile_picture_limits(&self) -> ProfilePictureLimits {
+        ProfilePictureLimits {
+            max_bytes: self.avatar_upload_max_bytes,
+        }
+    }
+
     pub fn from_env() -> Result<Self, envy::Error> {
         let mut s = envy::from_env::<Self>()?;
         if let Ok(v) = std::env::var("WORSHIP_OTP_ALLOW_SELF_SIGNUP") {

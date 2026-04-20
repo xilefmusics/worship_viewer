@@ -271,6 +271,23 @@ mod tests {
         ) -> Result<(), AppError> {
             unreachable!("not used in session tests")
         }
+
+        async fn set_oauth_picture_and_oauth_avatar_blob(
+            &self,
+            _user_id: &str,
+            _picture_url: &str,
+            _oauth_blob_id: &str,
+        ) -> Result<(), AppError> {
+            unreachable!("not used in session tests")
+        }
+
+        async fn set_avatar_blob(
+            &self,
+            _user_id: &str,
+            _avatar_blob_id: Option<&str>,
+        ) -> Result<(), AppError> {
+            unreachable!("not used in session tests")
+        }
     }
 
     // ── Slice 2E: session scoping ─────────────────────────────────────────────
