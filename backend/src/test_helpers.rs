@@ -57,6 +57,7 @@ pub async fn create_song_with_title(
     let mut data = minimal_song_data();
     data.titles = vec![title.to_string()];
     let create = CreateSong {
+        owner: None,
         not_a_song: false,
         blobs: vec![],
         data,
@@ -214,8 +215,36 @@ impl TeamFixture {
     }
 }
 
+/// Two distinct shared teams created by the same user (caller is **admin** on both).
+pub async fn two_shared_teams_for_user(
+    db: &Arc<Database>,
+    user: &User,
+) -> AnyResult<(String, String)> {
+    let ts = team_service(db);
+    let a = ts
+        .create_shared_team_for_user(
+            user,
+            CreateTeam {
+                name: "Move fixture A".into(),
+                members: vec![],
+            },
+        )
+        .await?;
+    let b = ts
+        .create_shared_team_for_user(
+            user,
+            CreateTeam {
+                name: "Move fixture B".into(),
+                members: vec![],
+            },
+        )
+        .await?;
+    Ok((a.id, b.id))
+}
+
 pub fn setlist_with_songs(title: &str, song_ids: &[(&str, Option<&str>)]) -> CreateSetlist {
     CreateSetlist {
+        owner: None,
         title: title.into(),
         songs: song_ids
             .iter()

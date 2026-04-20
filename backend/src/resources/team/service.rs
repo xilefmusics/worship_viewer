@@ -799,6 +799,7 @@ mod tests {
             .create_collection_for_user(
                 &admin_perms_coll,
                 shared::collection::CreateCollection {
+                    owner: None,
                     title: "SharedColl".into(),
                     cover: "mysongs".into(),
                     songs: vec![],

@@ -34,7 +34,7 @@ pub trait SongRepository: Send + Sync {
 
     async fn get_song(&self, read_teams: &[RecordId], id: &str) -> Result<Song, AppError>;
 
-    async fn create_song(&self, owner: &str, song: CreateSong) -> Result<Song, AppError>;
+    async fn create_song(&self, owner: RecordId, song: CreateSong) -> Result<Song, AppError>;
 
     /// Update an existing song, or create it if it doesn't yet exist
     /// (upsert semantics). This supports import/sync workflows where the
@@ -56,6 +56,13 @@ pub trait SongRepository: Send + Sync {
     ) -> Result<SongUpsertOutcome, AppError>;
 
     async fn delete_song(&self, write_teams: &[RecordId], id: &str) -> Result<Song, AppError>;
+
+    async fn move_song_owner(
+        &self,
+        write_teams: &[RecordId],
+        id: &str,
+        new_owner: RecordId,
+    ) -> Result<Song, AppError>;
 
     /// Count songs matching the same filters as [`get_songs`](SongRepository::get_songs).
     async fn count_songs(

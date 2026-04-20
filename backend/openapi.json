@@ -164,6 +164,7 @@
           "file_type": "image/png",
           "height": 800,
           "ocr": "",
+          "owner": "team_example_id",
           "width": 1200
         },
         "properties": {
@@ -177,6 +178,11 @@
           },
           "ocr": {
             "description": "OCR or extracted text used for search (may be empty).",
+            "type": "string"
+          },
+          "owner": {
+            "description": "Owning team id (same format as `Blob.owner` in responses). Omit to create under the caller's personal team.",
+            "nullable": true,
             "type": "string"
           },
           "width": {
@@ -197,6 +203,7 @@
         "additionalProperties": false,
         "example": {
           "cover": "",
+          "owner": "team_example_id",
           "songs": [
             {
               "id": "song_example",
@@ -208,6 +215,11 @@
         },
         "properties": {
           "cover": {
+            "type": "string"
+          },
+          "owner": {
+            "description": "Owning team id (`team` record id, same format as `Collection.owner` in responses). Omit to create under the caller's personal team.",
+            "nullable": true,
             "type": "string"
           },
           "songs": {
@@ -230,6 +242,7 @@
       "CreateSetlist": {
         "additionalProperties": false,
         "example": {
+          "owner": "team_example_id",
           "songs": [
             {
               "id": "song_example",
@@ -240,6 +253,11 @@
           "title": "Easter Sunday"
         },
         "properties": {
+          "owner": {
+            "description": "Owning team id (same format as `Setlist.owner` in responses). Omit to create under the caller's personal team.",
+            "nullable": true,
+            "type": "string"
+          },
           "songs": {
             "items": {
               "$ref": "#/components/schemas/SongLink"
@@ -266,7 +284,8 @@
               "Example Hymn"
             ]
           },
-          "not_a_song": false
+          "not_a_song": false,
+          "owner": "team_example_id"
         },
         "properties": {
           "blobs": {
@@ -280,6 +299,11 @@
           },
           "not_a_song": {
             "type": "boolean"
+          },
+          "owner": {
+            "description": "Owning team id (same format as `Song.owner` in responses). Omit to create under the caller's personal team (and apply default-collection rules).",
+            "nullable": true,
+            "type": "string"
           }
         },
         "required": [
@@ -758,6 +782,22 @@
           "engagement",
           "admin_monitoring",
           "probing"
+        ],
+        "type": "object"
+      },
+      "MoveOwner": {
+        "additionalProperties": false,
+        "description": "Target owning team for a library resource move (`owner` string matches GET responses).",
+        "example": {
+          "owner": "team_target_id"
+        },
+        "properties": {
+          "owner": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner"
         ],
         "type": "object"
       },
@@ -2231,7 +2271,7 @@
                 }
               }
             },
-            "description": "Create a new blob"
+            "description": "Create a new blob metadata record. Optional `owner` is a team id; omit for the caller's personal team. Library edit access is required on the target team."
           },
           "400": {
             "content": {
@@ -2252,6 +2292,16 @@
               }
             },
             "description": "Authentication required"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Target team not found or caller cannot edit that team's library"
           },
           "429": {
             "content": {
@@ -2888,6 +2938,105 @@
         ]
       }
     },
+    "/api/v1/blobs/{id}/move": {
+      "post": {
+        "operationId": "move_blob",
+        "parameters": [
+          {
+            "description": "Blob identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveOwner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Blob"
+                }
+              }
+            },
+            "description": "Blob moved to the target team, or unchanged when already owned by that team (idempotent)."
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid `owner` team id"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Blob not found, target team not found, or caller lacks library write access on the current or destination team"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Failed to move blob"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Blobs"
+        ]
+      }
+    },
     "/api/v1/collections": {
       "get": {
         "operationId": "get_collections",
@@ -3017,7 +3166,7 @@
                 }
               }
             },
-            "description": "Create a new collection"
+            "description": "Create a new collection. Optional request field `owner` is a team id (same format as `Collection.owner`); omit to create under the caller's personal team. Library edit access is required on the target team."
           },
           "400": {
             "content": {
@@ -3038,6 +3187,16 @@
               }
             },
             "description": "Authentication required"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Target team not found or caller cannot edit that team's library"
           },
           "429": {
             "content": {
@@ -3454,6 +3613,105 @@
               }
             },
             "description": "Failed to update collection"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Collections"
+        ]
+      }
+    },
+    "/api/v1/collections/{id}/move": {
+      "post": {
+        "operationId": "move_collection",
+        "parameters": [
+          {
+            "description": "Collection identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveOwner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collection"
+                }
+              }
+            },
+            "description": "Collection moved to the target team, or unchanged when already owned by that team (idempotent)."
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid `owner` team id"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Collection not found, target team not found, or caller lacks library write access on the current or destination team"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Failed to move collection"
           }
         },
         "security": [
@@ -4103,7 +4361,7 @@
                 }
               }
             },
-            "description": "Create a new setlist"
+            "description": "Create a new setlist. Optional `owner` is a team id; omit for the caller's personal team. Library edit access is required on the target team."
           },
           "400": {
             "content": {
@@ -4124,6 +4382,16 @@
               }
             },
             "description": "Authentication required"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Target team not found or caller cannot edit that team's library"
           },
           "429": {
             "content": {
@@ -4555,6 +4823,105 @@
         ]
       }
     },
+    "/api/v1/setlists/{id}/move": {
+      "post": {
+        "operationId": "move_setlist",
+        "parameters": [
+          {
+            "description": "Setlist identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveOwner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Setlist"
+                }
+              }
+            },
+            "description": "Setlist moved to the target team, or unchanged when already owned by that team (idempotent)."
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid `owner` team id"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Setlist not found, target team not found, or caller lacks library write access on the current or destination team"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Failed to move setlist"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Setlists"
+        ]
+      }
+    },
     "/api/v1/setlists/{id}/player": {
       "get": {
         "operationId": "get_setlist_player",
@@ -4931,7 +5298,7 @@
                 }
               }
             },
-            "description": "Create a new song. If the user has no default collection yet, the server may create a system \"Default\" collection and set it as `user.default_collection` (BLC-SONG-010)."
+            "description": "Create a new song. Optional `owner` is a team id; omit for the caller's personal team. When the effective target is the personal team, default-collection behavior may apply (BLC-SONG-010). When `owner` names a different team the song is created there without that default-collection side effect. Library edit access is required on the target team."
           },
           "400": {
             "content": {
@@ -4952,6 +5319,16 @@
               }
             },
             "description": "Authentication required"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Target team not found or caller cannot edit that team's library"
           },
           "429": {
             "content": {
@@ -5627,6 +6004,105 @@
               }
             },
             "description": "Failed to update like status for a song"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Songs"
+        ]
+      }
+    },
+    "/api/v1/songs/{id}/move": {
+      "post": {
+        "operationId": "move_song",
+        "parameters": [
+          {
+            "description": "Song identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveOwner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Song"
+                }
+              }
+            },
+            "description": "Song moved to the target team, or unchanged when already owned by that team (idempotent). Moving does not add or remove the song from collections."
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid `owner` team id"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Song not found, target team not found, or caller lacks library write access on the current or destination team"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Failed to move song"
           }
         },
         "security": [

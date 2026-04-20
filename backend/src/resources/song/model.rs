@@ -102,17 +102,19 @@ impl SongRecord {
     }
 
     pub fn from_payload(id: Option<RecordId>, owner: Option<RecordId>, song: CreateSong) -> Self {
-        let search_content = search_content_from_song_data(&song.data);
+        let CreateSong {
+            not_a_song,
+            blobs,
+            data,
+            ..
+        } = song;
+        let search_content = search_content_from_song_data(&data);
         Self {
             id,
             owner,
-            not_a_song: song.not_a_song,
-            blobs: song
-                .blobs
-                .into_iter()
-                .map(|blob| blob_thing(&blob.id))
-                .collect(),
-            data: SongDataField(song.data),
+            not_a_song,
+            blobs: blobs.into_iter().map(|blob| blob_thing(&blob.id)).collect(),
+            data: SongDataField(data),
             search_content,
         }
     }
@@ -200,6 +202,7 @@ mod tests {
         )
         .expect("song data json");
         let create = CreateSong {
+            owner: None,
             not_a_song: false,
             blobs: vec![
                 BlobLink {

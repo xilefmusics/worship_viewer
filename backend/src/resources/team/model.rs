@@ -253,6 +253,16 @@ pub fn team_resource_or_reject_public(id: &str) -> Result<(String, String), AppE
     Ok(resource)
 }
 
+/// Parse a team id from an API `owner` field (create/move payloads). Trims; rejects empty strings and `team:public`.
+pub fn parse_owner_record_id(owner: &str) -> Result<RecordId, AppError> {
+    let t = owner.trim();
+    if t.is_empty() {
+        return Err(AppError::invalid_request("owner must not be empty"));
+    }
+    let (tb, sid) = team_resource_or_reject_public(t)?;
+    Ok(RecordId::new(tb, sid))
+}
+
 fn team_resource(id: &str) -> Result<(String, String), AppError> {
     if id == "public" {
         return Ok(("team".to_owned(), "public".to_owned()));

@@ -24,7 +24,7 @@ pub trait BlobRepository: Send + Sync {
 
     async fn get_blob(&self, read_teams: &[RecordId], id: &str) -> Result<Blob, AppError>;
 
-    async fn create_blob(&self, owner: &str, blob: CreateBlob) -> Result<Blob, AppError>;
+    async fn create_blob(&self, owner: RecordId, blob: CreateBlob) -> Result<Blob, AppError>;
 
     async fn update_blob(
         &self,
@@ -34,4 +34,11 @@ pub trait BlobRepository: Send + Sync {
     ) -> Result<Blob, AppError>;
 
     async fn delete_blob(&self, write_teams: &[RecordId], id: &str) -> Result<Blob, AppError>;
+
+    async fn move_blob_owner(
+        &self,
+        write_teams: &[RecordId],
+        id: &str,
+        new_owner: RecordId,
+    ) -> Result<Blob, AppError>;
 }

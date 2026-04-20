@@ -90,6 +90,19 @@ impl<T: TeamResolver> UserPermissions<T> {
             .await
             .cloned()
     }
+
+    /// Ensures the user may create/update/delete library content for this owning **team** [`RecordId`]
+    /// (same id as the `owner` string in API responses). Same set as [`Self::write_teams`].
+    /// On failure, returns [`AppError::NotFound`] to match other library ACL responses.
+    pub async fn require_write_access_to_owner(&self, owner: &RecordId) -> Result<(), AppError> {
+        let write_teams = self.write_teams().await?;
+        let key = thing_record_key(owner);
+        if write_teams.iter().any(|t| thing_record_key(t) == key) {
+            Ok(())
+        } else {
+            Err(AppError::NotFound("team not found".into()))
+        }
+    }
 }
 
 #[async_trait]

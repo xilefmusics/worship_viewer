@@ -33,7 +33,7 @@ pub trait SetlistRepository: Send + Sync {
 
     async fn create_setlist(
         &self,
-        owner: &str,
+        owner: RecordId,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError>;
 
@@ -46,4 +46,11 @@ pub trait SetlistRepository: Send + Sync {
 
     async fn delete_setlist(&self, write_teams: &[RecordId], id: &str)
     -> Result<Setlist, AppError>;
+
+    async fn move_setlist_owner(
+        &self,
+        write_teams: &[RecordId],
+        id: &str,
+        new_owner: RecordId,
+    ) -> Result<Setlist, AppError>;
 }

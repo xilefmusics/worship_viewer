@@ -4,7 +4,7 @@
 
 - **BLC-SONG-001:** Every song belongs to exactly one **owning team** (**`owner`** in responses).
 - **BLC-SONG-002:** Listing, single-song **GET**, player, and like endpoints require **read** access to that team’s library; **PUT** and **DELETE** require **library edit** access. Platform **admin** does **not** gain song edit solely by role.
-- **BLC-SONG-003:** **`PUT`** MUST NOT change **`owner`** except where the API explicitly allows ownership moves.
+- **BLC-SONG-003:** **`PUT`** MUST NOT change **`owner`**. Changing the owning team is only via **`POST /songs/{id}/move`** with **`{ "owner": "<team id>" }`**.
 - **BLC-SONG-004:** **Like** state IS per **current user** and **song**; anyone who may read the song MAY read like status via **GET** `/songs/{id}/like`, set liked via **PUT** `/songs/{id}/like` (204), or remove like via **DELETE** `/songs/{id}/like` (204).
 
 ## List pagination and search
@@ -16,8 +16,8 @@
 - **BLC-SONG-006:** WHEN the caller may not read the owning team’s library THEN song reads respond **404** (not **403**).
 - **BLC-SONG-007:** WHEN the caller is **guest** on the owning team and attempts **PUT** or **DELETE** THEN the API responds **404**.
 - **BLC-SONG-008:** WHEN the caller is the personal-team **owner**, or **admin** / **content_maintainer** on the owning team, THEN **PUT**/**DELETE** are allowed (subject to validation).
-- **BLC-SONG-009:** WHEN **POST** creates a song THEN **`owner`** IS ALWAYS the caller’s **personal** team.
-- **BLC-SONG-010:** WHEN **POST** completes THEN IF **`default_collection`** is set THEN the new song IS appended there; OTHERWISE a **“Default”** collection is created, set as default, and the song IS placed there.
+- **BLC-SONG-009:** WHEN **POST** omits **`owner`** THEN the new song’s **`owner`** IS the caller’s **personal** team. WHEN **POST** includes **`owner`** THEN it MUST name a team id the caller may **edit**; otherwise **404** (or **400** for malformed id), same visibility pattern as collections.
+- **BLC-SONG-010:** WHEN **POST** completes AND the effective target team IS the caller’s **personal** team (omit **`owner`** OR **`owner`** equals that personal team) THEN IF **`user.default_collection`** is set THEN the new song IS appended there; OTHERWISE a **“Default”** collection is created, **`user.default_collection`** is set, and the song IS placed there. WHEN **POST** targets a **non-personal** team via **`owner`**, this automatic default-collection behavior does **not** run.
 - **BLC-SONG-011:** WHEN **GET /songs** runs THEN only songs whose **`owner`** team the caller may read are returned; optional **`q`** matches **title**, **artists**, and lyric text as defined by the list-search behavior (stemmed where applicable).
 - **BLC-SONG-012:** WHEN **GET /songs/{id}** runs THEN visibility matches the list rule AND the response includes **`liked`** for the current user.
 - **BLC-SONG-013:** WHEN **GET …/player** runs THEN visibility matches **GET /songs/{id}**.
@@ -25,6 +25,12 @@
 - **BLC-SONG-017:** WHEN **PUT /songs/{id}** body fails validation (e.g. empty **`data`**, or wrong types for fields such as **`tempo`** / **`time`**) THEN **400**.
 - **BLC-SONG-019:** WHEN **PATCH /songs/{id}** omits **`data`** and other patch fields THEN those properties remain unchanged; the request body lists only fields to update (see OpenAPI **`PatchSong`**).
 - **BLC-SONG-018:** WHEN **PUT /songs/{id}** uses an **`{id}`** that does not yet refer to an existing song THEN the API MAY create the song (**200**) with that **id** and **`owner`** the caller’s **personal** team, subject to **BLC-SONG-007** and **BLC-SONG-008** for **guest** vs **edit** rights on that team.
+
+## Move (`POST /songs/{id}/move`)
+
+- **BLC-SONG-020:** **`POST /songs/{id}/move`** requires **library edit** on **both** the song’s current owning team and the target team; otherwise **404** (or **400** for malformed **`owner`**). Platform **admin** MUST NOT bypass library write for move.
+- **BLC-SONG-021:** WHEN the target **`owner`** equals the current owning team THEN **200** with an unchanged song (idempotent).
+- **BLC-SONG-022:** Move updates **`owner`** only; it does **not** add or remove the song from any **collection** or **setlist** (shallow move).
 
 ## Cascading deletes and collection/setlist references
 

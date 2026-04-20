@@ -17,6 +17,7 @@ use crate::resources::blob::PatchBlob;
 use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::blob::{CreateBlob, UpdateBlob};
 use crate::resources::team::UserPermissions;
+use shared::MoveOwner;
 use shared::api::{ListQuery, PAGE_SIZE_DEFAULT};
 
 pub fn scope(blob_upload_max_bytes: usize) -> Scope {
@@ -26,6 +27,7 @@ pub fn scope(blob_upload_max_bytes: usize) -> Scope {
         .service(create_blob)
         .service(update_blob)
         .service(patch_blob)
+        .service(move_blob)
         .service(delete_blob)
         .service(download_blob_image)
         .service(
@@ -137,9 +139,10 @@ async fn get_blob(
     path = "/api/v1/blobs",
     request_body = CreateBlob,
     responses(
-        (status = 201, description = "Create a new blob", body = Blob),
+        (status = 201, description = "Create a new blob metadata record. Optional `owner` is a team id; omit for the caller's personal team. Library edit access is required on the target team.", body = Blob),
         (status = 400, description = "Invalid blob payload", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Target team not found or caller cannot edit that team's library", body = Problem, content_type = "application/problem+json"),
         (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 500, description = "Failed to create blob", body = Problem, content_type = "application/problem+json")
     ),
@@ -238,6 +241,41 @@ async fn patch_blob(
     check_if_match(&req, &etag)?;
     Ok(HttpResponse::Ok().json(
         svc.patch_blob_for_user(&perms, &id, payload.into_inner())
+            .await?,
+    ))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/blobs/{id}/move",
+    params(
+        ("id" = String, Path, description = "Blob identifier")
+    ),
+    request_body = MoveOwner,
+    responses(
+        (status = 200, description = "Blob moved to the target team, or unchanged when already owned by that team (idempotent).", body = Blob),
+        (status = 400, description = "Invalid `owner` team id", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Blob not found, target team not found, or caller lacks library write access on the current or destination team", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to move blob", body = Problem, content_type = "application/problem+json")
+    ),
+    tag = "Blobs",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[post("/{id}/move")]
+async fn move_blob(
+    svc: Data<BlobServiceHandle>,
+    user: ReqData<User>,
+    id: PathParam<String>,
+    payload: Json<MoveOwner>,
+) -> Result<HttpResponse, AppError> {
+    let perms = UserPermissions::from_ref(&user, &svc.teams);
+    Ok(HttpResponse::Ok().json(
+        svc.move_blob_for_user(&perms, &id.into_inner(), payload.into_inner())
             .await?,
     ))
 }

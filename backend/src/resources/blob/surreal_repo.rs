@@ -127,14 +127,13 @@ impl BlobRepository for SurrealBlobRepo {
         }
     }
 
-    async fn create_blob(&self, owner: &str, blob: CreateBlob) -> Result<Blob, AppError> {
+    async fn create_blob(&self, owner: RecordId, blob: CreateBlob) -> Result<Blob, AppError> {
         let db = self.inner();
-        let owner_team = db.personal_team_thing_for_user(owner).await?;
         db.db
             .create("blob")
             .content(BlobRecord::from_payload(
                 None,
-                Some(owner_team),
+                Some(owner),
                 Some(Utc::now().into()),
                 blob,
             ))
@@ -182,6 +181,32 @@ impl BlobRepository for SurrealBlobRepo {
             .query("DELETE FROM type::record($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
+            .bind(("teams", write_teams.to_vec()))
+            .await?;
+
+        let rows: Vec<BlobRecord> = response.take(0)?;
+        rows.into_iter()
+            .next()
+            .map(BlobRecord::into_blob)
+            .ok_or_else(|| AppError::NotFound("blob not found".into()))
+    }
+
+    async fn move_blob_owner(
+        &self,
+        write_teams: &[RecordId],
+        id: &str,
+        new_owner: RecordId,
+    ) -> Result<Blob, AppError> {
+        let db = self.inner();
+        let (tb, sid) = resource_id("blob", id)?;
+        let mut response = db
+            .db
+            .query(
+                "UPDATE type::record($tb, $sid) SET owner = $new_owner WHERE owner IN $teams RETURN AFTER",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("new_owner", new_owner))
             .bind(("teams", write_teams.to_vec()))
             .await?;
 

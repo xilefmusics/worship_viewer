@@ -17,7 +17,7 @@
 - **BLC-BLOB-006:** WHEN the caller may not read the owning team’s library THEN blob **GET** / list / **…/data** respond **404** (not **403**).
 - **BLC-BLOB-007:** WHEN the caller has **guest**-level membership on the owning team and attempts **PUT** or **DELETE** THEN the API responds **404**.
 - **BLC-BLOB-008:** WHEN the caller is the personal-team **owner**, or **admin** / **content_maintainer** on the owning team, THEN **PUT** and **DELETE** are allowed (subject to validation).
-- **BLC-BLOB-009:** WHEN **POST** creates a blob THEN **`owner`** IS ALWAYS the caller’s **personal** team.
+- **BLC-BLOB-009:** WHEN **POST** omits **`owner`** THEN the new blob’s **`owner`** IS the caller’s **personal** team. WHEN **POST** includes **`owner`**, the same team ACL rules apply as for collections ([collection.md](./collection.md) **BLC-COLL-009**).
 - **BLC-BLOB-010:** WHEN **GET /blobs** or **GET /blobs/{id}** runs THEN only blobs whose **`owner`** team the caller may read are included or returned; catalog-wide readable material MAY appear without team membership where the product exposes it.
 - **BLC-BLOB-011:** WHEN **GET …/data** runs THEN the same visibility rules as metadata **GET** apply; IF bytes are available THEN they are served.
 - **BLC-BLOB-016:** **`GET /blobs/{id}/data`** responses include a weak **`ETag`** over stored bytes, **`Content-Length`**, and **`Cache-Control: private, max-age=3600, immutable`**. **`If-None-Match`** matching the current **`ETag`** yields **304** with an empty body.
@@ -28,3 +28,9 @@
 
 - **BLC-BLOB-014:** WHEN a blob used as a collection **`cover`** IS **DELETE**d THEN **GET** that collection MAY return **404** even if the collection id still exists until it is updated or removed.
 - **BLC-BLOB-015:** WHEN a **user** account IS deleted THEN blobs owned by their **personal** team disappear with that team (see [user.md](./user.md)).
+
+## Move (`POST /blobs/{id}/move`)
+
+- **BLC-BLOB-017:** **`POST /blobs/{id}/move`** with **`{ "owner": "<team id>" }`** requires **library edit** on **both** the blob’s current owning team and the target team; otherwise **404** (or **400** for malformed **`owner`**). Platform **admin** MUST NOT bypass library write for move.
+- **BLC-BLOB-018:** WHEN the target **`owner`** equals the current owning team THEN **200** with unchanged metadata (idempotent).
+- **BLC-BLOB-019:** Move changes **metadata** **`owner`** only; stored bytes stay associated with the blob id (no cross-resource rewriting).

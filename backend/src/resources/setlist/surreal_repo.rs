@@ -141,14 +141,13 @@ impl SetlistRepository for SurrealSetlistRepo {
 
     async fn create_setlist(
         &self,
-        owner: &str,
+        owner: RecordId,
         setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
         let db = self.inner();
-        let owner_team = db.personal_team_thing_for_user(owner).await?;
         db.db
             .create("setlist")
-            .content(SetlistRecord::from_payload(None, Some(owner_team), setlist))
+            .content(SetlistRecord::from_payload(None, Some(owner), setlist))
             .await?
             .map(SetlistRecord::into_setlist)
             .ok_or_else(|| AppError::database("failed to create setlist"))
@@ -197,6 +196,32 @@ impl SetlistRepository for SurrealSetlistRepo {
             .query("DELETE FROM type::record($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
+            .bind(("teams", write_teams.to_vec()))
+            .await?;
+
+        let rows: Vec<SetlistRecord> = response.take(0)?;
+        rows.into_iter()
+            .next()
+            .map(SetlistRecord::into_setlist)
+            .ok_or_else(|| AppError::NotFound("setlist not found".into()))
+    }
+
+    async fn move_setlist_owner(
+        &self,
+        write_teams: &[RecordId],
+        id: &str,
+        new_owner: RecordId,
+    ) -> Result<Setlist, AppError> {
+        let db = self.inner();
+        let (tb, sid) = resource_id("setlist", id)?;
+        let mut response = db
+            .db
+            .query(
+                "UPDATE type::record($tb, $sid) SET owner = $new_owner WHERE owner IN $teams RETURN AFTER",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("new_owner", new_owner))
             .bind(("teams", write_teams.to_vec()))
             .await?;
 

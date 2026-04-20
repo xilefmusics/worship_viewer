@@ -64,13 +64,20 @@ impl BlobRecord {
         created_at: Option<Datetime>,
         blob: CreateBlob,
     ) -> Self {
+        let CreateBlob {
+            file_type,
+            width,
+            height,
+            ocr,
+            ..
+        } = blob;
         Self {
             id,
             owner,
-            file_type: FileTypeField(blob.file_type),
-            width: blob.width,
-            height: blob.height,
-            ocr: blob.ocr,
+            file_type: FileTypeField(file_type),
+            width,
+            height,
+            ocr,
             created_at,
         }
     }
@@ -89,6 +96,7 @@ mod tests {
             Some(owner.clone()),
             None,
             CreateBlob {
+                owner: None,
                 file_type: FileType::SVG,
                 width: 640,
                 height: 480,

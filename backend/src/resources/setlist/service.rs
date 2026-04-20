@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use shared::MoveOwner;
 use shared::api::ListQuery;
 use shared::player::Player;
 use shared::setlist::{CreateSetlist, PatchSetlist, Setlist};
@@ -8,7 +9,9 @@ use tracing::instrument;
 
 use crate::error::AppError;
 use crate::resources::song::LikedSongIds;
-use crate::resources::team::{TeamResolver, UserPermissions};
+use crate::resources::team::{
+    TeamResolver, UserPermissions, parse_owner_record_id, thing_record_key,
+};
 
 use super::repository::SetlistRepository;
 use crate::resources::common::player_from_song_links;
@@ -101,9 +104,17 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
     pub async fn create_setlist_for_user(
         &self,
         perms: &UserPermissions<T>,
-        setlist: CreateSetlist,
+        mut setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
-        self.repo.create_setlist(&perms.user().id, setlist).await
+        let owner = match setlist.owner.take() {
+            None => perms.personal_team().await?,
+            Some(ref s) => {
+                let rid = parse_owner_record_id(s)?;
+                perms.require_write_access_to_owner(&rid).await?;
+                rid
+            }
+        };
+        self.repo.create_setlist(owner, setlist).await
     }
 
     #[instrument(level = "debug", err, skip(self, perms, setlist))]
@@ -126,10 +137,30 @@ impl<R: SetlistRepository, T: TeamResolver, L: LikedSongIds> SetlistService<R, T
     ) -> Result<Setlist, AppError> {
         let current = self.get_setlist_for_user(perms, id).await?;
         let merged = CreateSetlist {
+            owner: None,
             title: patch.title.unwrap_or(current.title),
             songs: patch.songs.unwrap_or(current.songs),
         };
         self.update_setlist_for_user(perms, id, merged).await
+    }
+
+    #[instrument(level = "debug", err, skip(self, perms, payload))]
+    pub async fn move_setlist_for_user(
+        &self,
+        perms: &UserPermissions<T>,
+        id: &str,
+        payload: MoveOwner,
+    ) -> Result<Setlist, AppError> {
+        let setlist = self.get_setlist_for_user(perms, id).await?;
+        let current = parse_owner_record_id(&setlist.owner)?;
+        let dest = parse_owner_record_id(&payload.owner)?;
+        if thing_record_key(&current) == thing_record_key(&dest) {
+            return Ok(setlist);
+        }
+        perms.require_write_access_to_owner(&current).await?;
+        perms.require_write_access_to_owner(&dest).await?;
+        let write_teams = perms.write_teams().await?;
+        self.repo.move_setlist_owner(write_teams, id, dest).await
     }
 
     #[instrument(level = "debug", err, skip(self, perms))]
@@ -170,8 +201,9 @@ mod tests {
     use crate::resources::team::{TeamResolver, UserPermissions};
     use crate::test_helpers::{
         configure_personal_team_members, create_song_with_title, create_user, personal_team_id,
-        setlist_service, setlist_with_songs, test_db,
+        setlist_service, setlist_with_songs, test_db, two_shared_teams_for_user,
     };
+    use shared::MoveOwner;
 
     use super::{SetlistRepository, SetlistService};
 
@@ -219,7 +251,7 @@ mod tests {
 
         async fn create_setlist(
             &self,
-            _owner: &str,
+            _owner: RecordId,
             _setlist: CreateSetlist,
         ) -> Result<Setlist, AppError> {
             unreachable!("not used in these tests")
@@ -249,6 +281,15 @@ mod tests {
             _id: &str,
         ) -> Result<Setlist, AppError> {
             Err(AppError::NotFound("setlist not found".into()))
+        }
+
+        async fn move_setlist_owner(
+            &self,
+            _write_teams: &[RecordId],
+            _id: &str,
+            _new_owner: RecordId,
+        ) -> Result<Setlist, AppError> {
+            unreachable!("not used in these tests")
         }
     }
 
@@ -374,6 +415,7 @@ mod tests {
                 &perms,
                 "id",
                 CreateSetlist {
+                    owner: None,
                     title: "t".into(),
                     songs: vec![],
                 },
@@ -406,6 +448,7 @@ mod tests {
                 &perms,
                 "id",
                 CreateSetlist {
+                    owner: None,
                     title: "t".into(),
                     songs: vec![],
                 },
@@ -1067,5 +1110,53 @@ mod tests {
             .delete_setlist_for_user(&owner_p, &owner_setlist.id)
             .await;
         assert!(matches!(again, Err(AppError::NotFound(_))));
+    }
+
+    /// BLC-SETL-015–016: move between shared teams and idempotent same-owner.
+    #[tokio::test]
+    async fn blc_setl_015_move_between_teams_and_idempotent() {
+        let db = test_db().await.expect("db");
+        let mover = create_user(&db, "sl-move@test.local").await.expect("mover");
+        let (team_a, team_b) = two_shared_teams_for_user(&db, &mover).await.expect("teams");
+
+        let sl = setlist_service(&db);
+        let p = UserPermissions::from_ref(&mover, &sl.teams);
+
+        let s = sl
+            .create_setlist_for_user(
+                &p,
+                CreateSetlist {
+                    owner: Some(team_a.clone()),
+                    title: "OnA".into(),
+                    songs: vec![],
+                },
+            )
+            .await
+            .expect("create");
+        assert_eq!(s.owner, team_a);
+
+        let on_b = sl
+            .move_setlist_for_user(
+                &p,
+                &s.id,
+                MoveOwner {
+                    owner: team_b.clone(),
+                },
+            )
+            .await
+            .expect("to B");
+        assert_eq!(on_b.owner, team_b);
+
+        let idem = sl
+            .move_setlist_for_user(
+                &p,
+                &s.id,
+                MoveOwner {
+                    owner: team_b.clone(),
+                },
+            )
+            .await
+            .expect("idem");
+        assert_eq!(idem.owner, team_b);
     }
 }

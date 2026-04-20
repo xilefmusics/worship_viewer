@@ -37,7 +37,7 @@ pub trait CollectionRepository: Send + Sync {
 
     async fn create_collection(
         &self,
-        owner: &str,
+        owner: RecordId,
         collection: CreateCollection,
     ) -> Result<Collection, AppError>;
 
@@ -52,6 +52,14 @@ pub trait CollectionRepository: Send + Sync {
         &self,
         write_teams: &[RecordId],
         id: &str,
+    ) -> Result<Collection, AppError>;
+
+    /// Sets `owner` when the row is currently owned by a team in `write_teams`.
+    async fn move_collection_owner(
+        &self,
+        write_teams: &[RecordId],
+        id: &str,
+        new_owner: RecordId,
     ) -> Result<Collection, AppError>;
 
     async fn add_song_to_collection(

@@ -34,12 +34,18 @@ impl CollectionRecord {
         owner: Option<RecordId>,
         collection: CreateCollection,
     ) -> Self {
+        let CreateCollection {
+            title,
+            cover,
+            songs,
+            ..
+        } = collection;
         Self {
             id,
             owner,
-            title: collection.title,
-            cover: Some(blob_thing(&collection.cover)),
-            songs: collection.songs.into_iter().map(Into::into).collect(),
+            title,
+            cover: Some(blob_thing(&cover)),
+            songs: songs.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -58,6 +64,7 @@ mod tests {
             Some(id.clone()),
             Some(owner.clone()),
             CreateCollection {
+                owner: None,
                 title: "Hits".into(),
                 cover: "blob:cover1".into(),
                 songs: vec![SongLink {

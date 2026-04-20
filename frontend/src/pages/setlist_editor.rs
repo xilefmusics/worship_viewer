@@ -33,6 +33,7 @@ impl From<Setlist> for EditorState {
         Self {
             id: Some(value.id),
             data: CreateSetlist {
+                owner: None,
                 title: value.title,
                 songs: value.songs,
             },

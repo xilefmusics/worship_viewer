@@ -145,16 +145,15 @@ impl CollectionRepository for SurrealCollectionRepo {
 
     async fn create_collection(
         &self,
-        owner: &str,
+        owner: RecordId,
         collection: CreateCollection,
     ) -> Result<Collection, AppError> {
         let db = self.inner();
-        let owner_team = db.personal_team_thing_for_user(owner).await?;
         db.db
             .create("collection")
             .content(CollectionRecord::from_payload(
                 None,
-                Some(owner_team),
+                Some(owner),
                 collection,
             ))
             .await?
@@ -207,6 +206,32 @@ impl CollectionRepository for SurrealCollectionRepo {
             .query("DELETE FROM type::record($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
             .bind(("tb", tb))
             .bind(("sid", sid))
+            .bind(("teams", write_teams.to_vec()))
+            .await?;
+
+        let rows: Vec<CollectionRecord> = response.take(0)?;
+        rows.into_iter()
+            .next()
+            .map(CollectionRecord::into_collection)
+            .ok_or_else(|| AppError::NotFound("collection not found".into()))
+    }
+
+    async fn move_collection_owner(
+        &self,
+        write_teams: &[RecordId],
+        id: &str,
+        new_owner: RecordId,
+    ) -> Result<Collection, AppError> {
+        let db = self.inner();
+        let (tb, sid) = resource_id("collection", id)?;
+        let mut response = db
+            .db
+            .query(
+                "UPDATE type::record($tb, $sid) SET owner = $new_owner WHERE owner IN $teams RETURN AFTER",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("new_owner", new_owner))
             .bind(("teams", write_teams.to_vec()))
             .await?;
 

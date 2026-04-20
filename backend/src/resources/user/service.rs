@@ -184,6 +184,7 @@ impl UserServiceHandle {
             .create_blob_for_user(
                 &perms,
                 CreateBlob {
+                    owner: None,
                     file_type,
                     width: w,
                     height: h,
@@ -247,6 +248,7 @@ impl UserServiceHandle {
             .create_blob_for_user(
                 &perms,
                 CreateBlob {
+                    owner: None,
                     file_type,
                     width: w,
                     height: h,

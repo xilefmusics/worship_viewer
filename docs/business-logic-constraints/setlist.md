@@ -19,7 +19,7 @@
 - **BLC-SETL-006:** WHEN the caller may not read the owning team’s library THEN setlist reads respond **404**.
 - **BLC-SETL-007:** WHEN the caller is **guest** on the owning team and attempts **PUT** or **DELETE** THEN the API responds **404**.
 - **BLC-SETL-008:** WHEN the caller is the personal-team **owner**, or **admin** / **content_maintainer** on the owning team, THEN **PUT**/**DELETE** are allowed (subject to validation).
-- **BLC-SETL-009:** WHEN **POST** creates a setlist THEN **`owner`** IS ALWAYS the caller’s **personal** team.
+- **BLC-SETL-009:** WHEN **POST** omits **`owner`** THEN the new setlist’s **`owner`** IS the caller’s **personal** team. WHEN **POST** includes **`owner`**, the same team ACL rules apply as for collections ([collection.md](./collection.md) **BLC-COLL-009**).
 - **BLC-SETL-010:** WHEN **GET /setlists** runs THEN only setlists whose **`owner`** team the caller may read are returned; optional **`q`** filters by **title**.
 - **BLC-SETL-011:** WHEN **GET /setlists/{id}**, **…/songs**, or **…/player** runs THEN visibility matches **GET /setlists/{id}**.
 - **BLC-SETL-012:** WHEN **DELETE** succeeds THEN the setlist no longer appears under the same read rules.
@@ -28,3 +28,9 @@
 
 - **BLC-SETL-013:** WHEN a **user** account IS deleted THEN setlists owned by their **personal** team are removed with that team ([user.md](./user.md)).
 - **BLC-SETL-014:** WHEN a **song** in **`songs`** IS deleted THEN setlist payloads MAY retain stale ids until **PUT** ([song.md](./song.md)).
+
+## Move (`POST /setlists/{id}/move`)
+
+- **BLC-SETL-015:** **`POST /setlists/{id}/move`** with **`{ "owner": "<team id>" }`** requires **library edit** on **both** the setlist’s current owning team and the target team; otherwise **404** (or **400** for malformed **`owner`**). Platform **admin** MUST NOT bypass library write for move.
+- **BLC-SETL-016:** WHEN the target **`owner`** equals the current owning team THEN **200** with unchanged body (idempotent).
+- **BLC-SETL-017:** Move is **shallow**: **`songs`** links are not rewritten for cross-team consistency.
