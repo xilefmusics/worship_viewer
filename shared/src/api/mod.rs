@@ -20,7 +20,7 @@ mod list_query;
 pub mod pagination_link;
 mod song_list_query;
 
-pub use list_query::{ListQuery, PageQuery, PAGE_SIZE_DEFAULT};
+pub use list_query::{ListQuery, PageQuery, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX};
 pub use pagination_link::pagination_link_header;
 pub use song_list_query::{SongListQuery, SongSort};
 pub struct ApiClient<C: HttpClient> {

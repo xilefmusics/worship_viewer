@@ -1,6 +1,7 @@
 use crate::api::use_api;
 use crate::components::StringInput;
 use js_sys::Reflect;
+use shared::api::{SongListQuery, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX};
 use shared::setlist::CreateSetlist;
 use shared::song::Song;
 use shared::song::{ChordRepresentation, SimpleChord};
@@ -49,6 +50,29 @@ fn format_key_label(key: &SimpleChord) -> String {
         .to_string()
 }
 
+fn song_library_query(search: &str) -> SongListQuery {
+    let trimmed = search.trim();
+    if trimmed.is_empty() {
+        SongListQuery {
+            page: Some(0),
+            page_size: Some(PAGE_SIZE_MAX),
+            q: None,
+            sort: Some("title".into()),
+            lang: None,
+            tag: None,
+        }
+    } else {
+        SongListQuery {
+            page: Some(0),
+            page_size: Some(PAGE_SIZE_DEFAULT),
+            q: Some(trimmed.to_string()),
+            sort: None,
+            lang: None,
+            tag: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Item {
     pub id: String,
@@ -74,65 +98,88 @@ fn move_item_to(mut items: Vec<Item>, from_idx: usize, target_idx: usize) -> Vec
 pub fn setlist_editor(props: &Props) -> Html {
     let title = use_state(|| props.setlist.title.clone());
 
-    let songs = use_state(|| vec![]);
+    let library_songs = use_state(|| vec![]);
+    let library_loading = use_state(|| false);
     let items = use_state(|| vec![]);
     let search_query = use_state(String::new);
     let drag_index = use_state(|| None::<usize>);
     let drag_over_index = use_state(|| None::<usize>);
     let show_delete_dialog = use_state(|| false);
+    let library_req_id = use_mut_ref(|| 0u32);
+    let items_req_id = use_mut_ref(|| 0u32);
     let api = use_api();
     {
-        let songs = songs.clone();
-        let setlist_songs = props.setlist.songs.clone();
         let items = items.clone();
         let api = api.clone();
-        use_effect_with((), move |_| {
-            let songs = songs.clone();
+        let items_req_id = items_req_id.clone();
+        let deps = props.setlist.songs.clone();
+        use_effect_with(deps, move |setlist_songs| {
+            let items = items.clone();
             let api = api.clone();
+            let items_req_id = items_req_id.clone();
+            let req = {
+                let mut g = items_req_id.borrow_mut();
+                *g = g.wrapping_add(1);
+                *g
+            };
+            let setlist_songs = setlist_songs.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let mut fetched_songs = api.get_songs().await.unwrap();
-                fetched_songs.sort_by_key(|song| song.data.title().to_string());
-                let fetched_songs: Vec<Song> = fetched_songs
-                    .into_iter()
-                    .filter(|song| !song.not_a_song)
-                    .collect();
-                let map = fetched_songs
-                    .iter()
-                    .map(|song| {
-                        (
-                            song.id.clone(),
-                            (
-                                song.data.title().to_string(),
-                                song.data.key.as_ref().map(|key| format_key_label(key)),
-                            ),
-                        )
-                    })
-                    .collect::<HashMap<_, _>>();
-                songs.set(fetched_songs);
-                let build_items = setlist_songs
-                    .iter()
-                    .map(|link| {
-                        let (title, original_key_label) = map
-                            .get(&link.id)
-                            .cloned()
-                            .unwrap_or_else(|| ("unknown".into(), None));
-                        let key = link
-                            .key
-                            .clone()
-                            .or_else(|| original_key_label.as_deref().and_then(chord_from_value));
-                        Item {
-                            id: link.id.clone(),
-                            title,
-                            key,
-                            original_key: original_key_label,
-                        }
-                    })
-                    .collect::<Vec<_>>();
+                let mut build_items = Vec::new();
+                for link in setlist_songs.iter() {
+                    let (title, original_key_label) = match api.get_song(&link.id).await {
+                        Ok(song) => (
+                            song.data.title().to_string(),
+                            song.data.key.as_ref().map(|key| format_key_label(key)),
+                        ),
+                        Err(_) => ("unknown".into(), None),
+                    };
+                    let key = link
+                        .key
+                        .clone()
+                        .or_else(|| original_key_label.as_deref().and_then(chord_from_value));
+                    build_items.push(Item {
+                        id: link.id.clone(),
+                        title,
+                        key,
+                        original_key: original_key_label,
+                    });
+                }
+                if req != *items_req_id.borrow() {
+                    return;
+                }
                 items.set(build_items);
             });
             || ()
         });
-    };
+    }
+    {
+        let library_songs = library_songs.clone();
+        let library_loading = library_loading.clone();
+        let api = api.clone();
+        let library_req_id = library_req_id.clone();
+        use_effect_with((*search_query).clone(), move |search| {
+            let library_songs = library_songs.clone();
+            let library_loading = library_loading.clone();
+            let api = api.clone();
+            let library_req_id = library_req_id.clone();
+            let req = {
+                let mut g = library_req_id.borrow_mut();
+                *g = g.wrapping_add(1);
+                *g
+            };
+            let query = song_library_query(&search);
+            library_loading.set(true);
+            wasm_bindgen_futures::spawn_local(async move {
+                let fetched = api.get_songs_query(query).await.unwrap_or_default();
+                if req != *library_req_id.borrow() {
+                    return;
+                }
+                library_songs.set(fetched);
+                library_loading.set(false);
+            });
+            || ()
+        });
+    }
 
     {
         let show_delete_dialog = show_delete_dialog.clone();
@@ -185,23 +232,16 @@ pub fn setlist_editor(props: &Props) -> Html {
         *counts.entry(item.id.clone()).or_insert(0) += 1;
     }
     let setlist_counts = counts;
-    let search_term = (*search_query).trim().to_lowercase();
-    let has_filter = !search_term.is_empty();
+    let has_filter = !(*search_query).trim().is_empty();
     let on_clear_search = {
         let search_query = search_query.clone();
         Callback::from(move |_: MouseEvent| search_query.set(String::new()))
     };
-    let filtered_songs = (*songs)
+    let library_display: Vec<Song> = (*library_songs)
         .iter()
-        .filter(|song| {
-            if has_filter {
-                song.data.title().to_lowercase().contains(&search_term)
-            } else {
-                true
-            }
-        })
+        .filter(|song| !song.not_a_song)
         .cloned()
-        .collect::<Vec<_>>();
+        .collect();
     let open_delete_dialog = {
         let show_delete_dialog = show_delete_dialog.clone();
         Callback::from(move |_: MouseEvent| show_delete_dialog.set(true))
@@ -652,18 +692,31 @@ pub fn setlist_editor(props: &Props) -> Html {
                         </div>
                     </div>
                     {
-                        if filtered_songs.is_empty() {
+                        if *library_loading && library_display.is_empty() {
+                            html! {
+                                <div class="empty-state">
+                                    <span class="material-symbols-outlined empty-state__icon">{"hourglass_empty"}</span>
+                                    <p>{"Loading songs…"}</p>
+                                </div>
+                            }
+                        } else if library_display.is_empty() {
                             html! {
                                 <div class="empty-state">
                                     <span class="material-symbols-outlined empty-state__icon">{"search"}</span>
-                                    <p>{"No songs match your search."}</p>
+                                    <p>
+                                        { if has_filter {
+                                            "No songs match your search."
+                                        } else {
+                                            "No songs on this page."
+                                        } }
+                                    </p>
                                 </div>
                             }
                         } else {
                             html! {
                                 <ul class="song-list">
                                     {
-                                        for filtered_songs.iter().map(|song| {
+                                        for library_display.iter().map(|song| {
                                             let id = song.id.clone();
                                             let song_title = song.data.title().to_string();
                                             let song_key_label = song
