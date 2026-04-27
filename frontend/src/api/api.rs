@@ -20,6 +20,16 @@ use shared::api::{ApiClient, ListQuery, SongListQuery};
 
 use std::rc::Rc;
 
+/// `X-Worship-Client` value: `worshipviewer-frontend/<version>`, matching the backend
+/// `GET /api/v1/about` build metadata: git SHA if `GIT_COMMIT_SHA` was set at compile time,
+/// else `CARGO_PKG_VERSION` from this crate.
+fn worshipviewer_frontend_client_ident() -> String {
+    format!(
+        "worshipviewer-frontend/{}",
+        option_env!("GIT_COMMIT_SHA").unwrap_or(env!("CARGO_PKG_VERSION"))
+    )
+}
+
 #[derive(Clone)]
 pub struct Api {
     client: Rc<ApiClient<DefaultHttpClient>>,
@@ -39,6 +49,7 @@ impl Api {
             timeout: None,
             session_cookie: None,
             bearer_token: None,
+            client_ident: Some(worshipviewer_frontend_client_ident()),
         };
         let client = Rc::new(ApiClient::with_default(config));
 

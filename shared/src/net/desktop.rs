@@ -29,6 +29,20 @@ impl DesktopHttpClient {
         let path = path.trim_start_matches('/');
         format!("{base}/{path}")
     }
+
+    fn with_common_headers(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        let mut request = request;
+        if let Some(ref cookie) = self.config.session_cookie {
+            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
+        }
+        if let Some(ref token) = self.config.bearer_token {
+            request = request.bearer_auth(token);
+        }
+        if let Some(ref id) = self.config.client_ident {
+            request = request.header("X-Worship-Client", id);
+        }
+        request
+    }
 }
 
 #[async_trait::async_trait]
@@ -39,13 +53,7 @@ impl HttpClient for DesktopHttpClient {
     {
         let url = self.make_url(path);
 
-        let mut request = self.client.get(url);
-        if let Some(cookie) = &self.config.session_cookie {
-            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
-        }
-        if let Some(token) = &self.config.bearer_token {
-            request = request.bearer_auth(token);
-        }
+        let request = self.with_common_headers(self.client.get(url));
 
         let response = request.send().await?;
         let response = response.error_for_status()?;
@@ -61,13 +69,7 @@ impl HttpClient for DesktopHttpClient {
     {
         let url = self.make_url(path);
 
-        let mut request = self.client.post(url).json(body);
-        if let Some(cookie) = &self.config.session_cookie {
-            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
-        }
-        if let Some(token) = &self.config.bearer_token {
-            request = request.bearer_auth(token);
-        }
+        let request = self.with_common_headers(self.client.post(url).json(body));
 
         let response = request.send().await?;
         let response = response.error_for_status()?;
@@ -83,13 +85,7 @@ impl HttpClient for DesktopHttpClient {
     {
         let url = self.make_url(path);
 
-        let mut request = self.client.put(url).json(body);
-        if let Some(cookie) = &self.config.session_cookie {
-            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
-        }
-        if let Some(token) = &self.config.bearer_token {
-            request = request.bearer_auth(token);
-        }
+        let request = self.with_common_headers(self.client.put(url).json(body));
 
         let response = request.send().await?;
         let response = response.error_for_status()?;
@@ -105,13 +101,7 @@ impl HttpClient for DesktopHttpClient {
     {
         let url = self.make_url(path);
 
-        let mut request = self.client.patch(url).json(body);
-        if let Some(cookie) = &self.config.session_cookie {
-            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
-        }
-        if let Some(token) = &self.config.bearer_token {
-            request = request.bearer_auth(token);
-        }
+        let request = self.with_common_headers(self.client.patch(url).json(body));
 
         let response = request.send().await?;
         let response = response.error_for_status()?;
@@ -126,13 +116,7 @@ impl HttpClient for DesktopHttpClient {
     {
         let url = self.make_url(path);
 
-        let mut request = self.client.post(url).json(body);
-        if let Some(cookie) = &self.config.session_cookie {
-            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
-        }
-        if let Some(token) = &self.config.bearer_token {
-            request = request.bearer_auth(token);
-        }
+        let request = self.with_common_headers(self.client.post(url).json(body));
 
         let response = request.send().await?;
         response.error_for_status()?;
@@ -146,13 +130,7 @@ impl HttpClient for DesktopHttpClient {
     {
         let url = self.make_url(path);
 
-        let mut request = self.client.delete(url);
-        if let Some(cookie) = &self.config.session_cookie {
-            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
-        }
-        if let Some(token) = &self.config.bearer_token {
-            request = request.bearer_auth(token);
-        }
+        let request = self.with_common_headers(self.client.delete(url));
 
         let response = request.send().await?;
         let response = response.error_for_status()?;
@@ -164,13 +142,7 @@ impl HttpClient for DesktopHttpClient {
     async fn delete_no_content(&self, path: &str) -> Result<(), NetworkClientError> {
         let url = self.make_url(path);
 
-        let mut request = self.client.delete(url);
-        if let Some(cookie) = &self.config.session_cookie {
-            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
-        }
-        if let Some(token) = &self.config.bearer_token {
-            request = request.bearer_auth(token);
-        }
+        let request = self.with_common_headers(self.client.delete(url));
 
         let response = request.send().await?;
         response.error_for_status()?;
@@ -180,13 +152,7 @@ impl HttpClient for DesktopHttpClient {
     async fn put_no_content(&self, path: &str) -> Result<(), NetworkClientError> {
         let url = self.make_url(path);
 
-        let mut request = self.client.put(url);
-        if let Some(cookie) = &self.config.session_cookie {
-            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
-        }
-        if let Some(token) = &self.config.bearer_token {
-            request = request.bearer_auth(token);
-        }
+        let request = self.with_common_headers(self.client.put(url));
 
         let response = request.send().await?;
         response.error_for_status()?;
@@ -204,17 +170,12 @@ impl HttpClient for DesktopHttpClient {
     {
         let url = self.make_url(path);
 
-        let mut request = self
-            .client
-            .put(url)
-            .header(reqwest::header::CONTENT_TYPE, content_type)
-            .body(body.to_vec());
-        if let Some(cookie) = &self.config.session_cookie {
-            request = request.header(reqwest::header::COOKIE, format!("sso_session={cookie}"));
-        }
-        if let Some(token) = &self.config.bearer_token {
-            request = request.bearer_auth(token);
-        }
+        let request = self.with_common_headers(
+            self.client
+                .put(url)
+                .header(reqwest::header::CONTENT_TYPE, content_type)
+                .body(body.to_vec()),
+        );
 
         let response = request.send().await?;
         let response = response.error_for_status()?;

@@ -575,6 +575,15 @@
       "HttpAuditLog": {
         "description": "One persisted HTTP request audit row (admin monitoring API).",
         "properties": {
+          "client_origin": {
+            "type": "string"
+          },
+          "client_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "created_at": {
             "format": "date-time",
             "type": "string"
@@ -619,6 +628,7 @@
           "path",
           "status_code",
           "duration_ms",
+          "client_origin",
           "created_at"
         ],
         "type": "object"

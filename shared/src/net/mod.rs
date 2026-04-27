@@ -14,6 +14,8 @@ pub struct HttpClientConfig {
     pub session_cookie: Option<String>,
     /// Optional bearer token used for `Authorization: Bearer <token>` authentication.
     pub bearer_token: Option<String>,
+    /// Value for the `X-Worship-Client` header (`<product>/<version>`, e.g. `worshipviewer-cli/0.1.0`).
+    pub client_ident: Option<String>,
 }
 
 #[cfg(target_arch = "wasm32")]

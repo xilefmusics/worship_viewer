@@ -3,6 +3,7 @@
 pub mod about;
 pub mod accept;
 pub mod auth;
+pub mod client_attribution;
 pub mod database;
 pub mod docs;
 pub mod error;

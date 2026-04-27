@@ -93,6 +93,7 @@ pub fn build_http_client_config(
         timeout,
         session_cookie: sso_session,
         bearer_token: options.bearer_token.clone(),
+        client_ident: Some(concat!("worshipviewer-cli/", env!("CARGO_PKG_VERSION")).to_string()),
     };
     Ok((config, base_url))
 }

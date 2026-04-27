@@ -1320,6 +1320,55 @@ mod monitoring_http {
         .unwrap_or((None, None))
     }
 
+    #[derive(Deserialize, SurrealValue)]
+    struct AuditClient {
+        client_origin: String,
+        client_version: Option<String>,
+    }
+
+    async fn audit_client_for_request(
+        db: &Arc<Database>,
+        request_id: &str,
+    ) -> (String, Option<String>) {
+        let mut r = db
+            .db
+            .query(
+                "SELECT client_origin, client_version FROM http_request_audit WHERE request_id = $rid LIMIT 1",
+            )
+            .bind(("rid", request_id.to_string()))
+            .await
+            .expect("audit client");
+        let row: Option<AuditClient> = r.take(0).expect("take client");
+        row.map(|x| (x.client_origin, x.client_version))
+            .unwrap_or_else(|| ("unknown".to_string(), None))
+    }
+
+    /// `X-Worship-Client` is stored on the audit row (integration check).
+    #[actix_web::test]
+    async fn http_audit_persists_x_worship_client() {
+        let db = test_db().await.unwrap();
+        let app = test::init_service(build_app(db.clone())).await;
+        let req = test::TestRequest::get()
+            .uri("/api/docs/openapi.json")
+            .insert_header((
+                crate::client_attribution::X_WORSHIP_CLIENT,
+                "worshipviewer-cli/9.8.7",
+            ))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let rid = resp
+            .headers()
+            .get("x-request-id")
+            .and_then(|h| h.to_str().ok())
+            .expect("x-request-id")
+            .to_string();
+        wait_audit_row(&db, &rid).await;
+        let (origin, version) = audit_client_for_request(&db, &rid).await;
+        assert_eq!(origin, "cli");
+        assert_eq!(version.as_deref(), Some("9.8.7"));
+    }
+
     /// BLC-MON-004: unauthenticated GET /monitoring/http-audit-logs returns 401.
     #[actix_web::test]
     async fn blc_mon_004_unauthenticated_returns_401() {
@@ -1502,6 +1551,7 @@ mod monitoring_http {
                 .query(
                     "CREATE http_request_audit SET request_id = $rid, method = 'GET', path = $path, \
                      status_code = $status, duration_ms = 10, user = NONE, session = NONE, \
+                     client_origin = 'unknown', client_version = NONE, \
                      created_at = d'2026-04-01T12:00:00Z'",
                 )
                 .bind(("rid", rid.to_string()))

@@ -23,7 +23,8 @@ RUN if [ -n "${GIT_COMMIT_SHA:-}" ]; then export GIT_COMMIT_SHA; else unset GIT_
 WORKDIR /wrk
 COPY ./frontend ./frontend
 WORKDIR /wrk/frontend
-RUN trunk build --release
+# Same `GIT_COMMIT_SHA` / `option_env!` contract as the backend `cargo build` above (see backend `about` / CI build-args).
+RUN if [ -n "${GIT_COMMIT_SHA:-}" ]; then export GIT_COMMIT_SHA; else unset GIT_COMMIT_SHA; fi && trunk build --release
 
 FROM scratch AS tester
 
