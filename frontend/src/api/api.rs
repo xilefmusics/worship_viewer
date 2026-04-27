@@ -16,7 +16,7 @@ use shared::user::{CreateUser, SessionBody, User};
 
 use super::error::{ApiError, OperationType};
 use crate::route::Route;
-use shared::api::{ApiClient, ListQuery};
+use shared::api::{ApiClient, ListQuery, SongListQuery};
 
 use std::rc::Rc;
 
@@ -246,6 +246,14 @@ impl Api {
         ApiError::check_and_notify_offline(OperationType::Read);
         self.client
             .get_songs(ListQuery::default().into())
+            .await
+            .map_err(|e| self.handle_error(e))
+    }
+
+    pub async fn get_songs_query(&self, query: SongListQuery) -> Result<Vec<Song>, ApiError> {
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_songs(query)
             .await
             .map_err(|e| self.handle_error(e))
     }
