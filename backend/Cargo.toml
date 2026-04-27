@@ -18,6 +18,9 @@ reqwest = { version = "0.12", default-features = false, features = [
     "gzip",
     "multipart",
 ] }
+# Direct dependency: Rustls 0.23+ requires a single process-wide CryptoProvider. We use
+# `ring` (same as reqwest/surrealdb) and install it in `main` before any TLS (wss, OIDC).
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "ring"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"

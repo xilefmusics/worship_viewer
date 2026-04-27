@@ -89,5 +89,8 @@ COPY --from=builder /wrk/backend/db-migrations/ /app/db-migrations
 COPY --from=builder /wrk/frontend/dist/ /app/static
 
 EXPOSE 8080
+# Cloud Run (and other platforms) set PORT; the process must accept traffic on 0.0.0.0, not
+# loopback only, or the platform health check will never see an open port.
+ENV HOST=0.0.0.0
 WORKDIR /app
 ENTRYPOINT ["/app/worshipviewer"]
