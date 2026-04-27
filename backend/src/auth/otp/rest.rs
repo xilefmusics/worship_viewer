@@ -5,7 +5,7 @@ use actix_web::{
     web::{self, Data},
 };
 
-use rand::Rng;
+use rand::RngExt;
 use shared::auth::otp::{OtpRequest, OtpVerify};
 use time::Duration as CookieDuration;
 
@@ -48,7 +48,7 @@ pub(crate) async fn otp_request(
         .ok_if(|value| !value.is_empty())
         .ok_or_else(|| AppError::invalid_request("email is required"))?;
 
-    let code = format!("{:06}", rand::thread_rng().gen_range(0..1_000_000));
+    let code = format!("{:06}", rand::rng().random_range(0..1_000_000));
     db.remember_otp(&email, &code, &otp_cfg.pepper, otp_cfg.ttl_seconds)
         .await?;
 

@@ -5,15 +5,15 @@ edition = "2021"
 
 [dependencies]
 shared = { path = "../shared", features = ["frontend"] }
-yew = { version = "0.21.0", features = ["csr"] }
-yew-router = "0.18"
-stylist = { version = "0.13.0", features = ["yew_integration", "parser"] }
-wasm-bindgen-futures = "0.4.67"
-wasm-bindgen = "0.2.117"
-gloo-net = "0.6.0"
-gloo-console = "0.3.0"
-yew-hooks = "0.3.4"
-web-sys = { version = "0.3.94", features = [
+yew = { version = "0.23.0", features = ["csr"] }
+yew-router = "0.20"
+stylist = { version = "0.15.1", features = ["yew_integration", "parser"] }
+wasm-bindgen-futures = "0.4.68"
+wasm-bindgen = "0.2.118"
+gloo-net = "0.7.0"
+gloo-console = "0.4.0"
+yew-hooks = "0.6.4"
+web-sys = { version = "0.3.95", features = [
     "Blob",
     "DragEvent",
     "File",
@@ -35,13 +35,13 @@ web-sys = { version = "0.3.94", features = [
     "Element",
     "HtmlElement",
 ] }
-gloo = { version = "0.11.0", features = ["futures"] }
+gloo = { version = "0.12.0", features = ["futures"] }
 serde = { version = "1.0.228", features = ["derive"] }
 url = "2.5.8"
 getrandom_0_3 = { package = "getrandom", version = "0.3.4", features = [
     "wasm_js",
 ] }
-js-sys = "0.3.94"
+js-sys = "0.3.95"
 chrono = { version = "0.4.44", default-features = false, features = [
     "clock",
     "serde",

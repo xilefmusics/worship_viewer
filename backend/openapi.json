@@ -6,8 +6,10 @@
         "properties": {
           "git_commit": {
             "description": "Git revision if `GIT_COMMIT_SHA` was set during `cargo build`.",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "production": {
             "description": "`true` when [`observability::is_production`] is satisfied.",
@@ -36,8 +38,10 @@
           },
           "dau_over_mau": {
             "format": "double",
-            "nullable": true,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "dau_users": {
             "format": "int64",
@@ -210,8 +214,10 @@
           },
           "owner": {
             "description": "Owning team id (same format as `Blob.owner` in responses). Omit to create under the caller's personal team.",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "width": {
             "format": "int32",
@@ -247,8 +253,10 @@
           },
           "owner": {
             "description": "Owning team id (`team` record id, same format as `Collection.owner` in responses). Omit to create under the caller's personal team.",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "songs": {
             "items": {
@@ -283,8 +291,10 @@
         "properties": {
           "owner": {
             "description": "Owning team id (same format as `Setlist.owner` in responses). Omit to create under the caller's personal team.",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "songs": {
             "items": {
@@ -330,8 +340,10 @@
           },
           "owner": {
             "description": "Owning team id (same format as `Song.owner` in responses). Omit to create under the caller's personal team (and apply default-collection rules).",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -372,8 +384,10 @@
         },
         "properties": {
           "default_collection": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "email": {
             "type": "string"
@@ -411,13 +425,17 @@
           },
           "requests_per_active_user_product": {
             "format": "double",
-            "nullable": true,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "requests_per_session": {
             "format": "double",
-            "nullable": true,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "sessioned_requests_in_window": {
             "format": "int64",
@@ -489,13 +507,17 @@
           },
           "p95_ms": {
             "format": "double",
-            "nullable": true,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "p99_ms": {
             "format": "double",
-            "nullable": true,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           }
         },
         "required": [
@@ -574,16 +596,20 @@
             "type": "string"
           },
           "session_id": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status_code": {
             "format": "int32",
             "type": "integer"
           },
           "user_id": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -644,13 +670,17 @@
           },
           "p95_ms_all": {
             "format": "double",
-            "nullable": true,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "p99_ms_all": {
             "format": "double",
-            "nullable": true,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           }
         },
         "required": [
@@ -678,13 +708,17 @@
           },
           "p95_ms": {
             "format": "double",
-            "nullable": true,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "p99_ms": {
             "format": "double",
-            "nullable": true,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           }
         },
         "required": [
@@ -747,8 +781,10 @@
       "MonitoringMetricsResponse": {
         "properties": {
           "activation_skipped_reason": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "activity_calendar": {
             "$ref": "#/components/schemas/ActivityCalendarMetrics"
@@ -772,12 +808,14 @@
             "$ref": "#/components/schemas/MutationHealthMetrics"
           },
           "new_user_activation": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/NewUserActivationMetrics"
               }
-            ],
-            "nullable": true
+            ]
           },
           "probing": {
             "$ref": "#/components/schemas/IdLike404Metrics"
@@ -931,29 +969,37 @@
         "description": "Partial update for a blob. Absent fields are left unchanged.",
         "properties": {
           "file_type": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/FileType"
               }
-            ],
-            "nullable": true
+            ]
           },
           "height": {
             "format": "int32",
             "minimum": 0,
-            "nullable": true,
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "ocr": {
             "description": "OCR or extracted text used for search (may be empty).",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "width": {
             "format": "int32",
             "minimum": 0,
-            "nullable": true,
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -963,23 +1009,31 @@
         "description": "Partial update for a collection. Absent fields are left unchanged.",
         "properties": {
           "cover": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "owner": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "songs": {
             "items": {
               "$ref": "#/components/schemas/SongLink"
             },
-            "nullable": true,
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "title": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -989,19 +1043,25 @@
         "description": "Partial update for a setlist. Absent fields are left unchanged.",
         "properties": {
           "owner": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "songs": {
             "items": {
               "$ref": "#/components/schemas/SongLink"
             },
-            "nullable": true,
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "title": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -1017,20 +1077,26 @@
             "items": {
               "$ref": "#/components/schemas/BlobLink"
             },
-            "nullable": true,
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "data": {
             "$ref": "#/components/schemas/PatchSongData"
           },
           "not_a_song": {
-            "nullable": true,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "owner": {
             "description": "Set the song's owning team id; omit to leave unchanged.",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -1046,46 +1112,62 @@
             "items": {
               "type": "string"
             },
-            "nullable": true,
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "copyright": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "key": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "languages": {
             "description": "BCP 47 language tags (e.g. `en`, `de-CH`).",
             "items": {
               "type": "string"
             },
-            "nullable": true,
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "sections": {
             "items": {
               "type": "object"
             },
-            "nullable": true,
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "subtitle": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "tags": {
-            "nullable": true,
-            "type": "object"
+            "type": [
+              "object",
+              "null"
+            ]
           },
           "tempo": {
             "description": "Tempo in BPM (beats per minute).",
             "format": "int32",
             "minimum": 0,
-            "nullable": true,
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "time": {
             "items": {
@@ -1093,15 +1175,19 @@
               "minimum": 0,
               "type": "integer"
             },
-            "nullable": true,
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "titles": {
             "items": {
               "type": "string"
             },
-            "nullable": true,
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -1114,12 +1200,16 @@
             "items": {
               "$ref": "#/components/schemas/TeamMemberInput"
             },
-            "nullable": true,
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "name": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -1147,7 +1237,8 @@
             "$ref": "#/components/schemas/ScrollType"
           },
           "scroll_type_cache_other_orientation": {
-            "$ref": "#/components/schemas/ScrollType"
+            "$ref": "#/components/schemas/ScrollType",
+            "description": "Scroll mode cached when toggling orientation (book/half-page behavior)."
           },
           "toc": {
             "items": {
@@ -1192,9 +1283,6 @@
         "type": "object"
       },
       "PlayerItem": {
-        "discriminator": {
-          "propertyName": "type"
-        },
         "oneOf": [
           {
             "allOf": [
@@ -1249,13 +1337,17 @@
           },
           "detail": {
             "description": "Human-readable explanation.",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "instance": {
             "description": "Optional URI reference that identifies the specific occurrence.",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "description": "HTTP status code.",
@@ -1289,12 +1381,16 @@
             "type": "string"
           },
           "detail": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "instance": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "format": "int32",
@@ -1479,7 +1575,8 @@
       "SessionUserBody": {
         "oneOf": [
           {
-            "$ref": "#/components/schemas/User"
+            "$ref": "#/components/schemas/User",
+            "description": "Try full user first so link-shaped JSON (missing required user fields) falls through to [`TeamUser`]."
           },
           {
             "$ref": "#/components/schemas/TeamUser"
@@ -1534,7 +1631,8 @@
             "type": "array"
           },
           "data": {
-            "$ref": "#/components/schemas/SongDataSchema"
+            "$ref": "#/components/schemas/SongDataSchema",
+            "description": "ChordPro-derived payload (sections, lyrics, metadata); see `SongDataSchema` in the OpenAPI components."
           },
           "id": {
             "type": "string"
@@ -1547,7 +1645,8 @@
             "type": "string"
           },
           "user_specific_addons": {
-            "$ref": "#/components/schemas/SongUserSpecificAddons"
+            "$ref": "#/components/schemas/SongUserSpecificAddons",
+            "description": "Per-request flags such as whether the current user liked this song."
           }
         },
         "required": [
@@ -1586,14 +1685,18 @@
             "type": "array"
           },
           "copyright": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "key": {
             "description": "Musical key; chord symbols use ChordPro conventions.",
             "example": "G",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "languages": {
             "description": "BCP 47 language tags (e.g. `en`, `de-CH`).",
@@ -1613,8 +1716,10 @@
             "type": "array"
           },
           "subtitle": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "tags": {
             "additionalProperties": true,
@@ -1625,8 +1730,10 @@
             "description": "Tempo in BPM (beats per minute).",
             "format": "int32",
             "minimum": 0,
-            "nullable": true,
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "time": {
             "description": "Time signature as `(numerator, denominator)` (e.g. 4/4).",
@@ -1639,8 +1746,10 @@
               "minimum": 0,
               "type": "integer"
             },
-            "nullable": true,
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "titles": {
             "description": "Primary and alternate titles from ChordPro `{title}` / `{title:N}` directives.",
@@ -1670,13 +1779,17 @@
           },
           "key": {
             "description": "Musical key for this slot (e.g. `G`, `Am`, `F#m`).",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "nr": {
             "description": "Optional display position in the parent list (e.g. `1`, `2a`).",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -1695,35 +1808,47 @@
         "properties": {
           "lang": {
             "description": "Filter to songs whose `data.languages` contains this string (exact match on an array element).",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "page": {
             "format": "int32",
             "minimum": 0,
-            "nullable": true,
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "page_size": {
             "format": "int32",
             "minimum": 0,
-            "nullable": true,
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "q": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "sort": {
             "description": "Sort: comma-separated fields, `-` prefix for descending (e.g. `-id`, `title`, `-id,title`).\nUse `relevance` when searching (`q` non-empty). Legacy tokens (`id_desc`, …) accepted with a warning.",
             "example": "-id",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "tag": {
             "description": "Case-insensitive substring match against the stringified `data.tags` object (keys and values).",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -1772,12 +1897,15 @@
             "type": "string"
           },
           "owner": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/TeamUser"
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TeamUser",
+                "description": "When set, this team is that user's personal team (1:1, not deletable). Not listed in `members`."
               }
-            ],
-            "nullable": true
+            ]
           }
         },
         "required": [
@@ -1883,8 +2011,10 @@
         "properties": {
           "id": {
             "description": "Optional stable id when this TOC row links to a concrete song.",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "idx": {
             "minimum": 0,
@@ -2001,8 +2131,10 @@
           },
           "owner": {
             "description": "Target team id for the collection's `owner`; omit or `null` to keep the current owner.",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "songs": {
             "items": {
@@ -2027,8 +2159,10 @@
         "properties": {
           "owner": {
             "description": "Target team id for the setlist's `owner`; omit or `null` to keep the current owner.",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "songs": {
             "items": {
@@ -2074,8 +2208,10 @@
           },
           "owner": {
             "description": "Target team id for the song's `owner`; omit or `null` to keep the current owner.",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -2093,8 +2229,10 @@
             "items": {
               "$ref": "#/components/schemas/TeamMemberInput"
             },
-            "nullable": true,
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "name": {
             "type": "string"
@@ -2121,16 +2259,20 @@
         "properties": {
           "avatar_blob_id": {
             "description": "User-uploaded profile image; takes precedence over [`Self::oauth_avatar_blob_id`].",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "created_at": {
             "format": "date-time",
             "type": "string"
           },
           "default_collection": {
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "email": {
             "type": "string"
@@ -2140,18 +2282,24 @@
           },
           "last_login_at": {
             "format": "date-time",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "oauth_avatar_blob_id": {
             "description": "Backend-cached OAuth profile image (`GET /api/v1/blobs/{id}/data`).",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "oauth_picture_url": {
             "description": "Last `picture` claim URL seen from OIDC (used to detect when to re-fetch the cached avatar).",
-            "nullable": true,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "request_count": {
             "description": "Approximate authenticated API request count for this user (diagnostic; semantics may evolve).",
@@ -2196,7 +2344,7 @@
     "title": "Worship Viewer API",
     "version": "2.0.0"
   },
-  "openapi": "3.0.3",
+  "openapi": "3.1.0",
   "paths": {
     "/api/v1/about": {
       "get": {
@@ -2231,8 +2379,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -2245,8 +2395,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -2255,7 +2407,6 @@
             "name": "q",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           }
@@ -2829,8 +2980,12 @@
             "content": {
               "image/*": {
                 "schema": {
-                  "format": "binary",
-                  "type": "string"
+                  "items": {
+                    "format": "int32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "type": "array"
                 }
               }
             },
@@ -2919,8 +3074,12 @@
           "content": {
             "application/octet-stream": {
               "schema": {
-                "format": "binary",
-                "type": "string"
+                "items": {
+                  "format": "int32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
               }
             }
           },
@@ -3126,8 +3285,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -3140,8 +3301,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -3150,7 +3313,6 @@
             "name": "q",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           }
@@ -3924,8 +4086,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -3938,8 +4102,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           }
         ],
@@ -4112,8 +4278,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -4126,8 +4294,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           }
         ],
@@ -4321,8 +4491,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -4335,8 +4507,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -4345,7 +4519,6 @@
             "name": "q",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           }
@@ -5119,8 +5292,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -5133,8 +5308,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           }
         ],
@@ -5228,8 +5405,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -5242,8 +5421,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -5252,7 +5433,6 @@
             "name": "q",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           },
@@ -5262,7 +5442,6 @@
             "name": "sort",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           },
@@ -5272,7 +5451,6 @@
             "name": "lang",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           },
@@ -5282,7 +5460,6 @@
             "name": "tag",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           }
@@ -6306,8 +6483,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -6320,8 +6499,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           }
         ],
@@ -6883,8 +7064,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -6897,8 +7080,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           }
         ],
@@ -7374,8 +7559,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -7388,8 +7575,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -7398,7 +7587,6 @@
             "name": "q",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           }
@@ -7698,8 +7886,12 @@
           "content": {
             "image/jpeg": {
               "schema": {
-                "format": "binary",
-                "type": "string"
+                "items": {
+                  "format": "int32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
               }
             }
           },
@@ -7793,8 +7985,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -7807,8 +8001,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -7817,7 +8013,6 @@
             "name": "expand",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           }
@@ -7979,7 +8174,6 @@
             "name": "expand",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           }
@@ -8239,8 +8433,10 @@
             "schema": {
               "format": "int32",
               "minimum": 0,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -8253,8 +8449,10 @@
               "format": "int32",
               "maximum": 500,
               "minimum": 1,
-              "nullable": true,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           {
@@ -8263,7 +8461,6 @@
             "name": "expand",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           }
@@ -8363,7 +8560,6 @@
             "name": "expand",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           }
@@ -8550,7 +8746,6 @@
             "name": "expand",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           }
@@ -8701,7 +8896,6 @@
             "name": "redirect_to",
             "required": false,
             "schema": {
-              "nullable": true,
               "type": "string"
             }
           }
