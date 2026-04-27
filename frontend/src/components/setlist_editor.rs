@@ -3,6 +3,7 @@ use crate::components::StringInput;
 use js_sys::Reflect;
 use shared::api::{SongListQuery, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX};
 use shared::setlist::CreateSetlist;
+use shared::song::Link as SongLink;
 use shared::song::Song;
 use shared::song::{ChordRepresentation, SimpleChord};
 use std::collections::HashMap;
@@ -81,6 +82,21 @@ pub struct Item {
     pub original_key: Option<String>,
 }
 
+fn item_from_link_and_song(link: &SongLink, song: &Song) -> Item {
+    let title = song.data.title().to_string();
+    let original_key_label = song.data.key.as_ref().map(|key| format_key_label(key));
+    let key = link
+        .key
+        .clone()
+        .or_else(|| original_key_label.as_deref().and_then(chord_from_value));
+    Item {
+        id: link.id.clone(),
+        title,
+        key,
+        original_key: original_key_label,
+    }
+}
+
 fn move_item_to(mut items: Vec<Item>, from_idx: usize, target_idx: usize) -> Vec<Item> {
     if from_idx >= items.len() {
         return items;
@@ -112,8 +128,11 @@ pub fn setlist_editor(props: &Props) -> Html {
         let items = items.clone();
         let api = api.clone();
         let items_req_id = items_req_id.clone();
-        let deps = props.setlist.songs.clone();
-        use_effect_with(deps, move |setlist_songs| {
+        let deps = (
+            props.setlist_id.clone(),
+            props.setlist.songs.clone(),
+        );
+        use_effect_with(deps, move |(setlist_id, setlist_songs)| {
             let items = items.clone();
             let api = api.clone();
             let items_req_id = items_req_id.clone();
@@ -123,26 +142,41 @@ pub fn setlist_editor(props: &Props) -> Html {
                 *g
             };
             let setlist_songs = setlist_songs.clone();
+            let setlist_id = setlist_id.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let mut build_items = Vec::new();
-                for link in setlist_songs.iter() {
-                    let (title, original_key_label) = match api.get_song(&link.id).await {
-                        Ok(song) => (
-                            song.data.title().to_string(),
-                            song.data.key.as_ref().map(|key| format_key_label(key)),
-                        ),
-                        Err(_) => ("unknown".into(), None),
-                    };
-                    let key = link
-                        .key
-                        .clone()
-                        .or_else(|| original_key_label.as_deref().and_then(chord_from_value));
-                    build_items.push(Item {
-                        id: link.id.clone(),
-                        title,
-                        key,
-                        original_key: original_key_label,
-                    });
+
+                let mut loaded_via_setlist = false;
+                if let Some(id) = setlist_id.as_deref() {
+                    if let Ok(songs) = api.get_setlist_songs(id).await {
+                        if songs.len() == setlist_songs.len()
+                            && setlist_songs
+                                .iter()
+                                .zip(songs.iter())
+                                .all(|(link, song)| link.id == song.id)
+                        {
+                            for (link, song) in setlist_songs.iter().zip(songs.iter()) {
+                                build_items.push(item_from_link_and_song(link, song));
+                            }
+                            loaded_via_setlist = true;
+                        }
+                    }
+                }
+
+                if !loaded_via_setlist {
+                    build_items.clear();
+                    for link in setlist_songs.iter() {
+                        let item = match api.get_song(&link.id).await {
+                            Ok(song) => item_from_link_and_song(link, &song),
+                            Err(_) => Item {
+                                id: link.id.clone(),
+                                title: "unknown".into(),
+                                key: link.key.clone(),
+                                original_key: None,
+                            },
+                        };
+                        build_items.push(item);
+                    }
                 }
                 if req != *items_req_id.borrow() {
                     return;
