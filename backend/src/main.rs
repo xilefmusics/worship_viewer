@@ -29,6 +29,10 @@ use backend::settings::Settings;
 
 #[actix_web::main]
 async fn main() -> AnyResult<()> {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .map_err(|e| anyhow::anyhow!("failed to install rustls ring crypto provider: {e:?}"))?;
+
     backend::observability::init()?;
 
     let settings = Settings::from_env()?;
@@ -56,19 +60,29 @@ async fn main() -> AnyResult<()> {
         ),
     )?;
 
-    let db = Arc::new(
-        database::Database::connect(
-            &settings.db_address,
-            &settings.db_namespace,
-            &settings.db_database,
-            settings.db_username.as_deref(),
-            settings.db_password.as_deref(),
-        )
-        .await?,
-    );
-    db.migrate(settings.db_migration_path.as_str())
-        .await
-        .context("database migration failed")?;
+    // DB setup and OIDC provider discovery (HTTPS) run in parallel so we reach
+    // `HttpServer::bind` sooner. Cloud Run's startup check fails if the process
+    // has not opened `PORT` in time, even with `HOST=0.0.0.0`.
+    let (db, oidc_inner) = tokio::try_join!(
+        async {
+            let db = Arc::new(
+                database::Database::connect(
+                    &settings.db_address,
+                    &settings.db_namespace,
+                    &settings.db_database,
+                    settings.db_username.as_deref(),
+                    settings.db_password.as_deref(),
+                )
+                .await?,
+            );
+            db.migrate(settings.db_migration_path.as_str())
+                .await
+                .context("database migration failed")?;
+            Result::<_, anyhow::Error>::Ok(db)
+        },
+        oidc::build_clients(&settings)
+    )?;
+    let oidc_clients_arc = Arc::new(oidc_inner);
 
     let user_service = UserServiceHandle::build(db.clone());
     let session_service = SessionServiceHandle::build(db.clone());
@@ -123,7 +137,6 @@ async fn main() -> AnyResult<()> {
         }
     }
 
-    let oidc_clients_arc = Arc::new(oidc::build_clients(&settings).await?);
     let oidc_provider_ids = oidc_clients_arc.registered_provider_ids();
     let oidc_clients = Data::new(oidc_clients_arc);
 
