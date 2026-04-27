@@ -22,6 +22,17 @@ impl WasmHttpClient {
         let path = path.trim_start_matches('/');
         format!("{base}/{path}")
     }
+
+    fn with_client(
+        &self,
+        request: gloo_net::http::RequestBuilder,
+    ) -> gloo_net::http::RequestBuilder {
+        if let Some(ref id) = self.config.client_ident {
+            request.header("X-Worship-Client", id)
+        } else {
+            request
+        }
+    }
 }
 
 #[async_trait::async_trait(?Send)]
@@ -32,7 +43,8 @@ impl HttpClient for WasmHttpClient {
     {
         let url = self.make_url(path);
 
-        let response = gloo_net::http::Request::get(&url)
+        let response = self
+            .with_client(gloo_net::http::Request::get(&url))
             .credentials(RequestCredentials::Include)
             .send()
             .await?;
@@ -58,8 +70,10 @@ impl HttpClient for WasmHttpClient {
         let url = self.make_url(path);
 
         let payload = serde_json::to_string(body)?;
-        let response = gloo_net::http::Request::post(&url)
-            .header("Content-Type", "application/json")
+        let response = self
+            .with_client(
+                gloo_net::http::Request::post(&url).header("Content-Type", "application/json"),
+            )
             .credentials(RequestCredentials::Include)
             .body(payload)?
             .send()
@@ -87,8 +101,10 @@ impl HttpClient for WasmHttpClient {
         let url = self.make_url(path);
 
         let payload = serde_json::to_string(body)?;
-        let response = gloo_net::http::Request::put(&url)
-            .header("Content-Type", "application/json")
+        let response = self
+            .with_client(
+                gloo_net::http::Request::put(&url).header("Content-Type", "application/json"),
+            )
             .credentials(RequestCredentials::Include)
             .body(payload)?
             .send()
@@ -116,8 +132,10 @@ impl HttpClient for WasmHttpClient {
         let url = self.make_url(path);
 
         let payload = serde_json::to_string(body)?;
-        let response = gloo_net::http::Request::patch(&url)
-            .header("Content-Type", "application/json")
+        let response = self
+            .with_client(
+                gloo_net::http::Request::patch(&url).header("Content-Type", "application/json"),
+            )
             .credentials(RequestCredentials::Include)
             .body(payload)?
             .send()
@@ -144,8 +162,10 @@ impl HttpClient for WasmHttpClient {
         let url = self.make_url(path);
 
         let payload = serde_json::to_string(body)?;
-        let response = gloo_net::http::Request::post(&url)
-            .header("Content-Type", "application/json")
+        let response = self
+            .with_client(
+                gloo_net::http::Request::post(&url).header("Content-Type", "application/json"),
+            )
             .credentials(RequestCredentials::Include)
             .body(payload)?
             .send()
@@ -169,7 +189,8 @@ impl HttpClient for WasmHttpClient {
     {
         let url = self.make_url(path);
 
-        let response = gloo_net::http::Request::delete(&url)
+        let response = self
+            .with_client(gloo_net::http::Request::delete(&url))
             .credentials(RequestCredentials::Include)
             .send()
             .await?;
@@ -190,7 +211,8 @@ impl HttpClient for WasmHttpClient {
     async fn delete_no_content(&self, path: &str) -> Result<(), NetworkClientError> {
         let url = self.make_url(path);
 
-        let response = gloo_net::http::Request::delete(&url)
+        let response = self
+            .with_client(gloo_net::http::Request::delete(&url))
             .credentials(RequestCredentials::Include)
             .send()
             .await?;
@@ -210,7 +232,8 @@ impl HttpClient for WasmHttpClient {
     async fn put_no_content(&self, path: &str) -> Result<(), NetworkClientError> {
         let url = self.make_url(path);
 
-        let response = gloo_net::http::Request::put(&url)
+        let response = self
+            .with_client(gloo_net::http::Request::put(&url))
             .credentials(RequestCredentials::Include)
             .send()
             .await?;
@@ -241,8 +264,10 @@ impl HttpClient for WasmHttpClient {
         let buf = Uint8Array::new_with_length(body.len() as u32);
         buf.copy_from(body);
 
-        let response = gloo_net::http::Request::put(&url)
-            .header("Content-Type", content_type)
+        let response = self
+            .with_client(
+                gloo_net::http::Request::put(&url).header("Content-Type", content_type),
+            )
             .credentials(RequestCredentials::Include)
             .body(JsValue::from(buf))?
             .send()

@@ -5,12 +5,14 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready};
+use actix_web::http::header::{REFERER, USER_AGENT};
 use actix_web::web::Data;
 use actix_web::{Error, HttpMessage};
 use futures_util::future::LocalBoxFuture;
 use tracing::error;
 use uuid::Uuid;
 
+use crate::client_attribution::{self, X_WORSHIP_CLIENT};
 use crate::database::Database;
 use crate::request_id::ApiRequestTarget;
 use crate::resources::User;
@@ -85,6 +87,24 @@ where
             .get::<ApiRequestTarget>()
             .map(|t| t.0.clone())
             .unwrap_or(path_fallback.clone());
+        let headers = req.headers();
+        let x_worship_client = headers
+            .get(X_WORSHIP_CLIENT)
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned);
+        let user_agent = headers
+            .get(USER_AGENT)
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned);
+        let referer = headers
+            .get(REFERER)
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned);
+        let (client_origin, client_version) = client_attribution::classify(
+            x_worship_client.as_deref(),
+            user_agent.as_deref(),
+            referer.as_deref(),
+        );
 
         Box::pin(async move {
             let outcome = service.call(req).await;
@@ -120,6 +140,8 @@ where
                 duration_ms,
                 user_id,
                 session_id,
+                client_origin,
+                client_version,
             };
             if cfg!(test) {
                 insert_row(db_inner.get_ref(), row)
@@ -146,6 +168,8 @@ struct HttpAuditInsert {
     duration_ms: i64,
     user_id: Option<String>,
     session_id: Option<String>,
+    client_origin: String,
+    client_version: Option<String>,
 }
 
 async fn insert_row(db: &Database, row: HttpAuditInsert) -> Result<(), surrealdb::Error> {
@@ -154,6 +178,8 @@ async fn insert_row(db: &Database, row: HttpAuditInsert) -> Result<(), surrealdb
         .query(
             "CREATE http_request_audit SET request_id = $request_id, method = $method, \
              path = $path, status_code = $status_code, duration_ms = $duration_ms, \
+             client_origin = $client_origin, \
+             client_version = IF $client_version = NONE THEN NONE ELSE $client_version END, \
              user = IF $user_id = NONE THEN NONE ELSE type::record('user', $user_id) END, \
              session = IF $session_id = NONE THEN NONE ELSE type::record('session', $session_id) END;",
         )
@@ -162,6 +188,8 @@ async fn insert_row(db: &Database, row: HttpAuditInsert) -> Result<(), surrealdb
         .bind(("path", row.path))
         .bind(("status_code", row.status_code))
         .bind(("duration_ms", row.duration_ms))
+        .bind(("client_origin", row.client_origin))
+        .bind(("client_version", row.client_version))
         .bind(("user_id", row.user_id))
         .bind(("session_id", row.session_id))
         .await?;

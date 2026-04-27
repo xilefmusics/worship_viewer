@@ -104,6 +104,10 @@ pub struct HttpAuditRecord {
     pub user: Option<RecordId>,
     #[serde(default)]
     pub session: Option<RecordId>,
+    #[serde(default)]
+    pub client_origin: Option<String>,
+    #[serde(default)]
+    pub client_version: Option<String>,
     pub created_at: Datetime,
 }
 
@@ -119,6 +123,10 @@ impl HttpAuditRecord {
             duration_ms: self.duration_ms as i32,
             user_id: self.user.as_ref().map(record_id_string),
             session_id: self.session.as_ref().map(record_id_string),
+            client_origin: self
+                .client_origin
+                .unwrap_or_else(|| "unknown".to_string()),
+            client_version: self.client_version,
             created_at: self.created_at.into(),
         }
     }
@@ -137,6 +145,9 @@ pub struct HttpAuditLog {
     pub user_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    pub client_origin: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_version: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
