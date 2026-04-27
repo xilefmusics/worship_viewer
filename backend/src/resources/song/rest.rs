@@ -19,6 +19,7 @@ use crate::resources::song::{CreateSong, UpdateSong};
 use crate::resources::team::UserPermissions;
 use shared::MoveOwner;
 use shared::api::{PAGE_SIZE_DEFAULT, SongListQuery};
+use shared::like::LikeStatus;
 #[allow(unused_imports)]
 use shared::player::Player;
 

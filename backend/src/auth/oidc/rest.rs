@@ -8,10 +8,8 @@ use actix_web::{
     web::{self, Data},
 };
 use chrono::{Duration as ChronoDuration, Utc};
-use oauth2::{AuthorizationCode, CsrfToken, PkceCodeChallenge};
 use openidconnect::core::CoreAuthenticationFlow;
-use openidconnect::reqwest::async_http_client;
-use openidconnect::{Nonce, Scope};
+use openidconnect::{AuthorizationCode, CsrfToken, Nonce, PkceCodeChallenge, Scope, TokenResponse};
 use serde::Deserialize;
 use time::Duration as CookieDuration;
 use tracing::instrument;
@@ -151,24 +149,24 @@ async fn callback(
         }
     };
     let oidc_client = registration.client();
+    let http = registration.http();
 
-    let mut token_request = oidc_client.exchange_code(AuthorizationCode::new(query.code.clone()));
+    let mut token_request = oidc_client
+        .exchange_code(AuthorizationCode::new(query.code.clone()))
+        .map_err(|e| crate::log_and_convert!(AppError::oidc, "oidc.exchange_code", e))?;
     token_request = token_request.set_pkce_verifier(pkce_verifier);
 
-    let token_response = token_request
-        .request_async(async_http_client)
-        .await
-        .map_err(|e| {
-            crate::audit!(
-                "audit.auth.login.failure",
-                provider = tracing::field::display(&"google"),
-                reason = tracing::field::display(&"token_exchange_failed")
-                ; "oidc login failed"
-            );
-            crate::log_and_convert!(AppError::oidc, "oidc.token_exchange", e)
-        })?;
+    let token_response = token_request.request_async(http).await.map_err(|e| {
+        crate::audit!(
+            "audit.auth.login.failure",
+            provider = tracing::field::display(&"google"),
+            reason = tracing::field::display(&"token_exchange_failed")
+            ; "oidc login failed"
+        );
+        crate::log_and_convert!(AppError::oidc, "oidc.token_exchange", e)
+    })?;
 
-    let id_token = match token_response.extra_fields().id_token() {
+    let id_token = match token_response.id_token() {
         Some(t) => t,
         None => {
             crate::audit!(

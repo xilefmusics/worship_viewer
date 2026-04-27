@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
-use oauth2::PkceCodeVerifier;
 use openidconnect::Nonce;
+use openidconnect::PkceCodeVerifier;
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{Datetime, RecordId, SurrealValue};
 

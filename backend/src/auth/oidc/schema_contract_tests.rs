@@ -1,8 +1,8 @@
 //! SCHEMAFULL contract tests: serde content written by OIDC state helpers must match Surreal schema.
 
 use chrono::{Duration as ChronoDuration, Utc};
-use oauth2::PkceCodeChallenge;
 use openidconnect::Nonce;
+use openidconnect::PkceCodeChallenge;
 
 use super::{Model as OidcModel, OidcProvider, PendingOidc};
 use crate::test_helpers::test_db;
