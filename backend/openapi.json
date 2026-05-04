@@ -6514,6 +6514,15 @@
                 "null"
               ]
             }
+          },
+          {
+            "description": "Optional case-insensitive substring on team name or id. Whitespace-only is treated as absent.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -7592,7 +7601,7 @@
             }
           },
           {
-            "description": "Optional case-insensitive email substring filter. Whitespace-only is treated as absent.",
+            "description": "Optional case-insensitive substring filter on email or user id. Whitespace-only is treated as absent.",
             "in": "query",
             "name": "q",
             "required": false,
@@ -8015,6 +8024,15 @@
                 "integer",
                 "null"
               ]
+            }
+          },
+          {
+            "description": "Optional case-insensitive substring on session id, user id, or user email. Whitespace-only is treated as absent.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -8463,6 +8481,15 @@
                 "integer",
                 "null"
               ]
+            }
+          },
+          {
+            "description": "Optional case-insensitive substring on session id, user id, or user email. Whitespace-only is treated as absent.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           },
           {

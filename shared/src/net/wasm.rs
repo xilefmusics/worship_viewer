@@ -265,9 +265,7 @@ impl HttpClient for WasmHttpClient {
         buf.copy_from(body);
 
         let response = self
-            .with_client(
-                gloo_net::http::Request::put(&url).header("Content-Type", content_type),
-            )
+            .with_client(gloo_net::http::Request::put(&url).header("Content-Type", content_type))
             .credentials(RequestCredentials::Include)
             .body(JsValue::from(buf))?
             .send()

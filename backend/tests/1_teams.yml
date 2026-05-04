@@ -225,6 +225,67 @@ testcases:
           - result.body ShouldContainSubstring "{{.team-lead-create-shared-b-same-name.shared_team_b_id}}"
           - result.body ShouldContainSubstring "{{.team-solo-sees-personal-only.solo_personal_team_id}}"
 
+  # BLC: BLC-LP-003, BLC-LP-005, BLC-LP-009
+  - name: team-list-q-match-name
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams?q=Duplicate"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
+
+  # BLC: BLC-LP-003, BLC-LP-009
+  - name: team-list-q-with-pagination
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams?q=Duplicate&page=0&page_size=1"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  # BLC: BLC-LP-003
+  - name: team-list-q-by-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams?q={{.team-lead-create-shared-a.shared_team_a_id}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson.bodyjson0.id ShouldEqual "{{.team-lead-create-shared-a.shared_team_a_id}}"
+
+  # BLC: BLC-LP-003, BLC-LP-008
+  - name: team-list-q-no-matches
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams?q=TeamNoSuchTokenEver999zz"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 0
+
+  # BLC: BLC-LP-005
+  - name: team-list-q-blank-ignored-full-list
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/teams?q=%20"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 5
+
   # BLC: BLC-TEAM-007
   - name: team-platform-admin-gets-shared-without-membership
     steps:

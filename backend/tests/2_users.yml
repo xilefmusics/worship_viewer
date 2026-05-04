@@ -257,6 +257,68 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson ShouldHaveLength 0
   
+  # BLC: BLC-LP-003, BLC-LP-009
+  - name: get-users-q-email-match
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?q=anormaluser"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-users.userid}}"
+
+  # BLC: BLC-LP-003, BLC-LP-009
+  - name: get-users-q-with-pagination
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?q=anormaluser&page=0&page_size=1"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  # BLC: BLC-LP-003, BLC-LP-008
+  - name: get-users-q-no-matches
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?q=UserNoSuchTokenEver999zz"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 0
+
+  # BLC: BLC-LP-005
+  - name: get-users-q-blank-still-paginates-like-omit
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?q=%20&page_size=1"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+
+  # BLC: BLC-LP-003
+  - name: get-users-q-by-id
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users?q={{.post-users.userid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson.bodyjson0.id ShouldEqual "{{.post-users.userid}}"
+  
   # BLC: BLC-USER-007, BLC-USER-009
   - name: get-user
     steps:
@@ -317,6 +379,72 @@ testcases:
         vars:
           sessionid:
             from: result.bodyjson.id
+
+  # BLC: BLC-USER-011
+  - name: create-second-session-for-default-user
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}/sessions"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+          Content-Type: application/json
+        body: ""
+        assertions:
+          - result.statuscode ShouldEqual 201
+        vars:
+          sessionid2:
+            from: result.bodyjson.id
+
+  # BLC: BLC-LP-003, BLC-LP-009
+  - name: get-sessions-for-user-q-match-first
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}/sessions?q={{.create-session-for-default-user.sessionid}}"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson.bodyjson0.id ShouldEqual "{{.create-session-for-default-user.sessionid}}"
+
+  # BLC: BLC-LP-003, BLC-LP-008
+  - name: get-sessions-for-user-q-no-matches
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}/sessions?q=SessionNoSuchTokenEver999zz"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 0
+
+  # BLC: BLC-LP-005
+  - name: get-sessions-for-user-q-blank-ignored
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/{{.post-users.userid}}/sessions?q=%20"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 2
+
+  # BLC: BLC-LP-003
+  - name: get-me-sessions-q-match-second
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/sessions?q={{.create-second-session-for-default-user.sessionid2}}"
+        headers:
+          Authorization: "Bearer {{.create-session-for-default-user.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldHaveLength 1
+          - result.bodyjson.bodyjson0.id ShouldEqual "{{.create-second-session-for-default-user.sessionid2}}"
 
   # BLC: BLC-TEAM-001
   - name: get-default-user-personal-team
