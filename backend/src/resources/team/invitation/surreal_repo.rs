@@ -99,10 +99,11 @@ impl TeamInvitationRepository for SurrealTeamInvitationRepo {
     ) -> Result<Option<InvitationAcceptRow>, AppError> {
         let inv_thing = invitation_thing_from_id(inv_id)?;
         // `FETCH team` alone leaves `members[].user` as bare ids; use `team.members.user` to fully expand.
+        // Personal teams also need `team.owner` expanded to `UserRecord`.
         Ok(self
             .inner()
             .db
-            .query("SELECT * FROM $iid FETCH created_by, team, team.members.user")
+            .query("SELECT * FROM $iid FETCH created_by, team, team.members.user, team.owner")
             .bind(("iid", inv_thing))
             .await?
             .take::<Option<InvitationAcceptRow>>(0)?)

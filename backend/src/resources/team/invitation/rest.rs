@@ -37,7 +37,6 @@ pub fn invitations_accept_scope() -> Scope {
     ),
     responses(
         (status = 201, description = "Invitation created", body = TeamInvitation),
-        (status = 400, description = "Team is not shared", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
         (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "Not a team admin", body = Problem, content_type = "application/problem+json"),

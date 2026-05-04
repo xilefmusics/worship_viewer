@@ -7232,16 +7232,6 @@
             },
             "description": "Invitation created"
           },
-          "400": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Team is not shared"
-          },
           "401": {
             "content": {
               "application/problem+json": {

@@ -56,7 +56,9 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         user: &User,
         team_id: &str,
     ) -> Result<TeamInvitation, AppError> {
-        let team_thing = self.assert_shared_team_admin(&user.id, team_id).await?;
+        let team_thing = self
+            .assert_team_admin_for_invitations(&user.id, team_id)
+            .await?;
         let inv_id = Uuid::new_v4().to_string();
         self.inv_repo
             .create_invitation(team_thing, user_thing(&user.id), &inv_id)
@@ -71,7 +73,9 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         team_id: &str,
         pagination: ListQuery,
     ) -> Result<(Vec<TeamInvitation>, u64), AppError> {
-        let team_thing = self.assert_shared_team_admin(&user.id, team_id).await?;
+        let team_thing = self
+            .assert_team_admin_for_invitations(&user.id, team_id)
+            .await?;
         let rows = self.inv_repo.list_invitations(team_thing).await?;
         let invitations: Vec<TeamInvitation> = rows
             .into_iter()
@@ -88,7 +92,9 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         team_id: &str,
         invitation_id: &str,
     ) -> Result<TeamInvitation, AppError> {
-        let team_thing = self.assert_shared_team_admin(&user.id, team_id).await?;
+        let team_thing = self
+            .assert_team_admin_for_invitations(&user.id, team_id)
+            .await?;
         let inv_thing = invitation_thing(invitation_id)?;
         let inv_id_key = record_id_string(&inv_thing);
         let row = self
@@ -111,7 +117,9 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         team_id: &str,
         invitation_id: &str,
     ) -> Result<(), AppError> {
-        let team_thing = self.assert_shared_team_admin(&user.id, team_id).await?;
+        let team_thing = self
+            .assert_team_admin_for_invitations(&user.id, team_id)
+            .await?;
         let inv_thing = invitation_thing(invitation_id)?;
         let inv_id_key = record_id_string(&inv_thing);
         let row = self
@@ -154,12 +162,19 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         }
 
         let stored = team_fetched_to_stored(&team_row)?;
-        if stored.owner.is_some() {
-            return Err(AppError::NotFound("invitation not found".into()));
-        }
 
         let team_id_str = crate::database::record_id_string(&team_row.id);
         let uid = user.id.clone();
+
+        // Personal team owner is not listed in `members`; accept is idempotent (same as for admin).
+        if let Some(ref o) = stored.owner
+            && thing_user_id(o) == uid
+        {
+            let team = self.team_repo.load_team_display(&team_id_str).await?;
+            audit_invitation_accepted(&team_id_str, invitation_id, &user.id);
+            return Ok(team);
+        }
+
         let mut map: BTreeMap<String, DbTeamMember> = BTreeMap::new();
         for m in &stored.members {
             map.insert(thing_user_id(&m.user), m.clone());
@@ -212,9 +227,10 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
         Ok(team)
     }
 
-    /// Asserts that a team exists, is a shared team, and the user is an admin of it.
+    /// Asserts that a team exists (not the public catalog team), and the user may manage
+    /// invitations: [`effective_admin`] — shared-team **admin** member, or **owner** of a personal team.
     /// Returns the team `RecordId` for binding into queries.
-    async fn assert_shared_team_admin(
+    async fn assert_team_admin_for_invitations(
         &self,
         user_id: &str,
         team_id: &str,
@@ -228,11 +244,6 @@ impl<R: TeamRepository, IR: TeamInvitationRepository> InvitationService<R, IR> {
             .ok_or_else(|| AppError::NotFound("team not found".into()))?;
 
         let stored = team_fetched_to_stored(&row)?;
-        if stored.owner.is_some() {
-            return Err(AppError::invalid_request(
-                "team invitations are only supported for shared teams",
-            ));
-        }
         if !member_or_owner_readable(user_id, &stored) {
             return Err(AppError::NotFound("team not found".into()));
         }
@@ -527,14 +538,17 @@ mod tests {
         assert!(r.is_ok());
     }
 
-    /// BLC-TINV-001: creating an invitation for a personal team is rejected with invalid request.
+    /// BLC-TINV-001, BLC-TINV-007: personal team owner can create an invitation.
     #[tokio::test]
-    async fn blc_tinv_001_create_personal_team_rejected() {
+    async fn blc_tinv_001_create_personal_team_owner_ok() {
         let user = make_user("u1");
         let team = personal_team("t1", "u1");
-        let svc = make_svc(MockTeamRepo::with(team), MockInvRepo::empty());
+        let svc = make_svc(
+            MockTeamRepo::with(team),
+            MockInvRepo::with_inv(inv_row("any", "t1")),
+        );
         let r = svc.create_invitation_for_user(&user, "t1").await;
-        assert!(matches!(r, Err(AppError::InvalidRequest(_))));
+        assert!(r.is_ok());
     }
 
     /// BLC-TINV-001: creating an invitation for team:public is rejected before DB fetch.
@@ -706,17 +720,38 @@ mod tests {
         assert!(matches!(r, Err(AppError::NotFound(_))));
     }
 
-    /// BLC-TINV-001: accepting an invitation for a personal team returns not found.
+    /// BLC-TINV-010: accepting an invitation for a personal team adds the user as guest.
     #[tokio::test]
-    async fn blc_tinv_001_accept_personal_team_not_found() {
+    async fn blc_tinv_010_accept_personal_team_adds_guest() {
         let user = make_user("u1");
-        let accept_row = inv_accept_row("inv1", personal_team("t1", "owner1"));
-        let svc = make_svc(
-            MockTeamRepo::missing(),
-            MockInvRepo::with_accept(accept_row),
-        );
+        let team = personal_team("t1", "owner1");
+        let accept_row = inv_accept_row("inv1", team.clone());
+        let mock_team = MockTeamRepo::with(personal_team("t1", "owner1"));
+        let update_called = mock_team.update_members_called.clone();
+        let svc = make_svc(mock_team, MockInvRepo::with_accept(accept_row));
         let r = svc.accept_invitation_for_user(&user, "inv1").await;
-        assert!(matches!(r, Err(AppError::NotFound(_))));
+        assert!(r.is_ok());
+        assert!(
+            *update_called.lock().unwrap(),
+            "update_team_members must be called to add guest to personal team"
+        );
+    }
+
+    /// BLC-TINV-010: personal team owner accepting an invitation does not add owner to members.
+    #[tokio::test]
+    async fn blc_tinv_010_accept_personal_team_owner_idempotent() {
+        let user = make_user("owner1");
+        let team = personal_team("t1", "owner1");
+        let accept_row = inv_accept_row("inv1", team.clone());
+        let mock_team = MockTeamRepo::with(team);
+        let update_called = mock_team.update_members_called.clone();
+        let svc = make_svc(mock_team, MockInvRepo::with_accept(accept_row));
+        let r = svc.accept_invitation_for_user(&user, "inv1").await;
+        assert!(r.is_ok());
+        assert!(
+            !*update_called.lock().unwrap(),
+            "owner must not be inserted into members list"
+        );
     }
 
     /// BLC-TINV-011: accepting when already content_maintainer does not downgrade the role.
@@ -809,16 +844,39 @@ mod tests {
             assert!(inv.id.len() >= 32, "invitation id must be UUID-length");
         }
 
-        /// BLC-TINV-001: creating invitation for personal team returns InvalidRequest.
+        /// BLC-TINV-001: personal team owner can create invitation.
         #[tokio::test]
-        async fn blc_tinv_001_personal_team_rejected_integration() {
+        async fn blc_tinv_001_personal_team_owner_create_ok_integration() {
             let db = test_db().await.expect("db");
             let fx = TeamFixture::build(&db).await.expect("fixture");
             let svc = invitation_service(&db);
-            let r = svc
+            let inv = svc
                 .create_invitation_for_user(&fx.owner, &fx.personal_team_id)
-                .await;
-            assert!(matches!(r, Err(AppError::InvalidRequest(_))));
+                .await
+                .expect("create");
+            assert_eq!(inv.team_id, fx.personal_team_id);
+        }
+
+        /// BLC-TINV-010: guest accepts invitation to owner's personal team.
+        #[tokio::test]
+        async fn blc_tinv_010_accept_personal_team_guest_integration() {
+            let db = test_db().await.expect("db");
+            let fx = TeamFixture::build(&db).await.expect("fixture");
+            let svc = invitation_service(&db);
+            let inv = svc
+                .create_invitation_for_user(&fx.owner, &fx.personal_team_id)
+                .await
+                .expect("create");
+            let team = svc
+                .accept_invitation_for_user(&fx.guest, &inv.id)
+                .await
+                .expect("accept");
+            assert_eq!(team.id, fx.personal_team_id);
+            let is_guest = team
+                .members
+                .iter()
+                .any(|m| m.user.id == fx.guest.id && m.role == shared::team::TeamRole::Guest);
+            assert!(is_guest, "accepted user must be a guest member");
         }
 
         /// BLC-TINV-002: content_maintainer cannot create invitation.

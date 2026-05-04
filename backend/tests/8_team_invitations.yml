@@ -267,8 +267,8 @@ testcases:
           lead_personal_team_id:
             from: result.bodyjson.bodyjson0.id
 
-  # BLC: BLC-TINV-001, BLC-TINV-007
-  - name: ti-personal-team-invite-bad-request
+  # BLC: BLC-TINV-001, BLC-TINV-007, BLC-TINV-010
+  - name: ti-lead-create-personal-invitation
     steps:
       - type: http
         method: POST
@@ -276,7 +276,22 @@ testcases:
         headers:
           Authorization: "Bearer {{.ti-create-lead-session.sessionid}}"
         assertions:
-          - result.statuscode ShouldEqual 400
+          - result.statuscode ShouldEqual 201
+          - result.bodyjson.team_id ShouldEqual "{{.ti-lead-personal-team-id.lead_personal_team_id}}"
+        vars:
+          invitation_id:
+            from: result.bodyjson.id
+
+  - name: ti-guest-accept-personal-invitation
+    steps:
+      - type: http
+        method: POST
+        url: "{{.base_url}}/api/v1/teams/{{.ti-lead-personal-team-id.lead_personal_team_id}}/invitations/{{.ti-lead-create-personal-invitation.invitation_id}}/accept"
+        headers:
+          Authorization: "Bearer {{.ti-create-guest-session.sessionid}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "{{.ti-lead-personal-team-id.lead_personal_team_id}}"
 
   # BLC: BLC-TINV-002
   - name: ti-platform-admin-cannot-invite-without-team-admin
