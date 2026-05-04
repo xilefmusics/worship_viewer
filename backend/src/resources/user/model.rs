@@ -53,9 +53,11 @@ pub struct UserRecord {
     default_collection: Option<RecordId>,
     created_at: Datetime,
     #[serde(default)]
-    last_login_at: Option<Datetime>,
-    #[serde(default)]
+    #[serde(skip_serializing)]
     request_count: u64,
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    last_used_at: Option<Datetime>,
     #[serde(default)]
     oauth_picture_url: Option<String>,
     #[serde(default)]
@@ -72,7 +74,7 @@ impl UserRecord {
             role: self.role.0,
             default_collection: self.default_collection.map(|id| record_id_string(&id)),
             created_at: self.created_at.into(),
-            last_login_at: self.last_login_at.map(Into::into),
+            last_used_at: self.last_used_at.map(Into::into),
             request_count: self.request_count,
             oauth_picture_url: self.oauth_picture_url,
             oauth_avatar_blob_id: self.oauth_avatar_blob.map(|id| record_id_string(&id)),
@@ -93,8 +95,8 @@ impl UserRecord {
                 .default_collection
                 .map(|id| RecordId::new("collection", id)),
             created_at: user.created_at.into(),
-            last_login_at: user.last_login_at.map(Into::into),
-            request_count: user.request_count,
+            request_count: 0,
+            last_used_at: None,
             oauth_picture_url: user.oauth_picture_url,
             oauth_avatar_blob: user
                 .oauth_avatar_blob_id

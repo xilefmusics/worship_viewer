@@ -92,7 +92,7 @@ impl SessionRepository for SurrealSessionRepo {
         &self,
         id: &str,
     ) -> Result<Option<Session>, AppError> {
-        Ok(self
+        let raw = self
             .inner()
             .db
             .query(
@@ -103,20 +103,14 @@ impl SessionRepository for SurrealSessionRepo {
             WHERE expires_at != NONE
               AND expires_at <= time::now();
                         
-            UPDATE user
-            SET
-              last_login_at = time::now(),
-              request_count += 1
-            WHERE id = (SELECT user FROM $sid)[0].user;
-                        
             RETURN (SELECT * FROM $sid FETCH user)[0];
                 "#,
             )
             .bind(("id", id.to_owned()))
             .await
             .map_err(|e| crate::log_and_convert!(AppError::database, "session.validate.query", e))?
-            .take::<Option<SessionRecord>>(3)
-            .map_err(|e| crate::log_and_convert!(AppError::database, "session.validate.take", e))?
-            .map(SessionRecord::into_session))
+            .take::<Option<SessionRecord>>(2)
+            .map_err(|e| crate::log_and_convert!(AppError::database, "session.validate.take", e))?;
+        Ok(raw.map(SessionRecord::into_session))
     }
 }

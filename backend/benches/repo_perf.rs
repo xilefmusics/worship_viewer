@@ -1,7 +1,8 @@
 //! Criterion benchmarks for team resolution and setlist repository (in-memory SurrealDB).
+use std::hint::black_box;
 use std::sync::Arc;
 
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 use tokio::runtime::Runtime;
 
 use backend::database::Database;
