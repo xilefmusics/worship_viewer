@@ -127,6 +127,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::user::rest::get_user,
         crate::resources::user::rest::create_user,
         crate::resources::user::rest::delete_user,
+        crate::resources::user::session::rest::get_current_session_for_user,
         crate::resources::user::session::rest::get_sessions_for_current_user,
         crate::resources::user::session::rest::get_session_for_current_user,
         crate::resources::user::session::rest::delete_session_for_current_user,

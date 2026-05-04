@@ -22,6 +22,7 @@ pub fn scope(avatar_upload_max_bytes: usize) -> Scope {
                 .route(web::put().to(put_profile_picture))
                 .route(web::delete().to(delete_profile_picture)),
         )
+        .service(session::rest::get_current_session_for_user)
         .service(session::rest::get_sessions_for_current_user)
         .service(session::rest::get_session_for_current_user)
         .service(session::rest::delete_session_for_current_user)
