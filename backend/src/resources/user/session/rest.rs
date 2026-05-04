@@ -1,6 +1,6 @@
 use actix_web::http::header;
 use actix_web::{
-    HttpRequest, HttpResponse, delete, get, post,
+    HttpMessage, HttpRequest, HttpResponse, delete, get, post,
     web::{Data, Path, Query, ReqData},
 };
 use serde::Deserialize;
@@ -12,6 +12,7 @@ use shared::user::{Session, SessionBody};
 use crate::docs::Problem;
 use crate::error::AppError;
 use crate::expand::expand_includes_user;
+use crate::http_audit::AuditSessionId;
 use crate::resources::User;
 use crate::settings::CookieConfig;
 
@@ -29,6 +30,46 @@ struct SessionsPageQuery {
 struct ExpandQuery {
     /// Comma-separated relations to expand (`user` → full user object on `user`).
     expand: Option<String>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/users/me/session",
+    params(
+        ("expand" = Option<String>, Query, description = "Optional `user` to embed full user (default: `id`+`email` link)."),
+    ),
+    responses(
+        (status = 200, description = "Returns the session credential used for this request", body = SessionBody),
+        (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "API rate limit exceeded; see `Retry-After` and `X-RateLimit-*` response headers", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Session not found", body = Problem, content_type = "application/problem+json"),
+        (status = 500, description = "Failed to fetch session", body = Problem, content_type = "application/problem+json")
+    ),
+    tag = "Users",
+    security(
+        ("SessionCookie" = []),
+        ("SessionToken" = [])
+    )
+)]
+#[get("/me/session")]
+pub async fn get_current_session_for_user(
+    req: HttpRequest,
+    svc: Data<SessionServiceHandle>,
+    user: ReqData<User>,
+    expand: Query<ExpandQuery>,
+) -> Result<HttpResponse, AppError> {
+    let session_id = req
+        .extensions()
+        .get::<AuditSessionId>()
+        .map(|a| a.0.clone())
+        .ok_or_else(|| {
+            AppError::Internal("authenticated request missing credential session identifier".into())
+        })?;
+    let session = svc.get_session_for_user(&session_id, &user.id).await?;
+    Ok(HttpResponse::Ok().json(SessionBody::from_session(
+        session,
+        expand_includes_user(&expand.expand),
+    )))
 }
 
 #[utoipa::path(

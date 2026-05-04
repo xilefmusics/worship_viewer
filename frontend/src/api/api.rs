@@ -204,6 +204,15 @@ impl Api {
     }
 
     #[allow(dead_code)]
+    pub async fn get_current_session(&self) -> Result<SessionBody, ApiError> {
+        ApiError::check_and_notify_offline(OperationType::Read);
+        self.client
+            .get_my_current_session()
+            .await
+            .map_err(|e| self.handle_error(e))
+    }
+
+    #[allow(dead_code)]
     pub async fn delete_session_for_current_user(&self, id: &str) -> Result<(), ApiError> {
         ApiError::check_and_notify_offline(OperationType::Write);
         self.client

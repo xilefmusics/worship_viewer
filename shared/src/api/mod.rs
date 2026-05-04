@@ -125,6 +125,16 @@ impl<C: HttpClient> ApiClient<C> {
             .await
     }
 
+    pub async fn get_my_current_session(&self) -> Result<SessionBody, NetworkClientError> {
+        self.client
+            .get(&append_query_param(
+                "api/v1/users/me/session".to_string(),
+                "expand",
+                "user",
+            ))
+            .await
+    }
+
     pub async fn delete_my_session(&self, id: &str) -> Result<(), NetworkClientError> {
         self.client
             .delete_no_content(&format!("api/v1/users/me/sessions/{id}"))

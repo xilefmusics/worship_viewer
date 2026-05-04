@@ -99,6 +99,18 @@ testcases:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "admin"
 
+  # Matches `get-me-session-admin` via GET /users/me/session (credential used on the wire).
+  - name: get-me-current-session-admin
+    steps:
+      - type: http
+        method: GET
+        url: "{{.base_url}}/api/v1/users/me/session"
+        headers:
+          Authorization: "Bearer {{.token_admin}}"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson.id ShouldEqual "admin"
+
   # BLC: BLC-SESS-004
   - name: get-me-session-admin-notfound
     steps:
