@@ -140,8 +140,6 @@ cd backend && \
   INITIAL_ADMIN_USER_EMAIL="admin@example.com" \
   INITIAL_ADMIN_USER_TEST_SESSION=true \
   DB_ADDRESS="ws://localhost:8000" \
-  DB_NAMESPACE="app" \
-  DB_DATABASE="app" \
   DB_USERNAME="app" \
   DB_PASSWORD="app" \
   cargo run
@@ -155,7 +153,7 @@ Configuration is driven by environment variables (uppercase names matching the `
 - **Cookies / session:** `POST_LOGIN_PATH`, `COOKIE_NAME`, `COOKIE_SECURE`, `SESSION_TTL_SECONDS`.
 - **OTP email:** `OTP_TTL_SECONDS`, `OTP_PEPPER`, `OTP_MAX_ATTEMPTS`, `OTP_ALLOW_SELF_SIGNUP` (optional override: `WORSHIP_OTP_ALLOW_SELF_SIGNUP`). Outbound mail uses **Gmail SMTP** via `GMAIL_APP_PASSWORD` and `GMAIL_FROM` (see [`backend/src/mail.rs`](backend/src/mail.rs)); empty values are only workable if you never send mail.
 - **OIDC (e.g. Google):** `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URL`, `OIDC_SCOPES`.
-- **Database:** `DB_ADDRESS`, `DB_NAMESPACE`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_MIGRATION_PATH`.
+- **Database:** `DB_ADDRESS`, `DB_USERNAME`, `DB_PASSWORD`, `DB_MIGRATION_PATH`.
 - **Static assets and uploads:** `STATIC_DIR`, `BLOB_DIR`, `BLOB_UPLOAD_MAX_BYTES`.
 - **Rate limits:** `AUTH_RATE_LIMIT_RPS`, `AUTH_RATE_LIMIT_BURST`, `API_RATE_LIMIT_RPS`, `API_RATE_LIMIT_BURST`.
 - **OpenAPI metadata:** `OPENAPI_CONTACT_EMAIL`, `OPENAPI_IMPRINT_URL`.
