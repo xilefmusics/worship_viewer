@@ -4,6 +4,7 @@ use web_sys::window;
 use yew::prelude::*;
 
 use crate::api::use_api;
+use crate::components::toast_notifications::show_error;
 use crate::components::LegalLinks;
 
 #[styled_component(LoginPage)]
@@ -28,7 +29,6 @@ pub fn login() -> Html {
         let otp_input_ref = otp_input_ref.clone();
         let api = api.clone();
         Callback::from(move |_| {
-            otp_requested.set(!*otp_requested);
             let email = email_input_ref
                 .cast::<web_sys::HtmlInputElement>()
                 .map(|input| input.value())
@@ -37,17 +37,37 @@ pub fn login() -> Html {
                 .cast::<web_sys::HtmlInputElement>()
                 .map(|input| input.value())
                 .unwrap_or_default();
-            let otp_requested = otp_requested.clone();
-            let api = api.clone();
+
             if *otp_requested {
+                let code = otp.trim().to_string();
+                if code.is_empty() {
+                    show_error(
+                        "Code required",
+                        "Enter the one-time code from your email.",
+                    );
+                    return;
+                }
                 let api = api.clone();
                 spawn_local(async move {
-                    api.verify_otp(email, otp).await.unwrap();
-                    api.route_index();
-                })
+                    match api.verify_otp(email, code).await {
+                        Ok(_) => api.route_index(),
+                        Err(e) => show_error("Login failed", &e.to_string()),
+                    }
+                });
             } else {
+                let email = email.trim().to_string();
+                if email.is_empty() {
+                    show_error("Email required", "Enter your email address.");
+                    return;
+                }
+                let otp_requested = otp_requested.clone();
                 let api = api.clone();
-                spawn_local(async move { api.request_otp(email).await.unwrap() })
+                spawn_local(async move {
+                    match api.request_otp(email).await {
+                        Ok(()) => otp_requested.set(true),
+                        Err(e) => show_error("Could not send code", &e.to_string()),
+                    }
+                });
             }
         })
     };
