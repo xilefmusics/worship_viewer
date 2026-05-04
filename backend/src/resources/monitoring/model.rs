@@ -123,9 +123,7 @@ impl HttpAuditRecord {
             duration_ms: self.duration_ms as i32,
             user_id: self.user.as_ref().map(record_id_string),
             session_id: self.session.as_ref().map(record_id_string),
-            client_origin: self
-                .client_origin
-                .unwrap_or_else(|| "unknown".to_string()),
+            client_origin: self.client_origin.unwrap_or_else(|| "unknown".to_string()),
             client_version: self.client_version,
             created_at: self.created_at.into(),
         }

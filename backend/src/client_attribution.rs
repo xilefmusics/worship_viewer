@@ -24,9 +24,7 @@ pub fn classify(
         }
     }
 
-    if referer
-        .is_some_and(|r| r.to_ascii_lowercase().contains("/api/docs"))
-    {
+    if referer.is_some_and(|r| r.to_ascii_lowercase().contains("/api/docs")) {
         return ("swagger".to_string(), None);
     }
 
@@ -47,11 +45,7 @@ mod tests {
 
     #[test]
     fn primary_cli_header() {
-        let (o, v) = classify(
-            Some("worshipviewer-cli/1.2.3"),
-            Some("reqwest/0.12"),
-            None,
-        );
+        let (o, v) = classify(Some("worshipviewer-cli/1.2.3"), Some("reqwest/0.12"), None);
         assert_eq!(o, "cli");
         assert_eq!(v.as_deref(), Some("1.2.3"));
     }
@@ -98,11 +92,7 @@ mod tests {
 
     #[test]
     fn reqwest_without_header() {
-        let (o, v) = classify(
-            None,
-            Some("reqwest/0.12"),
-            None,
-        );
+        let (o, v) = classify(None, Some("reqwest/0.12"), None);
         assert_eq!(o, "cli");
         assert!(v.is_none());
     }

@@ -7,7 +7,7 @@ use actix_web::{
     HttpRequest, HttpResponse, Scope, delete, get, patch, post, put,
     web::{self, Data, Json, Path, Query, ReqData},
 };
-use shared::api::{ListQuery, PAGE_SIZE_DEFAULT, PageQuery};
+use shared::api::{ListQuery, PAGE_SIZE_DEFAULT};
 #[allow(unused_imports)]
 use shared::team::Team;
 use shared::team::{CreateTeam, PatchTeam, UpdateTeam};
@@ -32,6 +32,7 @@ pub fn scope() -> Scope {
     params(
         ("page" = Option<u32>, Query, description = "Page index, zero-based; defaults to 0.", minimum = 0, nullable = true),
         ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50 when omitted.", minimum = 1, maximum = 500, example = 50, nullable = true),
+        ("q" = Option<String>, Query, description = "Optional case-insensitive substring on team name or id. Whitespace-only is treated as absent."),
     ),
     responses(
         (status = 200, description = "Teams readable by the current user; platform admins receive all teams (except internal public). `X-Total-Count` is the total before paging.", body = [Team]),
@@ -51,7 +52,7 @@ async fn get_teams(
     req: HttpRequest,
     svc: Data<TeamServiceHandle>,
     user: ReqData<User>,
-    query: Query<PageQuery>,
+    query: Query<ListQuery>,
 ) -> Result<HttpResponse, AppError> {
     let query = query
         .into_inner()
@@ -60,10 +61,8 @@ async fn get_teams(
     let q_link = query.clone();
     let cur_page = query.page.unwrap_or(0);
     let page_size = query.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
-    let teams = svc.list_teams_for_user(&user).await?;
-    let total = teams.len() as u64;
-    let lq = query.as_list_query();
-    let (teams_page, _) = ListQuery::paginate_vec(teams, &lq);
+    let teams = filter_teams_by_q(svc.list_teams_for_user(&user).await?, &query);
+    let (teams_page, total) = ListQuery::paginate_vec(teams, &query);
     Ok(HttpResponse::Ok()
         .insert_header((
             header::HeaderName::from_static("x-total-count"),
@@ -237,4 +236,21 @@ async fn delete_team(
 ) -> Result<HttpResponse, AppError> {
     svc.delete_team_for_user(&user, &id).await?;
     Ok(HttpResponse::NoContent().finish())
+}
+
+fn filter_teams_by_q(mut teams: Vec<Team>, query: &ListQuery) -> Vec<Team> {
+    let Some(needle) = query.q.as_ref().and_then(|s| {
+        let t = s.trim();
+        if t.is_empty() {
+            None
+        } else {
+            Some(t.to_lowercase())
+        }
+    }) else {
+        return teams;
+    };
+    teams.retain(|t| {
+        t.name.to_lowercase().contains(&needle) || t.id.to_lowercase().contains(&needle)
+    });
+    teams
 }

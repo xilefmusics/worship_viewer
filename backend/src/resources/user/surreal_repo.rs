@@ -47,6 +47,7 @@ impl UserRepository for SurrealUserRepo {
                 .db
                 .query(
                     "SELECT * FROM user WHERE string::contains(string::lowercase(email), $needle) \
+                     OR string::contains(string::lowercase(type::string(id)), $needle) \
                      LIMIT $limit START $start",
                 )
                 .bind(("needle", needle))
@@ -85,7 +86,8 @@ impl UserRepository for SurrealUserRepo {
             self.inner()
                 .db
                 .query(
-                    "SELECT count() FROM user WHERE string::contains(string::lowercase(email), $needle) GROUP ALL",
+                    "SELECT count() FROM user WHERE string::contains(string::lowercase(email), $needle) \
+                     OR string::contains(string::lowercase(type::string(id)), $needle) GROUP ALL",
                 )
                 .bind(("needle", needle))
                 .await?

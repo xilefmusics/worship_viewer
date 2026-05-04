@@ -5,8 +5,8 @@ use actix_web::{
 };
 use serde::Deserialize;
 
-use shared::api::{ListQuery, PAGE_SIZE_DEFAULT, PageQuery};
-use shared::user::SessionBody;
+use shared::api::{ListQuery, PAGE_SIZE_DEFAULT};
+use shared::user::{Session, SessionBody};
 
 #[allow(unused_imports)]
 use crate::docs::Problem;
@@ -20,7 +20,7 @@ use super::service::SessionServiceHandle;
 #[derive(Debug, Deserialize)]
 struct SessionsPageQuery {
     #[serde(flatten)]
-    page: PageQuery,
+    list: ListQuery,
     /// Comma-separated relations to expand. Use `user` to embed the full [`crate::resources::User`] instead of the default `id`+`email` link.
     expand: Option<String>,
 }
@@ -37,6 +37,7 @@ struct ExpandQuery {
     params(
         ("page" = Option<u32>, Query, description = "Zero-based page; defaults to 0. `X-Total-Count` is the total before paging (`list-pagination.md`).", minimum = 0, nullable = true),
         ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50 when omitted.", minimum = 1, maximum = 500, example = 50, nullable = true),
+        ("q" = Option<String>, Query, description = "Optional case-insensitive substring on session id, user id, or user email. Whitespace-only is treated as absent."),
         ("expand" = Option<String>, Query, description = "Optional comma-separated relations (`user` = embed full user on each session; default is `id`+`email` link only)."),
     ),
     responses(
@@ -59,17 +60,16 @@ pub async fn get_sessions_for_current_user(
     user: ReqData<User>,
     query: Query<SessionsPageQuery>,
 ) -> Result<HttpResponse, AppError> {
-    let SessionsPageQuery { page, expand } = query.into_inner();
-    let page = page
+    let SessionsPageQuery { list, expand } = query.into_inner();
+    let list = list
         .validate()
         .map_err(crate::error::map_list_query_error)?;
     let expand_user = expand_includes_user(&expand);
-    let q_link = page.clone();
-    let cur_page = page.page.unwrap_or(0);
-    let page_size = page.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
-    let sessions = svc.get_sessions_by_user_id(&user.id).await?;
-    let lq = page.as_list_query();
-    let (sessions_page, total) = ListQuery::paginate_vec(sessions, &lq);
+    let q_link = list.clone();
+    let cur_page = list.page.unwrap_or(0);
+    let page_size = list.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
+    let sessions = filter_sessions_by_q(svc.get_sessions_by_user_id(&user.id).await?, &list);
+    let (sessions_page, total) = ListQuery::paginate_vec(sessions, &list);
     let sessions_page: Vec<SessionBody> = sessions_page
         .into_iter()
         .map(|s| SessionBody::from_session(s, expand_user))
@@ -207,6 +207,7 @@ pub async fn create_session_for_user(
         ("user_id" = String, Path, description = "User identifier"),
         ("page" = Option<u32>, Query, description = "Zero-based page; defaults to 0. `X-Total-Count` is the total before paging (`list-pagination.md`).", minimum = 0, nullable = true),
         ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50 when omitted.", minimum = 1, maximum = 500, example = 50, nullable = true),
+        ("q" = Option<String>, Query, description = "Optional case-insensitive substring on session id, user id, or user email. Whitespace-only is treated as absent."),
         ("expand" = Option<String>, Query, description = "Optional comma-separated relations (`user` = full user per session)."),
     ),
     responses(
@@ -230,17 +231,16 @@ pub async fn get_sessions_for_user(
     path: Path<UserIdPath>,
     query: Query<SessionsPageQuery>,
 ) -> Result<HttpResponse, AppError> {
-    let SessionsPageQuery { page, expand } = query.into_inner();
-    let page = page
+    let SessionsPageQuery { list, expand } = query.into_inner();
+    let list = list
         .validate()
         .map_err(crate::error::map_list_query_error)?;
     let expand_user = expand_includes_user(&expand);
-    let q_link = page.clone();
-    let cur_page = page.page.unwrap_or(0);
-    let page_size = page.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
-    let sessions = svc.get_sessions_by_user_id(&path.user_id).await?;
-    let lq = page.as_list_query();
-    let (sessions_page, total) = ListQuery::paginate_vec(sessions, &lq);
+    let q_link = list.clone();
+    let cur_page = list.page.unwrap_or(0);
+    let page_size = list.page_size.unwrap_or(PAGE_SIZE_DEFAULT);
+    let sessions = filter_sessions_by_q(svc.get_sessions_by_user_id(&path.user_id).await?, &list);
+    let (sessions_page, total) = ListQuery::paginate_vec(sessions, &list);
     let sessions_page: Vec<SessionBody> = sessions_page
         .into_iter()
         .map(|s| SessionBody::from_session(s, expand_user))
@@ -351,4 +351,23 @@ pub struct UserIdPath {
 struct UserSessionPath {
     user_id: String,
     id: String,
+}
+
+fn filter_sessions_by_q(mut sessions: Vec<Session>, query: &ListQuery) -> Vec<Session> {
+    let Some(needle) = query.q.as_ref().and_then(|s| {
+        let t = s.trim();
+        if t.is_empty() {
+            None
+        } else {
+            Some(t.to_lowercase())
+        }
+    }) else {
+        return sessions;
+    };
+    sessions.retain(|s| {
+        s.id.to_lowercase().contains(&needle)
+            || s.user.id.to_lowercase().contains(&needle)
+            || s.user.email.to_lowercase().contains(&needle)
+    });
+    sessions
 }

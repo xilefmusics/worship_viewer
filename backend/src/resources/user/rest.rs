@@ -162,7 +162,7 @@ async fn get_user(
     params(
         ("page" = Option<u32>, Query, description = "Page index, zero-based. Defaults to 0. See `docs/business-logic-constraints/list-pagination.md` (Track A: `X-Total-Count` is pre-pagination total; last page when `items.len() < page_size` or empty).", minimum = 0, nullable = true),
         ("page_size" = Option<u32>, Query, description = "Items per page. Must be 1–500. Defaults to 50.", minimum = 1, maximum = 500, example = 50, nullable = true),
-        ("q" = Option<String>, Query, description = "Optional case-insensitive email substring filter. Whitespace-only is treated as absent.")
+        ("q" = Option<String>, Query, description = "Optional case-insensitive substring filter on email or user id. Whitespace-only is treated as absent.")
     ),
     responses(
         (status = 200, description = "Returns list of all users. `X-Total-Count` header contains the total matching user count (before pagination).", body = [User]),
