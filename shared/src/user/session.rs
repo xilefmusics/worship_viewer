@@ -20,7 +20,9 @@ use super::User;
         "id": "550e8400-e29b-41d4-a716-446655440000",
         "user": { "id": "user-1", "email": "singer@example.com" },
         "created_at": "2024-01-01T12:00:00Z",
-        "expires_at": "2025-01-01T12:00:00Z"
+        "expires_at": "2025-01-01T12:00:00Z",
+        "request_count": 0,
+        "last_used_at": null
     }))
 )]
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -29,6 +31,10 @@ pub struct SessionBody {
     pub user: SessionUserBody,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
+    #[serde(default)]
+    pub request_count: u64,
+    #[serde(default)]
+    pub last_used_at: Option<DateTime<Utc>>,
 }
 
 #[cfg_attr(feature = "backend", derive(utoipa::ToSchema))]
@@ -55,6 +61,8 @@ impl SessionBody {
             user,
             created_at: session.created_at,
             expires_at: session.expires_at,
+            request_count: session.request_count,
+            last_used_at: session.last_used_at,
         }
     }
 }
@@ -65,6 +73,10 @@ pub struct Session {
     pub user: User,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
+    #[serde(default)]
+    pub request_count: u64,
+    #[serde(default)]
+    pub last_used_at: Option<DateTime<Utc>>,
 }
 
 impl Session {
@@ -82,6 +94,8 @@ impl Session {
             user,
             created_at: now,
             expires_at,
+            request_count: 0,
+            last_used_at: None,
         }
     }
 

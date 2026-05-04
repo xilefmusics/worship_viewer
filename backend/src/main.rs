@@ -106,7 +106,7 @@ async fn main() -> AnyResult<()> {
                     role: UserRole::Admin,
                     default_collection: None,
                     created_at: Utc::now(),
-                    last_login_at: None,
+                    last_used_at: None,
                     request_count: 0,
                     oauth_picture_url: None,
                     oauth_avatar_blob_id: None,

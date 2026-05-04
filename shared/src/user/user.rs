@@ -17,7 +17,7 @@ use super::Role;
         "role": "default",
         "default_collection": null,
         "created_at": "2026-01-01T12:00:00Z",
-        "last_login_at": null,
+        "last_used_at": null,
         "request_count": 0,
         "oauth_picture_url": null,
         "oauth_avatar_blob_id": null,
@@ -31,9 +31,10 @@ pub struct User {
     #[serde(default)]
     pub default_collection: Option<String>,
     pub created_at: DateTime<Utc>,
+    /// Latest `http_request_audit.created_at` for this user (none if no audited requests were linked).
     #[serde(default)]
-    pub last_login_at: Option<DateTime<Utc>>,
-    /// Approximate authenticated API request count for this user (diagnostic; semantics may evolve).
+    pub last_used_at: Option<DateTime<Utc>>,
+    /// Count of `http_request_audit` rows linked to this user.
     #[serde(default)]
     pub request_count: u64,
     /// Last `picture` claim URL seen from OIDC (used to detect when to re-fetch the cached avatar).
@@ -56,7 +57,7 @@ impl User {
             role: Role::default(),
             default_collection: None,
             created_at: Utc::now(),
-            last_login_at: None,
+            last_used_at: None,
             request_count: 0,
             oauth_picture_url: None,
             oauth_avatar_blob_id: None,
