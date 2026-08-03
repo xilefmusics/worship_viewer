@@ -610,7 +610,11 @@
         "red": "Red",
         "redDescription": "Red radial gradient.",
         "ray": "Ray",
-        "rayDescription": "Ray light background image."
+        "rayDescription": "Ray light background image.",
+        "zeltlager1": "Zeltlager 1",
+        "zeltlager1Description": "Zeltlager background with a framed lyric area.",
+        "zeltlager2": "Zeltlager 2",
+        "zeltlager2Description": "Zeltlager Powercamp background."
       },
       "transition": {
         "title": "Slide transition",

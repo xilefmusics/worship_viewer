@@ -7,12 +7,12 @@ export type AvVerticalAlign = 'top' | 'center' | 'bottom'
 export type AvHorizontalAlign = 'left' | 'center' | 'right'
 export type AvTextShadow = 'none' | 'subtle' | 'medium' | 'strong'
 export type AvTextTransform = 'none' | 'uppercase' | 'lowercase' | 'capitalize'
-/** Legacy presenter backgrounds: 0 = black, 1 = red gradient, 2 = ray image. */
-export type AvBackgroundPreset = 0 | 1 | 2
+/** Built-in presenter backgrounds: 0 = black, 1 = red, 2 = ray, 3-4 = Zeltlager. */
+export type AvBackgroundPreset = 0 | 1 | 2 | 3 | 4
 export type AvTransitionStyle = 'none' | 'fade' | 'slide'
 export type AvScreenState = 'live' | 'blank' | 'blackout'
 
-export const AV_BACKGROUND_PRESETS = [0, 1, 2] as const satisfies readonly AvBackgroundPreset[]
+export const AV_BACKGROUND_PRESETS = [0, 1, 2, 3, 4] as const satisfies readonly AvBackgroundPreset[]
 
 export type AvContentLayer = {
   maxLinesPerSlide: number
@@ -89,7 +89,9 @@ function parseEnum<T extends string>(
 
 function parseBackgroundPreset(value: unknown, fallback: AvBackgroundPreset): AvBackgroundPreset {
   const num = typeof value === 'number' ? value : Number.parseInt(String(value ?? ''), 10)
-  return num === 0 || num === 1 || num === 2 ? num : fallback
+  return AV_BACKGROUND_PRESETS.includes(num as AvBackgroundPreset)
+    ? (num as AvBackgroundPreset)
+    : fallback
 }
 
 function mergeContentLayer(raw: Partial<AvContentLayer> | undefined): AvContentLayer {

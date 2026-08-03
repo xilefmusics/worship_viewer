@@ -454,6 +454,8 @@ export function SettingsView({
       { value: 0, label: t('settings.playerRoles.background.black'), description: t('settings.playerRoles.background.blackDescription') },
       { value: 1, label: t('settings.playerRoles.background.red'), description: t('settings.playerRoles.background.redDescription') },
       { value: 2, label: t('settings.playerRoles.background.ray'), description: t('settings.playerRoles.background.rayDescription') },
+      { value: 3, label: t('settings.playerRoles.background.zeltlager1'), description: t('settings.playerRoles.background.zeltlager1Description') },
+      { value: 4, label: t('settings.playerRoles.background.zeltlager2'), description: t('settings.playerRoles.background.zeltlager2Description') },
     ],
     [t],
   )

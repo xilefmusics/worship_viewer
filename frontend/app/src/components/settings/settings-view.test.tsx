@@ -130,4 +130,23 @@ describe('SettingsView', () => {
       screen.getByRole('checkbox', { name: 'settings.avBilingual.label' }),
     ).toBeChecked()
   })
+
+  it('renders and stores both Zeltlager AV backgrounds', async () => {
+    const user = userEvent.setup()
+
+    render(<SettingsView activeTab="playerRoles" />)
+
+    expect(
+      screen.getByText('settings.playerRoles.background.zeltlager1'),
+    ).toBeInTheDocument()
+    const zeltlager2 = screen.getByRole('radio', {
+      name: /settings\.playerRoles\.background\.zeltlager2/,
+    })
+
+    await user.click(zeltlager2)
+
+    expect(JSON.parse(window.localStorage.getItem('avPreferences') ?? '{}')).toMatchObject({
+      backgroundLayer: { preset: 4 },
+    })
+  })
 })
