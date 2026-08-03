@@ -429,6 +429,25 @@
   min-height: 6rem;
 }
 
+.av-slide-view--transparent-preview .av-slide-content__line--shadow-black,
+.av-slide-view--transparent-preview .av-slide-content__line--shadow-white {
+  text-shadow:
+    -4px 0 2px rgb(var(--av-slide-shadow-rgb) / 90%),
+    4px 0 2px rgb(var(--av-slide-shadow-rgb) / 90%),
+    0 -4px 2px rgb(var(--av-slide-shadow-rgb) / 90%),
+    0 4px 2px rgb(var(--av-slide-shadow-rgb) / 90%);
+}
+
+.av-slide-view--transparent-preview
+  .av-slide-content--compact
+  .av-slide-content__line {
+  text-shadow:
+    -1px 0 1px rgb(var(--av-slide-shadow-rgb) / 90%),
+    1px 0 1px rgb(var(--av-slide-shadow-rgb) / 90%),
+    0 -1px 1px rgb(var(--av-slide-shadow-rgb) / 90%),
+    0 1px 1px rgb(var(--av-slide-shadow-rgb) / 90%);
+}
+
 .av-slide-view--compact {
   container-type: normal;
 }

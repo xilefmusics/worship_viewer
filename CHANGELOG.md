@@ -24,6 +24,10 @@ All notable changes to Worship Viewer are documented here. The format follows [K
 - Backend CI `cargo audit` runs per-crate (`cd … && cargo audit`) — compatible with cargo-audit 0.22+.
 - OpenAPI Problem type documentation references [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) (successor to RFC 7807).
 
+### Fixed
+
+- Dark and light AV lyrics remain visible over checkerboard slide-selector previews.
+
 ## Release process
 
 1. Move `[Unreleased]` items into a dated version section (`## [x.y.z] - YYYY-MM-DD`).
