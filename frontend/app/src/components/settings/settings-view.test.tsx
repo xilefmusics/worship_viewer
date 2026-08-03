@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -147,6 +147,30 @@ describe('SettingsView', () => {
 
     expect(JSON.parse(window.localStorage.getItem('avPreferences') ?? '{}')).toMatchObject({
       backgroundLayer: { preset: 4 },
+    })
+  })
+
+  it('renders and stores independent AV text grayscale controls', () => {
+    render(<SettingsView activeTab="playerRoles" />)
+
+    const primarySlider = screen.getByRole('slider', {
+      name: 'settings.playerRoles.content.primaryTextColor',
+    })
+    const secondarySlider = screen.getByRole('slider', {
+      name: 'settings.playerRoles.content.secondaryTextColor',
+    })
+
+    expect(primarySlider).toHaveValue('100')
+    expect(secondarySlider).toHaveValue('65')
+
+    fireEvent.change(primarySlider, { target: { value: '20' } })
+    fireEvent.change(secondarySlider, { target: { value: '80' } })
+
+    expect(JSON.parse(window.localStorage.getItem('avPreferences') ?? '{}')).toMatchObject({
+      contentLayer: {
+        primaryTextLightness: 20,
+        secondaryTextLightness: 80,
+      },
     })
   })
 })

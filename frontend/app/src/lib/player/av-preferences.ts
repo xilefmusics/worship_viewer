@@ -13,6 +13,9 @@ export type AvTransitionStyle = 'none' | 'fade' | 'slide'
 export type AvScreenState = 'live' | 'blank' | 'blackout'
 
 export const AV_BACKGROUND_PRESETS = [0, 1, 2, 3, 4] as const satisfies readonly AvBackgroundPreset[]
+export const AV_TEXT_LIGHTNESS_MIN = 0
+export const AV_TEXT_LIGHTNESS_MAX = 100
+export const AV_TEXT_SHADOW_LIGHT_THRESHOLD = 50
 
 export type AvContentLayer = {
   maxLinesPerSlide: number
@@ -23,6 +26,8 @@ export type AvContentLayer = {
   horizontalAlign: AvHorizontalAlign
   textShadow: AvTextShadow
   textTransform: AvTextTransform
+  primaryTextLightness: number
+  secondaryTextLightness: number
 }
 
 export type AvBackgroundLayer = {
@@ -61,6 +66,8 @@ export const DEFAULT_AV_PREFERENCES: AvPreferences = {
     horizontalAlign: 'center',
     textShadow: 'none',
     textTransform: 'uppercase',
+    primaryTextLightness: 100,
+    secondaryTextLightness: 65,
   },
   backgroundLayer: {
     preset: 2,
@@ -77,6 +84,10 @@ export const DEFAULT_AV_PREFERENCES: AvPreferences = {
 function clampNumber(value: unknown, fallback: number, min: number, max: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.min(max, Math.max(min, Math.trunc(value)))
+}
+
+export function resolveAvTextLightness(value: unknown, fallback: number): number {
+  return clampNumber(value, fallback, AV_TEXT_LIGHTNESS_MIN, AV_TEXT_LIGHTNESS_MAX)
 }
 
 function parseEnum<T extends string>(
@@ -120,6 +131,14 @@ function mergeContentLayer(raw: Partial<AvContentLayer> | undefined): AvContentL
       raw?.textTransform,
       ['none', 'uppercase', 'lowercase', 'capitalize'],
       defaults.textTransform,
+    ),
+    primaryTextLightness: resolveAvTextLightness(
+      raw?.primaryTextLightness,
+      defaults.primaryTextLightness,
+    ),
+    secondaryTextLightness: resolveAvTextLightness(
+      raw?.secondaryTextLightness,
+      defaults.secondaryTextLightness,
     ),
   }
 }

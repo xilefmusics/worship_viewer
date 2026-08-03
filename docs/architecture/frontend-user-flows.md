@@ -694,7 +694,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     a(["Settings → Player AV"]) --> opt{Preference}
-    opt -->|Content layer| cl["Lines per slide (1–10), Balance lines (checkbox), Font size (20–120)"]
+    opt -->|Content layer| cl["Lines per slide (1–10), Balance lines (checkbox), Font size (20–120), Primary/translation grayscale (0–100%)"]
     opt -->|Text alignment| al["Left / Center / Right"]
     opt -->|Vertical position| vp["Top / Center / Bottom"]
     opt -->|Text shadow| sh["None / Subtle / Medium / Strong"]

@@ -1,6 +1,13 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type ChangeEvent,
+  type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { deleteUploadedProfilePicture, putProfilePicture } from '@/api/profile-picture'
@@ -33,6 +40,8 @@ import {
   writePlayerLayoutUnified,
 } from '@/lib/player-scroll-preference'
 import {
+  AV_TEXT_LIGHTNESS_MAX,
+  AV_TEXT_LIGHTNESS_MIN,
   DEFAULT_AV_PREFERENCES,
   readAvPreferences,
   writeAvPreferences,
@@ -91,6 +100,8 @@ import type { PlayerMirrorRow } from '@/lib/dexie-db'
 import type { PlayerEditorReturnContext } from '@/lib/player/player-editor-return'
 import { buildSettingsSearch, type SettingsTab } from '@/lib/settings-route'
 import { cn } from '@/lib/utils'
+
+import './settings-view.css'
 
 type SettingsOption<T extends string | number> = {
   value: T
@@ -179,6 +190,58 @@ function SettingsSection<T extends string | number>({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function GrayscaleSlider({
+  label,
+  description,
+  value,
+  blackLabel,
+  whiteLabel,
+  onChange,
+}: {
+  label: string
+  description: string
+  value: number
+  blackLabel: string
+  whiteLabel: string
+  onChange: (value: number) => void
+}) {
+  const sliderStyle = {
+    '--settings-grayscale-lightness': `${value}%`,
+  } as CSSProperties
+
+  return (
+    <label className="flex flex-col gap-1.5 text-sm">
+      <span className="flex items-center justify-between gap-3">
+        <span>{label}</span>
+        <output className="tabular-nums text-[var(--color-muted-foreground)]">
+          {value}%
+        </output>
+      </span>
+      <span className="text-xs text-[var(--color-muted-foreground)]">
+        {description}
+      </span>
+      <input
+        type="range"
+        min={AV_TEXT_LIGHTNESS_MIN}
+        max={AV_TEXT_LIGHTNESS_MAX}
+        step={1}
+        value={value}
+        aria-label={label}
+        onChange={(event) => onChange(Number.parseInt(event.target.value, 10))}
+        className="settings-grayscale-slider"
+        style={sliderStyle}
+      />
+      <span
+        className="flex justify-between text-xs text-[var(--color-muted-foreground)]"
+        aria-hidden
+      >
+        <span>{blackLabel}</span>
+        <span>{whiteLabel}</span>
+      </span>
+    </label>
   )
 }
 
@@ -1054,6 +1117,26 @@ export function SettingsView({
                   className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2"
                 />
               </label>
+              <GrayscaleSlider
+                label={t('settings.playerRoles.content.primaryTextColor')}
+                description={t('settings.playerRoles.content.primaryTextColorDescription')}
+                value={avPreferences.contentLayer.primaryTextLightness}
+                blackLabel={t('settings.playerRoles.content.textColorBlack')}
+                whiteLabel={t('settings.playerRoles.content.textColorWhite')}
+                onChange={(primaryTextLightness) =>
+                  setAvContentLayer({ primaryTextLightness })
+                }
+              />
+              <GrayscaleSlider
+                label={t('settings.playerRoles.content.secondaryTextColor')}
+                description={t('settings.playerRoles.content.secondaryTextColorDescription')}
+                value={avPreferences.contentLayer.secondaryTextLightness}
+                blackLabel={t('settings.playerRoles.content.textColorBlack')}
+                whiteLabel={t('settings.playerRoles.content.textColorWhite')}
+                onChange={(secondaryTextLightness) =>
+                  setAvContentLayer({ secondaryTextLightness })
+                }
+              />
             </CardContent>
           </Card>
 

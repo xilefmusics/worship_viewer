@@ -1,4 +1,11 @@
-import type { AvContentLayer } from '@/lib/player/av-preferences'
+import type { CSSProperties } from 'react'
+
+import {
+  AV_TEXT_SHADOW_LIGHT_THRESHOLD,
+  DEFAULT_AV_PREFERENCES,
+  resolveAvTextLightness,
+  type AvContentLayer,
+} from '@/lib/player/av-preferences'
 import type { AvLyricLine } from '@/lib/player/av-lyric-slides'
 import {
   AV_SLIDE_EDGE_PADDING_PX,
@@ -17,30 +24,48 @@ type AvSlideContentProps = {
   compact?: boolean
 }
 
+type AvLineKind = 'primary' | 'secondary'
+type AvLineStyle = CSSProperties & { '--av-text-lightness': string }
+
 function renderLine(
   line: string,
   contentLayer: AvContentLayer,
   designFontSizePx: number,
   compact: boolean,
+  kind: AvLineKind = 'primary',
   className?: string,
 ) {
+  const fallbackLightness =
+    DEFAULT_AV_PREFERENCES.contentLayer[
+      kind === 'primary' ? 'primaryTextLightness' : 'secondaryTextLightness'
+    ]
+  const lightness = resolveAvTextLightness(
+    contentLayer[
+      kind === 'primary' ? 'primaryTextLightness' : 'secondaryTextLightness'
+    ],
+    fallbackLightness,
+  )
+  const lineStyle: AvLineStyle = {
+    '--av-text-lightness': `${lightness}%`,
+    ...(compact
+      ? {}
+      : {
+          fontSize: `${designFontSizePx}px`,
+          lineHeight: `${avSlideLineHeightPx(designFontSizePx)}px`,
+        }),
+  }
+
   return (
     <div
       className={cn(
         'av-slide-content__line',
         `av-slide-content__line--align-${contentLayer.textAlign}`,
         `av-slide-content__line--shadow-${contentLayer.textShadow}`,
+        `av-slide-content__line--shadow-${lightness <= AV_TEXT_SHADOW_LIGHT_THRESHOLD ? 'white' : 'black'}`,
         `av-slide-content__line--transform-${contentLayer.textTransform}`,
         className,
       )}
-      style={
-        compact
-          ? undefined
-          : {
-              fontSize: `${designFontSizePx}px`,
-              lineHeight: `${avSlideLineHeightPx(designFontSizePx)}px`,
-            }
-      }
+      style={lineStyle}
     >
       {line || '\u00a0'}
     </div>
@@ -98,6 +123,7 @@ export function AvSlideContent({
                       contentLayer,
                       designFontSizePx * 0.75,
                       compact,
+                      'secondary',
                       'av-slide-content__line--secondary',
                     )
                   : null}

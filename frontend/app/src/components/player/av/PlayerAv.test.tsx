@@ -69,6 +69,7 @@ vi.mock('@/lib/player/av-projection-sync', () => ({
 }))
 
 vi.mock('@/lib/player/av-preferences', () => ({
+  AV_TEXT_SHADOW_LIGHT_THRESHOLD: 50,
   DEFAULT_AV_PREFERENCES: {
     contentLayer: {
       maxLinesPerSlide: 2,
@@ -79,11 +80,17 @@ vi.mock('@/lib/player/av-preferences', () => ({
       horizontalAlign: 'center',
       textShadow: 'none',
       textTransform: 'uppercase',
+      primaryTextLightness: 100,
+      secondaryTextLightness: 65,
     },
     backgroundLayer: { preset: 2 },
     transition: { style: 'none', durationMs: 0 },
     projection: { outputFullscreenOnDblClick: true },
   },
+  resolveAvTextLightness: (value: unknown, fallback: number) =>
+    typeof value === 'number' && Number.isFinite(value)
+      ? Math.min(100, Math.max(0, Math.trunc(value)))
+      : fallback,
   buildAvProjectionPayload: (input: unknown) => input,
   readAvPreferences: () => readPreferences(),
   writeAvPreferences: (...args: unknown[]) => writePreferences(...args),
@@ -313,6 +320,8 @@ beforeEach(() => {
       horizontalAlign: 'center',
       textShadow: 'none',
       textTransform: 'uppercase',
+      primaryTextLightness: 100,
+      secondaryTextLightness: 65,
     },
     backgroundLayer: { preset: 2 },
     transition: { style: 'none', durationMs: 0 },

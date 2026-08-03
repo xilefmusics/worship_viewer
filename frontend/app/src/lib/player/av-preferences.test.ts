@@ -71,4 +71,46 @@ describe('readAvPreferences', () => {
 
     expect(readAvPreferences(storage).backgroundLayer.preset).toBe(preset)
   })
+
+  it('adds text lightness defaults to legacy preferences', () => {
+    const storage = {
+      getItem: () => JSON.stringify({ contentLayer: { fontSize: 72 } }),
+    }
+
+    expect(readAvPreferences(storage).contentLayer).toMatchObject({
+      fontSize: 72,
+      primaryTextLightness: 100,
+      secondaryTextLightness: 65,
+    })
+  })
+
+  it('preserves and clamps text lightness values', () => {
+    const validStorage = {
+      getItem: () =>
+        JSON.stringify({
+          contentLayer: {
+            primaryTextLightness: 24,
+            secondaryTextLightness: 76,
+          },
+        }),
+    }
+    const clampedStorage = {
+      getItem: () =>
+        JSON.stringify({
+          contentLayer: {
+            primaryTextLightness: -1,
+            secondaryTextLightness: 101,
+          },
+        }),
+    }
+
+    expect(readAvPreferences(validStorage).contentLayer).toMatchObject({
+      primaryTextLightness: 24,
+      secondaryTextLightness: 76,
+    })
+    expect(readAvPreferences(clampedStorage).contentLayer).toMatchObject({
+      primaryTextLightness: 0,
+      secondaryTextLightness: 100,
+    })
+  })
 })
