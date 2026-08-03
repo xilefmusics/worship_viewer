@@ -87,14 +87,20 @@
 }
 
 .av-slide-content__line {
-  color: #fff;
+  --av-slide-shadow-rgb: 0 0 0;
+
+  color: hsl(0 0% var(--av-text-lightness, 100%));
   line-height: 1.25;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.av-slide-content__line--secondary {
-  color: var(--color-muted-foreground);
+.av-slide-content__line--shadow-black {
+  --av-slide-shadow-rgb: 0 0 0;
+}
+
+.av-slide-content__line--shadow-white {
+  --av-slide-shadow-rgb: 255 255 255;
 }
 
 .av-slide-content__line-group {
@@ -119,15 +125,15 @@
 }
 
 .av-slide-content__line--shadow-subtle {
-  text-shadow: 0 1px 2px rgb(0 0 0 / 45%);
+  text-shadow: 0 1px 2px rgb(var(--av-slide-shadow-rgb) / 45%);
 }
 
 .av-slide-content__line--shadow-medium {
-  text-shadow: 0 2px 8px rgb(0 0 0 / 55%);
+  text-shadow: 0 2px 8px rgb(var(--av-slide-shadow-rgb) / 55%);
 }
 
 .av-slide-content__line--shadow-strong {
-  text-shadow: 0 4px 16px rgb(0 0 0 / 75%);
+  text-shadow: 0 4px 16px rgb(var(--av-slide-shadow-rgb) / 75%);
 }
 
 .av-slide-content__line--transform-none {

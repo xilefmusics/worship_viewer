@@ -53,4 +53,48 @@ describe('AvSlideContent', () => {
     expect(screen.queryByText('World')).not.toBeInTheDocument()
     expect(screen.queryByText('Welt')).not.toBeInTheDocument()
   })
+
+  it('renders independent grayscale colors with contrasting shadows', () => {
+    render(
+      <AvSlideContent
+        lines={[{ primary: 'Dark primary', secondary: 'Light translation' }]}
+        contentLayer={{
+          ...DEFAULT_AV_PREFERENCES.contentLayer,
+          primaryTextLightness: 25,
+          secondaryTextLightness: 75,
+          textShadow: 'medium',
+        }}
+      />,
+    )
+
+    const primary = screen.getByText('Dark primary')
+    const secondary = screen.getByText('Light translation')
+
+    expect(primary.style.getPropertyValue('--av-text-lightness')).toBe('25%')
+    expect(primary).toHaveClass('av-slide-content__line--shadow-white')
+    expect(secondary.style.getPropertyValue('--av-text-lightness')).toBe('75%')
+    expect(secondary).toHaveClass('av-slide-content__line--shadow-black')
+  })
+
+  it('falls back to default colors for legacy synchronized content layers', () => {
+    const legacyContentLayer = {
+      ...DEFAULT_AV_PREFERENCES.contentLayer,
+    } as Partial<typeof DEFAULT_AV_PREFERENCES.contentLayer>
+    delete legacyContentLayer.primaryTextLightness
+    delete legacyContentLayer.secondaryTextLightness
+
+    render(
+      <AvSlideContent
+        lines={[{ primary: 'Legacy primary', secondary: 'Legacy translation' }]}
+        contentLayer={legacyContentLayer as typeof DEFAULT_AV_PREFERENCES.contentLayer}
+      />,
+    )
+
+    expect(
+      screen.getByText('Legacy primary').style.getPropertyValue('--av-text-lightness'),
+    ).toBe('100%')
+    expect(
+      screen.getByText('Legacy translation').style.getPropertyValue('--av-text-lightness'),
+    ).toBe('65%')
+  })
 })
