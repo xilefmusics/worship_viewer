@@ -119,11 +119,28 @@ export function AvSlideView({
   )
 
   if (compact) {
-    return <div className={cn('av-slide-view', className)}>{slideBody}</div>
+    return (
+      <div
+        className={cn(
+          'av-slide-view',
+          !showBackground && 'av-slide-view--transparent-preview',
+          className,
+        )}
+      >
+        {slideBody}
+      </div>
+    )
   }
 
   return (
-    <div className={cn('av-slide-view', preview && 'av-slide-view--preview', className)}>
+    <div
+      className={cn(
+        'av-slide-view',
+        preview && 'av-slide-view--preview',
+        !showBackground && 'av-slide-view--transparent-preview',
+        className,
+      )}
+    >
       <AvSlideScaledStage>
         {preview ? (
           slideBody
