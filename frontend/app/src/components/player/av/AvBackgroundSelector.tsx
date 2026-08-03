@@ -15,6 +15,8 @@ const PRESET_LABEL_KEYS: Record<AvBackgroundPreset, string> = {
   0: 'settings.playerRoles.background.black',
   1: 'settings.playerRoles.background.red',
   2: 'settings.playerRoles.background.ray',
+  3: 'settings.playerRoles.background.zeltlager1',
+  4: 'settings.playerRoles.background.zeltlager2',
 }
 
 const NO_TRANSITION = { style: 'none' as const, durationMs: 0 }

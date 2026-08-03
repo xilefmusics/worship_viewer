@@ -633,7 +633,7 @@ flowchart TD
     state -->|"r / 'Blank' button"| blank["Toggle Blank (background only, no text)"]
     state -->|"Shift+R / 'Blackout' button"| black["Toggle Blackout (solid black)"]
     state -->|Section shortcut key c/v/p/1-9/b/t/e| sect["Jump to that section's first slide"]
-    state -->|Background selector| bg["Expand → pick Black / Red / Ray"]
+    state -->|Background selector| bg["Expand → pick Black / Red / Ray / Zeltlager 1 / Zeltlager 2"]
     blank --> sync["Broadcast to output window"]
     black --> sync
     bg --> sync
@@ -700,7 +700,7 @@ flowchart TD
     opt -->|Text shadow| sh["None / Subtle / Medium / Strong"]
     opt -->|Text transform| tt["None / Uppercase / Lowercase / Capitalize"]
     opt -->|Lyrics spacing| ls["Use single spaces between words (checkbox)"]
-    opt -->|Background| bg["Black / Red / Ray"]
+    opt -->|Background| bg["Black / Red / Ray / Zeltlager 1 / Zeltlager 2"]
     opt -->|Slide transition| tr["None / Fade / Slide"]
     opt -->|Transition duration| dur["0–2000 ms slider"]
     opt -->|Output fullscreen| of["Allow fullscreen / No fullscreen shortcut"]

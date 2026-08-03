@@ -610,7 +610,11 @@
         "red": "Rot",
         "redDescription": "Roter radialer Verlauf.",
         "ray": "Ray",
-        "rayDescription": "Ray-Licht-Hintergrundbild."
+        "rayDescription": "Ray-Licht-Hintergrundbild.",
+        "zeltlager1": "Zeltlager 1",
+        "zeltlager1Description": "Zeltlager-Hintergrund mit eingerahmtem Lyrics-Bereich.",
+        "zeltlager2": "Zeltlager 2",
+        "zeltlager2Description": "Zeltlager-Powercamp-Hintergrund."
       },
       "transition": {
         "title": "Folienübergang",

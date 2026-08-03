@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_AV_PREFERENCES,
   buildAvProjectionPayload,
+  readAvPreferences,
 } from '@/lib/player/av-preferences'
 
 const baseInput = {
@@ -59,5 +60,15 @@ describe('buildAvProjectionPayload', () => {
         screenState: 'blackout',
       }).contentLines,
     ).toBeUndefined()
+  })
+})
+
+describe('readAvPreferences', () => {
+  it.each([3, 4])('restores Zeltlager background preset %i', (preset) => {
+    const storage = {
+      getItem: () => JSON.stringify({ backgroundLayer: { preset } }),
+    }
+
+    expect(readAvPreferences(storage).backgroundLayer.preset).toBe(preset)
   })
 })
