@@ -5,8 +5,8 @@ export function playerQueriesRootKey() {
   return ['player'] as const
 }
 
-export function playerQueryKey(type: PlayerEntityType, id: string) {
-  return [...playerQueriesRootKey(), type, id] as const
+export function playerQueryKey(type: PlayerEntityType, id: string, view?: 'book' | 'av') {
+  return view ? [...playerQueriesRootKey(), type, id, view] as const : [...playerQueriesRootKey(), type, id] as const
 }
 
 export function setlistDetailKey(id: string) {
@@ -26,4 +26,3 @@ export function collectionDetailKey(id: string) {
 export function songDetailQueryKey(id: string) {
   return ['song', 'detail', id] as const
 }
-

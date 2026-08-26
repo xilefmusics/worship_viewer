@@ -101,6 +101,10 @@ type PlayerAvProps = {
   onRoomMusicalStateChange?: (state: { item_index: number; language: string | null; transposition: string | null }) => void
   onRoomProjectionChange?: (payload: import('@/lib/player/av-preferences').AvProjectionPayload) => void
   allowLibraryActions?: boolean
+  allowPlayerRoomActions?: boolean
+  backToOverride?: '/media'
+  backAriaKeyOverride?: string
+  watchSetlistEviction?: boolean
   roomSidebar?: ReactNode
 }
 
@@ -149,6 +153,10 @@ export function PlayerAv({
   onRoomMusicalStateChange,
   onRoomProjectionChange,
   allowLibraryActions = true,
+  allowPlayerRoomActions = true,
+  backToOverride,
+  backAriaKeyOverride,
+  watchSetlistEviction = true,
   roomSidebar,
 }: PlayerAvProps) {
   const { t } = useTranslation()
@@ -195,9 +203,12 @@ export function PlayerAv({
     resolveLanguageIndexForItem,
   )
   const showToc = player.toc.length > 0
-  const evicted = useSetlistEvictionWatch(type === 'setlist' ? id : undefined, type === 'setlist')
+  const evicted = useSetlistEvictionWatch(
+    type === 'setlist' && watchSetlistEviction ? id : undefined,
+    type === 'setlist' && watchSetlistEviction,
+  )
   const navBlocked = evicted || Boolean(roomMusicalState && !canControlRoomMusicalState)
-  const backTo = hubPathForPlayerType(type)
+  const backTo = backToOverride ?? hubPathForPlayerType(type)
 
   usePlayerIndexSearchSync(type, id, session.itemIndex, 'av')
 
@@ -682,7 +693,7 @@ export function PlayerAv({
           asChild
           className={playerHeaderIconButtonClass}
         >
-          <Link to={backTo} aria-label={t(backAriaKeyForPlayerType(type))}>
+          <Link to={backTo} aria-label={t(backAriaKeyOverride ?? backAriaKeyForPlayerType(type))}>
             <ChevronLeftIcon className={playerHeaderIconClass} size={PLAYER_HEADER_ICON_SIZE} />
           </Link>
         </Button>
@@ -759,7 +770,7 @@ export function PlayerAv({
             onEditSong={navigateToSongEditor}
             onEditResource={navigateToResourceEditor}
           /> : null}
-          {!roomMusicalState ? (
+          {!roomMusicalState && allowPlayerRoomActions ? (
             <StartPlayerRoomButton type={type} id={id} mode="av" player={player} />
           ) : null}
           {roomSidebar ? (

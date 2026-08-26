@@ -219,6 +219,7 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
       <div className="grid gap-1">
         <h1 id="media-editor-heading" className="text-xl font-semibold">{media.title}</h1>
         <p className="text-sm text-[var(--color-muted-foreground)]">{t(`media.states.${displayStatus}`)} · {t(`media.kinds.${displayKind}`)}</p>
+        {media.status === 'ready' && media.content ? <div className="pt-2"><Button asChild size="sm"><a href={`/player/media/${encodeURIComponent(media.id)}`}>{t('media.actions.play')}</a></Button></div> : null}
       </div>
 
       {initialFailed ? (

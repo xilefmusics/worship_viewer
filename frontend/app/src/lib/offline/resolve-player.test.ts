@@ -52,4 +52,14 @@ describe('resolvePlayerForRoute', () => {
     expect(persistPlayerMirror).toHaveBeenCalledWith('song', 'song1', { items: [] })
     expect(res.status).toBe('ready')
   })
+
+  it('requests the AV setlist view without putting media in the offline mirror', async () => {
+    fetchPlayerFromNetwork.mockResolvedValue({ player: { items: [{ type: 'media' }] } })
+
+    const res = await resolvePlayerForRoute('setlist', 's1', undefined, 'av')
+
+    expect(fetchPlayerFromNetwork).toHaveBeenCalledWith('setlist', 's1', undefined, 'av')
+    expect(persistPlayerMirror).not.toHaveBeenCalled()
+    expect(res.status).toBe('ready')
+  })
 })

@@ -34,6 +34,7 @@ import { Route as HubAdminRouteImport } from './routes/_hub/admin'
 import { Route as HubAboutRouteImport } from './routes/_hub/about'
 import { Route as PlayerRoomsInviteIndexRouteImport } from './routes/player-rooms.invite.index'
 import { Route as PlayerRoomRoomIdRouteImport } from './routes/player/room.$roomId'
+import { Route as PlayerMediaMediaIdRouteImport } from './routes/player/media.$mediaId'
 import { Route as PlayerRoomsInviteRoomIdRouteImport } from './routes/player-rooms.invite.$roomId'
 import { Route as HubTeamsTeamIdRouteImport } from './routes/_hub/teams.$teamId'
 import { Route as HubSongsSongIdRouteImport } from './routes/_hub/songs.$songId'
@@ -165,6 +166,11 @@ const PlayerRoomRoomIdRoute = PlayerRoomRoomIdRouteImport.update({
   path: '/room/$roomId',
   getParentRoute: () => PlayerRouteRoute,
 } as any)
+const PlayerMediaMediaIdRoute = PlayerMediaMediaIdRouteImport.update({
+  id: '/media/$mediaId',
+  path: '/media/$mediaId',
+  getParentRoute: () => PlayerRouteRoute,
+} as any)
 const PlayerRoomsInviteRoomIdRoute = PlayerRoomsInviteRoomIdRouteImport.update({
   id: '/$roomId',
   path: '/$roomId',
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/songs/$songId': typeof HubSongsSongIdRoute
   '/teams/$teamId': typeof HubTeamsTeamIdRoute
   '/player-rooms/invite/$roomId': typeof PlayerRoomsInviteRoomIdRoute
+  '/player/media/$mediaId': typeof PlayerMediaMediaIdRoute
   '/player/room/$roomId': typeof PlayerRoomRoomIdRoute
   '/player-rooms/invite/': typeof PlayerRoomsInviteIndexRoute
 }
@@ -256,6 +263,7 @@ export interface FileRoutesByTo {
   '/songs/$songId': typeof HubSongsSongIdRoute
   '/teams/$teamId': typeof HubTeamsTeamIdRoute
   '/player-rooms/invite/$roomId': typeof PlayerRoomsInviteRoomIdRoute
+  '/player/media/$mediaId': typeof PlayerMediaMediaIdRoute
   '/player/room/$roomId': typeof PlayerRoomRoomIdRoute
   '/player-rooms/invite': typeof PlayerRoomsInviteIndexRoute
 }
@@ -290,6 +298,7 @@ export interface FileRoutesById {
   '/_hub/songs/$songId': typeof HubSongsSongIdRoute
   '/_hub/teams/$teamId': typeof HubTeamsTeamIdRoute
   '/player-rooms/invite/$roomId': typeof PlayerRoomsInviteRoomIdRoute
+  '/player/media/$mediaId': typeof PlayerMediaMediaIdRoute
   '/player/room/$roomId': typeof PlayerRoomRoomIdRoute
   '/player-rooms/invite/': typeof PlayerRoomsInviteIndexRoute
 }
@@ -324,6 +333,7 @@ export interface FileRouteTypes {
     | '/songs/$songId'
     | '/teams/$teamId'
     | '/player-rooms/invite/$roomId'
+    | '/player/media/$mediaId'
     | '/player/room/$roomId'
     | '/player-rooms/invite/'
   fileRoutesByTo: FileRoutesByTo
@@ -354,6 +364,7 @@ export interface FileRouteTypes {
     | '/songs/$songId'
     | '/teams/$teamId'
     | '/player-rooms/invite/$roomId'
+    | '/player/media/$mediaId'
     | '/player/room/$roomId'
     | '/player-rooms/invite'
   id:
@@ -387,6 +398,7 @@ export interface FileRouteTypes {
     | '/_hub/songs/$songId'
     | '/_hub/teams/$teamId'
     | '/player-rooms/invite/$roomId'
+    | '/player/media/$mediaId'
     | '/player/room/$roomId'
     | '/player-rooms/invite/'
   fileRoutesById: FileRoutesById
@@ -579,6 +591,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayerRoomRoomIdRouteImport
       parentRoute: typeof PlayerRouteRoute
     }
+    '/player/media/$mediaId': {
+      id: '/player/media/$mediaId'
+      path: '/media/$mediaId'
+      fullPath: '/player/media/$mediaId'
+      preLoaderRoute: typeof PlayerMediaMediaIdRouteImport
+      parentRoute: typeof PlayerRouteRoute
+    }
     '/player-rooms/invite/$roomId': {
       id: '/player-rooms/invite/$roomId'
       path: '/$roomId'
@@ -627,12 +646,14 @@ declare module '@tanstack/react-router' {
 interface PlayerRouteRouteChildren {
   PlayerOutputRoute: typeof PlayerOutputRoute
   PlayerIndexRoute: typeof PlayerIndexRoute
+  PlayerMediaMediaIdRoute: typeof PlayerMediaMediaIdRoute
   PlayerRoomRoomIdRoute: typeof PlayerRoomRoomIdRoute
 }
 
 const PlayerRouteRouteChildren: PlayerRouteRouteChildren = {
   PlayerOutputRoute: PlayerOutputRoute,
   PlayerIndexRoute: PlayerIndexRoute,
+  PlayerMediaMediaIdRoute: PlayerMediaMediaIdRoute,
   PlayerRoomRoomIdRoute: PlayerRoomRoomIdRoute,
 }
 

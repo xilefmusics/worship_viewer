@@ -1,13 +1,7 @@
 import type { components } from '@/api/schema'
 
-import {
-  mergeEditorSongsIntoItems,
-  setlistItemsEqual,
-  type SetlistItem,
-} from '@/lib/setlist-items'
-import {
-  type EditorSongLink,
-} from '@/lib/setlist-song-links'
+import { mergeEditorSongsIntoItems, setlistItemsEqual, type SetlistItem } from '@/lib/setlist-items'
+import type { EditorSongLink } from '@/lib/setlist-song-links'
 
 export type Setlist = components['schemas']['Setlist']
 export type SetlistPatchDirty = components['schemas']['PatchSetlist']
@@ -15,7 +9,7 @@ export type SetlistPatchDirty = components['schemas']['PatchSetlist']
 export type SetlistDiffBaseline = {
   title: string
   items: SetlistItem[]
-  songs: EditorSongLink[]
+  songs?: EditorSongLink[]
   owner: string
 }
 
@@ -24,7 +18,7 @@ export type SetlistDiffBaseline = {
  */
 export function buildSetlistPatchBody(
   baseline: SetlistDiffBaseline,
-  draft: { title: string; songs: EditorSongLink[]; owner: string },
+  draft: { title: string; items?: SetlistItem[]; songs?: EditorSongLink[]; owner: string },
 ): SetlistPatchDirty | null {
   const body: SetlistPatchDirty = {}
   if (draft.title !== baseline.title) {
@@ -34,7 +28,9 @@ export function buildSetlistPatchBody(
   if (draftOwner && draftOwner !== baseline.owner) {
     body.owner = draftOwner
   }
-  const nextItems = mergeEditorSongsIntoItems(baseline.items, draft.songs)
+  const nextItems = draft.songs
+    ? mergeEditorSongsIntoItems(baseline.items, draft.songs)
+    : draft.items ?? []
   if (!setlistItemsEqual(baseline.items, nextItems)) {
     body.items = nextItems
   }
