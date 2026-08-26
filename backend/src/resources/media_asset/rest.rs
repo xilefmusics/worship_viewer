@@ -4,6 +4,8 @@ use actix_web::{
     web::{self, Data, Path, Query, ReqData},
 };
 
+use std::sync::Arc;
+
 use shared::{MediaAssetKind, MediaUploadResponse};
 
 use crate::auth::AuthorizationContext;
@@ -51,6 +53,7 @@ pub fn upload_scope(limits: MediaAssetUploadLimits) -> Scope {
 #[put("/{media_id}/uploads")]
 async fn upload_media_asset(
     svc: Data<MediaAssetServiceHandle>,
+    processing: Data<Arc<crate::resources::media::processing::MediaProcessingHandle>>,
     ctx: ReqData<AuthorizationContext>,
     media_id: Path<String>,
     query: Query<UploadQuery>,
@@ -73,6 +76,11 @@ async fn upload_media_asset(
     let body = svc
         .upload_staging_for_user(&ctx, &media_id, kind, content_type, content_length, payload)
         .await?;
+    if matches!(kind, MediaAssetKind::Video | MediaAssetKind::Audio) {
+        processing
+            .begin_after_upload(&media_id, &body.operation_id, kind)
+            .await?;
+    }
     Ok(HttpResponse::Ok().json(body))
 }
 

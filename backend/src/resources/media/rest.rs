@@ -26,6 +26,7 @@ pub fn scope(asset_upload_limits: MediaAssetUploadLimits) -> Scope {
         .service(move_media)
         .service(duplicate_media)
         .service(delete_media)
+        .service(cancel_media_processing)
         .service(crate::resources::media_asset::rest::get_media_asset_data)
         .service(crate::resources::media_asset::rest::head_media_asset_data)
         .service(crate::resources::media_asset::rest::upload_scope(
@@ -192,4 +193,27 @@ pub async fn delete_media(
     check_if_match(&req, &etag)?;
     svc.delete_for_user(&ctx, &id).await?;
     Ok(HttpResponse::NoContent().finish())
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/media/{id}/processing/cancel",
+    params(("id" = String, Path)),
+    responses(
+        (status = 200, description = "Cancel in-flight replacement processing", body = Media),
+        (status = 404, description = "Media absent or concealed", body = Problem, content_type = "application/problem+json")
+    ),
+    tag = "Media",
+    security(("SessionCookie" = []), ("SessionToken" = []))
+)]
+#[post("/{id}/processing/cancel")]
+pub async fn cancel_media_processing(
+    svc: Data<MediaServiceHandle>,
+    ctx: ReqData<AuthorizationContext>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(
+        svc.cancel_processing_for_user(&ctx, &id.into_inner())
+            .await?,
+    ))
 }

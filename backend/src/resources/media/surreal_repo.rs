@@ -111,8 +111,8 @@ impl MediaRepository for SurrealMediaRepo {
         let (tb, sid) = resource_id("media", id)?;
         let record = MediaRecord::from_write(None, owner.clone(), value)?;
         let mut response = self.db.db.query(
-            "UPDATE type::record($tb, $sid) SET title = $title, status = $status, content_json = $content_json, pending_revision_json = $pending_revision_json, owner = $owner ?? owner WHERE owner IN $teams RETURN AFTER"
-        ).bind(("tb", tb)).bind(("sid", sid)).bind(("title", record.title)).bind(("status", record.status)).bind(("content_json", record.content_json)).bind(("pending_revision_json", record.pending_revision_json)).bind(("owner", owner)).bind(("teams", write_teams.to_vec())).await?;
+            "UPDATE type::record($tb, $sid) SET title = $title, status = $status, content_json = $content_json, pending_revision_json = $pending_revision_json, declared_kind = $declared_kind, owner = $owner ?? owner WHERE owner IN $teams RETURN AFTER"
+        ).bind(("tb", tb)).bind(("sid", sid)).bind(("title", record.title)).bind(("status", record.status)).bind(("content_json", record.content_json)).bind(("pending_revision_json", record.pending_revision_json)).bind(("declared_kind", record.declared_kind)).bind(("owner", owner)).bind(("teams", write_teams.to_vec())).await?;
         response
             .take::<Vec<MediaRecord>>(0)?
             .into_iter()
@@ -153,5 +153,47 @@ impl MediaRepository for SurrealMediaRepo {
             .next()
             .ok_or_else(|| AppError::NotFound("media not found".into()))?
             .into_media()
+    }
+
+    async fn get_unscoped(&self, id: &str) -> Result<Media, AppError> {
+        let row: Option<MediaRecord> = self.db.db.select(resource_id("media", id)?).await?;
+        row.ok_or_else(|| AppError::NotFound("media not found".into()))?
+            .into_media()
+    }
+
+    async fn update_unscoped(&self, id: &str, value: MediaWrite) -> Result<Media, AppError> {
+        let (tb, sid) = resource_id("media", id)?;
+        let record = MediaRecord::from_write(None, None, value)?;
+        let mut response = self
+            .db
+            .db
+            .query(
+                "UPDATE type::record($tb, $sid) SET title = $title, status = $status, content_json = $content_json, pending_revision_json = $pending_revision_json, declared_kind = $declared_kind RETURN AFTER",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("title", record.title))
+            .bind(("status", record.status))
+            .bind(("content_json", record.content_json))
+            .bind(("pending_revision_json", record.pending_revision_json))
+            .bind(("declared_kind", record.declared_kind))
+            .await?;
+        response
+            .take::<Vec<MediaRecord>>(0)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| AppError::NotFound("media not found".into()))?
+            .into_media()
+    }
+
+    async fn list_processing_media(&self) -> Result<Vec<Media>, AppError> {
+        let mut response = self
+            .db
+            .db
+            .query(
+                "SELECT * FROM media WHERE status = 'processing' OR pending_revision_json IS NOT NONE",
+            )
+            .await?;
+        records(response.take(0)?)
     }
 }

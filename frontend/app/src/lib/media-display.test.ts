@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import type { Media } from '@/api/media'
 import {
+  formatMediaDuration,
+  hasReplacementFailure,
+  isProcessingActive,
+  isReadyUploaded,
   isValidUrlMediaInput,
   mediaCanonicalUrl,
   mediaDisplayKind,
@@ -18,6 +22,38 @@ describe('media display helpers', () => {
     expect(mediaDisplayKind(media({ content: { type: 'youtube', video_id: 'abc', canonical_url: 'https://www.youtube.com/watch?v=abc' } }))).toBe('youtube')
     expect(mediaCanonicalUrl(media({ content: { type: 'livestream', stream_type: 'hls', url: 'https://example.com/live.m3u8' } }))).toBe('https://example.com/live.m3u8')
     expect(urlContent('web_page', 'https://example.com')).toEqual({ type: 'web_page', url: 'https://example.com' })
+  })
+
+  it('uses declared_kind when content is absent', () => {
+    expect(mediaDisplayKind(media({ status: 'processing', content: undefined, declared_kind: 'video' }))).toBe('video')
+    expect(mediaDisplayKind(media({ status: 'processing', content: undefined, declared_kind: 'audio' }))).toBe('audio')
+  })
+
+  it('detects processing and replacement lifecycle states', () => {
+    const processing = media({ status: 'processing', declared_kind: 'video' })
+    expect(isProcessingActive(processing)).toBe(true)
+    expect(isReadyUploaded(processing)).toBe(false)
+
+    const readyVideo = media({
+      content: { type: 'video', blob_id: 'a1', duration_ms: 1000, width: 640, height: 360 },
+    })
+    expect(isReadyUploaded(readyVideo)).toBe(true)
+
+    const replacementFailed = media({
+      content: { type: 'video', blob_id: 'a1', duration_ms: 1000, width: 640, height: 360 },
+      pending_revision: {
+        operation: 'op1',
+        status: 'failed',
+        processing_error: { code: 'media_processing_failed', detail: 'Processing failed.' },
+      },
+    })
+    expect(hasReplacementFailure(replacementFailed)).toBe(true)
+    expect(isProcessingActive(replacementFailed)).toBe(false)
+  })
+
+  it('formats duration for preview metadata', () => {
+    expect(formatMediaDuration(65000)).toBe('1:05')
+    expect(formatMediaDuration(125000)).toBe('2:05')
   })
 
   it('falls back safely for unknown content and lifecycle values', () => {

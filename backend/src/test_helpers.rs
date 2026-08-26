@@ -12,6 +12,7 @@ use crate::database::Database;
 use crate::resources::User;
 use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::collection::service::CollectionServiceHandle;
+use crate::resources::media::processing::MediaProcessingHandle;
 use crate::resources::media::service::MediaServiceHandle;
 use crate::resources::media_asset::service::MediaAssetServiceHandle;
 use crate::resources::setlist::{SetlistService, SetlistServiceHandle, SurrealSetlistRepo};
@@ -183,9 +184,27 @@ pub fn collection_service(db: &Arc<Database>) -> CollectionServiceHandle {
     CollectionServiceHandle::build(db.clone())
 }
 
+pub fn media_processing(
+    db: &Arc<Database>,
+    settings: &Settings,
+    asset_svc: MediaAssetServiceHandle,
+) -> Arc<MediaProcessingHandle> {
+    Arc::new(MediaProcessingHandle::build(
+        db.clone(),
+        settings,
+        asset_svc,
+    ))
+}
+
 /// Media application service (same wiring as HTTP `main`).
 pub fn media_service(db: &Arc<Database>) -> MediaServiceHandle {
-    MediaServiceHandle::build(db.clone())
+    let settings = Settings {
+        media_processing_enabled: false,
+        ..Settings::default()
+    };
+    let asset = media_asset_service(db, &settings);
+    let processing = media_processing(db, &settings, asset.clone());
+    MediaServiceHandle::build(db.clone(), asset, processing)
 }
 
 /// Media asset application service (same wiring as HTTP `main`).

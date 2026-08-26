@@ -1168,6 +1168,10 @@
         "youtube": "YouTube-URL",
         "livestream": "Livestream-URL",
         "web_page": "Webseiten-URL"
+      },
+      "file": {
+        "video": "Videodatei",
+        "audio": "Audiodatei"
       }
     },
     "list": {
@@ -1183,7 +1187,7 @@
     },
     "create": {
       "title": "Medium hinzufügen",
-      "description": "Füge ein wiederverwendbares YouTube-Video, einen Livestream oder eine Webseite hinzu."
+      "description": "Füge ein wiederverwendbares YouTube-Video, einen Livestream, eine Webseite oder hochgeladenes Audio oder Video hinzu."
     },
     "editor": {
       "backToList": "Zurück zu Medien",
@@ -1194,7 +1198,23 @@
       "failedTitle": "Verarbeitung fehlgeschlagen",
       "failedBody": "Dieses Medium konnte nicht verarbeitet werden.",
       "notReady": "Dieses Medium kann erst bearbeitet werden, wenn es bereit ist.",
-      "futureKind": "Dieser Medientyp kann hier angesehen werden, der Editor ist aber noch nicht verfügbar."
+      "futureKind": "Dieser Medientyp kann hier angesehen werden, der Editor ist aber noch nicht verfügbar.",
+      "replacementFailedTitle": "Ersetzen fehlgeschlagen",
+      "replacementFailedBody": "Der neue Upload konnte nicht verarbeitet werden. Dein bisheriger Inhalt bleibt aktiv.",
+      "replacementProcessingBody": "Eine neue Version wird verarbeitet. Dein aktueller Inhalt bleibt verfügbar, bis sie fertig ist.",
+      "metadataVideo": "Dauer {{duration}} · {{width}}×{{height}}",
+      "metadataAudio": "Dauer {{duration}}"
+    },
+    "upload": {
+      "progress": "Upload… {{percent}} %",
+      "retry": "Erneut hochladen",
+      "replace": "Datei ersetzen",
+      "cancel": "Verarbeitung abbrechen",
+      "cancelled": "Verarbeitung abgebrochen.",
+      "errors": {
+        "tooLarge": "Diese Datei ist größer als das erlaubte Limit.",
+        "failed": "Upload fehlgeschlagen. Versuche es erneut."
+      }
     },
     "actions": {
       "create": "Medium hinzufügen",
@@ -1229,7 +1249,8 @@
       "invalidUrl": "Gib eine unterstützte HTTPS-URL ohne Zugangsdaten ein.",
       "noWritableTeam": "Du benötigst Bearbeitungsrechte in einem Team, um Medien hinzuzufügen.",
       "destinationRequired": "Wähle ein Zielteam.",
-      "notEditable": "Dieses Medium kann nicht bearbeitet werden."
+      "notEditable": "Dieses Medium kann nicht bearbeitet werden.",
+      "fileRequired": "Wähle eine Datei zum Hochladen."
     }
   },
   "sessions": {

@@ -79,6 +79,15 @@ pub struct MediaDeckPage {
     pub blob_id: String,
 }
 
+/// Upload kind declared at create time before active content exists.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub enum DeclaredMediaKind {
+    Video,
+    Audio,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
@@ -91,6 +100,9 @@ pub struct Media {
     pub content: Option<MediaContent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending_revision: Option<MediaPendingRevision>,
+    /// Present for uploaded audio/video shells until Ready content is set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_kind: Option<DeclaredMediaKind>,
 }
 
 /// Create a synchronously validated URL-backed media resource.
@@ -110,6 +122,8 @@ pub struct CreateMedia {
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub enum CreateMediaContent {
+    Video,
+    Audio,
     #[serde(rename = "youtube")]
     YouTube {
         url: String,
@@ -127,7 +141,8 @@ pub enum CreateMediaContent {
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct UpdateMedia {
     pub title: String,
-    pub content: CreateMediaContent,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<CreateMediaContent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner: Option<String>,
 }
@@ -175,5 +190,30 @@ mod tests {
         assert!(
             serde_json::from_value::<MediaContent>(serde_json::json!({"type":"future"})).is_err()
         );
+    }
+
+    #[test]
+    fn create_upload_kinds_and_declared_kind_round_trip() {
+        for (kind, tag) in [("video", "video"), ("audio", "audio")] {
+            let create: CreateMediaContent =
+                serde_json::from_value(serde_json::json!({"type": tag})).unwrap();
+            assert_eq!(
+                serde_json::to_value(create).unwrap(),
+                serde_json::json!({"type": tag})
+            );
+            let media: Media = serde_json::from_value(serde_json::json!({
+                "id":"m1","owner":"t1","title":"Clip","status":"processing",
+                "declared_kind": kind
+            }))
+            .unwrap();
+            assert_eq!(
+                media.declared_kind,
+                Some(if kind == "video" {
+                    DeclaredMediaKind::Video
+                } else {
+                    DeclaredMediaKind::Audio
+                })
+            );
+        }
     }
 }

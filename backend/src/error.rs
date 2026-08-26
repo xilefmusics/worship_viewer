@@ -19,6 +19,8 @@ pub enum AppError {
     InvalidRequest(String),
     #[error("invalid media URL: {detail}")]
     MediaUrl { code: &'static str, detail: String },
+    #[error("media processing failed: {detail}")]
+    MediaProcessing { code: &'static str, detail: String },
     #[error("invalid page size: {0}")]
     InvalidPageSize(String),
     #[error("{0}")]
@@ -91,6 +93,13 @@ impl AppError {
     pub fn media_unsupported_url<T: Into<String>>(detail: T) -> Self {
         Self::MediaUrl {
             code: "media_unsupported_url",
+            detail: detail.into(),
+        }
+    }
+
+    pub fn media_processing(code: &'static str, detail: impl Into<String>) -> Self {
+        Self::MediaProcessing {
+            code,
             detail: detail.into(),
         }
     }
@@ -210,6 +219,7 @@ impl AppError {
             AppError::NotFound(_) => "not_found",
             AppError::InvalidRequest(_) => "invalid_request",
             AppError::MediaUrl { code, .. } => code,
+            AppError::MediaProcessing { code, .. } => code,
             AppError::InvalidPageSize(_) => "invalid_page_size",
             AppError::Conflict(_) => "conflict",
             AppError::TooManyRequests(_) => "too_many_requests",
@@ -234,6 +244,7 @@ impl AppError {
                 "If-Match does not match the current resource representation".to_owned()
             }
             AppError::MediaUrl { detail, .. } => detail.clone(),
+            AppError::MediaProcessing { detail, .. } => detail.clone(),
             _ => self.to_string(),
         }
     }
@@ -263,6 +274,7 @@ impl ResponseError for AppError {
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::InvalidRequest(_)
             | AppError::MediaUrl { .. }
+            | AppError::MediaProcessing { .. }
             | AppError::InvalidPageSize(_) => StatusCode::BAD_REQUEST,
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,

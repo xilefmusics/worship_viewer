@@ -37,6 +37,7 @@ import { useTeamDetail } from '@/hooks/useTeamDetail'
 import { useWritableTeams } from '@/hooks/useWritableTeams'
 import { getNextPageIndex } from '@/lib/list-pagination'
 import {
+  isReadyUploaded,
   isUrlMediaKind,
   mediaCanonicalUrl,
   mediaDisplayKind,
@@ -112,7 +113,7 @@ function MediaRow({ media, canMove, onOpen, onMove, onDelete }: { media: Media; 
   const canEdit = Boolean(ownerTeam.data && user?.id && canEditTeamLibrary(ownerTeam.data, user.id))
   const status = mediaDisplayStatus(media)
   const kind = mediaDisplayKind(media)
-  const canDuplicate = status === 'ready' && isUrlMediaKind(kind)
+  const canDuplicate = (status === 'ready' && isUrlMediaKind(kind)) || isReadyUploaded(media)
   const duplicateMutation = useMutation({
     mutationFn: () => duplicateMedia(queryClient, media.id, t('media.duplicate.title', { title: media.title })),
     onSuccess: (created) => {

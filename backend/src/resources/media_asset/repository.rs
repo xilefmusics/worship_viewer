@@ -35,4 +35,15 @@ pub trait MediaAssetRepository: Send + Sync {
         &self,
         max_age_seconds: u64,
     ) -> Result<Vec<MediaAsset>, AppError>;
+
+    async fn create_final(
+        &self,
+        asset_id: &str,
+        payload: super::model::CreateFinalAsset,
+    ) -> Result<MediaAsset, AppError>;
+
+    async fn list_assets_for_media(&self, media_id: &str) -> Result<Vec<MediaAsset>, AppError>;
+
+    async fn update_owner_for_media(&self, media_id: &str, owner: RecordId)
+    -> Result<(), AppError>;
 }

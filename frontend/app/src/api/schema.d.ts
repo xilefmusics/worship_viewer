@@ -277,6 +277,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/{id}/processing/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel_media_processing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/{media_id}/assets/{asset_id}/data": {
         parameters: {
             query?: never;
@@ -1144,6 +1160,12 @@ export interface components {
          */
         CreateMediaContent: {
             /** @enum {string} */
+            type: "video";
+        } | {
+            /** @enum {string} */
+            type: "audio";
+        } | {
+            /** @enum {string} */
             type: "youtube";
             url: string;
         } | {
@@ -1228,6 +1250,11 @@ export interface components {
             invite_secret: string;
             room: components["schemas"]["PlayerRoomSummary"];
         };
+        /**
+         * @description Upload kind declared at create time before active content exists.
+         * @enum {string}
+         */
+        DeclaredMediaKind: "video" | "audio";
         DuplicateMedia: {
             /** @description Destination team. Omit to keep the source owner. */
             owner?: string | null;
@@ -1314,6 +1341,7 @@ export interface components {
         LivestreamType: "hls" | "direct";
         Media: {
             content?: null | components["schemas"]["MediaContent"];
+            declared_kind?: null | components["schemas"]["DeclaredMediaKind"];
             id: string;
             owner: string;
             pending_revision?: null | components["schemas"]["MediaPendingRevision"];
@@ -2089,7 +2117,7 @@ export interface components {
             title: string;
         };
         UpdateMedia: {
-            content: components["schemas"]["CreateMediaContent"];
+            content?: null | components["schemas"]["CreateMediaContent"];
             owner?: string | null;
             title: string;
         };
@@ -4073,6 +4101,37 @@ export interface operations {
                 };
             };
             /** @description Media/source/destination absent or concealed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    cancel_media_processing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancel in-flight replacement processing */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Media"];
+                };
+            };
+            /** @description Media absent or concealed */
             404: {
                 headers: {
                     [name: string]: unknown;

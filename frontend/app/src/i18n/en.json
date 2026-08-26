@@ -1168,6 +1168,10 @@
         "youtube": "YouTube URL",
         "livestream": "Livestream URL",
         "web_page": "Web-page URL"
+      },
+      "file": {
+        "video": "Video file",
+        "audio": "Audio file"
       }
     },
     "list": {
@@ -1183,7 +1187,7 @@
     },
     "create": {
       "title": "Add media",
-      "description": "Add a reusable YouTube video, livestream, or web page."
+      "description": "Add a reusable YouTube video, livestream, web page, or upload audio or video."
     },
     "editor": {
       "backToList": "Back to media",
@@ -1194,7 +1198,23 @@
       "failedTitle": "Processing failed",
       "failedBody": "This media could not be processed.",
       "notReady": "This media cannot be edited until it is Ready.",
-      "futureKind": "This media type can be viewed here, but its editor is not available yet."
+      "futureKind": "This media type can be viewed here, but its editor is not available yet.",
+      "replacementFailedTitle": "Replacement failed",
+      "replacementFailedBody": "The new upload could not be processed. Your previous content is still active.",
+      "replacementProcessingBody": "A new version is processing. Your current content stays available until it finishes.",
+      "metadataVideo": "Duration {{duration}} · {{width}}×{{height}}",
+      "metadataAudio": "Duration {{duration}}"
+    },
+    "upload": {
+      "progress": "Uploading… {{percent}}%",
+      "retry": "Upload again",
+      "replace": "Replace file",
+      "cancel": "Cancel processing",
+      "cancelled": "Processing cancelled.",
+      "errors": {
+        "tooLarge": "This file is larger than the allowed limit.",
+        "failed": "Upload failed. Try again."
+      }
     },
     "actions": {
       "create": "Add media",
@@ -1229,7 +1249,8 @@
       "invalidUrl": "Enter a supported credential-free HTTPS URL.",
       "noWritableTeam": "You need edit access to a team before you can add media.",
       "destinationRequired": "Choose a destination team.",
-      "notEditable": "This media item cannot be edited."
+      "notEditable": "This media item cannot be edited.",
+      "fileRequired": "Choose a file to upload."
     }
   },
   "sessions": {

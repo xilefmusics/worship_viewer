@@ -9,8 +9,9 @@ use shared::AboutResponse;
 use crate::resources::blob::PatchBlob;
 use crate::resources::collection::PatchCollection;
 use crate::resources::media::{
-    CreateMedia, CreateMediaContent, DuplicateMedia, LivestreamType, Media, MediaContent,
-    MediaDeckPage, MediaPendingRevision, MediaProcessingError, MediaStatus, UpdateMedia,
+    CreateMedia, CreateMediaContent, DeclaredMediaKind, DuplicateMedia, LivestreamType, Media,
+    MediaContent, MediaDeckPage, MediaPendingRevision, MediaProcessingError, MediaStatus,
+    UpdateMedia,
 };
 use crate::resources::media_asset::{
     MediaAsset, MediaAssetKind, MediaAssetStatus, MediaUploadResponse,
@@ -186,6 +187,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::media::rest::move_media,
         crate::resources::media::rest::duplicate_media,
         crate::resources::media::rest::delete_media,
+        crate::resources::media::rest::cancel_media_processing,
         crate::resources::media_asset::rest::upload_media_asset,
         crate::resources::media_asset::rest::get_media_asset_data,
         crate::resources::media_asset::rest::head_media_asset_data,
@@ -275,6 +277,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             MediaDeckPage,
             MediaPendingRevision,
             MediaProcessingError,
+            DeclaredMediaKind,
             LivestreamType,
             CreateMedia,
             CreateMediaContent,

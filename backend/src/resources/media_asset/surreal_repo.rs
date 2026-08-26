@@ -142,4 +142,60 @@ impl MediaAssetRepository for SurrealMediaAssetRepo {
             .map(MediaAssetRecord::into_asset)
             .collect()
     }
+
+    async fn create_final(
+        &self,
+        asset_id: &str,
+        payload: super::model::CreateFinalAsset,
+    ) -> Result<MediaAsset, AppError> {
+        let record = MediaAssetRecord::from_final(
+            payload.owner,
+            payload.media_id,
+            payload.kind,
+            payload.content_type,
+            payload.byte_length,
+            payload.etag,
+        );
+        let created: Option<MediaAssetRecord> = self
+            .db
+            .db
+            .create(resource_id("media_asset", asset_id)?)
+            .content(record)
+            .await?;
+        created
+            .ok_or_else(|| AppError::database("failed to create media asset"))?
+            .into_asset()
+    }
+
+    async fn list_assets_for_media(&self, media_id: &str) -> Result<Vec<MediaAsset>, AppError> {
+        let (tb, sid) = resource_id("media", media_id)?;
+        let mut response = self
+            .db
+            .db
+            .query("SELECT * FROM media_asset WHERE media_id = type::record($tb, $sid)")
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .await?;
+        response
+            .take::<Vec<MediaAssetRecord>>(0)?
+            .into_iter()
+            .map(MediaAssetRecord::into_asset)
+            .collect()
+    }
+
+    async fn update_owner_for_media(
+        &self,
+        media_id: &str,
+        owner: RecordId,
+    ) -> Result<(), AppError> {
+        let (tb, sid) = resource_id("media", media_id)?;
+        self.db
+            .db
+            .query("UPDATE media_asset SET owner = $owner WHERE media_id = type::record($tb, $sid)")
+            .bind(("owner", owner))
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .await?;
+        Ok(())
+    }
 }

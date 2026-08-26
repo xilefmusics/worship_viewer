@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use thiserror::Error;
 use tokio::io::AsyncReadExt;
-use tokio::process::Command;
+use tokio::process::{ChildStderr, ChildStdout, Command};
 use tokio::time::timeout;
 
 #[derive(Debug, Error)]
@@ -17,6 +17,8 @@ pub enum ProcessError {
     SpawnFailed,
     #[error("process failed with status {0}")]
     NonZeroExit(i32),
+    #[error("stdout output exceeded limit")]
+    StdoutTooLarge,
     #[error("stderr output exceeded limit")]
     StderrTooLarge,
     #[error("io error")]
@@ -27,24 +29,36 @@ pub enum ProcessError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProcessOutput {
     pub status: ExitStatus,
+    pub stdout: String,
     pub stderr: String,
 }
 
-/// Run `argv[0]` with remaining args, without a shell. Stdin is closed.
+/// Run `argv[0]` with remaining args, without a shell. Stdin is closed; stdout/stderr discarded.
 pub async fn run_command(
     argv: &[&str],
     run_timeout: Duration,
+    max_stderr_bytes: usize,
+) -> Result<ProcessOutput, ProcessError> {
+    run_command_capture(argv, run_timeout, 0, max_stderr_bytes).await
+}
+
+/// Run with bounded stdout and stderr capture.
+pub async fn run_command_capture(
+    argv: &[&str],
+    run_timeout: Duration,
+    max_stdout_bytes: usize,
     max_stderr_bytes: usize,
 ) -> Result<ProcessOutput, ProcessError> {
     let (program, args) = argv.split_first().ok_or(ProcessError::SpawnFailed)?;
     let mut child = Command::new(program)
         .args(args)
         .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
         .map_err(|_| ProcessError::SpawnFailed)?;
 
+    let stdout_handle = child.stdout.take();
     let stderr_handle = child.stderr.take();
     let wait = child.wait();
     let status = match timeout(run_timeout, wait).await {
@@ -56,22 +70,62 @@ pub async fn run_command(
         }
     };
 
-    let mut stderr = String::new();
-    if let Some(mut pipe) = stderr_handle {
+    let stdout = read_stdout(stdout_handle, max_stdout_bytes).await?;
+    let stderr = read_stderr(stderr_handle, max_stderr_bytes).await?;
+
+    Ok(ProcessOutput {
+        status,
+        stdout,
+        stderr,
+    })
+}
+
+async fn read_stdout(
+    handle: Option<ChildStdout>,
+    max_bytes: usize,
+) -> Result<String, ProcessError> {
+    let mut out = String::new();
+    if max_bytes == 0 {
+        return Ok(out);
+    }
+    if let Some(mut pipe) = handle {
         let mut buf = vec![0u8; 4096];
         loop {
             let n = pipe.read(&mut buf).await?;
             if n == 0 {
                 break;
             }
-            if stderr.len() + n > max_stderr_bytes {
-                return Err(ProcessError::StderrTooLarge);
+            if out.len() + n > max_bytes {
+                return Err(ProcessError::StdoutTooLarge);
             }
-            stderr.push_str(&String::from_utf8_lossy(&buf[..n]));
+            out.push_str(&String::from_utf8_lossy(&buf[..n]));
         }
     }
+    Ok(out)
+}
 
-    Ok(ProcessOutput { status, stderr })
+async fn read_stderr(
+    handle: Option<ChildStderr>,
+    max_bytes: usize,
+) -> Result<String, ProcessError> {
+    let mut out = String::new();
+    if max_bytes == 0 {
+        return Ok(out);
+    }
+    if let Some(mut pipe) = handle {
+        let mut buf = vec![0u8; 4096];
+        loop {
+            let n = pipe.read(&mut buf).await?;
+            if n == 0 {
+                break;
+            }
+            if out.len() + n > max_bytes {
+                return Err(ProcessError::StderrTooLarge);
+            }
+            out.push_str(&String::from_utf8_lossy(&buf[..n]));
+        }
+    }
+    Ok(out)
 }
 
 /// Verify an executable responds to `--version` without shell invocation.
@@ -85,6 +139,7 @@ pub async fn check_tool_version(argv: &[&str]) -> Result<(), ProcessError> {
 }
 
 /// Temporary workspace directory removed on drop.
+#[derive(Debug)]
 pub struct TempWorkDir {
     path: PathBuf,
 }
@@ -120,6 +175,14 @@ mod tests {
             .await
             .expect("echo should run");
         assert!(out.status.success());
+    }
+
+    #[tokio::test]
+    async fn capture_stdout() {
+        let out = run_command_capture(&["echo", "hello"], Duration::from_secs(5), 1024, 1024)
+            .await
+            .expect("echo should run");
+        assert!(out.stdout.contains("hello"));
     }
 
     #[tokio::test]

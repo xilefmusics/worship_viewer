@@ -15,12 +15,12 @@ use crate::resources::media::{MediaRepository, SurrealMediaRepo};
 use crate::resources::team::parse_owner_record_id;
 use crate::settings::Settings;
 
-use super::model::CreateStagingAsset;
-use super::repository::MediaAssetRepository;
+use super::model::{CreateFinalAsset, CreateStagingAsset};
 use super::storage::{
     FsMediaAssetStorage, MediaAssetStorage, StagingCleanupGuard, StagingUploadResult,
 };
 use super::surreal_repo::SurrealMediaAssetRepo;
+use crate::resources::media_asset::repository::MediaAssetRepository;
 
 #[derive(Clone)]
 pub struct MediaAssetService<R, M> {
@@ -261,11 +261,152 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
         Ok(())
     }
 
-    pub async fn reconcile_abandoned_staging(&self) -> Result<u64, AppError> {
+    pub async fn update_owner_for_media(
+        &self,
+        media_id: &str,
+        owner: RecordId,
+    ) -> Result<(), AppError> {
+        self.repo.update_owner_for_media(media_id, owner).await
+    }
+
+    pub async fn get_staging_by_operation(
+        &self,
+        operation_id: &str,
+    ) -> Result<MediaAsset, AppError> {
+        self.repo.get_staging_by_operation(operation_id).await
+    }
+
+    pub fn staging_path(&self, operation_id: &str) -> std::path::PathBuf {
+        self.storage.staging_path(operation_id)
+    }
+
+    pub fn delete_staging_file(&self, operation_id: &str) {
+        self.storage.delete_staging_file(operation_id);
+    }
+
+    pub fn delete_final_file(&self, asset_id: &str) {
+        self.storage.delete_final_file(asset_id);
+    }
+
+    pub async fn delete_asset_record(&self, asset_id: &str) -> Result<(), AppError> {
+        self.repo.delete_asset(asset_id).await
+    }
+
+    pub async fn ingest_processed_file(
+        &self,
+        owner: RecordId,
+        media_id: RecordId,
+        kind: MediaAssetKind,
+        content_type: String,
+        source_path: &std::path::Path,
+    ) -> Result<MediaAsset, AppError> {
+        let asset_id = uuid::Uuid::new_v4().to_string();
+        let (byte_length, etag) = self
+            .storage
+            .ingest_final_from_path(source_path, &asset_id)
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        self.repo
+            .create_final(
+                &asset_id,
+                CreateFinalAsset {
+                    owner,
+                    media_id,
+                    kind,
+                    content_type,
+                    byte_length,
+                    etag,
+                },
+            )
+            .await
+    }
+
+    pub async fn duplicate_uploaded_content(
+        &self,
+        _source_media_id: &str,
+        dest_media_id: &str,
+        content: &shared::media::MediaContent,
+        owner: RecordId,
+    ) -> Result<shared::media::MediaContent, AppError> {
+        use shared::media::MediaContent;
+        match content {
+            MediaContent::Video {
+                blob_id,
+                duration_ms,
+                width,
+                height,
+            } => {
+                let new_id = uuid::Uuid::new_v4().to_string();
+                self.storage
+                    .copy_final_file(blob_id, &new_id)
+                    .map_err(|e| AppError::Internal(e.to_string()))?;
+                let bytes = std::fs::read(self.final_file_path(&new_id))
+                    .map_err(|e| AppError::internal_from_err("media.duplicate.read", e))?;
+                let etag = crate::http_range::etag_from_file_bytes(&bytes);
+                let media_rid = RecordId::new("media", dest_media_id.to_owned());
+                self.repo
+                    .create_final(
+                        &new_id,
+                        CreateFinalAsset {
+                            owner,
+                            media_id: media_rid,
+                            kind: MediaAssetKind::Video,
+                            content_type: "video/mp4".into(),
+                            byte_length: bytes.len() as u64,
+                            etag,
+                        },
+                    )
+                    .await?;
+                Ok(MediaContent::Video {
+                    blob_id: new_id,
+                    duration_ms: *duration_ms,
+                    width: *width,
+                    height: *height,
+                })
+            }
+            MediaContent::Audio {
+                blob_id,
+                duration_ms,
+            } => {
+                let new_id = uuid::Uuid::new_v4().to_string();
+                self.storage
+                    .copy_final_file(blob_id, &new_id)
+                    .map_err(|e| AppError::Internal(e.to_string()))?;
+                let bytes = std::fs::read(self.final_file_path(&new_id))
+                    .map_err(|e| AppError::internal_from_err("media.duplicate.read", e))?;
+                let etag = crate::http_range::etag_from_file_bytes(&bytes);
+                let media_rid = RecordId::new("media", dest_media_id.to_owned());
+                self.repo
+                    .create_final(
+                        &new_id,
+                        CreateFinalAsset {
+                            owner,
+                            media_id: media_rid,
+                            kind: MediaAssetKind::Audio,
+                            content_type: "audio/mp4".into(),
+                            byte_length: bytes.len() as u64,
+                            etag,
+                        },
+                    )
+                    .await?;
+                Ok(MediaContent::Audio {
+                    blob_id: new_id,
+                    duration_ms: *duration_ms,
+                })
+            }
+            _ => Ok(content.clone()),
+        }
+    }
+
+    pub async fn reconcile_abandoned_staging(
+        &self,
+        extra_active: &std::collections::HashSet<String>,
+    ) -> Result<u64, AppError> {
         let active = self.active_upload_ids().await;
+        let merged: std::collections::HashSet<String> =
+            active.union(extra_active).cloned().collect();
         let removed_files = self
             .storage
-            .reconcile_staging_files(self.settings.staging_max_age_seconds, &active)?;
+            .reconcile_staging_files(self.settings.staging_max_age_seconds, &merged)?;
 
         let stale = self
             .repo
@@ -273,7 +414,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
             .await?;
         for asset in stale {
             if let Some(op) = asset.operation_id
-                && !active.contains(&op)
+                && !merged.contains(&op)
             {
                 self.storage.delete_staging_file(&op);
                 let _ = self.repo.delete_asset(&asset.id).await;

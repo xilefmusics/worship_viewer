@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};
 
-use shared::media::{Media, MediaContent, MediaPendingRevision, MediaStatus};
+use shared::media::{DeclaredMediaKind, Media, MediaContent, MediaPendingRevision, MediaStatus};
 
 use crate::database::record_id_string;
 use crate::error::AppError;
@@ -12,6 +12,7 @@ pub struct MediaWrite {
     pub status: MediaStatus,
     pub content: Option<MediaContent>,
     pub pending_revision: Option<MediaPendingRevision>,
+    pub declared_kind: Option<DeclaredMediaKind>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, SurrealValue)]
@@ -26,6 +27,8 @@ pub struct MediaRecord {
     pub content_json: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending_revision_json: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_kind: Option<String>,
 }
 
 impl MediaRecord {
@@ -49,6 +52,7 @@ impl MediaRecord {
                 .map(|v| serde_json::to_string(&v))
                 .transpose()
                 .map_err(|e| AppError::internal_from_err("media.model", e))?,
+            declared_kind: value.declared_kind.map(declared_kind_string),
         })
     }
 
@@ -68,6 +72,10 @@ impl MediaRecord {
                 .map(|v| serde_json::from_str(&v))
                 .transpose()
                 .map_err(|e| AppError::internal_from_err("media.model", e))?,
+            declared_kind: self
+                .declared_kind
+                .map(|v| parse_declared_kind(&v))
+                .transpose()?,
         })
     }
 }
@@ -86,5 +94,20 @@ fn parse_status(value: &str) -> Result<MediaStatus, AppError> {
         "ready" => Ok(MediaStatus::Ready),
         "failed" => Ok(MediaStatus::Failed),
         _ => Err(AppError::Internal("invalid persisted media status".into())),
+    }
+}
+
+fn declared_kind_string(kind: DeclaredMediaKind) -> String {
+    match kind {
+        DeclaredMediaKind::Video => "video".into(),
+        DeclaredMediaKind::Audio => "audio".into(),
+    }
+}
+
+fn parse_declared_kind(value: &str) -> Result<DeclaredMediaKind, AppError> {
+    match value {
+        "video" => Ok(DeclaredMediaKind::Video),
+        "audio" => Ok(DeclaredMediaKind::Audio),
+        _ => Err(AppError::Internal("invalid persisted declared_kind".into())),
     }
 }

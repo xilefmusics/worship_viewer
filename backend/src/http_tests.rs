@@ -72,9 +72,11 @@ fn build_app_with_api_limits(
         InitError = (),
     >,
 > {
+    use crate::resources::media::service::MediaServiceHandle;
     use crate::test_helpers::{
-        blob_service, collection_service, invitation_service, media_asset_service, media_service,
-        session_service, setlist_service, song_service, team_service, user_service,
+        blob_service, collection_service, invitation_service, media_asset_service,
+        media_processing, session_service, setlist_service, song_service, team_service,
+        user_service,
     };
 
     // Unique path so parallel HTTP tests do not share blob files on disk.
@@ -108,6 +110,14 @@ fn build_app_with_api_limits(
         }
     });
     let media_asset_limits = test_settings.media_asset_upload_limits();
+    let media_asset_svc = media_asset_service(&db, &test_settings);
+    let media_processing_handle = media_processing(&db, &test_settings, media_asset_svc.clone());
+
+    let media_svc = MediaServiceHandle::build(
+        db.clone(),
+        media_asset_svc.clone(),
+        media_processing_handle.clone(),
+    );
 
     let cookie_cfg = Data::new(CookieConfig {
         name: "sso_session".into(),
@@ -125,8 +135,9 @@ fn build_app_with_api_limits(
         .app_data(Data::from(db.clone()))
         .app_data(Data::new(blob_service(&db, blob_dir)))
         .app_data(Data::new(collection_service(&db)))
-        .app_data(Data::new(media_service(&db)))
-        .app_data(Data::new(media_asset_service(&db, &test_settings)))
+        .app_data(Data::new(media_svc))
+        .app_data(Data::new(media_asset_svc))
+        .app_data(Data::new(media_processing_handle))
         .app_data(Data::new(song_service(&db)))
         .app_data(Data::new(setlist_service(&db)))
         .app_data(Data::new(team_service(&db)))
@@ -2820,9 +2831,9 @@ mod media_http {
             .insert_header(("If-Match", etag))
             .set_json(UpdateMedia {
                 title: "HTTP page".into(),
-                content: CreateMediaContent::WebPage {
+                content: Some(CreateMediaContent::WebPage {
                     url: "https://example.com/".into(),
-                },
+                }),
                 owner: None,
             })
             .to_request();
@@ -2901,6 +2912,71 @@ mod media_http {
         let problem: Problem = test::read_body_json(response).await;
         assert_eq!(problem.code, "media_unsupported_url");
     }
+
+    #[actix_web::test]
+    async fn create_video_shell_and_reject_url_upload() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "media-video-shell@test.local")
+            .await
+            .unwrap();
+        let token = create_session_token(&db, user).await.unwrap();
+        let app = test::init_service(build_app(db)).await;
+
+        let request = test::TestRequest::post()
+            .uri("/api/v1/media")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_json(CreateMedia {
+                owner: None,
+                title: "Upload shell".into(),
+                content: CreateMediaContent::Video,
+            })
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let created: Media = test::read_body_json(response).await;
+        assert_eq!(created.status, shared::media::MediaStatus::Processing);
+        assert!(created.content.is_none());
+        assert_eq!(
+            created.declared_kind,
+            Some(shared::media::DeclaredMediaKind::Video)
+        );
+
+        let request = test::TestRequest::put()
+            .uri(&format!("/api/v1/media/{}/uploads?kind=audio", created.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_payload(b"fake-audio".as_slice())
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, request).await.status(),
+            StatusCode::BAD_REQUEST
+        );
+
+        let request = test::TestRequest::post()
+            .uri("/api/v1/media")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_json(CreateMedia {
+                owner: None,
+                title: "URL parent".into(),
+                content: CreateMediaContent::YouTube {
+                    url: "https://youtu.be/dQw4w9WgXcQ".into(),
+                },
+            })
+            .to_request();
+        let url_media: Media = test::read_body_json(test::call_service(&app, request).await).await;
+
+        let request = test::TestRequest::put()
+            .uri(&format!(
+                "/api/v1/media/{}/uploads?kind=video",
+                url_media.id
+            ))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_payload(b"fake-video".as_slice())
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, request).await.status(),
+            StatusCode::BAD_REQUEST
+        );
+    }
 }
 
 mod media_asset_http {
@@ -2974,9 +3050,9 @@ mod media_asset_http {
         let media = writer_media(&db, &fixture).await;
 
         let request = test::TestRequest::put()
-            .uri(&format!("/api/v1/media/{}/uploads?kind=audio", media.id))
+            .uri(&format!("/api/v1/media/{}/uploads?kind=image", media.id))
             .insert_header(("Authorization", format!("Bearer {token}")))
-            .insert_header(("Content-Type", "audio/mpeg"))
+            .insert_header(("Content-Type", "image/png"))
             .set_payload(b"0123456789abcdef".as_slice())
             .to_request();
         let response = test::call_service(&app, request).await;

@@ -11,6 +11,7 @@ export type MediaContent = components['schemas']['MediaContent']
 export type CreateMediaContent = components['schemas']['CreateMediaContent']
 export type CreateMedia = components['schemas']['CreateMedia']
 export type UpdateMedia = components['schemas']['UpdateMedia']
+export type DeclaredMediaKind = components['schemas']['DeclaredMediaKind']
 
 export const mediaListRootKey = ['media'] as const
 export const mediaDetailKey = (id: string) => [...mediaListRootKey, 'detail', id] as const
@@ -72,6 +73,13 @@ export async function updateMedia(queryClient: QueryClient, id: string, body: Up
     body,
   })
   return requireOk(queryClient, result, 'Could not save media.')
+}
+
+export async function cancelMediaProcessing(queryClient: QueryClient, id: string) {
+  const result = await api.POST('/api/v1/media/{id}/processing/cancel', {
+    params: { path: { id } },
+  })
+  return requireOk(queryClient, result, 'Could not cancel processing.')
 }
 
 export async function moveMedia(queryClient: QueryClient, id: string, owner: string) {

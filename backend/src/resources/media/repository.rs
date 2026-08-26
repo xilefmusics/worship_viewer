@@ -29,4 +29,8 @@ pub trait MediaRepository: Send + Sync {
         owner: RecordId,
     ) -> Result<Media, AppError>;
     async fn delete(&self, write_teams: &[RecordId], id: &str) -> Result<Media, AppError>;
+    /// Internal read without ACL checks (processing jobs and reconciliation).
+    async fn get_unscoped(&self, id: &str) -> Result<Media, AppError>;
+    async fn update_unscoped(&self, id: &str, value: MediaWrite) -> Result<Media, AppError>;
+    async fn list_processing_media(&self) -> Result<Vec<Media>, AppError>;
 }

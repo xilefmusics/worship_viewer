@@ -11,4 +11,7 @@ pub use service::{MediaAssetService, MediaAssetServiceHandle, MediaAssetSettings
 pub use storage::FsMediaAssetStorage;
 pub use surreal_repo::SurrealMediaAssetRepo;
 
+#[cfg(test)]
+pub use model::CreateStagingAsset;
+
 pub mod rest;

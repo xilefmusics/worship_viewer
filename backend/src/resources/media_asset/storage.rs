@@ -28,6 +28,14 @@ pub trait MediaAssetStorage: Send + Sync {
 
     fn promote_file(&self, operation_id: &str, asset_id: &str) -> Result<(), AppError>;
 
+    fn ingest_final_from_path(
+        &self,
+        source: &Path,
+        asset_id: &str,
+    ) -> Result<(u64, String), AppError>;
+
+    fn copy_final_file(&self, from_asset_id: &str, to_asset_id: &str) -> Result<(), AppError>;
+
     /// Remove staging files on disk older than `max_age_seconds` except `active` operation ids.
     fn reconcile_staging_files(
         &self,
@@ -199,6 +207,30 @@ impl MediaAssetStorage for FsMediaAssetStorage {
             }
         }
         Ok(removed)
+    }
+
+    fn ingest_final_from_path(
+        &self,
+        source: &Path,
+        asset_id: &str,
+    ) -> Result<(u64, String), AppError> {
+        let to = self.final_path(asset_id);
+        if let Some(parent) = to.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| AppError::internal_from_err("media_asset.storage.ingest_mkdir", e))?;
+        }
+        std::fs::copy(source, &to)
+            .map_err(|e| AppError::internal_from_err("media_asset.storage.ingest_copy", e))?;
+        let bytes = std::fs::read(&to)
+            .map_err(|e| AppError::internal_from_err("media_asset.storage.ingest_read", e))?;
+        let etag = etag_from_file_bytes(&bytes);
+        Ok((bytes.len() as u64, etag))
+    }
+
+    fn copy_final_file(&self, from_asset_id: &str, to_asset_id: &str) -> Result<(), AppError> {
+        let from = self.final_path(from_asset_id);
+        let _ = self.ingest_final_from_path(&from, to_asset_id)?;
+        Ok(())
     }
 }
 

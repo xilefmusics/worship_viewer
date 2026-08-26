@@ -27,6 +27,16 @@ pub struct MediaAssetRecord {
 }
 
 #[derive(Clone, Debug)]
+pub struct CreateFinalAsset {
+    pub owner: surrealdb::types::RecordId,
+    pub media_id: surrealdb::types::RecordId,
+    pub kind: MediaAssetKind,
+    pub content_type: String,
+    pub byte_length: u64,
+    pub etag: String,
+}
+
+#[derive(Clone, Debug)]
 pub struct CreateStagingAsset {
     pub owner: surrealdb::types::RecordId,
     pub media_id: surrealdb::types::RecordId,
@@ -84,6 +94,28 @@ impl MediaAssetRecord {
             byte_length,
             status: "staging".into(),
             operation_id: Some(operation_id),
+            etag: Some(etag),
+            created_at: Some(Utc::now().into()),
+        }
+    }
+
+    pub fn from_final(
+        owner: RecordId,
+        media_id: RecordId,
+        kind: MediaAssetKind,
+        content_type: String,
+        byte_length: u64,
+        etag: String,
+    ) -> Self {
+        Self {
+            id: None,
+            owner: Some(owner),
+            media_id: Some(media_id),
+            kind: kind.as_str().into(),
+            content_type,
+            byte_length,
+            status: "final".into(),
+            operation_id: None,
             etag: Some(etag),
             created_at: Some(Utc::now().into()),
         }
