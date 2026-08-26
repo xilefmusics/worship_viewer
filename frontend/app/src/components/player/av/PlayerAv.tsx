@@ -58,7 +58,9 @@ import {
   DEFAULT_AV_PLAYBACK_LOOP,
   DEFAULT_AV_PLAYBACK_MUTED,
   DEFAULT_AV_PLAYBACK_VOLUME,
-  isUploadedAvKind,
+  isTimedAvKind,
+  isWebPageAvKind,
+  timedProjectionContentFromItem,
 } from '@/lib/player/av-projection-playback'
 import {
   buildAvProjectionCommand,
@@ -224,7 +226,7 @@ export function PlayerAv({
     INITIAL_CONTROLLER_PROJECTION_STATE,
   )
   const [missingOutputWarning, setMissingOutputWarning] = useState(false)
-  const [missingOutputIsPlay, setMissingOutputIsPlay] = useState(false)
+  const [missingOutputReason, setMissingOutputReason] = useState<'page' | 'play' | 'show'>('page')
   const [livePlayback, setLivePlayback] = useState<AvProjectionPlaybackIntent | null>(null)
   const [controllerVolume, setControllerVolume] = useState(DEFAULT_AV_PLAYBACK_VOLUME)
   const [controllerMuted, setControllerMuted] = useState(DEFAULT_AV_PLAYBACK_MUTED)
@@ -474,7 +476,6 @@ export function PlayerAv({
       setOutputRegistry(next)
       if (hasReadyAvOutput(next)) {
         setMissingOutputWarning(false)
-        setMissingOutputIsPlay(false)
       }
     })
     syncRef.current = channel
@@ -502,15 +503,10 @@ export function PlayerAv({
     }
     if (
       livePlayback &&
-      isUploadedAvKind(projectedItem.kind) &&
-      projectedItem.mediaId &&
-      projectedItem.assetId
+      isTimedAvKind(projectedItem.kind)
     ) {
-      return {
-        type: projectedItem.kind,
-        mediaId: projectedItem.mediaId,
-        assetId: projectedItem.assetId,
-      }
+      const timed = timedProjectionContentFromItem(projectedItem)
+      if (timed) return timed
     }
     return {
       type: 'lyrics',
@@ -520,10 +516,7 @@ export function PlayerAv({
   }, [
     livePlayback,
     projected.slideIndex,
-    projectedItem.assetId,
-    projectedItem.kind,
-    projectedItem.mediaId,
-    projectedItem.pages,
+    projectedItem,
     projectedLines,
     projectedText,
   ])
@@ -541,7 +534,7 @@ export function PlayerAv({
         itemTitle: projectedTitle || t('player.untitled'),
         nextPreview: projectedNextText,
         prefersReducedMotion: reduceMotion ?? false,
-        playback: livePlayback && isUploadedAvKind(projectedItem.kind) ? livePlayback : undefined,
+        playback: livePlayback && isTimedAvKind(projectedItem.kind) ? livePlayback : undefined,
       }),
     [
       livePlayback,
@@ -567,7 +560,7 @@ export function PlayerAv({
       skipProjectionBroadcastRef.current = false
       return
     }
-    if (isUploadedAvKind(projectedItem.kind) && !livePlayback) return
+    if (isTimedAvKind(projectedItem.kind) && !livePlayback) return
     const commandId = nextAvProjectionCommandId(controllerRef.current)
     const command: AvProjectionCommand = { ...projectedCommand, commandId }
     const serializedPayload = JSON.stringify({
@@ -590,9 +583,9 @@ export function PlayerAv({
     )
     controllerRef.current = issued
     setOutputRegistry(issued)
-    if (!hasReadyAvOutput(issued) && !isUploadedAvKind(projectedItem.kind)) {
+    if (!hasReadyAvOutput(issued) && !isTimedAvKind(projectedItem.kind)) {
       setMissingOutputWarning(true)
-      setMissingOutputIsPlay(false)
+      setMissingOutputReason('page')
     }
     syncRef.current?.send(command)
 
@@ -622,7 +615,7 @@ export function PlayerAv({
 
   const goToSlide = useCallback(
     (slideIndex: number, clearScreenState = true) => {
-      if (isUploadedAvKind(currentItem.kind)) {
+      if (isTimedAvKind(currentItem.kind)) {
         setSession((state) => ({
           ...state,
           slideIndex: 0,
@@ -688,14 +681,13 @@ export function PlayerAv({
   }, [pauseLivePlayback])
 
   const startPlay = useCallback(() => {
-    if (!isUploadedAvKind(currentItem.kind) || !currentItem.mediaId || !currentItem.assetId) return
+    if (!timedProjectionContentFromItem(currentItem)) return
     if (!hasReadyAvOutput(controllerRef.current)) {
       setMissingOutputWarning(true)
-      setMissingOutputIsPlay(true)
+      setMissingOutputReason(isWebPageAvKind(currentItem.kind) ? 'show' : 'play')
       return
     }
     setMissingOutputWarning(false)
-    setMissingOutputIsPlay(false)
     setProjected({
       itemIndex: session.itemIndex,
       slideIndex: 0,
@@ -714,9 +706,7 @@ export function PlayerAv({
     controllerLoop,
     controllerMuted,
     controllerVolume,
-    currentItem.assetId,
-    currentItem.kind,
-    currentItem.mediaId,
+    currentItem,
     session.itemIndex,
   ])
 
@@ -748,11 +738,11 @@ export function PlayerAv({
   )
 
   const toggleAvTransport = useCallback(() => {
-    if (!isUploadedAvKind(currentItem.kind)) return
+    if (!isTimedAvKind(currentItem.kind)) return
     const projectingThis =
       livePlayback != null &&
       projected.itemIndex === session.itemIndex &&
-      isUploadedAvKind(projectedItem.kind)
+      isTimedAvKind(projectedItem.kind)
     if (!projectingThis) {
       startPlay()
       return
@@ -761,7 +751,7 @@ export function PlayerAv({
       issuePlayback('pause')
       return
     }
-    issuePlayback('resume')
+    issuePlayback(isWebPageAvKind(currentItem.kind) ? 'play' : 'resume')
   }, [
     currentItem.kind,
     issuePlayback,
@@ -831,7 +821,7 @@ export function PlayerAv({
       if (action === 'next') {
         e.preventDefault()
         if (evicted) return
-        if (isUploadedAvKind(currentItem.kind) && (e.key === ' ' || e.key === 'Enter')) {
+        if (isTimedAvKind(currentItem.kind) && (e.key === ' ' || e.key === 'Enter')) {
           toggleAvTransport()
           return
         }
@@ -935,7 +925,13 @@ export function PlayerAv({
         </p>
       ) : missingOutputWarning ? (
         <p className="player-av-warning" role="status" aria-live="polite">
-          {t(missingOutputIsPlay ? 'player.av.missingOutputPlay' : 'player.av.missingOutput')}
+          {t(
+            missingOutputReason === 'play'
+              ? 'player.av.missingOutputPlay'
+              : missingOutputReason === 'show'
+                ? 'player.av.missingOutputShow'
+                : 'player.av.missingOutput',
+          )}
         </p>
       ) : null}
 
@@ -1097,16 +1093,16 @@ export function PlayerAv({
             onToggleBlackout={toggleBlackout}
           />
 
-          {/* Flow: I4 */}
+          {/* Flow: I4, I5 */}
           <div className="player-av__slides min-h-0 flex-1 overflow-hidden">
-            {isUploadedAvKind(currentItem.kind) ? (
+            {isTimedAvKind(currentItem.kind) ? (
               <AvMediaTransportPanel
                 kind={currentItem.kind}
                 title={title || t('player.untitled')}
                 projected={
                   livePlayback != null &&
                   projected.itemIndex === session.itemIndex &&
-                  isUploadedAvKind(projectedItem.kind)
+                  isTimedAvKind(projectedItem.kind)
                 }
                 issuedAction={livePlayback?.action ?? null}
                 playback={aggregateAvPlayback(outputRegistry)}
@@ -1166,7 +1162,7 @@ export function PlayerAv({
                   contentLines={projectedSlideView.contentLines}
                   deckPage={projectedSlideView.deckPage}
                   timedPreview={
-                    isUploadedAvKind(projectedItem.kind)
+                    isTimedAvKind(projectedItem.kind)
                       ? { kind: projectedItem.kind, title: projectedTitle || t('player.untitled') }
                       : undefined
                   }

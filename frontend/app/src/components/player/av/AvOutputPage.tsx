@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { AvProjectedMedia } from '@/components/player/av/AvProjectedMedia'
+import { AvProjectedRemoteLayer } from '@/components/player/av/AvProjectedRemoteLayer'
 import { AvSlideView } from '@/components/player/av/AvSlideView'
 import { DEFAULT_AV_PREFERENCES } from '@/lib/player/av-preferences'
 import {
-  isUploadedProjectionContent,
+  isTimedProjectionContent,
   slideViewPropsFromCommand,
   type AvProjectionAckError,
   type AvProjectionCommand,
@@ -32,7 +32,7 @@ type AvOutputPageProps = {
 function shouldDeferOutputAck(command: AvProjectionCommand | null): boolean {
   if (!command) return false
   if (command.content.type === 'deck_page' && command.screenState === 'live') return true
-  return isUploadedProjectionContent(command.content)
+  return isTimedProjectionContent(command.content)
 }
 
 export function AvOutputPage({
@@ -130,8 +130,8 @@ export function AvOutputPage({
         transition={command?.transition ?? DEFAULT_AV_PREFERENCES.transition}
         screenState={screenState}
       />
-      {command && isUploadedProjectionContent(command.content) ? (
-        <AvProjectedMedia
+      {command && isTimedProjectionContent(command.content) ? (
+        <AvProjectedRemoteLayer
           command={command}
           onAck={(
             applied: boolean,
@@ -139,7 +139,7 @@ export function AvOutputPage({
             error?: AvProjectionAckError,
           ) => {
             if (!stateRef.current.command) return
-            if (!isUploadedProjectionContent(stateRef.current.command.content)) return
+            if (!isTimedProjectionContent(stateRef.current.command.content)) return
             sendRef.current?.(outputAckForApply(stateRef.current, applied, error, playback))
           }}
         />

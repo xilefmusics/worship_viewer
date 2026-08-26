@@ -33,9 +33,13 @@ export type AvItemSlides = {
   structuredSlides?: AvLyricLine[][]
   structuredSourceSlides?: AvLyricLine[][]
   outline: AvSectionOutline[]
-  kind: 'lyrics' | 'blob' | 'deck' | 'video' | 'audio'
+  kind: 'lyrics' | 'blob' | 'deck' | 'video' | 'audio' | 'youtube' | 'livestream' | 'web_page'
   mediaId?: string
   assetId?: string
+  videoId?: string
+  canonicalUrl?: string
+  url?: string
+  streamType?: 'hls' | 'direct'
   pages?: AvDeckPage[]
 }
 
@@ -121,6 +125,41 @@ export function avSlidesForItem(
       kind: item.content.type,
       mediaId: item.id,
       assetId: item.content.blob_id,
+    }
+  }
+  if (item.type === 'media' && item.content?.type === 'youtube') {
+    const title = item.title.trim() || fallbackTitle?.trim() || 'Untitled'
+    return {
+      slides: [title],
+      sourceSlides: [title],
+      outline: [],
+      kind: 'youtube',
+      mediaId: item.id,
+      videoId: item.content.video_id,
+      canonicalUrl: item.content.canonical_url,
+    }
+  }
+  if (item.type === 'media' && item.content?.type === 'livestream') {
+    const title = item.title.trim() || fallbackTitle?.trim() || 'Untitled'
+    return {
+      slides: [title],
+      sourceSlides: [title],
+      outline: [],
+      kind: 'livestream',
+      mediaId: item.id,
+      url: item.content.url,
+      streamType: item.content.stream_type,
+    }
+  }
+  if (item.type === 'media' && item.content?.type === 'web_page') {
+    const title = item.title.trim() || fallbackTitle?.trim() || 'Untitled'
+    return {
+      slides: [title],
+      sourceSlides: [title],
+      outline: [],
+      kind: 'web_page',
+      mediaId: item.id,
+      url: item.content.url,
     }
   }
   if (item.type !== 'chords') {

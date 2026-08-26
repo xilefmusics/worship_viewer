@@ -879,4 +879,171 @@ describe('PlayerAv', () => {
     expect(liveCommand.screenState).toBe('live')
     expect(liveCommand.playback?.action).toBe('pause')
   })
+
+  const youtubePlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Clip', id: 'media-yt', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-yt',
+        title: 'Clip',
+        content: {
+          type: 'youtube',
+          video_id: 'dQw4w9WgXcQ',
+          canonical_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+      },
+    ],
+  } as Player
+
+  const mixedYoutubePlayer = {
+    index: 0,
+    toc: [
+      { idx: 0, nr: '1', title: 'Anchor', id: 'song-1', liked: false },
+      { idx: 1, nr: '', title: 'Clip', id: 'media-yt', liked: false },
+    ],
+    items: [
+      ...player.items,
+      {
+        type: 'media',
+        id: 'media-yt',
+        title: 'Clip',
+        content: {
+          type: 'youtube',
+          video_id: 'dQw4w9WgXcQ',
+          canonical_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+      },
+    ],
+  } as Player
+
+  const livestreamPlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Stream', id: 'media-live', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-live',
+        title: 'Stream',
+        content: { type: 'livestream', url: 'https://example.com/live.m3u8', stream_type: 'hls' },
+      },
+    ],
+  } as Player
+
+  const webPlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Bulletin', id: 'media-web', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-web',
+        title: 'Bulletin',
+        content: { type: 'web_page', url: 'https://example.com/bulletin' },
+      },
+    ],
+  } as Player
+
+  it('I5: keeps the projected lyric when selecting YouTube, livestream, or web TOC rows', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={mixedYoutubePlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.keyboard('n')
+    expect(screen.getByRole('button', { name: 'player.av.play' })).toBeInTheDocument()
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('Tschuess')
+    for (const call of broadcast.mock.calls) {
+      const payload = call[0] as { content?: { type: string } }
+      expect(payload.content?.type).not.toBe('youtube')
+    }
+  })
+
+  it('I5: Play replaces the output with YouTube content and stays silent on the controller', async () => {
+    const user = userEvent.setup()
+    const onRoomProjectionChange = vi.fn()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={youtubePlayer}
+        allowNetworkFetch={false}
+        canControlRoomProjection
+        onRoomProjectionChange={onRoomProjectionChange}
+      />,
+    )
+    await helloOutput()
+    await user.click(screen.getByRole('button', { name: 'player.av.play' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const command = broadcast.mock.calls.at(-1)?.[0] as {
+      content?: { type: string; videoId?: string }
+      playback?: { action?: string }
+    }
+    expect(command.content).toEqual({
+      type: 'youtube',
+      videoId: 'dQw4w9WgXcQ',
+      canonicalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    })
+    expect(command.playback?.action).toBe('play')
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('media:youtube:Clip')
+    expect(screen.queryByTestId('av-projected-youtube')).not.toBeInTheDocument()
+    expect(onRoomProjectionChange).not.toHaveBeenCalled()
+  })
+
+  it('I5: livestream without a DVR range does not expose seek', async () => {
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={livestreamPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'player.av.play' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('player.av.seek')).not.toBeInTheDocument()
+  })
+
+  it('I5: web pages require Show and warn when no output is open', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv type="setlist" id="setlist-1" player={webPlayer} allowNetworkFetch={false} />,
+    )
+    expect(screen.getByRole('button', { name: 'player.av.show' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'player.av.play' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'player.av.show' }))
+    expect(screen.getByText('player.av.missingOutputShow')).toBeInTheDocument()
+    expect(broadcast).not.toHaveBeenCalled()
+  })
+
+  it('I5: Show projects a web page and Hide/Reload issue pause/restart', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv type="setlist" id="setlist-1" player={webPlayer} allowNetworkFetch={false} />,
+    )
+    await helloOutput()
+    await user.click(screen.getByRole('button', { name: 'player.av.show' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    expect(broadcast.mock.calls.at(-1)?.[0]).toMatchObject({
+      content: { type: 'web_page', url: 'https://example.com/bulletin' },
+      playback: { action: 'play' },
+    })
+    broadcast.mockClear()
+    await user.click(screen.getByRole('button', { name: 'player.av.hide' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    expect(broadcast.mock.calls.at(-1)?.[0]).toMatchObject({ playback: { action: 'pause' } })
+    broadcast.mockClear()
+    await user.click(screen.getByRole('button', { name: 'player.av.show' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.click(screen.getByRole('button', { name: 'player.av.reload' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    expect(broadcast.mock.calls.at(-1)?.[0]).toMatchObject({ playback: { action: 'restart' } })
+  })
 })

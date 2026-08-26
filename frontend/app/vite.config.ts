@@ -4,8 +4,10 @@ import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+import { AV_OUTPUT_CSP, isAvOutputPath } from './src/lib/player/av-output-csp'
 
 function gitVersion(): string {
   try {
@@ -19,6 +21,28 @@ function gitVersion(): string {
   }
 }
 
+function avOutputCspPlugin(): Plugin {
+  const apply = (
+    req: { url?: string },
+    res: { setHeader: (name: string, value: string) => void },
+    next: () => void,
+  ) => {
+    if (isAvOutputPath(req.url ?? '')) {
+      res.setHeader('Content-Security-Policy', AV_OUTPUT_CSP)
+    }
+    next()
+  }
+  return {
+    name: 'av-output-csp',
+    configureServer(server) {
+      server.middlewares.use(apply)
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(apply)
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -26,6 +50,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
+      avOutputCspPlugin(),
       tanstackRouter({ target: 'react', autoCodeSplitting: true }),
       react(),
       tailwindcss(),
@@ -63,7 +88,7 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           navigateFallback: 'index.html',
-          navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
+          navigateFallbackDenylist: [/^\/api\//, /^\/auth\//, /^\/player\/output/],
         },
       }),
     ],

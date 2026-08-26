@@ -11,8 +11,11 @@ import {
   mediaActionsForCommand,
   playbackAckChangedMaterially,
   playbackAckFromElement,
-  playbackError,
+  playbackRangeIsSeekable,
   shouldEmitPlaybackAck,
+  timedProjectionContentFromItem,
+  transportCapabilitiesFromAck,
+  youtubeProviderErrorCode,
 } from '@/lib/player/av-projection-playback'
 import { buildAvProjectionCommand } from '@/lib/player/av-projection-protocol'
 import {
@@ -136,6 +139,161 @@ describe('output media actions', () => {
     expect(restart?.seekMs).toBe(0)
     expect(restart?.play).toBe(true)
   })
+
+  it('maps web Show/Hide/Reload onto play/pause/restart without releasing', () => {
+    const show = mediaActionsForCommand(
+      buildAvProjectionCommand({
+        sessionId: 'shared',
+        commandId: 5,
+        ...layers,
+        screenState: 'live',
+        itemTitle: 'Page',
+        nextPreview: null,
+        content: { type: 'web_page', url: 'https://example.com/page' },
+        playback: buildAvPlaybackIntent({ action: 'play' }),
+      }),
+    )
+    expect(show).toMatchObject({ play: true, pause: false, hide: false, release: false })
+
+    const hide = mediaActionsForCommand(
+      buildAvProjectionCommand({
+        sessionId: 'shared',
+        commandId: 6,
+        ...layers,
+        screenState: 'live',
+        itemTitle: 'Page',
+        nextPreview: null,
+        content: { type: 'web_page', url: 'https://example.com/page' },
+        playback: buildAvPlaybackIntent({ action: 'pause' }),
+      }),
+    )
+    expect(hide).toMatchObject({ play: false, pause: true, hide: false, release: false })
+
+    const reload = mediaActionsForCommand(
+      buildAvProjectionCommand({
+        sessionId: 'shared',
+        commandId: 7,
+        ...layers,
+        screenState: 'live',
+        itemTitle: 'Page',
+        nextPreview: null,
+        content: { type: 'web_page', url: 'https://example.com/page' },
+        playback: buildAvPlaybackIntent({ action: 'restart' }),
+      }),
+    )
+    expect(reload).toMatchObject({ play: true, release: false })
+  })
+
+  it('plays YouTube and livestream the same way as uploaded video', () => {
+    expect(
+      mediaActionsForCommand(
+        buildAvProjectionCommand({
+          sessionId: 'shared',
+          commandId: 8,
+          ...layers,
+          screenState: 'live',
+          itemTitle: 'YT',
+          nextPreview: null,
+          content: {
+            type: 'youtube',
+            videoId: 'dQw4w9WgXcQ',
+            canonicalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          },
+          playback: buildAvPlaybackIntent({ action: 'play' }),
+        }),
+      )?.play,
+    ).toBe(true)
+    expect(
+      mediaActionsForCommand(
+        buildAvProjectionCommand({
+          sessionId: 'shared',
+          commandId: 9,
+          ...layers,
+          screenState: 'blank',
+          itemTitle: 'Live',
+          nextPreview: null,
+          content: { type: 'livestream', url: 'https://example.com/live.m3u8', streamType: 'hls' },
+          playback: buildAvPlaybackIntent({ action: 'play' }),
+        }),
+      ),
+    ).toMatchObject({ play: false, pause: true, hide: true, release: false })
+  })
+})
+
+describe('transport capabilities', () => {
+  it('hides seek until the output reports a real range', () => {
+    expect(playbackRangeIsSeekable({ seekableStartMs: 0, seekableEndMs: 0 })).toBe(false)
+    expect(playbackRangeIsSeekable({ seekableStartMs: 1000, seekableEndMs: 1000 })).toBe(false)
+    expect(playbackRangeIsSeekable({ seekableStartMs: 0, seekableEndMs: 8000 })).toBe(true)
+
+    const live = transportCapabilitiesFromAck(
+      'livestream',
+      { seekableStartMs: 0, seekableEndMs: 0, durationMs: null },
+      true,
+    )
+    expect(live.seek).toBe(false)
+    expect(live.loop).toBe(false)
+    expect(live.restart).toBe(false)
+    expect(live.volume).toBe(true)
+
+    const dvr = transportCapabilitiesFromAck(
+      'livestream',
+      { seekableStartMs: 0, seekableEndMs: 30000, durationMs: null },
+      true,
+    )
+    expect(dvr.seek).toBe(true)
+    expect(dvr.restart).toBe(true)
+
+    const youtube = transportCapabilitiesFromAck(
+      'youtube',
+      { seekableStartMs: 0, seekableEndMs: 0, durationMs: null },
+      true,
+    )
+    expect(youtube.seek).toBe(false)
+    expect(youtube.loop).toBe(true)
+    expect(youtube.restart).toBe(true)
+
+    const web = transportCapabilitiesFromAck('web_page', null, true)
+    expect(web).toMatchObject({
+      play: true,
+      pause: true,
+      resume: false,
+      seek: false,
+      volume: false,
+      mute: false,
+      restart: true,
+      loop: false,
+    })
+  })
+
+  it('builds timed projection content from nav fields and rejects unsafe URLs', () => {
+    expect(
+      timedProjectionContentFromItem({
+        kind: 'youtube',
+        videoId: 'dQw4w9WgXcQ',
+        canonicalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      }),
+    ).toEqual({
+      type: 'youtube',
+      videoId: 'dQw4w9WgXcQ',
+      canonicalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    })
+    expect(
+      timedProjectionContentFromItem({
+        kind: 'livestream',
+        url: 'https://example.com/live.m3u8',
+        streamType: 'hls',
+      }),
+    ).toEqual({
+      type: 'livestream',
+      url: 'https://example.com/live.m3u8',
+      streamType: 'hls',
+    })
+    expect(
+      timedProjectionContentFromItem({ kind: 'web_page', url: 'javascript:alert(1)' }),
+    ).toBeNull()
+    expect(timedProjectionContentFromItem({ kind: 'youtube', videoId: 'bad' })).toBeNull()
+  })
 })
 
 describe('playback acks', () => {
@@ -184,8 +342,11 @@ describe('playback acks', () => {
     expect(playbackAckChangedMaterially(playing, later)).toBe(false)
   })
 
-  it('names autoplay failures as a safe error code', () => {
-    expect(playbackError(AV_PLAYBACK_ERROR_AUTOPLAY, 'blocked').code).toBe('autoplay_blocked')
+  it('maps YouTube embedding failures to embed_blocked', () => {
+    expect(youtubeProviderErrorCode(150)).toBe('embed_blocked')
+    expect(youtubeProviderErrorCode(101)).toBe('embed_blocked')
+    expect(youtubeProviderErrorCode(2)).toBe('provider_error')
+    expect(youtubeProviderErrorCode(100)).toBe('provider_error')
   })
 })
 

@@ -3240,8 +3240,46 @@ mod spa_fallback_guard {
         let req = test::TestRequest::get().uri("/app/deep/link").to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
+        assert!(
+            resp.headers().get("content-security-policy").is_none(),
+            "non-output SPA routes must not receive the AV output CSP"
+        );
         let body = test::read_body(resp).await;
         assert!(String::from_utf8_lossy(&body).contains("spa"));
+    }
+
+    #[actix_web::test]
+    async fn player_output_html_gets_route_scoped_csp() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("index.html"), "<html>spa</html>").unwrap();
+        let static_path = dir.path().to_string_lossy().into_owned();
+        let app = test::init_service(App::new().service(frontend::rest::scope(&static_path))).await;
+
+        let req = test::TestRequest::get()
+            .uri("/player/output?s=shared")
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let csp = resp
+            .headers()
+            .get("content-security-policy")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("");
+        assert_eq!(csp, frontend::rest::AV_OUTPUT_CSP);
+        assert!(csp.contains("https://www.youtube.com"));
+        assert!(csp.contains("frame-src"));
+        assert!(csp.contains("https:"));
+    }
+
+    #[actix_web::test]
+    async fn api_not_found_does_not_receive_output_csp() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("index.html"), "<html/>").unwrap();
+        let static_path = dir.path().to_string_lossy().into_owned();
+        let app = test::init_service(App::new().service(frontend::rest::scope(&static_path))).await;
+        let req = test::TestRequest::get().uri("/api/missing").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.headers().get("content-security-policy").is_none());
     }
 
     #[actix_web::test]

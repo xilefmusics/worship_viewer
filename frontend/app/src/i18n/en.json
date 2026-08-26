@@ -335,6 +335,9 @@
       "play": "Play",
       "pause": "Pause",
       "resume": "Resume",
+      "show": "Show",
+      "hide": "Hide",
+      "reload": "Reload",
       "seek": "Seek",
       "volume": "Volume",
       "mute": "Mute",
@@ -343,15 +346,22 @@
       "loop": "Loop",
       "retry": "Retry",
       "mediaPreviewOnly": "Preview only — press Play to project",
+      "mediaPreviewOnlyShow": "Preview only — press Show to project",
       "mediaPlaying": "Playing on output",
+      "mediaShowing": "Showing on output",
       "mediaPaused": "Paused on output",
+      "mediaHidden": "Hidden on output",
       "mediaEnded": "Ended",
       "mediaLoading": "Loading on output",
       "mediaError": "Playback failed on an output",
       "mediaMixed": "Outputs report different playback states",
       "mediaAutoplayFailed": "The browser blocked playback. The background is still showing. Retry when you are ready.",
+      "mediaEmbedFailed": "This page cannot be embedded. The background is still showing.",
+      "mediaProviderFailed": "The playback provider failed. The background is still showing. Retry when you are ready.",
+      "mediaUnsupportedSource": "This source cannot be played in this browser. The background is still showing.",
       "outputFailed": "Output {{id}}: {{detail}}",
-      "missingOutputPlay": "No projection output is open. Playback was not started."
+      "missingOutputPlay": "No projection output is open. Playback was not started.",
+      "missingOutputShow": "No projection output is open. The page was not shown."
     }
   },
   "about": {

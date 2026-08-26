@@ -22,7 +22,7 @@ type AvSlideViewProps = {
   contentLines?: AvLyricLine[]
   deckPage?: { mediaId: string; assetId: string }
   onDeckPageStatus?: (status: 'ready' | 'error') => void
-  timedPreview?: { kind: 'video' | 'audio'; title: string }
+  timedPreview?: { kind: 'video' | 'audio' | 'youtube' | 'livestream' | 'web_page'; title: string }
   contentLayer: AvContentLayer
   backgroundLayer: AvBackgroundLayerPrefs
   transition: AvTransition

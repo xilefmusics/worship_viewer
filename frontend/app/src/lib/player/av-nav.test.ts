@@ -240,4 +240,57 @@ describe('avSlidesForItem media decks', () => {
     expect(audioSlides.kind).toBe('audio')
     expect(audioSlides.assetId).toBe('a1')
   })
+
+  it('I5: maps YouTube, livestream, and web-page media to timed kinds', () => {
+    const youtube = avSlidesForItem(
+      {
+        type: 'media',
+        id: 'media-yt',
+        title: 'Clip',
+        content: {
+          type: 'youtube',
+          video_id: 'dQw4w9WgXcQ',
+          canonical_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+      } as PlayerItem,
+      0,
+      split,
+    )
+    expect(youtube).toMatchObject({
+      kind: 'youtube',
+      videoId: 'dQw4w9WgXcQ',
+      canonicalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    })
+
+    const live = avSlidesForItem(
+      {
+        type: 'media',
+        id: 'media-live',
+        title: 'Stream',
+        content: { type: 'livestream', url: 'https://example.com/live.m3u8', stream_type: 'hls' },
+      } as PlayerItem,
+      1,
+      split,
+    )
+    expect(live).toMatchObject({
+      kind: 'livestream',
+      url: 'https://example.com/live.m3u8',
+      streamType: 'hls',
+    })
+
+    const page = avSlidesForItem(
+      {
+        type: 'media',
+        id: 'media-web',
+        title: 'Bulletin',
+        content: { type: 'web_page', url: 'https://example.com/bulletin' },
+      } as PlayerItem,
+      2,
+      split,
+    )
+    expect(page).toMatchObject({
+      kind: 'web_page',
+      url: 'https://example.com/bulletin',
+    })
+  })
 })

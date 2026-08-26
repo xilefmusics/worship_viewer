@@ -335,6 +335,9 @@
       "play": "Wiedergabe",
       "pause": "Pause",
       "resume": "Fortsetzen",
+      "show": "Anzeigen",
+      "hide": "Ausblenden",
+      "reload": "Neu laden",
       "seek": "Position",
       "volume": "Lautstärke",
       "mute": "Stummschalten",
@@ -343,15 +346,22 @@
       "loop": "Wiederholen",
       "retry": "Erneut versuchen",
       "mediaPreviewOnly": "Nur Vorschau — Wiedergabe startet die Projektion",
+      "mediaPreviewOnlyShow": "Nur Vorschau — Anzeigen startet die Projektion",
       "mediaPlaying": "Wird auf der Ausgabe wiedergegeben",
+      "mediaShowing": "Wird auf der Ausgabe angezeigt",
       "mediaPaused": "Auf der Ausgabe pausiert",
+      "mediaHidden": "Auf der Ausgabe ausgeblendet",
       "mediaEnded": "Beendet",
       "mediaLoading": "Wird auf der Ausgabe geladen",
       "mediaError": "Wiedergabe auf einer Ausgabe fehlgeschlagen",
       "mediaMixed": "Ausgaben melden unterschiedliche Wiedergabestände",
       "mediaAutoplayFailed": "Der Browser hat die Wiedergabe blockiert. Der Hintergrund bleibt sichtbar. Versuche es erneut, wenn du bereit bist.",
+      "mediaEmbedFailed": "Diese Seite kann nicht eingebettet werden. Der Hintergrund bleibt sichtbar.",
+      "mediaProviderFailed": "Der Wiedergabeanbieter ist fehlgeschlagen. Der Hintergrund bleibt sichtbar. Versuche es erneut, wenn du bereit bist.",
+      "mediaUnsupportedSource": "Diese Quelle kann in diesem Browser nicht wiedergegeben werden. Der Hintergrund bleibt sichtbar.",
       "outputFailed": "Ausgabe {{id}}: {{detail}}",
-      "missingOutputPlay": "Keine Projektionsausgabe ist geöffnet. Die Wiedergabe wurde nicht gestartet."
+      "missingOutputPlay": "Keine Projektionsausgabe ist geöffnet. Die Wiedergabe wurde nicht gestartet.",
+      "missingOutputShow": "Keine Projektionsausgabe ist geöffnet. Die Seite wurde nicht angezeigt."
     }
   },
   "about": {

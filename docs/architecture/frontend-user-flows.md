@@ -683,6 +683,27 @@ flowchart TD
 
 The controller stays silent and never uses a media element or object URL. Each output may emit audio independently. Selecting another TOC item does not start playback; Play both replaces the projection and starts it.
 
+### I5. YouTube, livestream, and web projection
+
+```mermaid
+flowchart TD
+    toc["TOC select of YouTube / livestream / web"] --> preview["Controller preview and transport only"]
+    preview --> start{"Play or Show"}
+    start --> ready{"Ready output?"}
+    ready -->|no| warn["Warn; leave current projection unchanged"]
+    ready -->|yes| cmd["Replace command: youtube / livestream / web_page"]
+    cmd --> outs["Every open output"]
+    outs --> yt["YouTube iframe API"]
+    outs --> live["Native media or hls.js"]
+    outs --> web["Sandboxed HTTPS iframe"]
+    yt --> ack["Throttled safe acks"]
+    live --> ack
+    web --> ack
+    ack --> caps["Controller shows only supported controls"]
+```
+
+Selecting remote Media never changes the live projection. YouTube and livestream require Play; web pages require Show, then Hide and Reload. Seek appears only when an output reports a real DVR/VOD range. The YouTube iframe API and HLS client load only on `/player/output`. Web iframes use `sandbox="allow-scripts"` without same-origin, forms, popups, downloads, or top navigation. Detectable embed failures stay on the background with no proxy fallback.
+
 ---
 
 ## J. Settings & preferences

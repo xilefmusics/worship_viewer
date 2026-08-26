@@ -22,8 +22,8 @@ vi.mock('@/components/player/av/AvSlideView', () => ({
   },
 }))
 
-vi.mock('@/components/player/av/AvProjectedMedia', () => ({
-  AvProjectedMedia: ({ command }: { command: { content: { type: string } } }) => (
+vi.mock('@/components/player/av/AvProjectedRemoteLayer', () => ({
+  AvProjectedRemoteLayer: ({ command }: { command: { content: { type: string } } }) => (
     <div data-testid="projected-media">{command.content.type}</div>
   ),
 }))
@@ -172,5 +172,45 @@ describe('AvOutputPage', () => {
       return message.type === 'ack' && message.playback
     })
     expect(videoAcks).toHaveLength(0)
+  })
+
+  it('I5: mounts remote layers for youtube, livestream, and web_page and defers the ack', async () => {
+    render(<AvOutputPage sessionId="shared" />)
+    let commandId = 10
+    for (const content of [
+      {
+        type: 'youtube' as const,
+        videoId: 'dQw4w9WgXcQ',
+        canonicalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      },
+      { type: 'livestream' as const, url: 'https://example.com/live.m3u8', streamType: 'hls' as const },
+      { type: 'web_page' as const, url: 'https://example.com/page' },
+    ]) {
+      send.mockClear()
+      const id = commandId
+      commandId += 1
+      act(() => {
+        onMessage?.(
+          buildAvProjectionCommand({
+            sessionId: 'shared',
+            commandId: id,
+            ...layers,
+            screenState: 'live',
+            itemTitle: 'Remote',
+            nextPreview: null,
+            content,
+            playback: { action: 'play', volume: 1, muted: false, loop: false },
+          }),
+        )
+      })
+      await waitFor(() => {
+        expect(screen.getByTestId('projected-media')).toHaveTextContent(content.type)
+      })
+      const playbackAcks = send.mock.calls.filter((call) => {
+        const message = call[0] as { type?: string; playback?: unknown }
+        return message.type === 'ack' && message.playback
+      })
+      expect(playbackAcks).toHaveLength(0)
+    }
   })
 })

@@ -144,5 +144,43 @@ describe('av-projection-protocol', () => {
         { type: 'audio', mediaId: 'm1', assetId: 'v1' },
       ),
     ).toBe(false)
+    expect(
+      sameAvProjectionContent(
+        { type: 'youtube', videoId: 'dQw4w9WgXcQ', canonicalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { type: 'youtube', videoId: 'dQw4w9WgXcQ', canonicalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      ),
+    ).toBe(true)
+    expect(
+      sameAvProjectionContent(
+        { type: 'livestream', url: 'https://example.com/live.m3u8', streamType: 'hls' },
+        { type: 'livestream', url: 'https://example.com/live.m3u8', streamType: 'direct' },
+      ),
+    ).toBe(false)
+    expect(
+      sameAvProjectionContent(
+        { type: 'web_page', url: 'https://example.com/page' },
+        { type: 'web_page', url: 'https://example.com/page' },
+      ),
+    ).toBe(true)
+  })
+
+  it('withholds youtube, livestream, and web_page from Player Room payloads', () => {
+    for (const content of [
+      { type: 'youtube' as const, videoId: 'dQw4w9WgXcQ', canonicalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { type: 'livestream' as const, url: 'https://example.com/live.m3u8', streamType: 'hls' as const },
+      { type: 'web_page' as const, url: 'https://example.com/page' },
+    ]) {
+      const command = buildAvProjectionCommand({
+        sessionId: 'shared',
+        commandId: 4,
+        ...layers,
+        screenState: 'live',
+        itemTitle: 'Remote',
+        nextPreview: null,
+        content,
+        playback: { action: 'play', volume: 1, muted: false, loop: false },
+      })
+      expect(lyricsPayloadFromCommand(command)).toBeNull()
+    }
   })
 })

@@ -5,9 +5,19 @@ import type {
   AvProjectionPlaybackAck,
   AvProjectionPlaybackAction,
   AvProjectionPlaybackIntent,
+  AvProjectionTimedContent,
   AvUploadedProjectionContent,
 } from '@/lib/player/av-projection-protocol'
-import { isUploadedProjectionContent } from '@/lib/player/av-projection-protocol'
+import {
+  isTimedProjectionContent,
+  isUploadedProjectionContent,
+} from '@/lib/player/av-projection-protocol'
+import {
+  sanitizeLivestreamStreamType,
+  sanitizeLivestreamUrl,
+  sanitizeWebPageUrl,
+  sanitizeYoutubeVideoId,
+} from '@/lib/player/av-remote-url'
 
 export const DEFAULT_AV_PLAYBACK_VOLUME = 1
 export const DEFAULT_AV_PLAYBACK_MUTED = false
@@ -19,6 +29,25 @@ export const AV_PLAYBACK_ERROR_MEDIA = 'media_error'
 export const AV_PLAYBACK_ERROR_LOAD = 'load_failed'
 export const AV_PLAYBACK_ERROR_DECODE = 'decode_error'
 export const AV_PLAYBACK_ERROR_RANGE = 'range_failed'
+export const AV_PLAYBACK_ERROR_PROVIDER_UNAVAILABLE = 'provider_unavailable'
+export const AV_PLAYBACK_ERROR_PROVIDER = 'provider_error'
+export const AV_PLAYBACK_ERROR_EMBED = 'embed_blocked'
+export const AV_PLAYBACK_ERROR_UNSUPPORTED = 'unsupported_source'
+
+export const AV_PLAYBACK_SEEKABLE_EPSILON_MS = 1000
+
+export type AvTimedKind = 'video' | 'audio' | 'youtube' | 'livestream' | 'web_page'
+
+export type AvTransportCapabilities = {
+  play: boolean
+  pause: boolean
+  resume: boolean
+  seek: boolean
+  volume: boolean
+  mute: boolean
+  restart: boolean
+  loop: boolean
+}
 
 export function formatAvClock(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000))
@@ -92,6 +121,134 @@ export function isUploadedAvKind(kind: string | undefined): kind is 'video' | 'a
   return kind === 'video' || kind === 'audio'
 }
 
+export function isTimedAvKind(kind: string | undefined): kind is AvTimedKind {
+  return (
+    kind === 'video' ||
+    kind === 'audio' ||
+    kind === 'youtube' ||
+    kind === 'livestream' ||
+    kind === 'web_page'
+  )
+}
+
+export function isWebPageAvKind(kind: string | undefined): kind is 'web_page' {
+  return kind === 'web_page'
+}
+
+export type AvTimedItemFields = {
+  kind?: string
+  mediaId?: string
+  assetId?: string
+  videoId?: string
+  canonicalUrl?: string
+  url?: string
+  streamType?: string
+}
+
+export function timedProjectionContentFromItem(
+  item: AvTimedItemFields,
+): AvProjectionTimedContent | null {
+  if (isUploadedAvKind(item.kind) && item.mediaId && item.assetId) {
+    return { type: item.kind, mediaId: item.mediaId, assetId: item.assetId }
+  }
+  if (item.kind === 'youtube') {
+    const videoId = sanitizeYoutubeVideoId(item.videoId)
+    const canonicalUrl = sanitizeAvCanonicalYoutubeUrl(item.canonicalUrl, videoId)
+    if (!videoId || !canonicalUrl) return null
+    return { type: 'youtube', videoId, canonicalUrl }
+  }
+  if (item.kind === 'livestream') {
+    const url = sanitizeLivestreamUrl(item.url)
+    const streamType = sanitizeLivestreamStreamType(item.streamType)
+    if (!url || !streamType) return null
+    return { type: 'livestream', url, streamType }
+  }
+  if (item.kind === 'web_page') {
+    const url = sanitizeWebPageUrl(item.url)
+    if (!url) return null
+    return { type: 'web_page', url }
+  }
+  return null
+}
+
+function sanitizeAvCanonicalYoutubeUrl(value: unknown, videoId: string | null): string | null {
+  if (!videoId) return null
+  if (typeof value === 'string' && value.trim() === `https://www.youtube.com/watch?v=${videoId}`) {
+    return value.trim()
+  }
+  return `https://www.youtube.com/watch?v=${videoId}`
+}
+
+export function playbackRangeIsSeekable(input: {
+  seekableStartMs?: number
+  seekableEndMs?: number
+  durationMs?: number | null
+} | null | undefined): boolean {
+  if (!input) return false
+  const start = input.seekableStartMs ?? 0
+  const end = input.seekableEndMs ?? input.durationMs ?? 0
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return false
+  return end - start >= AV_PLAYBACK_SEEKABLE_EPSILON_MS
+}
+
+export function transportCapabilitiesFromAck(
+  kind: string | undefined,
+  playback: {
+    seekableStartMs?: number
+    seekableEndMs?: number
+    durationMs?: number | null
+  } | null | undefined,
+  projected = false,
+): AvTransportCapabilities {
+  const seekable = projected && playbackRangeIsSeekable(playback)
+  if (kind === 'web_page') {
+    return {
+      play: true,
+      pause: true,
+      resume: false,
+      seek: false,
+      volume: false,
+      mute: false,
+      restart: projected,
+      loop: false,
+    }
+  }
+  if (kind === 'livestream') {
+    return {
+      play: true,
+      pause: true,
+      resume: true,
+      seek: seekable,
+      volume: true,
+      mute: true,
+      restart: seekable,
+      loop: seekable,
+    }
+  }
+  if (isTimedAvKind(kind)) {
+    return {
+      play: true,
+      pause: true,
+      resume: true,
+      seek: seekable,
+      volume: true,
+      mute: true,
+      restart: projected,
+      loop: true,
+    }
+  }
+  return {
+    play: false,
+    pause: false,
+    resume: false,
+    seek: false,
+    volume: false,
+    mute: false,
+    restart: false,
+    loop: false,
+  }
+}
+
 export type AvOutputMediaActions = {
   play: boolean
   pause: boolean
@@ -108,7 +265,7 @@ export function mediaActionsForCommand(
   durationMs: number | null = null,
   seekableEndMs: number | null = durationMs,
 ): AvOutputMediaActions | null {
-  if (command.intent === 'clear' || !isUploadedProjectionContent(command.content)) {
+  if (command.intent === 'clear' || !isTimedProjectionContent(command.content)) {
     return {
       play: false,
       pause: true,
@@ -242,4 +399,25 @@ export function mediaErrorCode(el: HTMLMediaElement): string {
   if (code === 2) return AV_PLAYBACK_ERROR_RANGE
   if (code === 4) return AV_PLAYBACK_ERROR_LOAD
   return AV_PLAYBACK_ERROR_MEDIA
+}
+
+export function youtubeProviderErrorCode(youtubeError: number): string {
+  if (youtubeError === 101 || youtubeError === 150) return AV_PLAYBACK_ERROR_EMBED
+  return AV_PLAYBACK_ERROR_PROVIDER
+}
+
+export const AV_PLAYBACK_ERROR_DETAIL: Record<string, string> = {
+  [AV_PLAYBACK_ERROR_AUTOPLAY]: 'The browser blocked playback.',
+  [AV_PLAYBACK_ERROR_MEDIA]: 'The media could not be played.',
+  [AV_PLAYBACK_ERROR_LOAD]: 'The media could not be loaded.',
+  [AV_PLAYBACK_ERROR_DECODE]: 'The media could not be decoded.',
+  [AV_PLAYBACK_ERROR_RANGE]: 'The media range could not be read.',
+  [AV_PLAYBACK_ERROR_PROVIDER_UNAVAILABLE]: 'The playback provider is unavailable.',
+  [AV_PLAYBACK_ERROR_PROVIDER]: 'The playback provider reported an error.',
+  [AV_PLAYBACK_ERROR_EMBED]: 'This source cannot be embedded.',
+  [AV_PLAYBACK_ERROR_UNSUPPORTED]: 'This source is not supported in this browser.',
+}
+
+export function safePlaybackError(code: string): AvProjectionAckError {
+  return playbackError(code, AV_PLAYBACK_ERROR_DETAIL[code] ?? AV_PLAYBACK_ERROR_DETAIL[AV_PLAYBACK_ERROR_MEDIA])
 }

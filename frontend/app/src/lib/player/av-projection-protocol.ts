@@ -43,12 +43,14 @@ export type AvProjectionPlaybackAck = {
   loop: boolean
 }
 
-/** Reserved for E5.9/E5.10 — not sent in E5.8. */
+export type AvLivestreamStreamType = 'hls' | 'direct'
+
+/** Timed projection payloads for uploaded and remote media. */
 export type AvProjectionTimedContent =
   | { type: 'video'; mediaId: string; assetId: string }
   | { type: 'audio'; mediaId: string; assetId: string }
   | { type: 'youtube'; videoId: string; canonicalUrl: string }
-  | { type: 'livestream'; url: string }
+  | { type: 'livestream'; url: string; streamType: AvLivestreamStreamType }
   | { type: 'web_page'; url: string }
 
 export type AvProjectionStaticContent =
@@ -119,7 +121,7 @@ export function avProjectionContentKey(content: AvProjectionContent): string {
     case 'youtube':
       return `youtube:${content.videoId}`
     case 'livestream':
-      return `livestream:${content.url}`
+      return `livestream:${content.streamType}:${content.url}`
     case 'web_page':
       return `web_page:${content.url}`
   }
