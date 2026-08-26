@@ -33,8 +33,9 @@ export type AvItemSlides = {
   structuredSlides?: AvLyricLine[][]
   structuredSourceSlides?: AvLyricLine[][]
   outline: AvSectionOutline[]
-  kind: 'lyrics' | 'blob' | 'deck'
+  kind: 'lyrics' | 'blob' | 'deck' | 'video' | 'audio'
   mediaId?: string
+  assetId?: string
   pages?: AvDeckPage[]
 }
 
@@ -109,6 +110,17 @@ export function avSlidesForItem(
         mediaId: item.id,
         pages,
       }
+    }
+  }
+  if (item.type === 'media' && (item.content?.type === 'video' || item.content?.type === 'audio')) {
+    const title = item.title.trim() || fallbackTitle?.trim() || 'Untitled'
+    return {
+      slides: [title],
+      sourceSlides: [title],
+      outline: [],
+      kind: item.content.type,
+      mediaId: item.id,
+      assetId: item.content.blob_id,
     }
   }
   if (item.type !== 'chords') {

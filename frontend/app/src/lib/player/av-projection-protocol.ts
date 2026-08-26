@@ -12,13 +12,35 @@ export const AV_PROJECTION_PROTOCOL_VERSION = 1 as const
 
 export type AvProjectionCommandId = number
 
-/** Reserved for E5.9/E5.10 — not sent in E5.8. */
+export type AvProjectionPlaybackAction =
+  | 'play'
+  | 'pause'
+  | 'resume'
+  | 'seek'
+  | 'restart'
+  | 'configure'
+
 export type AvProjectionPlaybackIntent = {
-  action?: 'play' | 'pause' | 'resume' | 'seek' | 'restart'
+  action: AvProjectionPlaybackAction
+  volume: number
+  muted: boolean
+  loop: boolean
   positionMs?: number
-  volume?: number
-  muted?: boolean
-  loop?: boolean
+  /** Timing anchor for future transport; not used for multi-output sync. */
+  issuedAtMs?: number
+}
+
+export type AvPlaybackStatus = 'loading' | 'playing' | 'paused' | 'ended' | 'error'
+
+export type AvProjectionPlaybackAck = {
+  status: AvPlaybackStatus
+  currentTimeMs: number
+  durationMs: number | null
+  seekableStartMs: number
+  seekableEndMs: number
+  volume: number
+  muted: boolean
+  loop: boolean
 }
 
 /** Reserved for E5.9/E5.10 — not sent in E5.8. */
@@ -70,6 +92,7 @@ export type AvProjectionAck = {
   applied: boolean
   current: AvProjectionAckCurrent
   error?: AvProjectionAckError
+  playback?: AvProjectionPlaybackAck
 }
 
 export type AvProjectionPresence = {
@@ -250,6 +273,17 @@ export function isTimedProjectionContent(
     content.type === 'livestream' ||
     content.type === 'web_page'
   )
+}
+
+export type AvUploadedProjectionContent = Extract<
+  AvProjectionTimedContent,
+  { type: 'video' } | { type: 'audio' }
+>
+
+export function isUploadedProjectionContent(
+  content: AvProjectionContent,
+): content is AvUploadedProjectionContent {
+  return content.type === 'video' || content.type === 'audio'
 }
 
 export function slideViewPropsFromCommand(command: AvProjectionCommand): {

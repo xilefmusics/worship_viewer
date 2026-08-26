@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -19,6 +19,7 @@ const readViewState = vi.fn()
 const writeViewState = vi.fn()
 
 let viewState = { transposeByItem: {}, languageByItem: { 0: 1 } }
+let projectionListener: ((message: unknown) => void) | null = null
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
@@ -60,11 +61,14 @@ vi.mock('@/hooks/useAvBilingualPreference', () => ({
 
 vi.mock('@/lib/player/av-projection-sync', () => ({
   AV_PROJECTION_SHARED_SESSION_ID: 'shared',
-  createAvProjectionChannel: () => ({
-    send: broadcast,
-    close: closeSync,
-    readLatestCommand: vi.fn(),
-  }),
+  createAvProjectionChannel: (_sessionId: string, listener?: (message: unknown) => void) => {
+    projectionListener = listener ?? null
+    return {
+      send: broadcast,
+      close: closeSync,
+      readLatestCommand: vi.fn(),
+    }
+  },
   createAvProjectionSync: () => ({
     broadcast,
     close: closeSync,
@@ -140,26 +144,34 @@ vi.mock('@/components/player/av/AvSectionShortcuts', () => ({
   AvSectionShortcuts: () => null,
 }))
 
+vi.mock('@/components/player/av/AvBackgroundSelector', () => ({
+  AvBackgroundSelector: () => <div data-testid="background-selector" />,
+}))
+
 vi.mock('@/components/player/av/AvSlideView', () => ({
   AvSlideView: ({
     contentText,
     contentLines,
     deckPage,
+    timedPreview,
   }: {
     contentText?: string
     contentLines?: Array<{ primary: string; secondary?: string }>
     deckPage?: { mediaId: string; assetId: string }
+    timedPreview?: { kind: string; title: string }
   }) => (
     <div data-testid="preview-text">
-      {deckPage
-        ? `deck:${deckPage.mediaId}:${deckPage.assetId}`
-        : contentLines
-          ? contentLines
-              .map((line) =>
-                line.secondary ? `${line.primary}|${line.secondary}` : line.primary,
-              )
-              .join('//')
-          : contentText}
+      {timedPreview
+        ? `media:${timedPreview.kind}:${timedPreview.title}`
+        : deckPage
+          ? `deck:${deckPage.mediaId}:${deckPage.assetId}`
+          : contentLines
+            ? contentLines
+                .map((line) =>
+                  line.secondary ? `${line.primary}|${line.secondary}` : line.primary,
+                )
+                .join('//')
+            : contentText}
     </div>
   ),
 }))
@@ -309,6 +321,7 @@ const twoItemPlayer = {
 
 beforeEach(() => {
   bilingualEnabled = false
+  projectionListener = null
   navigate.mockReset()
   broadcast.mockReset()
   closeSync.mockReset()
@@ -693,5 +706,177 @@ describe('PlayerAv', () => {
       const payload = call[0] as { content?: { type: string } }
       expect(payload.content?.type).not.toBe('deck_page')
     }
+  })
+
+  const videoPlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Clip', id: 'media-2', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-2',
+        title: 'Clip',
+        content: { type: 'video', blob_id: 'v1', duration_ms: 4000, width: 1920, height: 1080 },
+      },
+    ],
+  } as Player
+
+  const mixedVideoPlayer = {
+    index: 0,
+    toc: [
+      { idx: 0, nr: '1', title: 'Anchor', id: 'song-1', liked: false },
+      { idx: 1, nr: '', title: 'Clip', id: 'media-2', liked: false },
+    ],
+    items: [
+      ...player.items,
+      {
+        type: 'media',
+        id: 'media-2',
+        title: 'Clip',
+        content: { type: 'video', blob_id: 'v1', duration_ms: 4000, width: 1920, height: 1080 },
+      },
+    ],
+  } as Player
+
+  async function helloOutput() {
+    await waitFor(() => expect(projectionListener).toBeTruthy())
+    act(() => {
+      projectionListener?.({ type: 'hello', sessionId: 'shared', outputId: 'out-1', ready: true })
+    })
+  }
+
+  it('I4: keeps the projected lyric when selecting a mixed-setlist video TOC row', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={mixedVideoPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.keyboard('n')
+    expect(screen.getByRole('button', { name: 'player.av.play' })).toBeInTheDocument()
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('Tschuess')
+    expect(screen.queryByTestId('av-projected-video')).not.toBeInTheDocument()
+    for (const call of broadcast.mock.calls) {
+      const payload = call[0] as { content?: { type: string } }
+      expect(payload.content?.type).not.toBe('video')
+    }
+  })
+
+  it('I4: warns on Play with no output and leaves projection unchanged', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={mixedVideoPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.keyboard('n')
+    await user.click(screen.getByRole('button', { name: 'player.av.play' }))
+    expect(screen.getByText('player.av.missingOutputPlay')).toBeInTheDocument()
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('Tschuess')
+    for (const call of broadcast.mock.calls) {
+      const payload = call[0] as { content?: { type: string } }
+      expect(payload.content?.type).not.toBe('video')
+    }
+  })
+
+  it('I4: Play replaces the output with uploaded video and stays silent on the controller', async () => {
+    const user = userEvent.setup()
+    const onRoomProjectionChange = vi.fn()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={videoPlayer}
+        allowNetworkFetch={false}
+        canControlRoomProjection
+        onRoomProjectionChange={onRoomProjectionChange}
+      />,
+    )
+    await helloOutput()
+    await user.click(screen.getByRole('button', { name: 'player.av.play' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const command = broadcast.mock.calls.at(-1)?.[0] as {
+      type?: string
+      content?: { type: string; mediaId?: string; assetId?: string }
+      playback?: { action?: string }
+    }
+    expect(command.type).toBe('command')
+    expect(command.content).toEqual({ type: 'video', mediaId: 'media-2', assetId: 'v1' })
+    expect(command.playback?.action).toBe('play')
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('media:video:Clip')
+    expect(screen.queryByTestId('av-projected-video')).not.toBeInTheDocument()
+    expect(onRoomProjectionChange).not.toHaveBeenCalled()
+  })
+
+  it('I4: pause issues a same-content playback command', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={videoPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+    await helloOutput()
+    await user.click(screen.getByRole('button', { name: 'player.av.play' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.click(screen.getByRole('button', { name: 'player.av.pause' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const command = broadcast.mock.calls.at(-1)?.[0] as {
+      content?: { type: string }
+      playback?: { action?: string }
+    }
+    expect(command.content?.type).toBe('video')
+    expect(command.playback?.action).toBe('pause')
+  })
+
+  it('I4: Blank pauses projected video and Live restores paused rather than playing', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={videoPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+    await helloOutput()
+    await user.click(screen.getByRole('button', { name: 'player.av.play' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.keyboard('r')
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const blankCommand = broadcast.mock.calls.at(-1)?.[0] as {
+      screenState?: string
+      playback?: { action?: string }
+      content?: { type: string }
+    }
+    expect(blankCommand.screenState).toBe('blank')
+    expect(blankCommand.playback?.action).toBe('pause')
+    expect(blankCommand.content?.type).toBe('video')
+    broadcast.mockClear()
+    await user.keyboard('r')
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const liveCommand = broadcast.mock.calls.at(-1)?.[0] as {
+      screenState?: string
+      playback?: { action?: string }
+    }
+    expect(liveCommand.screenState).toBe('live')
+    expect(liveCommand.playback?.action).toBe('pause')
   })
 })

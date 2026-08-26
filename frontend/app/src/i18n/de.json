@@ -331,7 +331,27 @@
       "backgroundExpand": "Hintergrundauswahl einblenden",
       "backgroundCollapse": "Hintergrundauswahl ausblenden",
       "sectionShortcutsAria": "Zu Abschnitt springen",
-      "sectionJump": "Zu {{section}} springen ({{key}})"
+      "sectionJump": "Zu {{section}} springen ({{key}})",
+      "play": "Wiedergabe",
+      "pause": "Pause",
+      "resume": "Fortsetzen",
+      "seek": "Position",
+      "volume": "Lautstärke",
+      "mute": "Stummschalten",
+      "unmute": "Ton einschalten",
+      "restart": "Von vorn",
+      "loop": "Wiederholen",
+      "retry": "Erneut versuchen",
+      "mediaPreviewOnly": "Nur Vorschau — Wiedergabe startet die Projektion",
+      "mediaPlaying": "Wird auf der Ausgabe wiedergegeben",
+      "mediaPaused": "Auf der Ausgabe pausiert",
+      "mediaEnded": "Beendet",
+      "mediaLoading": "Wird auf der Ausgabe geladen",
+      "mediaError": "Wiedergabe auf einer Ausgabe fehlgeschlagen",
+      "mediaMixed": "Ausgaben melden unterschiedliche Wiedergabestände",
+      "mediaAutoplayFailed": "Der Browser hat die Wiedergabe blockiert. Der Hintergrund bleibt sichtbar. Versuche es erneut, wenn du bereit bist.",
+      "outputFailed": "Ausgabe {{id}}: {{detail}}",
+      "missingOutputPlay": "Keine Projektionsausgabe ist geöffnet. Die Wiedergabe wurde nicht gestartet."
     }
   },
   "about": {

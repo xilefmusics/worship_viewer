@@ -655,7 +655,7 @@ flowchart TD
     ack --> registry["Controller summarizes Ready / missing / failed"]
     cmd --> warn{"Zero ready outputs?"}
     warn -->|yes| missing["Warn: page was not shown on a screen"]
-    out --> render["Live: lyrics or contained deck page / Blank: hide content / Blackout: black"]
+    out --> render["Live: lyrics, contained deck page, or contained video / audio over background / Blank: hide content / Blackout: black"]
     out --> fs{"Double-click"}
     fs -->|'Allow fullscreen' setting on| full["Enter fullscreen"]
     fs -->|off| nofull["No-op"]
@@ -663,6 +663,25 @@ flowchart TD
 ```
 
 TOC/item changes stay on the controller. Deck pages use the same replace command as lyrics; Media is not sent through Player Rooms. Missing `?s` defaults to the shared session.
+
+### I4. Uploaded audio/video projection
+
+```mermaid
+flowchart TD
+    toc["TOC select of audio/video"] --> preview["Controller preview and transport only"]
+    preview --> play["Play"]
+    play --> ready{"Ready output?"}
+    ready -->|no| warn["Warn; leave current projection unchanged"]
+    ready -->|yes| cmd["Replace command: video/audio + play"]
+    cmd --> outs["Every open output"]
+    outs --> media["Output-local media element is the clock"]
+    media --> ack["Throttled playback acks"]
+    ack --> ui["Aggregate controller status"]
+    blank["Blank / Blackout"] --> pause["Pause and hide; Live restores paused"]
+    ended["Natural end"] --> clear["Clear media layer; no setlist advance"]
+```
+
+The controller stays silent and never uses a media element or object URL. Each output may emit audio independently. Selecting another TOC item does not start playback; Play both replaces the projection and starts it.
 
 ---
 

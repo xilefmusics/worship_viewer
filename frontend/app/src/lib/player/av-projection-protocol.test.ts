@@ -82,6 +82,19 @@ describe('av-projection-protocol', () => {
       content: { type: 'deck_page', mediaId: 'm1', assetId: 'a1' },
     })
     expect(lyricsPayloadFromCommand(deck)).toBeNull()
+
+    const video = buildAvProjectionCommand({
+      sessionId: 'shared',
+      commandId: 3,
+      ...layers,
+      screenState: 'live',
+      itemTitle: 'Clip',
+      nextPreview: null,
+      content: { type: 'video', mediaId: 'm1', assetId: 'v1' },
+      playback: { action: 'play', volume: 1, muted: false, loop: false },
+    })
+    expect(lyricsPayloadFromCommand(video)).toBeNull()
+    expect(video.playback?.action).toBe('play')
   })
 
   it('adapts legacy lyric snapshots into tagged commands', () => {
@@ -121,8 +134,14 @@ describe('av-projection-protocol', () => {
     ).toBe(true)
     expect(
       sameAvProjectionContent(
-        { type: 'deck_page', mediaId: 'm1', assetId: 'a1' },
-        { type: 'lyrics', contentText: 'Hello' },
+        { type: 'video', mediaId: 'm1', assetId: 'v1' },
+        { type: 'video', mediaId: 'm1', assetId: 'v1' },
+      ),
+    ).toBe(true)
+    expect(
+      sameAvProjectionContent(
+        { type: 'video', mediaId: 'm1', assetId: 'v1' },
+        { type: 'audio', mediaId: 'm1', assetId: 'v1' },
       ),
     ).toBe(false)
   })

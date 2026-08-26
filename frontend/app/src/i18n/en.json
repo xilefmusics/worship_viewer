@@ -331,7 +331,27 @@
       "backgroundExpand": "Expand background selector",
       "backgroundCollapse": "Collapse background selector",
       "sectionShortcutsAria": "Jump to section",
-      "sectionJump": "Jump to {{section}} ({{key}})"
+      "sectionJump": "Jump to {{section}} ({{key}})",
+      "play": "Play",
+      "pause": "Pause",
+      "resume": "Resume",
+      "seek": "Seek",
+      "volume": "Volume",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "restart": "Restart",
+      "loop": "Loop",
+      "retry": "Retry",
+      "mediaPreviewOnly": "Preview only — press Play to project",
+      "mediaPlaying": "Playing on output",
+      "mediaPaused": "Paused on output",
+      "mediaEnded": "Ended",
+      "mediaLoading": "Loading on output",
+      "mediaError": "Playback failed on an output",
+      "mediaMixed": "Outputs report different playback states",
+      "mediaAutoplayFailed": "The browser blocked playback. The background is still showing. Retry when you are ready.",
+      "outputFailed": "Output {{id}}: {{detail}}",
+      "missingOutputPlay": "No projection output is open. Playback was not started."
     }
   },
   "about": {

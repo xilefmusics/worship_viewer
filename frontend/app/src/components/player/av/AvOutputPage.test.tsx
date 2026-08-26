@@ -1,4 +1,4 @@
-import { act, render, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AvOutputPage } from '@/components/player/av/AvOutputPage'
@@ -20,6 +20,12 @@ vi.mock('@/components/player/av/AvSlideView', () => ({
     slideViewProps = props
     return <div data-testid="slide-view" />
   },
+}))
+
+vi.mock('@/components/player/av/AvProjectedMedia', () => ({
+  AvProjectedMedia: ({ command }: { command: { content: { type: string } } }) => (
+    <div data-testid="projected-media">{command.content.type}</div>
+  ),
 }))
 
 vi.mock('@/lib/player/av-projection-sync', () => ({
@@ -139,5 +145,32 @@ describe('AvOutputPage', () => {
       expect(slideViewProps?.deckPage).toEqual({ mediaId: 'media-1', assetId: 'page-a' })
     })
     expect(slideViewProps?.screenState).toBe('live')
+  })
+
+  it('I4: mounts uploaded media for a video command and defers the initial ack', async () => {
+    render(<AvOutputPage sessionId="shared" />)
+    act(() => {
+      onMessage?.(
+        buildAvProjectionCommand({
+          sessionId: 'shared',
+          commandId: 4,
+          ...layers,
+          screenState: 'live',
+          itemTitle: 'Clip',
+          nextPreview: null,
+          content: { type: 'video', mediaId: 'media-2', assetId: 'v1' },
+          playback: { action: 'play', volume: 1, muted: false, loop: false },
+        }),
+      )
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('projected-media')).toHaveTextContent('video')
+    })
+    const videoAcks = send.mock.calls.filter((call) => {
+      const message = call[0] as { type?: string; playback?: unknown }
+      return message.type === 'ack' && message.playback
+    })
+    expect(videoAcks).toHaveLength(0)
   })
 })

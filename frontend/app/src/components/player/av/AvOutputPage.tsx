@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { AvProjectedMedia } from '@/components/player/av/AvProjectedMedia'
 import { AvSlideView } from '@/components/player/av/AvSlideView'
 import { DEFAULT_AV_PREFERENCES } from '@/lib/player/av-preferences'
 import {
+  isUploadedProjectionContent,
   slideViewPropsFromCommand,
+  type AvProjectionAckError,
   type AvProjectionCommand,
+  type AvProjectionPlaybackAck,
 } from '@/lib/player/av-projection-protocol'
 import {
   AV_OUTPUT_HEARTBEAT_MS,
@@ -23,6 +27,12 @@ import './player-av.css'
 type AvOutputPageProps = {
   sessionId: string
   allowFullscreenOnDblClick?: boolean
+}
+
+function shouldDeferOutputAck(command: AvProjectionCommand | null): boolean {
+  if (!command) return false
+  if (command.content.type === 'deck_page' && command.screenState === 'live') return true
+  return isUploadedProjectionContent(command.content)
 }
 
 export function AvOutputPage({
@@ -50,9 +60,7 @@ export function AvOutputPage({
       if (!result.applied) return
       stateRef.current = result.state
       setState(result.state)
-      if (result.state.command?.content.type === 'deck_page' && result.state.command.screenState === 'live') {
-        return
-      }
+      if (shouldDeferOutputAck(result.state.command)) return
       const ack = outputAckForApply(result.state, true)
       if (ack) channel.send(ack)
     })
@@ -66,7 +74,7 @@ export function AvOutputPage({
       if (result.applied) {
         stateRef.current = result.state
         queueMicrotask(() => setState(result.state))
-        if (!(result.state.command?.content.type === 'deck_page' && result.state.command.screenState === 'live')) {
+        if (!shouldDeferOutputAck(result.state.command)) {
           const ack = outputAckForApply(result.state, true)
           if (ack) channel.send(ack)
         }
@@ -96,7 +104,7 @@ export function AvOutputPage({
 
   return (
     <div
-      className="h-dvh w-dvw overflow-hidden bg-black"
+      className="av-output-page h-dvh w-dvw overflow-hidden bg-black"
       onDoubleClick={onDoubleClick}
       aria-label={t('player.av.outputAria')}
     >
@@ -122,6 +130,20 @@ export function AvOutputPage({
         transition={command?.transition ?? DEFAULT_AV_PREFERENCES.transition}
         screenState={screenState}
       />
+      {command && isUploadedProjectionContent(command.content) ? (
+        <AvProjectedMedia
+          command={command}
+          onAck={(
+            applied: boolean,
+            playback?: AvProjectionPlaybackAck,
+            error?: AvProjectionAckError,
+          ) => {
+            if (!stateRef.current.command) return
+            if (!isUploadedProjectionContent(stateRef.current.command.content)) return
+            sendRef.current?.(outputAckForApply(stateRef.current, applied, error, playback))
+          }}
+        />
+      ) : null}
     </div>
   )
 }

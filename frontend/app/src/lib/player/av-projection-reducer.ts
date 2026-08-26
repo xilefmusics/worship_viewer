@@ -1,13 +1,20 @@
 import {
   sameAvProjectionContent,
+  type AvPlaybackStatus,
   type AvProjectionAck,
   type AvProjectionAckError,
   type AvProjectionCommand,
   type AvProjectionCommandId,
   type AvProjectionContent,
   type AvProjectionMessage,
+  type AvProjectionPlaybackAck,
   type AvProjectionPresence,
 } from '@/lib/player/av-projection-protocol'
+import {
+  DEFAULT_AV_PLAYBACK_LOOP,
+  DEFAULT_AV_PLAYBACK_MUTED,
+  DEFAULT_AV_PLAYBACK_VOLUME,
+} from '@/lib/player/av-projection-playback'
 
 export const AV_OUTPUT_HEARTBEAT_MS = 1000
 export const AV_OUTPUT_MISSING_AFTER_MS = 3500
@@ -21,6 +28,7 @@ export type AvTrackedOutput = {
   lastSeenAt: number
   lastAckCommandId: AvProjectionCommandId | null
   error?: AvProjectionAckError
+  playback?: AvProjectionPlaybackAck
 }
 
 export type AvControllerProjectionState = {
@@ -96,6 +104,7 @@ function upsertPresence(
       lastSeenAt: now,
       lastAckCommandId: previous?.lastAckCommandId ?? null,
       error: previous?.error,
+      playback: previous?.playback,
     },
     now,
   )
@@ -126,6 +135,7 @@ function applyAck(
       lastSeenAt: now,
       lastAckCommandId: ack.commandId,
       error,
+      playback: ack.playback ?? base.playback,
     },
     now,
   )
@@ -141,10 +151,18 @@ export function reduceControllerProjection(
   now: number,
 ): AvControllerProjectionState {
   if (event.type === 'issue') {
+    const contentChanged =
+      state.latestCommand != null &&
+      !sameAvProjectionContent(state.latestCommand.content, event.command.content)
     const outputs: Record<string, AvTrackedOutput> = {}
     for (const [id, output] of Object.entries(state.outputs)) {
       outputs[id] = refreshOutputStatus(
-        { ...output, error: undefined, lastAckCommandId: output.lastAckCommandId },
+        {
+          ...output,
+          error: undefined,
+          lastAckCommandId: output.lastAckCommandId,
+          playback: contentChanged ? undefined : output.playback,
+        },
         now,
       )
     }
@@ -215,6 +233,7 @@ export function outputAckForApply(
   state: AvOutputProjectionState,
   applied: boolean,
   error?: AvProjectionAckError,
+  playback?: AvProjectionPlaybackAck,
 ): AvProjectionAck | null {
   if (!state.command || state.appliedCommandId == null) return null
   return {
@@ -228,5 +247,137 @@ export function outputAckForApply(
       content: state.command.content,
     },
     ...(error ? { error } : {}),
+    ...(playback ? { playback } : {}),
+  }
+}
+
+export type AvAggregatedPlaybackStatus = AvPlaybackStatus | 'mixed' | 'idle'
+
+export type AvAggregatedPlayback = {
+  status: AvAggregatedPlaybackStatus
+  currentTimeMs: number
+  durationMs: number | null
+  seekableStartMs: number
+  seekableEndMs: number
+  volume: number
+  muted: boolean
+  loop: boolean
+  playingCount: number
+  pausedCount: number
+  endedCount: number
+  errorCount: number
+  loadingCount: number
+  outputs: Array<{
+    outputId: string
+    outputStatus: AvTrackedOutput['status']
+    playback?: AvProjectionPlaybackAck
+    error?: AvTrackedOutput['error']
+  }>
+}
+
+function aggregatedPlaybackStatus(counts: {
+  clocksLength: number
+  playingCount: number
+  pausedCount: number
+  endedCount: number
+  errorCount: number
+  loadingCount: number
+}): AvAggregatedPlaybackStatus {
+  if (counts.playingCount > 0) return 'playing'
+  if (counts.clocksLength === 0) return 'idle'
+  if (counts.errorCount > 0 && counts.pausedCount === 0 && counts.endedCount === 0 && counts.loadingCount === 0) {
+    return 'error'
+  }
+  if (counts.endedCount > 0 && counts.playingCount === 0 && counts.pausedCount === 0 && counts.loadingCount === 0) {
+    return counts.endedCount === counts.clocksLength ? 'ended' : 'mixed'
+  }
+  if (counts.pausedCount > 0 && counts.endedCount === 0 && counts.errorCount === 0 && counts.loadingCount === 0) {
+    return 'paused'
+  }
+  if (counts.loadingCount > 0 && counts.playingCount === 0 && counts.pausedCount === 0 && counts.endedCount === 0) {
+    return 'loading'
+  }
+  if (counts.pausedCount > 0) return 'paused'
+  return 'mixed'
+}
+
+const IDLE_PLAYBACK: AvAggregatedPlayback = {
+  status: 'idle',
+  currentTimeMs: 0,
+  durationMs: null,
+  seekableStartMs: 0,
+  seekableEndMs: 0,
+  volume: DEFAULT_AV_PLAYBACK_VOLUME,
+  muted: DEFAULT_AV_PLAYBACK_MUTED,
+  loop: DEFAULT_AV_PLAYBACK_LOOP,
+  playingCount: 0,
+  pausedCount: 0,
+  endedCount: 0,
+  errorCount: 0,
+  loadingCount: 0,
+  outputs: [],
+}
+
+export function aggregateAvPlayback(
+  state: AvControllerProjectionState,
+): AvAggregatedPlayback {
+  const outputs = Object.values(state.outputs).map((output) => ({
+    outputId: output.outputId,
+    outputStatus: output.status,
+    playback: output.playback,
+    error: output.error,
+  }))
+  if (outputs.length === 0) return { ...IDLE_PLAYBACK, outputs }
+
+  const clocks = outputs
+    .filter((output) => output.outputStatus !== 'missing' && output.playback)
+    .map((output) => output.playback as AvProjectionPlaybackAck)
+
+  let playingCount = 0
+  let pausedCount = 0
+  let endedCount = 0
+  let errorCount = 0
+  let loadingCount = 0
+  for (const ack of clocks) {
+    if (ack.status === 'playing') playingCount += 1
+    else if (ack.status === 'paused') pausedCount += 1
+    else if (ack.status === 'ended') endedCount += 1
+    else if (ack.status === 'error') errorCount += 1
+    else loadingCount += 1
+  }
+  for (const output of outputs) {
+    if (output.outputStatus === 'failed' && !output.playback) errorCount += 1
+  }
+
+  const status = aggregatedPlaybackStatus({
+    clocksLength: clocks.length,
+    playingCount,
+    pausedCount,
+    endedCount,
+    errorCount,
+    loadingCount,
+  })
+
+  const clock =
+    clocks.find((ack) => ack.status === 'playing') ??
+    clocks.find((ack) => ack.status === 'paused') ??
+    clocks.find((ack) => ack.status === 'ended') ??
+    clocks[0]
+
+  return {
+    status,
+    currentTimeMs: clock?.currentTimeMs ?? 0,
+    durationMs: clock?.durationMs ?? null,
+    seekableStartMs: clock?.seekableStartMs ?? 0,
+    seekableEndMs: clock?.seekableEndMs ?? clock?.durationMs ?? 0,
+    volume: clock?.volume ?? DEFAULT_AV_PLAYBACK_VOLUME,
+    muted: clock?.muted ?? DEFAULT_AV_PLAYBACK_MUTED,
+    loop: clock?.loop ?? DEFAULT_AV_PLAYBACK_LOOP,
+    playingCount,
+    pausedCount,
+    endedCount,
+    errorCount,
+    loadingCount,
+    outputs,
   }
 }

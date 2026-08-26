@@ -22,6 +22,7 @@ type AvSlideViewProps = {
   contentLines?: AvLyricLine[]
   deckPage?: { mediaId: string; assetId: string }
   onDeckPageStatus?: (status: 'ready' | 'error') => void
+  timedPreview?: { kind: 'video' | 'audio'; title: string }
   contentLayer: AvContentLayer
   backgroundLayer: AvBackgroundLayerPrefs
   transition: AvTransition
@@ -39,6 +40,7 @@ function AvSlideCanvas({
   contentLines,
   deckPage,
   onDeckPageStatus,
+  timedPreview,
   contentLayer,
   backgroundLayer,
   compact,
@@ -49,6 +51,7 @@ function AvSlideCanvas({
   | 'contentLines'
   | 'deckPage'
   | 'onDeckPageStatus'
+  | 'timedPreview'
   | 'contentLayer'
   | 'backgroundLayer'
   | 'compact'
@@ -70,6 +73,10 @@ function AvSlideCanvas({
               onStatus={onDeckPageStatus}
             />
           </div>
+        ) : timedPreview ? (
+          <p className="av-slide-view__timed-preview" data-testid="av-timed-preview">
+            {timedPreview.title}
+          </p>
         ) : (
           <AvSlideContent
             text={contentLines ? undefined : contentText}
@@ -88,6 +95,7 @@ export function AvSlideView({
   contentLines,
   deckPage,
   onDeckPageStatus,
+  timedPreview,
   contentLayer,
   backgroundLayer,
   transition,
@@ -134,6 +142,7 @@ export function AvSlideView({
       contentLines={contentLines}
       deckPage={deckPage}
       onDeckPageStatus={onDeckPageStatus}
+      timedPreview={timedPreview}
       contentLayer={contentLayer}
       backgroundLayer={backgroundLayer}
       compact={compact}

@@ -225,7 +225,19 @@ describe('avSlidesForItem media decks', () => {
     expect(deckSlides.slides).toHaveLength(3)
 
     const videoSlides = avSlidesForItem(video, 1, split)
-    expect(videoSlides.kind).toBe('blob')
+    expect(videoSlides.kind).toBe('video')
+    expect(videoSlides.mediaId).toBe('media-2')
+    expect(videoSlides.assetId).toBe('v1')
     expect(videoSlides.slides).toEqual(['Clip'])
+
+    const audio = {
+      type: 'media',
+      id: 'media-3',
+      title: 'Track',
+      content: { type: 'audio', blob_id: 'a1', duration_ms: 8000 },
+    } as PlayerItem
+    const audioSlides = avSlidesForItem(audio, 2, split)
+    expect(audioSlides.kind).toBe('audio')
+    expect(audioSlides.assetId).toBe('a1')
   })
 })
