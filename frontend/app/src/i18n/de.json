@@ -1142,6 +1142,96 @@
       "slide": "Sieh nur die projizierten Folien, ohne Steuerung."
     }
   },
+  "media": {
+    "name": "Medien",
+    "kinds": {
+      "youtube": "YouTube",
+      "livestream": "Livestream",
+      "web_page": "Webseite",
+      "slide_deck": "Foliensatz",
+      "video": "Video",
+      "audio": "Audio",
+      "unknown": "Unbekanntes Medium"
+    },
+    "states": {
+      "processing": "Wird verarbeitet",
+      "ready": "Bereit",
+      "failed": "Fehlgeschlagen",
+      "unknown": "Unbekannter Status"
+    },
+    "fields": {
+      "title": "Titel",
+      "kind": "Inhaltstyp",
+      "team": "Team",
+      "canonicalUrl": "Gespeicherte URL",
+      "url": {
+        "youtube": "YouTube-URL",
+        "livestream": "Livestream-URL",
+        "web_page": "Webseiten-URL"
+      }
+    },
+    "list": {
+      "empty": "Noch keine Medien.",
+      "filteredEmpty": "Keine Medien für dieses Team.",
+      "noResults": "Keine Medien entsprechen deiner Suche.",
+      "loadingAria": "Medien werden geladen",
+      "error": "Beim Laden der Medien ist ein Fehler aufgetreten."
+    },
+    "row": {
+      "openAria": "{{title}} öffnen, {{kind}}, {{status}}",
+      "actionsAria": "Aktionen für {{title}}"
+    },
+    "create": {
+      "title": "Medium hinzufügen",
+      "description": "Füge ein wiederverwendbares YouTube-Video, einen Livestream oder eine Webseite hinzu."
+    },
+    "editor": {
+      "backToList": "Zurück zu Medien",
+      "saved": "Medium gespeichert.",
+      "loadFailed": "Dieses Medium konnte nicht geladen werden.",
+      "readOnly": "Du kannst dieses Medium ansehen, aber nicht bearbeiten.",
+      "processingBody": "Dieses Medium wird noch verarbeitet und kann noch nicht verwendet werden.",
+      "failedTitle": "Verarbeitung fehlgeschlagen",
+      "failedBody": "Dieses Medium konnte nicht verarbeitet werden.",
+      "notReady": "Dieses Medium kann erst bearbeitet werden, wenn es bereit ist.",
+      "futureKind": "Dieser Medientyp kann hier angesehen werden, der Editor ist aber noch nicht verfügbar."
+    },
+    "actions": {
+      "create": "Medium hinzufügen",
+      "createAria": "Medium hinzufügen",
+      "save": "Speichern",
+      "edit": "Bearbeiten",
+      "duplicate": "Duplizieren",
+      "move": "Verschieben",
+      "delete": "Löschen",
+      "refresh": "Medien aktualisieren",
+      "duplicated": "„{{title}}“ wurde erstellt.",
+      "duplicateFailed": "Medium konnte nicht dupliziert werden.",
+      "moved": "Medium verschoben.",
+      "moveFailed": "Medium konnte nicht verschoben werden.",
+      "deleted": "Medium gelöscht.",
+      "deleteFailed": "Medium konnte nicht gelöscht werden."
+    },
+    "duplicate": { "title": "{{title}} (Kopie)" },
+    "delete": {
+      "title": "Dieses Medium löschen?",
+      "body": "„{{name}}“ wird aus der Medienbibliothek entfernt."
+    },
+    "move": {
+      "title": "Medium verschieben",
+      "body": "Wähle ein neues besitzendes Team für „{{name}}“.",
+      "teamAria": "Zielteam",
+      "teamPlaceholder": "Team auswählen …",
+      "noTeams": "Es gibt kein anderes Team mit Schreibzugriff für dieses Medium."
+    },
+    "validation": {
+      "titleRequired": "Gib einen Titel ein.",
+      "invalidUrl": "Gib eine unterstützte HTTPS-URL ohne Zugangsdaten ein.",
+      "noWritableTeam": "Du benötigst Bearbeitungsrechte in einem Team, um Medien hinzuzufügen.",
+      "destinationRequired": "Wähle ein Zielteam.",
+      "notEditable": "Dieses Medium kann nicht bearbeitet werden."
+    }
+  },
   "sessions": {
     "listTitle": "Aktive Sitzungen",
     "listDescription": "Geräte und Browser, an denen du angemeldet bist. Ziehe eine Sitzung zurück, um dort abzumelden.",

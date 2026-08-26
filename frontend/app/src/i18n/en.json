@@ -1142,6 +1142,96 @@
       "slide": "View the projected slides only, without controls."
     }
   },
+  "media": {
+    "name": "Media",
+    "kinds": {
+      "youtube": "YouTube",
+      "livestream": "Livestream",
+      "web_page": "Web page",
+      "slide_deck": "Slide deck",
+      "video": "Video",
+      "audio": "Audio",
+      "unknown": "Unknown media"
+    },
+    "states": {
+      "processing": "Processing",
+      "ready": "Ready",
+      "failed": "Failed",
+      "unknown": "Unknown status"
+    },
+    "fields": {
+      "title": "Title",
+      "kind": "Content type",
+      "team": "Team",
+      "canonicalUrl": "Saved URL",
+      "url": {
+        "youtube": "YouTube URL",
+        "livestream": "Livestream URL",
+        "web_page": "Web-page URL"
+      }
+    },
+    "list": {
+      "empty": "No media yet.",
+      "filteredEmpty": "No media for this team.",
+      "noResults": "No media match your search.",
+      "loadingAria": "Loading media",
+      "error": "Something went wrong while loading media."
+    },
+    "row": {
+      "openAria": "Open {{title}}, {{kind}}, {{status}}",
+      "actionsAria": "Actions for {{title}}"
+    },
+    "create": {
+      "title": "Add media",
+      "description": "Add a reusable YouTube video, livestream, or web page."
+    },
+    "editor": {
+      "backToList": "Back to media",
+      "saved": "Media saved.",
+      "loadFailed": "Could not load this media item.",
+      "readOnly": "You can view this item, but you do not have permission to change it.",
+      "processingBody": "This media is still processing and is not ready to use.",
+      "failedTitle": "Processing failed",
+      "failedBody": "This media could not be processed.",
+      "notReady": "This media cannot be edited until it is Ready.",
+      "futureKind": "This media type can be viewed here, but its editor is not available yet."
+    },
+    "actions": {
+      "create": "Add media",
+      "createAria": "Add media",
+      "save": "Save",
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "move": "Move",
+      "delete": "Delete",
+      "refresh": "Refresh media",
+      "duplicated": "Created “{{title}}”.",
+      "duplicateFailed": "Could not duplicate media.",
+      "moved": "Media moved.",
+      "moveFailed": "Could not move media.",
+      "deleted": "Media deleted.",
+      "deleteFailed": "Could not delete media."
+    },
+    "duplicate": { "title": "{{title}} (copy)" },
+    "delete": {
+      "title": "Delete this media?",
+      "body": "“{{name}}” will be removed from the media library."
+    },
+    "move": {
+      "title": "Move media",
+      "body": "Choose a new owning team for “{{name}}”.",
+      "teamAria": "Destination team",
+      "teamPlaceholder": "Choose a team…",
+      "noTeams": "There is no other writable team to move this item to."
+    },
+    "validation": {
+      "titleRequired": "Enter a title.",
+      "invalidUrl": "Enter a supported credential-free HTTPS URL.",
+      "noWritableTeam": "You need edit access to a team before you can add media.",
+      "destinationRequired": "Choose a destination team.",
+      "notEditable": "This media item cannot be edited."
+    }
+  },
   "sessions": {
     "listTitle": "Active sessions",
     "listDescription": "Devices and browsers where you are signed in. Revoke a session to sign out there.",
