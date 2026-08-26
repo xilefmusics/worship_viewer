@@ -14,6 +14,19 @@ export function songLinksFromSetlistItems(items: SetlistItem[] | null | undefine
   return (items ?? []).filter(isSetlistSongItem)
 }
 
+export function countSetlistItems(items: SetlistItem[] | null | undefined): {
+  songs: number
+  media: number
+} {
+  return (items ?? []).reduce(
+    (counts, item) => {
+      counts[item.type === 'song' ? 'songs' : 'media'] += 1
+      return counts
+    },
+    { songs: 0, media: 0 },
+  )
+}
+
 export function songItemFromLink(link: SetlistSongLink): SetlistSongItem {
   return { type: 'song', ...link }
 }

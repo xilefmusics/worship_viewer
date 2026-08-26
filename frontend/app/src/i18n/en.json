@@ -146,6 +146,8 @@
     },
     "loadMore": "Load more",
     "meta": {
+      "mediaCount_one": "{{count}} media item",
+      "mediaCount_other": "{{count}} media items",
       "songsCount_one": "{{count}} song",
       "songsCount_other": "{{count}} songs"
     },
