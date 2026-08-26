@@ -1,7 +1,7 @@
 pub use shared::media::{
-    CreateMedia, CreateMediaContent, DeclaredMediaKind, DuplicateMedia, LivestreamType, Media,
-    MediaContent, MediaDeckPage, MediaPendingRevision, MediaProcessingError, MediaStatus,
-    UpdateMedia,
+    CommitDeck, CreateMedia, CreateMediaContent, DeclaredMediaKind, DuplicateMedia, LivestreamType,
+    Media, MediaContent, MediaDeckPage, MediaPendingRevision, MediaProcessingError,
+    MediaStagedDeckPage, MediaStatus, UpdateMedia,
 };
 
 mod model;
@@ -11,6 +11,7 @@ pub mod service;
 mod surreal_repo;
 
 pub mod av_processor;
+pub mod deck_processor;
 pub mod processing;
 
 pub use repository::MediaRepository;

@@ -1171,7 +1171,8 @@
       },
       "file": {
         "video": "Videodatei",
-        "audio": "Audiodatei"
+        "audio": "Audiodatei",
+        "slide_deck": "PNG-, JPEG-, SVG- oder PDF-Dateien"
       }
     },
     "list": {
@@ -1187,7 +1188,7 @@
     },
     "create": {
       "title": "Medium hinzufügen",
-      "description": "Füge ein wiederverwendbares YouTube-Video, einen Livestream, eine Webseite oder hochgeladenes Audio oder Video hinzu."
+      "description": "Füge ein wiederverwendbares YouTube-Video, einen Livestream, eine Webseite, einen Foliensatz oder hochgeladenes Audio oder Video hinzu."
     },
     "editor": {
       "backToList": "Zurück zu Medien",
@@ -1204,6 +1205,16 @@
       "replacementProcessingBody": "Eine neue Version wird verarbeitet. Dein aktueller Inhalt bleibt verfügbar, bis sie fertig ist.",
       "metadataVideo": "Dauer {{duration}} · {{width}}×{{height}}",
       "metadataAudio": "Dauer {{duration}}"
+    },
+    "deck": {
+      "addPages": "Seiten hinzufügen",
+      "empty": "Füge mindestens eine Seite hinzu, bevor du speicherst.",
+      "emptyGuard": "Ein Foliensatz braucht mindestens eine Seite.",
+      "listAria": "Folienseiten",
+      "pageLabel": "Seite {{number}}",
+      "reorderHandle": "Seite {{number}} neu anordnen",
+      "replacePage": "Seite ersetzen",
+      "removePage": "Seite entfernen"
     },
     "upload": {
       "progress": "Upload… {{percent}} %",
@@ -1250,7 +1261,8 @@
       "noWritableTeam": "Du benötigst Bearbeitungsrechte in einem Team, um Medien hinzuzufügen.",
       "destinationRequired": "Wähle ein Zielteam.",
       "notEditable": "Dieses Medium kann nicht bearbeitet werden.",
-      "fileRequired": "Wähle eine Datei zum Hochladen."
+      "fileRequired": "Wähle eine Datei zum Hochladen.",
+      "deckFileType": "Wähle PNG-, JPEG-, SVG- oder PDF-Dateien."
     }
   },
   "sessions": {

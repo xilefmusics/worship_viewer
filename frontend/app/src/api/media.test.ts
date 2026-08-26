@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createMedia, deleteMedia, duplicateMedia, fetchMediaPage, moveMedia, updateMedia } from '@/api/media'
+import { beginDeckRevision, commitDeck, createMedia, deleteMedia, duplicateMedia, fetchMediaPage, moveMedia, updateMedia } from '@/api/media'
 import { api } from '@/api/client'
 
 vi.mock('@/api/client', () => ({
@@ -36,6 +36,14 @@ describe('Media API mapping', () => {
     expect(api.POST).toHaveBeenCalledWith('/api/v1/media/{id}/duplicate', expect.objectContaining({ body: { title: 'Stream (copy)' } }))
     expect(api.POST).toHaveBeenCalledWith('/api/v1/media/{id}/move', expect.objectContaining({ body: { owner: 'team:2' } }))
     expect(api.DELETE).toHaveBeenCalledWith('/api/v1/media/{id}', { params: { path: { id: media.id } } })
+  })
+
+  it('maps deck revision and commit requests', async () => {
+    vi.mocked(api.POST).mockResolvedValue({ data: media, response: response() } as never)
+    await beginDeckRevision(queryClient, media.id)
+    await commitDeck(queryClient, media.id, { operation: 'rev1', page_ids: ['p1'] })
+    expect(api.POST).toHaveBeenCalledWith('/api/v1/media/{id}/deck/revisions', expect.objectContaining({ params: { path: { id: media.id } } }))
+    expect(api.POST).toHaveBeenCalledWith('/api/v1/media/{id}/deck/commit', expect.objectContaining({ body: { operation: 'rev1', page_ids: ['p1'] } }))
   })
 
   it('surfaces validation problem detail', async () => {

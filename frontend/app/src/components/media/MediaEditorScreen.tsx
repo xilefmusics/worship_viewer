@@ -1,17 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { uploadMediaSource } from '@/api/media-upload'
+import { uploadMediaSource, mediaAssetDataUrl } from '@/api/media-upload'
 import {
+  beginDeckRevision,
   cancelMediaProcessing,
+  commitDeck,
   fetchMedia,
   mediaDetailKey,
   mediaListRootKey,
   updateMedia,
+  type Media,
 } from '@/api/media'
-import { mediaAssetDataUrl } from '@/api/media-upload'
+import { DeckPagesEditor, type DeckEditorPage } from '@/components/media/DeckPagesEditor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useOnline } from '@/hooks/use-online'
@@ -28,10 +31,24 @@ import {
   mediaCanonicalUrl,
   mediaDisplayKind,
   mediaDisplayStatus,
+  sniffAssetUploadKind,
   type UrlMediaKind,
   urlContent,
 } from '@/lib/media-display'
 import { canEditTeamLibrary } from '@/lib/team-permissions'
+
+// Flow: M2, M4, M5, M6 — preview/edit draft pages, commit, empty-guard, failed replacement
+
+function deckPagesFromMedia(media: Media): DeckEditorPage[] {
+  const pending = media.pending_revision?.pages ?? []
+  if (pending.length > 0) {
+    return pending.map((page) => ({ id: page.id, blob_id: page.blob_id }))
+  }
+  if (media.content?.type === 'slide_deck') {
+    return media.content.pages.map((page) => ({ id: page.blob_id, blob_id: page.blob_id }))
+  }
+  return []
+}
 
 export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
   const { t } = useTranslation()
@@ -56,12 +73,14 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
   const [owner, setOwner] = useState('')
   const [error, setError] = useState('')
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [deckPages, setDeckPages] = useState<DeckEditorPage[]>([])
 
   useEffect(() => {
     if (!media) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the editor draft from the fetched canonical resource
     setTitle(media.title)
     setOwner(media.owner)
+    setDeckPages(deckPagesFromMedia(media))
     const displayKind = mediaDisplayKind(media)
     if (isUrlMediaKind(displayKind)) {
       setKind(displayKind)
@@ -72,15 +91,30 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
   const displayKind = media ? mediaDisplayKind(media) : 'unknown'
   const displayStatus = media ? mediaDisplayStatus(media) : 'unknown'
   const uploaded = media ? isUploadedDisplayKind(displayKind) : false
+  const isDeck = displayKind === 'slide_deck'
   const editableUrl = media ? displayStatus === 'ready' && isUrlMediaKind(displayKind) : false
   const processingActive = media ? isProcessingActive(media) : false
   const initialFailed = media?.status === 'failed'
   const replacementFailed = media ? hasReplacementFailure(media) : false
   const readyUploaded = media ? isReadyUploaded(media) : false
+  const deckSaveBlocked = isDeck && (processingActive || deckPages.length === 0)
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!canEdit) throw new Error(t('media.validation.notEditable'))
+      if (!canEdit || !media) throw new Error(t('media.validation.notEditable'))
+      if (isDeck) {
+        if (deckPages.length === 0) throw new Error(t('media.deck.emptyGuard'))
+        await updateMedia(queryClient, mediaId, { title: title.trim(), owner })
+        let current = await fetchMedia(queryClient, mediaId)
+        if (!current.pending_revision?.pages?.length) {
+          current = await beginDeckRevision(queryClient, mediaId)
+        }
+        const pending = current.pending_revision
+        if (!pending) throw new Error(t('media.deck.emptyGuard'))
+        const byBlob = new Map((pending.pages ?? []).map((page) => [page.blob_id, page.id]))
+        const pageIds = deckPages.map((page) => byBlob.get(page.blob_id) ?? page.id)
+        return commitDeck(queryClient, mediaId, { operation: pending.operation, page_ids: pageIds })
+      }
       if (uploaded) {
         return updateMedia(queryClient, mediaId, { title: title.trim(), owner })
       }
@@ -102,7 +136,7 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      if (!media || !isUploadedDisplayKind(displayKind)) throw new Error(t('media.validation.notEditable'))
+      if (!media || !isUploadedDisplayKind(displayKind) || isDeck) throw new Error(t('media.validation.notEditable'))
       const uploadKind = displayKind === 'video' ? 'video' : 'audio'
       setUploadProgress(0)
       await uploadMediaSource({
@@ -111,6 +145,36 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
         file,
         onProgress: (ratio) => setUploadProgress(ratio),
       })
+      return fetchMedia(queryClient, mediaId)
+    },
+    onSuccess: (saved) => {
+      setUploadProgress(null)
+      queryClient.setQueryData(mediaDetailKey(mediaId), saved)
+      void queryClient.invalidateQueries({ queryKey: mediaListRootKey })
+    },
+    onError: (cause: Error) => {
+      setUploadProgress(null)
+      setError(cause.message)
+    },
+  })
+
+  const deckUploadMutation = useMutation({
+    mutationFn: async ({ files, replacePage }: { files: File[]; replacePage?: string }) => {
+      setUploadProgress(0)
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index]
+        const sniff = sniffAssetUploadKind(file)
+        if (sniff !== 'image' && sniff !== 'pdf' && sniff !== 'svg') {
+          throw new Error(t('media.validation.deckFileType'))
+        }
+        await uploadMediaSource({
+          mediaId,
+          kind: sniff,
+          file,
+          replacePage,
+          onProgress: (ratio) => setUploadProgress((index + ratio) / files.length),
+        })
+      }
       return fetchMedia(queryClient, mediaId)
     },
     onSuccess: (saved) => {
@@ -133,6 +197,8 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
     onError: (cause: Error) => toast.error(cause.message),
   })
 
+  const avFileAccept = useMemo(() => (displayKind === 'video' ? 'video/*,audio/*' : 'audio/*,video/*'), [displayKind])
+
   if (detailQuery.isPending) {
     return <div className="mx-auto w-full max-w-2xl py-12 text-center text-sm text-[var(--color-muted-foreground)]" role="status">{t('common.load')}</div>
   }
@@ -146,6 +212,7 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
       ? media.content.blob_id
       : null
   const previewUrl = previewBlobId ? mediaAssetDataUrl(mediaId, previewBlobId) : null
+  const showUploadedEditor = uploaded || initialFailed || readyUploaded || isDeck
 
   return (
     <section className="mx-auto grid w-full max-w-2xl gap-6 pb-8" aria-labelledby="media-editor-heading">
@@ -174,7 +241,7 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
         </div>
       ) : null}
 
-      {uploaded || initialFailed || readyUploaded ? (
+      {showUploadedEditor ? (
         <div className="grid gap-4">
           <div className="grid gap-1.5">
             <label htmlFor="media-editor-title" className="text-sm font-medium">{t('media.fields.title')}</label>
@@ -200,9 +267,20 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
           {previewUrl && media.content?.type === 'audio' ? (
             <audio className="w-full" controls src={previewUrl} />
           ) : null}
-          {canEdit ? (
+          {isDeck ? (
+            <DeckPagesEditor
+              mediaId={mediaId}
+              pages={deckPages}
+              disabled={!canEdit || !online || processingActive || deckUploadMutation.isPending}
+              onReorder={setDeckPages}
+              onRemove={(id) => setDeckPages((current) => current.filter((page) => page.id !== id))}
+              onReplace={(id, file) => deckUploadMutation.mutate({ files: [file], replacePage: id })}
+              onAdd={(files) => deckUploadMutation.mutate({ files })}
+            />
+          ) : null}
+          {canEdit && !isDeck ? (
             <div className="flex flex-wrap gap-2">
-              <input ref={fileInputRef} type="file" className="hidden" accept={displayKind === 'video' ? 'video/*,audio/*' : 'audio/*,video/*'} onChange={(event) => {
+              <input ref={fileInputRef} type="file" className="hidden" accept={avFileAccept} onChange={(event) => {
                 const file = event.target.files?.[0]
                 if (file) uploadMutation.mutate(file)
                 event.target.value = ''
@@ -219,6 +297,11 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
               ) : null}
             </div>
           ) : null}
+          {canEdit && isDeck && media.pending_revision?.status === 'processing' ? (
+            <Button type="button" variant="outline" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate()}>
+              {t('media.upload.cancel')}
+            </Button>
+          ) : null}
           {uploadProgress != null ? (
             <div role="status" className="grid gap-1">
               <span className="text-sm">{t('media.upload.progress', { percent: Math.round(uploadProgress * 100) })}</span>
@@ -229,7 +312,7 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
           ) : null}
           {canEdit ? (
             <div className="flex justify-end">
-              <Button disabled={!online || saveMutation.isPending} onClick={() => { setError(''); saveMutation.mutate() }}>
+              <Button disabled={!online || saveMutation.isPending || deckSaveBlocked} onClick={() => { setError(''); saveMutation.mutate() }}>
                 {saveMutation.isPending ? t('common.load') : t('media.actions.save')}
               </Button>
             </div>

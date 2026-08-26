@@ -183,6 +183,26 @@
         ],
         "type": "object"
       },
+      "CommitDeck": {
+        "additionalProperties": false,
+        "description": "Finalize a staged slide-deck revision in the operator-selected order.",
+        "properties": {
+          "operation": {
+            "type": "string"
+          },
+          "page_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "operation",
+          "page_ids"
+        ],
+        "type": "object"
+      },
       "CreateBlob": {
         "additionalProperties": false,
         "example": {
@@ -294,6 +314,20 @@
       "CreateMediaContent": {
         "description": "URL content accepted by E5.1. Uploaded/deck tags are reserved on\n[`MediaContent`] but cannot be fabricated through this request.",
         "oneOf": [
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "slide_deck"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
           {
             "properties": {
               "type": {
@@ -552,6 +586,7 @@
       "DeclaredMediaKind": {
         "description": "Upload kind declared at create time before active content exists.",
         "enum": [
+          "slide_deck",
           "video",
           "audio"
         ],
@@ -817,7 +852,7 @@
               },
               {
                 "$ref": "#/components/schemas/DeclaredMediaKind",
-                "description": "Present for uploaded audio/video shells until Ready content is set."
+                "description": "Present for uploaded/deck shells until Ready content is set."
               }
             ]
           },
@@ -1090,6 +1125,13 @@
           "operation": {
             "type": "string"
           },
+          "pages": {
+            "description": "Draft slide-deck pages. Empty for audio/video revisions.",
+            "items": {
+              "$ref": "#/components/schemas/MediaStagedDeckPage"
+            },
+            "type": "array"
+          },
           "processing_error": {
             "oneOf": [
               {
@@ -1124,6 +1166,23 @@
         "required": [
           "code",
           "detail"
+        ],
+        "type": "object"
+      },
+      "MediaStagedDeckPage": {
+        "additionalProperties": false,
+        "description": "A page in a staged (not yet committed) slide-deck revision.",
+        "properties": {
+          "blob_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "blob_id"
         ],
         "type": "object"
       },
@@ -5806,6 +5865,132 @@
         ]
       }
     },
+    "/api/v1/media/{id}/deck/commit": {
+      "post": {
+        "operationId": "commit_deck",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitDeck"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Commit the staged slide-deck revision"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Empty, stale, or still-processing revision"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media absent or concealed"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/api/v1/media/{id}/deck/revisions": {
+      "post": {
+        "operationId": "begin_deck_revision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Begin or return the current staged slide-deck revision"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media is not a ready slide deck"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media absent or concealed"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
     "/api/v1/media/{id}/duplicate": {
       "post": {
         "operationId": "duplicate_media",
@@ -6126,6 +6311,15 @@
             "in": "query",
             "name": "kind",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Existing staged/ready deck page id to replace",
+            "in": "query",
+            "name": "replace_page",
+            "required": false,
             "schema": {
               "type": "string"
             }

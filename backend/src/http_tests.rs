@@ -2976,6 +2976,46 @@ mod media_http {
             test::call_service(&app, request).await.status(),
             StatusCode::BAD_REQUEST
         );
+
+        let request = test::TestRequest::post()
+            .uri("/api/v1/media")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_json(CreateMedia {
+                owner: None,
+                title: "Deck shell".into(),
+                content: CreateMediaContent::SlideDeck,
+            })
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let deck: Media = test::read_body_json(response).await;
+        assert_eq!(deck.status, shared::media::MediaStatus::Processing);
+        assert_eq!(
+            deck.declared_kind,
+            Some(shared::media::DeclaredMediaKind::SlideDeck)
+        );
+        let request = test::TestRequest::post()
+            .uri(&format!("/api/v1/media/{}/deck/commit", deck.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_json(shared::media::CommitDeck {
+                operation: "missing".into(),
+                page_ids: vec![],
+            })
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, request).await.status(),
+            StatusCode::BAD_REQUEST
+        );
+
+        let request = test::TestRequest::put()
+            .uri(&format!("/api/v1/media/{}/uploads?kind=video", deck.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_payload(b"fake-video".as_slice())
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, request).await.status(),
+            StatusCode::BAD_REQUEST
+        );
     }
 }
 

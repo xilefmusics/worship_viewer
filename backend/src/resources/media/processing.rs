@@ -1,19 +1,26 @@
-//! Uploaded audio/video processing jobs, lifecycle transitions, and reconciliation.
+//! Uploaded audio/video and slide-deck processing jobs, lifecycle, and reconciliation.
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use shared::MediaAssetKind;
-use shared::media::{DeclaredMediaKind, Media, MediaContent, MediaPendingRevision, MediaStatus};
+use shared::media::{
+    CommitDeck, DeclaredMediaKind, Media, MediaContent, MediaDeckPage, MediaPendingRevision,
+    MediaStagedDeckPage, MediaStatus,
+};
 use surrealdb::types::RecordId;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 
+use crate::auth::AuthorizationContext;
 use crate::error::AppError;
 use crate::resources::media::av_processor::{
     AvProcessFailure, AvProcessor, FfmpegAvProcessor, processing_error,
+};
+use crate::resources::media::deck_processor::{
+    DeckProcessor, PopplerDeckProcessor, UnsupportedDeckProcessor,
 };
 use crate::resources::media::model::MediaWrite;
 use crate::resources::media::repository::MediaRepository;
@@ -25,6 +32,7 @@ use crate::settings::Settings;
 struct ProcessingCoordinator {
     active_operations: Arc<RwLock<HashSet<String>>>,
     cancel_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
+    revision_sources: Arc<RwLock<HashMap<String, HashSet<String>>>>,
 }
 
 impl ProcessingCoordinator {
@@ -55,6 +63,57 @@ impl ProcessingCoordinator {
     pub async fn active_operation_ids(&self) -> HashSet<String> {
         self.active_operations.read().await.clone()
     }
+
+    async fn register_source(&self, revision_id: &str, staging_op: &str) -> CancellationToken {
+        let token = self.register(staging_op).await;
+        self.revision_sources
+            .write()
+            .await
+            .entry(revision_id.to_owned())
+            .or_default()
+            .insert(staging_op.to_owned());
+        token
+    }
+
+    async fn unregister_source(&self, revision_id: &str, staging_op: &str) {
+        self.unregister(staging_op).await;
+        let mut map = self.revision_sources.write().await;
+        if let Some(set) = map.get_mut(revision_id) {
+            set.remove(staging_op);
+            if set.is_empty() {
+                map.remove(revision_id);
+            }
+        }
+    }
+
+    async fn revision_in_flight(&self, revision_id: &str) -> bool {
+        self.revision_sources
+            .read()
+            .await
+            .get(revision_id)
+            .is_some_and(|set| !set.is_empty())
+    }
+
+    async fn other_sources_in_flight(&self, revision_id: &str, except: &str) -> bool {
+        self.revision_sources
+            .read()
+            .await
+            .get(revision_id)
+            .is_some_and(|set| set.iter().any(|op| op != except))
+    }
+
+    async fn cancel_revision(&self, revision_id: &str) {
+        let ops = self
+            .revision_sources
+            .read()
+            .await
+            .get(revision_id)
+            .cloned()
+            .unwrap_or_default();
+        for op in ops {
+            self.cancel(&op).await;
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -63,7 +122,10 @@ pub struct MediaProcessingHandle {
     asset_svc: crate::resources::media_asset::service::MediaAssetServiceHandle,
     coordinator: ProcessingCoordinator,
     processor: Arc<dyn AvProcessor>,
+    deck_processor: Arc<dyn DeckProcessor>,
     work_parent: PathBuf,
+    deck_max_pages: usize,
+    deck_write: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl MediaProcessingHandle {
@@ -77,14 +139,35 @@ impl MediaProcessingHandle {
             ffprobe_path: settings.ffprobe_path.clone(),
             timeout: settings.media_processing_timeout(),
         });
-        Self::build_with_processor(db, settings, asset_svc, processor)
+        let deck_processor: Arc<dyn DeckProcessor> = Arc::new(PopplerDeckProcessor {
+            pdfinfo_path: settings.pdfinfo_path.clone(),
+            pdfseparate_path: settings.pdfseparate_path.clone(),
+            timeout: settings.media_processing_timeout(),
+        });
+        Self::build_with_processors(db, settings, asset_svc, processor, deck_processor)
     }
 
     pub fn build_with_processor(
         db: Arc<crate::database::Database>,
-        _settings: &Settings,
+        settings: &Settings,
         asset_svc: crate::resources::media_asset::service::MediaAssetServiceHandle,
         processor: Arc<dyn AvProcessor>,
+    ) -> Self {
+        Self::build_with_processors(
+            db,
+            settings,
+            asset_svc,
+            processor,
+            Arc::new(UnsupportedDeckProcessor),
+        )
+    }
+
+    pub fn build_with_processors(
+        db: Arc<crate::database::Database>,
+        settings: &Settings,
+        asset_svc: crate::resources::media_asset::service::MediaAssetServiceHandle,
+        processor: Arc<dyn AvProcessor>,
+        deck_processor: Arc<dyn DeckProcessor>,
     ) -> Self {
         let work_parent = std::env::temp_dir().join("worshipviewer_media_work");
         Self {
@@ -92,7 +175,10 @@ impl MediaProcessingHandle {
             asset_svc,
             coordinator: ProcessingCoordinator::default(),
             processor,
+            deck_processor,
             work_parent,
+            deck_max_pages: settings.media_deck_max_pages as usize,
+            deck_write: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
@@ -120,18 +206,28 @@ impl MediaProcessingHandle {
         media_id: &str,
         operation_id: &str,
         kind: MediaAssetKind,
+        replace_page_id: Option<String>,
     ) -> Result<(), AppError> {
         let media = self.media_repo.get_unscoped(media_id).await?;
+        if is_deck_asset_kind(kind) && !is_deck_media(&media) {
+            return Ok(());
+        }
         validate_upload_kind(&media, kind)?;
+        if is_deck_asset_kind(kind) {
+            return self
+                .begin_deck_source(media_id, operation_id, replace_page_id)
+                .await;
+        }
+        if replace_page_id.is_some() {
+            return Err(AppError::invalid_request(
+                "replace_page is only valid for slide-deck uploads",
+            ));
+        }
         if let Some(old) = media.pending_revision.as_ref() {
             self.coordinator.cancel(&old.operation).await;
         }
         let is_replacement = is_ready_uploaded_replacement(&media);
-        let pending = MediaPendingRevision {
-            operation: operation_id.to_owned(),
-            status: MediaStatus::Processing,
-            processing_error: None,
-        };
+        let pending = MediaPendingRevision::processing(operation_id);
         let write = if is_replacement {
             MediaWrite {
                 title: media.title.clone(),
@@ -165,7 +261,12 @@ impl MediaProcessingHandle {
         let owner = parse_owner_record_id(&media.owner)?;
         ctx.require_write_access_to_owner(&owner)?;
         if let Some(pending) = media.pending_revision.as_ref() {
-            self.coordinator.cancel(&pending.operation).await;
+            if is_deck_media(&media) {
+                self.coordinator.cancel_revision(&pending.operation).await;
+                self.cleanup_draft_assets(&media, pending).await;
+            } else {
+                self.coordinator.cancel(&pending.operation).await;
+            }
             let write = MediaWrite {
                 title: media.title.clone(),
                 status: media.status,
@@ -183,7 +284,11 @@ impl MediaProcessingHandle {
 
     pub async fn cancel_for_delete(&self, media: &Media) {
         if let Some(pending) = media.pending_revision.as_ref() {
-            self.coordinator.cancel(&pending.operation).await;
+            if is_deck_media(media) {
+                self.coordinator.cancel_revision(&pending.operation).await;
+            } else {
+                self.coordinator.cancel(&pending.operation).await;
+            }
         }
     }
 
@@ -200,33 +305,35 @@ impl MediaProcessingHandle {
                 continue;
             }
             if let Some(pending) = media.pending_revision.as_ref() {
-                self.coordinator.cancel(&pending.operation).await;
-                if let Ok(staging) = self
-                    .asset_svc
-                    .get_staging_by_operation(&pending.operation)
-                    .await
-                {
-                    if let Some(op) = &staging.operation_id {
-                        self.asset_svc.delete_staging_file(op);
+                if is_deck_media(&media) {
+                    self.coordinator.cancel_revision(&pending.operation).await;
+                    self.cleanup_draft_assets(&media, pending).await;
+                } else {
+                    self.coordinator.cancel(&pending.operation).await;
+                    if let Ok(staging) = self
+                        .asset_svc
+                        .get_staging_by_operation(&pending.operation)
+                        .await
+                    {
+                        if let Some(op) = &staging.operation_id {
+                            self.asset_svc.delete_staging_file(op);
+                        }
+                        let _ = self.asset_svc.delete_asset_record(&staging.id).await;
                     }
-                    let _ = self.asset_svc.delete_asset_record(&staging.id).await;
                 }
             }
             let failure = processing_error(AvProcessFailure::Failed);
+            let operation = media
+                .pending_revision
+                .as_ref()
+                .map(|p| p.operation.clone())
+                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
             let write = if media.status == MediaStatus::Ready && media.content.is_some() {
                 MediaWrite {
                     title: media.title.clone(),
                     status: MediaStatus::Ready,
                     content: media.content.clone(),
-                    pending_revision: Some(MediaPendingRevision {
-                        operation: media
-                            .pending_revision
-                            .as_ref()
-                            .map(|p| p.operation.clone())
-                            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-                        status: MediaStatus::Failed,
-                        processing_error: Some(failure),
-                    }),
+                    pending_revision: Some(MediaPendingRevision::failed(operation, failure)),
                     declared_kind: media.declared_kind,
                 }
             } else {
@@ -234,15 +341,7 @@ impl MediaProcessingHandle {
                     title: media.title.clone(),
                     status: MediaStatus::Failed,
                     content: None,
-                    pending_revision: Some(MediaPendingRevision {
-                        operation: media
-                            .pending_revision
-                            .as_ref()
-                            .map(|p| p.operation.clone())
-                            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-                        status: MediaStatus::Failed,
-                        processing_error: Some(failure),
-                    }),
+                    pending_revision: Some(MediaPendingRevision::failed(operation, failure)),
                     declared_kind: media.declared_kind,
                 }
             };
@@ -387,11 +486,7 @@ impl MediaProcessingHandle {
     ) -> Result<(), AppError> {
         let err = processing_error(failure);
         let is_replacement = is_ready_uploaded_replacement(media);
-        let pending = MediaPendingRevision {
-            operation: operation_id.to_owned(),
-            status: MediaStatus::Failed,
-            processing_error: Some(err),
-        };
+        let pending = MediaPendingRevision::failed(operation_id, err);
         let write = if is_replacement {
             MediaWrite {
                 title: media.title.clone(),
@@ -439,6 +534,483 @@ impl MediaProcessingHandle {
             let _ = self.asset_svc.delete_asset_record(&staging.id).await;
         }
     }
+
+    async fn begin_deck_source(
+        self: &Arc<Self>,
+        media_id: &str,
+        staging_op: &str,
+        replace_page_id: Option<String>,
+    ) -> Result<(), AppError> {
+        let media = self.media_repo.get_unscoped(media_id).await?;
+        let (revision_id, pages) = match media.pending_revision.as_ref() {
+            Some(pending) if pending.status != MediaStatus::Failed || !pending.pages.is_empty() => {
+                (pending.operation.clone(), pending.pages.clone())
+            }
+            _ if is_ready_deck(&media) => {
+                let revision_id = uuid::Uuid::new_v4().to_string();
+                (
+                    revision_id,
+                    staged_pages_from_content(media.content.as_ref()),
+                )
+            }
+            _ => (uuid::Uuid::new_v4().to_string(), Vec::new()),
+        };
+        if let Some(page_id) = replace_page_id.as_deref()
+            && !pages.iter().any(|p| p.id == page_id)
+        {
+            return Err(AppError::invalid_request("replace_page does not exist"));
+        }
+        let is_replacement = is_ready_deck(&media);
+        let pending = MediaPendingRevision {
+            operation: revision_id.clone(),
+            status: MediaStatus::Processing,
+            processing_error: None,
+            pages,
+        };
+        let write = MediaWrite {
+            title: media.title.clone(),
+            status: if is_replacement {
+                MediaStatus::Ready
+            } else {
+                MediaStatus::Processing
+            },
+            content: media.content.clone(),
+            pending_revision: Some(pending),
+            declared_kind: media.declared_kind,
+        };
+        self.media_repo.update_unscoped(media_id, write).await?;
+        self.coordinator
+            .register_source(&revision_id, staging_op)
+            .await;
+        self.spawn_deck_job(
+            media_id.to_owned(),
+            revision_id,
+            staging_op.to_owned(),
+            replace_page_id,
+        );
+        Ok(())
+    }
+
+    fn spawn_deck_job(
+        self: &Arc<Self>,
+        media_id: String,
+        revision_id: String,
+        staging_op: String,
+        replace_page_id: Option<String>,
+    ) {
+        let this = Arc::clone(self);
+        tokio::spawn(async move {
+            if let Err(err) = this
+                .run_deck_job(
+                    &media_id,
+                    &revision_id,
+                    &staging_op,
+                    replace_page_id.as_deref(),
+                )
+                .await
+            {
+                tracing::warn!(
+                    media_id = %media_id,
+                    revision_id = %revision_id,
+                    error = %err,
+                    "deck processing job failed internally"
+                );
+            }
+        });
+    }
+
+    async fn run_deck_job(
+        &self,
+        media_id: &str,
+        revision_id: &str,
+        staging_op: &str,
+        replace_page_id: Option<&str>,
+    ) -> Result<(), AppError> {
+        let cancel = self
+            .coordinator
+            .cancel_tokens
+            .read()
+            .await
+            .get(staging_op)
+            .cloned();
+        if cancel.as_ref().is_some_and(|t| t.is_cancelled()) {
+            self.cleanup_stale(staging_op).await;
+            self.coordinator
+                .unregister_source(revision_id, staging_op)
+                .await;
+            return Ok(());
+        }
+        let result = self
+            .process_deck_source(media_id, revision_id, staging_op, replace_page_id)
+            .await;
+        self.coordinator
+            .unregister_source(revision_id, staging_op)
+            .await;
+        result
+    }
+
+    async fn process_deck_source(
+        &self,
+        media_id: &str,
+        revision_id: &str,
+        staging_op: &str,
+        replace_page_id: Option<&str>,
+    ) -> Result<(), AppError> {
+        let media = self.media_repo.get_unscoped(media_id).await?;
+        if !operation_matches(&media, revision_id) {
+            self.cleanup_stale(staging_op).await;
+            return Ok(());
+        }
+        let staging = match self.asset_svc.get_staging_by_operation(staging_op).await {
+            Ok(s) => s,
+            Err(_) => {
+                self.fail_deck_source(
+                    &media,
+                    revision_id,
+                    staging_op,
+                    AvProcessFailure::InputInvalid,
+                )
+                .await?;
+                return Ok(());
+            }
+        };
+        let staging_path = self.asset_svc.staging_path(staging_op);
+        let current_pages = media
+            .pending_revision
+            .as_ref()
+            .map(|p| p.pages.len())
+            .unwrap_or(0);
+        let occupied = if replace_page_id.is_some() {
+            current_pages.saturating_sub(1)
+        } else {
+            current_pages
+        };
+        let remaining = self.deck_max_pages.saturating_sub(occupied);
+        let expanded = match self
+            .deck_processor
+            .expand_source(&staging_path, staging.kind, &self.work_parent, remaining)
+            .await
+        {
+            Ok(result) => result,
+            Err(failure) => {
+                self.fail_deck_source(&media, revision_id, staging_op, failure)
+                    .await?;
+                self.cleanup_staging(staging_op, &staging.id).await;
+                return Ok(());
+            }
+        };
+
+        if !operation_still_matches(media_id, revision_id, &self.media_repo).await? {
+            self.cleanup_stale(staging_op).await;
+            return Ok(());
+        }
+
+        let owner = parse_owner_record_id(&media.owner)?;
+        let media_rid = RecordId::new("media", media_id.to_owned());
+        let mut ingested = Vec::new();
+        for page in &expanded.pages {
+            match self
+                .asset_svc
+                .ingest_processed_file(
+                    owner.clone(),
+                    media_rid.clone(),
+                    page.kind,
+                    page.content_type.into(),
+                    &page.path,
+                )
+                .await
+            {
+                Ok(asset) => ingested.push(MediaStagedDeckPage {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    blob_id: asset.id,
+                }),
+                Err(_) => {
+                    for page in &ingested {
+                        self.asset_svc.delete_final_file(&page.blob_id);
+                        let _ = self.asset_svc.delete_asset_record(&page.blob_id).await;
+                    }
+                    self.fail_deck_source(
+                        &media,
+                        revision_id,
+                        staging_op,
+                        AvProcessFailure::Failed,
+                    )
+                    .await?;
+                    self.cleanup_staging(staging_op, &staging.id).await;
+                    return Ok(());
+                }
+            }
+        }
+
+        let _guard = self.deck_write.lock().await;
+        let latest = self.media_repo.get_unscoped(media_id).await?;
+        if !operation_matches(&latest, revision_id) {
+            for page in &ingested {
+                self.asset_svc.delete_final_file(&page.blob_id);
+                let _ = self.asset_svc.delete_asset_record(&page.blob_id).await;
+            }
+            self.cleanup_stale(staging_op).await;
+            return Ok(());
+        }
+        let mut pages = latest
+            .pending_revision
+            .as_ref()
+            .map(|p| p.pages.clone())
+            .unwrap_or_default();
+        if let Some(page_id) = replace_page_id {
+            if let Some(index) = pages.iter().position(|p| p.id == page_id) {
+                let old = pages.remove(index);
+                if !content_blob_ids(latest.content.as_ref()).contains(&old.blob_id)
+                    && !pages.iter().any(|p| p.blob_id == old.blob_id)
+                {
+                    self.asset_svc.delete_final_file(&old.blob_id);
+                    let _ = self.asset_svc.delete_asset_record(&old.blob_id).await;
+                }
+                for (offset, page) in ingested.into_iter().enumerate() {
+                    pages.insert(index + offset, page);
+                }
+            } else {
+                pages.extend(ingested);
+            }
+        } else {
+            pages.extend(ingested);
+        }
+        if pages.len() > self.deck_max_pages {
+            self.fail_deck_source(
+                &latest,
+                revision_id,
+                staging_op,
+                AvProcessFailure::InputUnsupported,
+            )
+            .await?;
+            self.cleanup_staging(staging_op, &staging.id).await;
+            return Ok(());
+        }
+        let in_flight = self
+            .coordinator
+            .other_sources_in_flight(revision_id, staging_op)
+            .await;
+        let pending = MediaPendingRevision {
+            operation: revision_id.to_owned(),
+            status: if in_flight {
+                MediaStatus::Processing
+            } else {
+                MediaStatus::Ready
+            },
+            processing_error: None,
+            pages,
+        };
+        let write = MediaWrite {
+            title: latest.title.clone(),
+            status: latest.status,
+            content: latest.content.clone(),
+            pending_revision: Some(pending),
+            declared_kind: latest.declared_kind,
+        };
+        if !self
+            .commit_if_operation(media_id, revision_id, write)
+            .await?
+        {
+            self.cleanup_stale(staging_op).await;
+            return Ok(());
+        }
+        self.cleanup_staging(staging_op, &staging.id).await;
+        Ok(())
+    }
+
+    async fn fail_deck_source(
+        &self,
+        media: &Media,
+        revision_id: &str,
+        staging_op: &str,
+        failure: AvProcessFailure,
+    ) -> Result<(), AppError> {
+        let err = processing_error(failure);
+        let latest = self.media_repo.get_unscoped(&media.id).await?;
+        if !operation_matches(&latest, revision_id) {
+            return Ok(());
+        }
+        let pages = latest
+            .pending_revision
+            .as_ref()
+            .map(|p| p.pages.clone())
+            .unwrap_or_default();
+        let in_flight = self
+            .coordinator
+            .other_sources_in_flight(revision_id, staging_op)
+            .await;
+        let keep_draft = is_ready_deck(&latest) || !pages.is_empty();
+        let pending = MediaPendingRevision {
+            operation: revision_id.to_owned(),
+            status: if in_flight {
+                MediaStatus::Processing
+            } else {
+                MediaStatus::Failed
+            },
+            processing_error: Some(err),
+            pages: if keep_draft { pages } else { Vec::new() },
+        };
+        let write = if is_ready_deck(&latest) {
+            MediaWrite {
+                title: latest.title.clone(),
+                status: MediaStatus::Ready,
+                content: latest.content.clone(),
+                pending_revision: Some(pending),
+                declared_kind: latest.declared_kind,
+            }
+        } else if keep_draft {
+            MediaWrite {
+                title: latest.title.clone(),
+                status: MediaStatus::Processing,
+                content: None,
+                pending_revision: Some(pending),
+                declared_kind: latest.declared_kind,
+            }
+        } else {
+            MediaWrite {
+                title: latest.title.clone(),
+                status: MediaStatus::Failed,
+                content: None,
+                pending_revision: Some(pending),
+                declared_kind: latest.declared_kind,
+            }
+        };
+        self.commit_if_operation(&latest.id, revision_id, write)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn begin_deck_revision_for_user(
+        &self,
+        ctx: &AuthorizationContext,
+        media_id: &str,
+    ) -> Result<Media, AppError> {
+        let write_teams = ctx.write_teams();
+        let media = self.media_repo.get(&write_teams, media_id).await?;
+        let owner = parse_owner_record_id(&media.owner)?;
+        ctx.require_write_access_to_owner(&owner)?;
+        if !is_ready_deck(&media) {
+            return Err(AppError::invalid_request(
+                "only a ready slide deck can start an edit revision",
+            ));
+        }
+        if let Some(pending) = media.pending_revision.as_ref()
+            && pending.status != MediaStatus::Failed
+        {
+            return Ok(media);
+        }
+        let pending = MediaPendingRevision {
+            operation: uuid::Uuid::new_v4().to_string(),
+            status: MediaStatus::Ready,
+            processing_error: None,
+            pages: staged_pages_from_content(media.content.as_ref()),
+        };
+        self.media_repo
+            .update(
+                &write_teams,
+                media_id,
+                None,
+                MediaWrite {
+                    title: media.title.clone(),
+                    status: MediaStatus::Ready,
+                    content: media.content.clone(),
+                    pending_revision: Some(pending),
+                    declared_kind: media.declared_kind,
+                },
+            )
+            .await
+    }
+
+    pub async fn commit_deck_for_user(
+        &self,
+        ctx: &AuthorizationContext,
+        media_id: &str,
+        payload: CommitDeck,
+    ) -> Result<Media, AppError> {
+        let write_teams = ctx.write_teams();
+        let media = self.media_repo.get(&write_teams, media_id).await?;
+        let owner = parse_owner_record_id(&media.owner)?;
+        ctx.require_write_access_to_owner(&owner)?;
+        let pending = media
+            .pending_revision
+            .as_ref()
+            .ok_or_else(|| AppError::invalid_request("no staged slide-deck revision to commit"))?;
+        if pending.operation != payload.operation {
+            return Err(AppError::invalid_request("stale deck revision"));
+        }
+        if pending.status == MediaStatus::Processing
+            || self
+                .coordinator
+                .revision_in_flight(&pending.operation)
+                .await
+        {
+            return Err(AppError::invalid_request(
+                "slide-deck expansion is still processing",
+            ));
+        }
+        if payload.page_ids.is_empty() {
+            return Err(AppError::invalid_request(
+                "a slide deck requires at least one page",
+            ));
+        }
+        let mut ordered = Vec::new();
+        for page_id in &payload.page_ids {
+            let page = pending
+                .pages
+                .iter()
+                .find(|p| &p.id == page_id)
+                .ok_or_else(|| AppError::invalid_request("unknown deck page id"))?;
+            if ordered
+                .iter()
+                .any(|p: &MediaStagedDeckPage| p.id == page.id)
+            {
+                return Err(AppError::invalid_request("duplicate deck page id"));
+            }
+            ordered.push(page.clone());
+        }
+        let committed: Vec<MediaDeckPage> = ordered
+            .iter()
+            .map(|p| MediaDeckPage {
+                blob_id: p.blob_id.clone(),
+            })
+            .collect();
+        let keep: HashSet<String> = committed.iter().map(|p| p.blob_id.clone()).collect();
+        let mut drop_ids = content_blob_ids(media.content.as_ref());
+        for page in &pending.pages {
+            drop_ids.insert(page.blob_id.clone());
+        }
+        drop_ids.retain(|id| !keep.contains(id));
+        let updated = self
+            .media_repo
+            .update(
+                &write_teams,
+                media_id,
+                None,
+                MediaWrite {
+                    title: media.title.clone(),
+                    status: MediaStatus::Ready,
+                    content: Some(MediaContent::SlideDeck { pages: committed }),
+                    pending_revision: None,
+                    declared_kind: None,
+                },
+            )
+            .await?;
+        for id in drop_ids {
+            self.asset_svc.delete_final_file(&id);
+            let _ = self.asset_svc.delete_asset_record(&id).await;
+        }
+        Ok(updated)
+    }
+
+    async fn cleanup_draft_assets(&self, media: &Media, pending: &MediaPendingRevision) {
+        let keep = content_blob_ids(media.content.as_ref());
+        for page in &pending.pages {
+            if !keep.contains(&page.blob_id) {
+                self.asset_svc.delete_final_file(&page.blob_id);
+                let _ = self.asset_svc.delete_asset_record(&page.blob_id).await;
+            }
+        }
+    }
 }
 
 fn validate_upload_kind(media: &Media, kind: MediaAssetKind) -> Result<(), AppError> {
@@ -452,6 +1024,10 @@ fn validate_upload_kind(media: &Media, kind: MediaAssetKind) -> Result<(), AppEr
         Some(DeclaredMediaKind::Audio) if kind != MediaAssetKind::Audio => Err(
             AppError::invalid_request("upload kind must match declared audio media"),
         ),
+        Some(DeclaredMediaKind::SlideDeck) if !is_deck_asset_kind(kind) => Err(
+            AppError::invalid_request("upload kind must be image, pdf, or svg for a slide deck"),
+        ),
+        Some(DeclaredMediaKind::SlideDeck) => Ok(()),
         None if media.content.is_some() && is_uploaded_content(media.content.as_ref().unwrap()) => {
             match media.content.as_ref() {
                 Some(MediaContent::Video { .. }) if kind != MediaAssetKind::Video => Err(
@@ -475,6 +1051,7 @@ fn declared_from_content(content: &Option<MediaContent>) -> Option<DeclaredMedia
     match content {
         Some(MediaContent::Video { .. }) => Some(DeclaredMediaKind::Video),
         Some(MediaContent::Audio { .. }) => Some(DeclaredMediaKind::Audio),
+        Some(MediaContent::SlideDeck { .. }) => Some(DeclaredMediaKind::SlideDeck),
         _ => None,
     }
 }
@@ -491,12 +1068,54 @@ fn is_url_content(media: &Media) -> bool {
 fn is_uploaded_content(content: &MediaContent) -> bool {
     matches!(
         content,
-        MediaContent::Video { .. } | MediaContent::Audio { .. }
+        MediaContent::Video { .. } | MediaContent::Audio { .. } | MediaContent::SlideDeck { .. }
     )
 }
 
 fn is_ready_uploaded_replacement(media: &Media) -> bool {
     media.status == MediaStatus::Ready && media.content.as_ref().is_some_and(is_uploaded_content)
+}
+
+fn is_deck_asset_kind(kind: MediaAssetKind) -> bool {
+    matches!(
+        kind,
+        MediaAssetKind::Image | MediaAssetKind::Pdf | MediaAssetKind::Svg
+    )
+}
+
+fn is_deck_media(media: &Media) -> bool {
+    media.declared_kind == Some(DeclaredMediaKind::SlideDeck)
+        || matches!(media.content, Some(MediaContent::SlideDeck { .. }))
+}
+
+fn is_ready_deck(media: &Media) -> bool {
+    media.status == MediaStatus::Ready
+        && matches!(media.content, Some(MediaContent::SlideDeck { .. }))
+}
+
+fn staged_pages_from_content(content: Option<&MediaContent>) -> Vec<MediaStagedDeckPage> {
+    match content {
+        Some(MediaContent::SlideDeck { pages }) => pages
+            .iter()
+            .map(|page| MediaStagedDeckPage {
+                id: uuid::Uuid::new_v4().to_string(),
+                blob_id: page.blob_id.clone(),
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn content_blob_ids(content: Option<&MediaContent>) -> HashSet<String> {
+    match content {
+        Some(MediaContent::SlideDeck { pages }) => {
+            pages.iter().map(|p| p.blob_id.clone()).collect()
+        }
+        Some(MediaContent::Video { blob_id, .. } | MediaContent::Audio { blob_id, .. }) => {
+            HashSet::from([blob_id.clone()])
+        }
+        _ => HashSet::new(),
+    }
 }
 
 fn operation_matches(media: &Media, operation_id: &str) -> bool {
@@ -671,11 +1290,7 @@ mod tests {
             title: "t".into(),
             status: MediaStatus::Processing,
             content: None,
-            pending_revision: Some(MediaPendingRevision {
-                operation: "op1".into(),
-                status: MediaStatus::Processing,
-                processing_error: None,
-            }),
+            pending_revision: Some(MediaPendingRevision::processing("op1")),
             declared_kind: Some(DeclaredMediaKind::Video),
         };
         assert!(operation_matches(&media, "op1"));
@@ -752,7 +1367,7 @@ mod tests {
         .await;
 
         processing
-            .begin_after_upload(&shell.id, &operation_id, MediaAssetKind::Video)
+            .begin_after_upload(&shell.id, &operation_id, MediaAssetKind::Video, None)
             .await
             .unwrap();
 
@@ -820,7 +1435,7 @@ mod tests {
         .await;
 
         processing
-            .begin_after_upload(&shell.id, &operation_id, MediaAssetKind::Audio)
+            .begin_after_upload(&shell.id, &operation_id, MediaAssetKind::Audio, None)
             .await
             .unwrap();
 
@@ -899,11 +1514,11 @@ mod tests {
         .await;
 
         processing
-            .begin_after_upload(&shell.id, &old_op, MediaAssetKind::Video)
+            .begin_after_upload(&shell.id, &old_op, MediaAssetKind::Video, None)
             .await
             .unwrap();
         processing
-            .begin_after_upload(&shell.id, &new_op, MediaAssetKind::Video)
+            .begin_after_upload(&shell.id, &new_op, MediaAssetKind::Video, None)
             .await
             .unwrap();
 
@@ -966,11 +1581,7 @@ mod tests {
                 title: shell.title.clone(),
                 status: MediaStatus::Processing,
                 content: None,
-                pending_revision: Some(MediaPendingRevision {
-                    operation: operation_id.clone(),
-                    status: MediaStatus::Processing,
-                    processing_error: None,
-                }),
+                pending_revision: Some(MediaPendingRevision::processing(operation_id.clone())),
                 declared_kind: Some(DeclaredMediaKind::Video),
             },
         )
@@ -981,5 +1592,457 @@ mod tests {
         assert_eq!(count, 1);
         let failed = repo.get_unscoped(&shell.id).await.unwrap();
         assert_eq!(failed.status, MediaStatus::Failed);
+    }
+
+    struct MockDeckProcessor {
+        fail: Option<AvProcessFailure>,
+        pages: usize,
+    }
+
+    impl MockDeckProcessor {
+        fn pages(n: usize) -> Self {
+            Self {
+                fail: None,
+                pages: n,
+            }
+        }
+
+        fn fail(failure: AvProcessFailure) -> Self {
+            Self {
+                fail: Some(failure),
+                pages: 0,
+            }
+        }
+    }
+
+    #[async_trait]
+    impl DeckProcessor for MockDeckProcessor {
+        async fn expand_source(
+            &self,
+            _input: &Path,
+            _kind: MediaAssetKind,
+            work_parent: &Path,
+            remaining_page_budget: usize,
+        ) -> Result<crate::resources::media::deck_processor::DeckExpandResult, AvProcessFailure>
+        {
+            if let Some(failure) = self.fail.clone() {
+                return Err(failure);
+            }
+            if self.pages > remaining_page_budget {
+                return Err(AvProcessFailure::InputUnsupported);
+            }
+            let work = TempWorkDir::new(work_parent).map_err(|_| AvProcessFailure::Failed)?;
+            let mut pages = Vec::new();
+            for i in 0..self.pages {
+                let path = work.path().join(format!("page-{i}.png"));
+                std::fs::write(&path, format!("page-{i}").as_bytes())
+                    .map_err(|_| AvProcessFailure::Failed)?;
+                pages.push(crate::resources::media::deck_processor::DeckPageOutput {
+                    path,
+                    content_type: "image/png",
+                    kind: MediaAssetKind::Image,
+                });
+            }
+            Ok(crate::resources::media::deck_processor::DeckExpandResult::new(pages, Some(work)))
+        }
+    }
+
+    async fn wait_for_draft_pages(
+        repo: &SurrealMediaRepo,
+        media_id: &str,
+        min_pages: usize,
+    ) -> Media {
+        for _ in 0..100 {
+            let media = repo.get_unscoped(media_id).await.unwrap();
+            let pages = media
+                .pending_revision
+                .as_ref()
+                .map(|p| p.pages.len())
+                .unwrap_or(0);
+            if pages >= min_pages
+                && media
+                    .pending_revision
+                    .as_ref()
+                    .is_some_and(|p| p.status != MediaStatus::Processing)
+            {
+                return media;
+            }
+            if media.status == MediaStatus::Failed {
+                return media;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        panic!("timed out waiting for draft pages");
+    }
+
+    #[tokio::test]
+    async fn deck_upload_expands_then_commit_becomes_ready() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let ctx = auth_ctx_for_user(&db, &fixture.writer).await.unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let settings = media_settings(&dir);
+        let asset_svc = crate::resources::media_asset::service::MediaAssetServiceHandle::build(
+            db.clone(),
+            &settings,
+        );
+        let processing = Arc::new(MediaProcessingHandle::build_with_processors(
+            db.clone(),
+            &settings,
+            asset_svc.clone(),
+            Arc::new(MockAvProcessor::success(b"unused")),
+            Arc::new(MockDeckProcessor::pages(2)),
+        ));
+        let media_svc = crate::resources::media::service::MediaServiceHandle::build(
+            db.clone(),
+            asset_svc.clone(),
+            processing.clone(),
+        );
+        let shell = media_svc
+            .create_for_user(
+                &ctx,
+                CreateMedia {
+                    owner: Some(fixture.shared_team_id.clone()),
+                    title: "Deck".into(),
+                    content: CreateMediaContent::SlideDeck,
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(shell.status, MediaStatus::Processing);
+        assert_eq!(shell.declared_kind, Some(DeclaredMediaKind::SlideDeck));
+
+        let operation_id = uuid::Uuid::new_v4().to_string();
+        let owner = parse_owner_record_id(&fixture.shared_team_id).unwrap();
+        stage_bytes(
+            &asset_svc,
+            &shell.id,
+            owner,
+            &operation_id,
+            b"source",
+            MediaAssetKind::Image,
+        )
+        .await;
+        processing
+            .begin_after_upload(&shell.id, &operation_id, MediaAssetKind::Image, None)
+            .await
+            .unwrap();
+
+        let repo = SurrealMediaRepo::new(db.clone());
+        let draft = wait_for_draft_pages(&repo, &shell.id, 2).await;
+        assert_eq!(draft.status, MediaStatus::Processing);
+        let pending = draft.pending_revision.clone().unwrap();
+        assert_eq!(pending.pages.len(), 2);
+        assert_eq!(pending.status, MediaStatus::Ready);
+
+        let committed = processing
+            .commit_deck_for_user(
+                &ctx,
+                &shell.id,
+                CommitDeck {
+                    operation: pending.operation,
+                    page_ids: pending.pages.iter().rev().map(|p| p.id.clone()).collect(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(committed.status, MediaStatus::Ready);
+        match committed.content {
+            Some(MediaContent::SlideDeck { pages }) => assert_eq!(pages.len(), 2),
+            other => panic!("expected slide deck, got {other:?}"),
+        }
+        assert!(committed.pending_revision.is_none());
+    }
+
+    #[tokio::test]
+    async fn deck_source_failure_marks_failed_without_partial_ready() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let ctx = auth_ctx_for_user(&db, &fixture.writer).await.unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let settings = media_settings(&dir);
+        let asset_svc = crate::resources::media_asset::service::MediaAssetServiceHandle::build(
+            db.clone(),
+            &settings,
+        );
+        let processing = Arc::new(MediaProcessingHandle::build_with_processors(
+            db.clone(),
+            &settings,
+            asset_svc.clone(),
+            Arc::new(MockAvProcessor::success(b"unused")),
+            Arc::new(MockDeckProcessor::fail(AvProcessFailure::InputInvalid)),
+        ));
+        let media_svc = crate::resources::media::service::MediaServiceHandle::build(
+            db.clone(),
+            asset_svc.clone(),
+            processing.clone(),
+        );
+        let shell = media_svc
+            .create_for_user(
+                &ctx,
+                CreateMedia {
+                    owner: Some(fixture.shared_team_id.clone()),
+                    title: "Bad deck".into(),
+                    content: CreateMediaContent::SlideDeck,
+                },
+            )
+            .await
+            .unwrap();
+        let operation_id = uuid::Uuid::new_v4().to_string();
+        let owner = parse_owner_record_id(&fixture.shared_team_id).unwrap();
+        stage_bytes(
+            &asset_svc,
+            &shell.id,
+            owner,
+            &operation_id,
+            b"bad",
+            MediaAssetKind::Pdf,
+        )
+        .await;
+        processing
+            .begin_after_upload(&shell.id, &operation_id, MediaAssetKind::Pdf, None)
+            .await
+            .unwrap();
+        let repo = SurrealMediaRepo::new(db.clone());
+        let failed = wait_for_status(&repo, &shell.id, MediaStatus::Failed).await;
+        assert!(failed.content.is_none());
+    }
+
+    #[tokio::test]
+    async fn empty_deck_commit_is_rejected() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let ctx = auth_ctx_for_user(&db, &fixture.writer).await.unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let settings = media_settings(&dir);
+        let asset_svc = crate::resources::media_asset::service::MediaAssetServiceHandle::build(
+            db.clone(),
+            &settings,
+        );
+        let processing = Arc::new(MediaProcessingHandle::build_with_processors(
+            db.clone(),
+            &settings,
+            asset_svc.clone(),
+            Arc::new(MockAvProcessor::success(b"unused")),
+            Arc::new(MockDeckProcessor::pages(1)),
+        ));
+        let media_svc = crate::resources::media::service::MediaServiceHandle::build(
+            db.clone(),
+            asset_svc.clone(),
+            processing.clone(),
+        );
+        let shell = media_svc
+            .create_for_user(
+                &ctx,
+                CreateMedia {
+                    owner: Some(fixture.shared_team_id.clone()),
+                    title: "Empty".into(),
+                    content: CreateMediaContent::SlideDeck,
+                },
+            )
+            .await
+            .unwrap();
+        let err = processing
+            .commit_deck_for_user(
+                &ctx,
+                &shell.id,
+                CommitDeck {
+                    operation: "missing".into(),
+                    page_ids: vec![],
+                },
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AppError::InvalidRequest(_)));
+    }
+
+    #[tokio::test]
+    async fn further_deck_sources_append_to_the_same_revision() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let ctx = auth_ctx_for_user(&db, &fixture.writer).await.unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let settings = media_settings(&dir);
+        let asset_svc = crate::resources::media_asset::service::MediaAssetServiceHandle::build(
+            db.clone(),
+            &settings,
+        );
+        let processing = Arc::new(MediaProcessingHandle::build_with_processors(
+            db.clone(),
+            &settings,
+            asset_svc.clone(),
+            Arc::new(MockAvProcessor::success(b"unused")),
+            Arc::new(MockDeckProcessor::pages(1)),
+        ));
+        let media_svc = crate::resources::media::service::MediaServiceHandle::build(
+            db.clone(),
+            asset_svc.clone(),
+            processing.clone(),
+        );
+        let shell = media_svc
+            .create_for_user(
+                &ctx,
+                CreateMedia {
+                    owner: Some(fixture.shared_team_id.clone()),
+                    title: "Append".into(),
+                    content: CreateMediaContent::SlideDeck,
+                },
+            )
+            .await
+            .unwrap();
+        let owner = parse_owner_record_id(&fixture.shared_team_id).unwrap();
+        let first = uuid::Uuid::new_v4().to_string();
+        stage_bytes(
+            &asset_svc,
+            &shell.id,
+            owner.clone(),
+            &first,
+            b"one",
+            MediaAssetKind::Image,
+        )
+        .await;
+        processing
+            .begin_after_upload(&shell.id, &first, MediaAssetKind::Image, None)
+            .await
+            .unwrap();
+        let repo = SurrealMediaRepo::new(db.clone());
+        let after_first = wait_for_draft_pages(&repo, &shell.id, 1).await;
+        let revision = after_first.pending_revision.clone().unwrap().operation;
+        let second = uuid::Uuid::new_v4().to_string();
+        stage_bytes(
+            &asset_svc,
+            &shell.id,
+            owner,
+            &second,
+            b"two",
+            MediaAssetKind::Pdf,
+        )
+        .await;
+        processing
+            .begin_after_upload(&shell.id, &second, MediaAssetKind::Pdf, None)
+            .await
+            .unwrap();
+        let after_second = wait_for_draft_pages(&repo, &shell.id, 2).await;
+        let pending = after_second.pending_revision.unwrap();
+        assert_eq!(pending.operation, revision);
+        assert_eq!(pending.pages.len(), 2);
+        assert_eq!(after_second.status, MediaStatus::Processing);
+    }
+
+    #[tokio::test]
+    async fn deck_stale_commit_cancel_and_begin_revision_preserve_ready() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let ctx = auth_ctx_for_user(&db, &fixture.writer).await.unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let settings = media_settings(&dir);
+        let asset_svc = crate::resources::media_asset::service::MediaAssetServiceHandle::build(
+            db.clone(),
+            &settings,
+        );
+        let processing = Arc::new(MediaProcessingHandle::build_with_processors(
+            db.clone(),
+            &settings,
+            asset_svc.clone(),
+            Arc::new(MockAvProcessor::success(b"unused")),
+            Arc::new(MockDeckProcessor::pages(2)),
+        ));
+        let media_svc = crate::resources::media::service::MediaServiceHandle::build(
+            db.clone(),
+            asset_svc.clone(),
+            processing.clone(),
+        );
+        let shell = media_svc
+            .create_for_user(
+                &ctx,
+                CreateMedia {
+                    owner: Some(fixture.shared_team_id.clone()),
+                    title: "Revise".into(),
+                    content: CreateMediaContent::SlideDeck,
+                },
+            )
+            .await
+            .unwrap();
+        let owner = parse_owner_record_id(&fixture.shared_team_id).unwrap();
+        let operation_id = uuid::Uuid::new_v4().to_string();
+        stage_bytes(
+            &asset_svc,
+            &shell.id,
+            owner,
+            &operation_id,
+            b"source",
+            MediaAssetKind::Image,
+        )
+        .await;
+        processing
+            .begin_after_upload(&shell.id, &operation_id, MediaAssetKind::Image, None)
+            .await
+            .unwrap();
+        let repo = SurrealMediaRepo::new(db.clone());
+        let draft = wait_for_draft_pages(&repo, &shell.id, 2).await;
+        let pending = draft.pending_revision.clone().unwrap();
+        let stale = processing
+            .commit_deck_for_user(
+                &ctx,
+                &shell.id,
+                CommitDeck {
+                    operation: "stale-op".into(),
+                    page_ids: pending.pages.iter().map(|p| p.id.clone()).collect(),
+                },
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(stale, AppError::InvalidRequest(_)));
+        let still_draft = repo.get_unscoped(&shell.id).await.unwrap();
+        assert_eq!(still_draft.status, MediaStatus::Processing);
+        assert!(still_draft.content.is_none());
+
+        let committed = processing
+            .commit_deck_for_user(
+                &ctx,
+                &shell.id,
+                CommitDeck {
+                    operation: pending.operation,
+                    page_ids: pending.pages.iter().map(|p| p.id.clone()).collect(),
+                },
+            )
+            .await
+            .unwrap();
+        let original_blobs: Vec<String> = match &committed.content {
+            Some(MediaContent::SlideDeck { pages }) => {
+                pages.iter().map(|p| p.blob_id.clone()).collect()
+            }
+            other => panic!("expected ready deck, got {other:?}"),
+        };
+
+        let revision = processing
+            .begin_deck_revision_for_user(&ctx, &shell.id)
+            .await
+            .unwrap();
+        let revision_pages = revision.pending_revision.clone().unwrap().pages;
+        assert_eq!(revision_pages.len(), 2);
+        assert_eq!(
+            revision_pages
+                .iter()
+                .map(|p| p.blob_id.clone())
+                .collect::<Vec<_>>(),
+            original_blobs
+        );
+        assert_ne!(revision_pages[0].id, original_blobs[0]);
+
+        let cancelled = processing
+            .cancel_pending_for_user(&ctx, &shell.id)
+            .await
+            .unwrap();
+        assert!(cancelled.pending_revision.is_none());
+        match cancelled.content {
+            Some(MediaContent::SlideDeck { pages }) => {
+                assert_eq!(
+                    pages.iter().map(|p| p.blob_id.clone()).collect::<Vec<_>>(),
+                    original_blobs
+                );
+            }
+            other => panic!("expected ready deck after cancel, got {other:?}"),
+        }
     }
 }

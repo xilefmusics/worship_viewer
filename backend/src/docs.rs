@@ -9,9 +9,9 @@ use shared::AboutResponse;
 use crate::resources::blob::PatchBlob;
 use crate::resources::collection::PatchCollection;
 use crate::resources::media::{
-    CreateMedia, CreateMediaContent, DeclaredMediaKind, DuplicateMedia, LivestreamType, Media,
-    MediaContent, MediaDeckPage, MediaPendingRevision, MediaProcessingError, MediaStatus,
-    UpdateMedia,
+    CommitDeck, CreateMedia, CreateMediaContent, DeclaredMediaKind, DuplicateMedia, LivestreamType,
+    Media, MediaContent, MediaDeckPage, MediaPendingRevision, MediaProcessingError,
+    MediaStagedDeckPage, MediaStatus, UpdateMedia,
 };
 use crate::resources::media_asset::{
     MediaAsset, MediaAssetKind, MediaAssetStatus, MediaUploadResponse,
@@ -188,6 +188,8 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::media::rest::duplicate_media,
         crate::resources::media::rest::delete_media,
         crate::resources::media::rest::cancel_media_processing,
+        crate::resources::media::rest::begin_deck_revision,
+        crate::resources::media::rest::commit_deck,
         crate::resources::media_asset::rest::upload_media_asset,
         crate::resources::media_asset::rest::get_media_asset_data,
         crate::resources::media_asset::rest::head_media_asset_data,
@@ -275,6 +277,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             MediaStatus,
             MediaContent,
             MediaDeckPage,
+            MediaStagedDeckPage,
             MediaPendingRevision,
             MediaProcessingError,
             DeclaredMediaKind,
@@ -283,6 +286,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             CreateMediaContent,
             UpdateMedia,
             DuplicateMedia,
+            CommitDeck,
             MediaAsset,
             MediaAssetKind,
             MediaAssetStatus,
@@ -416,6 +420,8 @@ mod tests {
             "/api/v1/media/{id}",
             "/api/v1/media/{id}/move",
             "/api/v1/media/{id}/duplicate",
+            "/api/v1/media/{id}/deck/commit",
+            "/api/v1/media/{id}/deck/revisions",
         ] {
             assert!(value["paths"].get(path).is_some(), "missing {path}");
         }

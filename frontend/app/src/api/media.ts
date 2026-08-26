@@ -82,6 +82,25 @@ export async function cancelMediaProcessing(queryClient: QueryClient, id: string
   return requireOk(queryClient, result, 'Could not cancel processing.')
 }
 
+export async function beginDeckRevision(queryClient: QueryClient, id: string) {
+  const result = await api.POST('/api/v1/media/{id}/deck/revisions', {
+    params: { path: { id } },
+  })
+  return requireOk(queryClient, result, 'Could not start deck editing.')
+}
+
+export async function commitDeck(
+  queryClient: QueryClient,
+  id: string,
+  body: { operation: string; page_ids: string[] },
+) {
+  const result = await api.POST('/api/v1/media/{id}/deck/commit', {
+    params: { path: { id } },
+    body,
+  })
+  return requireOk(queryClient, result, 'Could not save the slide deck.')
+}
+
 export async function moveMedia(queryClient: QueryClient, id: string, owner: string) {
   const result = await api.POST('/api/v1/media/{id}/move', {
     params: { path: { id } },

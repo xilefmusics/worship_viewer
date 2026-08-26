@@ -1,13 +1,14 @@
 import type { CreateMediaContent, Media } from '@/api/media'
 
 export type UrlMediaKind = 'youtube' | 'livestream' | 'web_page'
-export type UploadMediaKind = 'video' | 'audio'
+export type UploadMediaKind = 'video' | 'audio' | 'slide_deck'
 export type CreateMediaKind = UrlMediaKind | UploadMediaKind
-export type MediaDisplayKind = CreateMediaKind | 'slide_deck' | 'unknown'
+export type MediaDisplayKind = CreateMediaKind | 'unknown'
 export type MediaDisplayStatus = 'processing' | 'ready' | 'failed' | 'unknown'
+export type AssetUploadKind = 'video' | 'audio' | 'image' | 'pdf' | 'svg'
 
 const URL_KINDS = new Set<UrlMediaKind>(['youtube', 'livestream', 'web_page'])
-const UPLOAD_KINDS = new Set<UploadMediaKind>(['video', 'audio'])
+const UPLOAD_KINDS = new Set<UploadMediaKind>(['video', 'audio', 'slide_deck'])
 
 export function isUrlMediaKind(value: string): value is UrlMediaKind {
   return URL_KINDS.has(value as UrlMediaKind)
@@ -34,6 +35,7 @@ export function mediaDisplayKind(media: Media): MediaDisplayKind {
     default:
       if (media.declared_kind === 'video') return 'video'
       if (media.declared_kind === 'audio') return 'audio'
+      if (media.declared_kind === 'slide_deck') return 'slide_deck'
       return 'unknown'
   }
 }
@@ -50,14 +52,15 @@ export function mediaDisplayStatus(media: Media): MediaDisplayStatus {
 }
 
 export function isProcessingActive(media: Media): boolean {
-  return (
-    media.status === 'processing' ||
-    media.pending_revision?.status === 'processing'
-  )
+  if (media.pending_revision?.status === 'processing') return true
+  if (media.status !== 'processing') return false
+  const draftPages = media.pending_revision?.pages?.length ?? 0
+  if (media.pending_revision?.status === 'ready' && draftPages > 0) return false
+  return true
 }
 
 export function isUploadedDisplayKind(kind: MediaDisplayKind): boolean {
-  return kind === 'video' || kind === 'audio'
+  return kind === 'video' || kind === 'audio' || kind === 'slide_deck'
 }
 
 export function isReadyUploaded(media: Media): boolean {
@@ -104,6 +107,19 @@ export function isValidUrlMediaInput(kind: UrlMediaKind, rawUrl: string): boolea
   } catch {
     return false
   }
+}
+
+export function sniffAssetUploadKind(file: { type?: string; name?: string }): AssetUploadKind | null {
+  const type = (file.type ?? '').toLowerCase()
+  const name = (file.name ?? '').toLowerCase()
+  if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf'
+  if (type === 'image/svg+xml' || name.endsWith('.svg')) return 'svg'
+  if (type === 'image/png' || type === 'image/jpeg' || type === 'image/jpg' || name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) {
+    return 'image'
+  }
+  if (type.startsWith('video/')) return 'video'
+  if (type.startsWith('audio/')) return 'audio'
+  return null
 }
 
 export function formatMediaDuration(durationMs: number): string {

@@ -99,6 +99,7 @@ fn parse_status(value: &str) -> Result<MediaStatus, AppError> {
 
 fn declared_kind_string(kind: DeclaredMediaKind) -> String {
     match kind {
+        DeclaredMediaKind::SlideDeck => "slide_deck".into(),
         DeclaredMediaKind::Video => "video".into(),
         DeclaredMediaKind::Audio => "audio".into(),
     }
@@ -106,6 +107,7 @@ fn declared_kind_string(kind: DeclaredMediaKind) -> String {
 
 fn parse_declared_kind(value: &str) -> Result<DeclaredMediaKind, AppError> {
     match value {
+        "slide_deck" => Ok(DeclaredMediaKind::SlideDeck),
         "video" => Ok(DeclaredMediaKind::Video),
         "audio" => Ok(DeclaredMediaKind::Audio),
         _ => Err(AppError::Internal("invalid persisted declared_kind".into())),

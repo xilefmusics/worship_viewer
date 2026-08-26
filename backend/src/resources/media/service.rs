@@ -227,11 +227,28 @@ impl<R: MediaRepository> MediaService<R> {
     ) -> Result<Media, AppError> {
         self.processing.cancel_pending_for_user(ctx, id).await
     }
+
+    pub async fn begin_deck_revision_for_user(
+        &self,
+        ctx: &AuthorizationContext,
+        id: &str,
+    ) -> Result<Media, AppError> {
+        self.processing.begin_deck_revision_for_user(ctx, id).await
+    }
+
+    pub async fn commit_deck_for_user(
+        &self,
+        ctx: &AuthorizationContext,
+        id: &str,
+        payload: shared::media::CommitDeck,
+    ) -> Result<Media, AppError> {
+        self.processing.commit_deck_for_user(ctx, id, payload).await
+    }
 }
 
 fn create_write(title: String, content: CreateMediaContent) -> Result<MediaWrite, AppError> {
     match content {
-        CreateMediaContent::Video | CreateMediaContent::Audio => {
+        CreateMediaContent::Video | CreateMediaContent::Audio | CreateMediaContent::SlideDeck => {
             processing_shell_write(title, content)
         }
         _ => ready_write(title, content),
@@ -269,6 +286,7 @@ fn processing_shell_write(
     let declared_kind = match content {
         CreateMediaContent::Video => DeclaredMediaKind::Video,
         CreateMediaContent::Audio => DeclaredMediaKind::Audio,
+        CreateMediaContent::SlideDeck => DeclaredMediaKind::SlideDeck,
         _ => return Err(AppError::invalid_request("invalid upload create content")),
     };
     Ok(MediaWrite {
@@ -282,18 +300,26 @@ fn processing_shell_write(
 
 fn is_ready_uploaded(media: &Media) -> bool {
     media.status == MediaStatus::Ready
-        && media
-            .content
-            .as_ref()
-            .is_some_and(|c| matches!(c, MediaContent::Video { .. } | MediaContent::Audio { .. }))
+        && media.content.as_ref().is_some_and(|c| {
+            matches!(
+                c,
+                MediaContent::Video { .. }
+                    | MediaContent::Audio { .. }
+                    | MediaContent::SlideDeck { .. }
+            )
+        })
 }
 
 fn is_uploaded_shell(media: &Media) -> bool {
     media.declared_kind.is_some()
-        || media
-            .content
-            .as_ref()
-            .is_some_and(|c| matches!(c, MediaContent::Video { .. } | MediaContent::Audio { .. }))
+        || media.content.as_ref().is_some_and(|c| {
+            matches!(
+                c,
+                MediaContent::Video { .. }
+                    | MediaContent::Audio { .. }
+                    | MediaContent::SlideDeck { .. }
+            )
+        })
 }
 
 fn ready_write(title: String, content: CreateMediaContent) -> Result<MediaWrite, AppError> {
@@ -316,9 +342,11 @@ fn checked_title(title: String) -> Result<String, AppError> {
 
 pub(crate) fn normalize_content(value: CreateMediaContent) -> Result<MediaContent, AppError> {
     match value {
-        CreateMediaContent::Video | CreateMediaContent::Audio => Err(AppError::invalid_request(
-            "uploaded content cannot be set directly",
-        )),
+        CreateMediaContent::Video | CreateMediaContent::Audio | CreateMediaContent::SlideDeck => {
+            Err(AppError::invalid_request(
+                "uploaded content cannot be set directly",
+            ))
+        }
         CreateMediaContent::YouTube { url } => normalize_youtube(&url),
         CreateMediaContent::Livestream { url } => {
             let url = normalize_https_url(&url)?;

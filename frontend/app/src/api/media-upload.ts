@@ -1,14 +1,16 @@
 import { parseProblemResponse } from '@/api/problem'
 
-export type UploadMediaKind = 'video' | 'audio'
+export type UploadMediaKind = 'video' | 'audio' | 'image' | 'pdf' | 'svg'
 
 function apiBase(): string {
   return (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 }
 
-function uploadUrl(mediaId: string, kind: UploadMediaKind): string {
+function uploadUrl(mediaId: string, kind: UploadMediaKind, replacePage?: string): string {
   const base = apiBase()
-  const path = `/api/v1/media/${encodeURIComponent(mediaId)}/uploads?kind=${kind}`
+  const params = new URLSearchParams({ kind })
+  if (replacePage) params.set('replace_page', replacePage)
+  const path = `/api/v1/media/${encodeURIComponent(mediaId)}/uploads?${params.toString()}`
   return base ? `${base}${path}` : path
 }
 
@@ -24,12 +26,13 @@ export async function uploadMediaSource(args: {
   mediaId: string
   kind: UploadMediaKind
   file: Blob
+  replacePage?: string
   onProgress?: (ratio: number) => void
   signal?: AbortSignal
 }): Promise<MediaUploadResult> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    xhr.open('PUT', uploadUrl(args.mediaId, args.kind))
+    xhr.open('PUT', uploadUrl(args.mediaId, args.kind, args.replacePage))
     xhr.withCredentials = true
     xhr.responseType = 'text'
     xhr.setRequestHeader('Content-Type', args.file.type || 'application/octet-stream')

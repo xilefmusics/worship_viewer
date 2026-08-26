@@ -8,14 +8,9 @@ import { createMedia, mediaListRootKey } from '@/api/media'
 import { MediaFields } from '@/components/media/MediaFields'
 import { Button } from '@/components/ui/button'
 import { useWritableTeams } from '@/hooks/useWritableTeams'
-import {
-  isCreateMediaKind,
-  isUploadMediaKind,
-  isValidUrlMediaInput,
-  type CreateMediaKind,
-  uploadCreateContent,
-  urlContent,
-} from '@/lib/media-display'
+import { sniffAssetUploadKind, isCreateMediaKind, isUploadMediaKind, isValidUrlMediaInput, type CreateMediaKind, uploadCreateContent, urlContent } from '@/lib/media-display'
+
+// Flow: M1 — create a slide deck from mixed PNG/JPEG/SVG/PDF files
 
 export function CreateMediaDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (id: string) => void }) {
   const { t } = useTranslation()
@@ -26,6 +21,7 @@ export function CreateMediaDialog({ open, onOpenChange, onCreated }: { open: boo
   const [url, setUrl] = useState('')
   const [owner, setOwner] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [error, setError] = useState('')
 
@@ -39,6 +35,29 @@ export function CreateMediaDialog({ open, onOpenChange, onCreated }: { open: boo
       if (!title.trim()) throw new Error(t('media.validation.titleRequired'))
       if (!owner) throw new Error(t('media.validation.noWritableTeam'))
       if (isUploadMediaKind(kind)) {
+        if (kind === 'slide_deck') {
+          if (files.length === 0) throw new Error(t('media.validation.fileRequired'))
+          const created = await createMedia(queryClient, {
+            title: title.trim(),
+            owner,
+            content: uploadCreateContent(kind),
+          })
+          setUploadProgress(0)
+          for (let index = 0; index < files.length; index += 1) {
+            const next = files[index]
+            const sniff = sniffAssetUploadKind(next)
+            if (sniff !== 'image' && sniff !== 'pdf' && sniff !== 'svg') {
+              throw new Error(t('media.validation.deckFileType'))
+            }
+            await uploadMediaSource({
+              mediaId: created.id,
+              kind: sniff,
+              file: next,
+              onProgress: (ratio) => setUploadProgress((index + ratio) / files.length),
+            })
+          }
+          return created
+        }
         if (!file) throw new Error(t('media.validation.fileRequired'))
         const created = await createMedia(queryClient, {
           title: title.trim(),
@@ -82,6 +101,7 @@ export function CreateMediaDialog({ open, onOpenChange, onCreated }: { open: boo
       setUrl('')
       setOwner('')
       setFile(null)
+      setFiles([])
       setUploadProgress(null)
       setError('')
     }
@@ -108,7 +128,7 @@ export function CreateMediaDialog({ open, onOpenChange, onCreated }: { open: boo
             userId={user?.id}
             showTeam={teams.length > 1}
             disabled={busy}
-            uploadFileName={file?.name}
+            uploadFileName={kind === 'slide_deck' ? files.map((item) => item.name).join(', ') : file?.name}
             onTitleChange={setTitle}
             onKindChange={(value) => {
               if (isCreateMediaKind(value)) setKind(value)
@@ -116,6 +136,7 @@ export function CreateMediaDialog({ open, onOpenChange, onCreated }: { open: boo
             onUrlChange={setUrl}
             onOwnerChange={setOwner}
             onFileChange={setFile}
+            onFilesChange={setFiles}
           />
           {uploading ? (
             <div role="status" className="grid gap-1">

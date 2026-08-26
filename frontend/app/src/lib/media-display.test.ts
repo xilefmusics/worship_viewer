@@ -10,6 +10,7 @@ import {
   mediaCanonicalUrl,
   mediaDisplayKind,
   mediaDisplayStatus,
+  sniffAssetUploadKind,
   urlContent,
 } from '@/lib/media-display'
 
@@ -27,6 +28,31 @@ describe('media display helpers', () => {
   it('uses declared_kind when content is absent', () => {
     expect(mediaDisplayKind(media({ status: 'processing', content: undefined, declared_kind: 'video' }))).toBe('video')
     expect(mediaDisplayKind(media({ status: 'processing', content: undefined, declared_kind: 'audio' }))).toBe('audio')
+    expect(mediaDisplayKind(media({ status: 'processing', content: undefined, declared_kind: 'slide_deck' }))).toBe('slide_deck')
+  })
+
+  it('treats a draft-idle slide deck as not actively processing', () => {
+    const idleDraft = media({
+      status: 'processing',
+      declared_kind: 'slide_deck',
+      pending_revision: {
+        operation: 'rev1',
+        status: 'ready',
+        pages: [{ id: 'p1', blob_id: 'b1' }],
+      },
+    })
+    expect(isProcessingActive(idleDraft)).toBe(false)
+    expect(isReadyUploaded(media({
+      status: 'ready',
+      content: { type: 'slide_deck', pages: [{ blob_id: 'b1' }] },
+    }))).toBe(true)
+  })
+
+  it('sniffs deck upload kinds from type and filename', () => {
+    expect(sniffAssetUploadKind({ type: 'application/pdf', name: 'x.bin' })).toBe('pdf')
+    expect(sniffAssetUploadKind({ type: '', name: 'chart.svg' })).toBe('svg')
+    expect(sniffAssetUploadKind({ type: 'image/png', name: 'a.png' })).toBe('image')
+    expect(sniffAssetUploadKind({ type: 'text/plain', name: 'notes.txt' })).toBeNull()
   })
 
   it('detects processing and replacement lifecycle states', () => {

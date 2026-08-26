@@ -245,6 +245,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/{id}/deck/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["commit_deck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/{id}/deck/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["begin_deck_revision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/{id}/duplicate": {
         parameters: {
             query?: never;
@@ -1107,6 +1139,11 @@ export interface components {
             songs: components["schemas"]["SongLink"][];
             title: string;
         };
+        /** @description Finalize a staged slide-deck revision in the operator-selected order. */
+        CommitDeck: {
+            operation: string;
+            page_ids: string[];
+        };
         /**
          * @example {
          *       "file_type": "image/png",
@@ -1159,6 +1196,9 @@ export interface components {
          *     [`MediaContent`] but cannot be fabricated through this request.
          */
         CreateMediaContent: {
+            /** @enum {string} */
+            type: "slide_deck";
+        } | {
             /** @enum {string} */
             type: "video";
         } | {
@@ -1254,7 +1294,7 @@ export interface components {
          * @description Upload kind declared at create time before active content exists.
          * @enum {string}
          */
-        DeclaredMediaKind: "video" | "audio";
+        DeclaredMediaKind: "slide_deck" | "video" | "audio";
         DuplicateMedia: {
             /** @description Destination team. Omit to keep the source owner. */
             owner?: string | null;
@@ -1414,6 +1454,8 @@ export interface components {
         /** @description A content replacement that has not yet replaced active Ready content. */
         MediaPendingRevision: {
             operation: string;
+            /** @description Draft slide-deck pages. Empty for audio/video revisions. */
+            pages?: components["schemas"]["MediaStagedDeckPage"][];
             processing_error?: null | components["schemas"]["MediaProcessingError"];
             status: components["schemas"]["MediaStatus"];
         };
@@ -1421,6 +1463,11 @@ export interface components {
         MediaProcessingError: {
             code: string;
             detail: string;
+        };
+        /** @description A page in a staged (not yet committed) slide-deck revision. */
+        MediaStagedDeckPage: {
+            blob_id: string;
+            id: string;
         };
         /**
          * @description Processing state for a media resource or a pending content revision.
@@ -4032,6 +4079,90 @@ export interface operations {
             };
         };
     };
+    commit_deck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitDeck"];
+            };
+        };
+        responses: {
+            /** @description Commit the staged slide-deck revision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Media"];
+                };
+            };
+            /** @description Empty, stale, or still-processing revision */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Media absent or concealed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    begin_deck_revision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Begin or return the current staged slide-deck revision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Media"];
+                };
+            };
+            /** @description Media is not a ready slide deck */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Media absent or concealed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     duplicate_media: {
         parameters: {
             query?: never;
@@ -4253,6 +4384,8 @@ export interface operations {
             query: {
                 /** @description Source kind: video, audio, image, pdf, or svg */
                 kind: string;
+                /** @description Existing staged/ready deck page id to replace */
+                replace_page?: string;
             };
             header?: never;
             path: {

@@ -31,6 +31,7 @@ Cross-cutting rules used throughout:
 - [J. Settings & preferences](#j-settings--preferences)
 - [K. Sessions](#k-sessions)
 - [L. Hub lists: search, browse, export, duplicate, delete](#l-hub-lists)
+- [M. Media — slide decks](#m-media--slide-decks)
 
 ---
 
@@ -822,3 +823,78 @@ flowchart LR
 ```
 
 All room surfaces show reconnecting without discarding their last snapshot. Player Room discovery is loaded only after navigating to the Player Rooms hub; unrelated legacy hub pages do not poll or prefetch room data. An ended room is terminal and public failures do not reveal team or source data.
+
+---
+
+## M. Media — slide decks
+
+### M1. Create a slide deck from mixed files
+
+```mermaid
+flowchart TD
+    fab(["Media + Add media"]) --> dlg["Kind = Slide deck · multi-file PNG/JPEG/SVG/PDF"]
+    dlg -->|No files| guard["'Choose a file to upload.'"]
+    dlg -->|Wrong type| type["'Choose PNG, JPEG, SVG, or PDF files.'"]
+    dlg -->|Valid| create["POST media type=slide_deck → sequential PUT uploads"]
+    create --> editor["Open editor · poll while expanding"]
+```
+
+### M2. Preview and edit draft pages
+
+```mermaid
+flowchart TD
+    editor(["/media/:id slide deck"]) --> src{Page source}
+    src -->|pending_revision.pages| draft["Draft pages"]
+    src -->|Ready content.pages| live["Live pages (immutable until commit)"]
+    draft --> prev["Preview: img for PNG/JPEG/SVG · pdf.js canvas for PDF"]
+    live --> prev
+    prev --> acts{Action}
+    acts -->|Add| add["Upload more sources · append to revision"]
+    acts -->|Replace| rep["PUT uploads?replace_page=id"]
+    acts -->|Remove| rm["Omit from local order until Save"]
+    acts -->|Processing| wait["Save disabled · Cancel processing"]
+    acts -->|Replacement failed| keep["Banner: previous Ready deck still active"]
+```
+
+### M3. Reorder slide pages
+
+```mermaid
+flowchart TD
+    list(["Page list"]) --> ptr["Pointer / touch drag"]
+    list --> keys["Keyboard: Space, arrows, Space"]
+    ptr --> local["Local order with stable page ids"]
+    keys --> local
+    local --> save["Save sends that order"]
+```
+
+### M4. Commit a slide deck to Ready
+
+```mermaid
+flowchart TD
+    save(["Save"]) --> pending{Pending revision?}
+    pending -->|No Ready deck| begin["POST /deck/revisions copies live pages"]
+    pending -->|Yes| commit["POST /deck/commit {operation, page_ids}"]
+    begin --> commit
+    commit -->|OK| ready["status=ready content.slide_deck"]
+    commit -->|Stale / empty / in-flight| err["Keep current Ready or draft · surface error"]
+```
+
+### M5. Empty-guard before save
+
+```mermaid
+flowchart TD
+    editor(["Deck editor"]) --> pages{Pages?}
+    pages -->|0 or still processing| dis["Save disabled"]
+    pages -->|≥1 idle| en["Save enabled"]
+    dis --> hint["'Add at least one page before saving.'"]
+```
+
+### M6. Failed replacement keeps the Ready deck
+
+```mermaid
+flowchart TD
+    ready(["Ready deck"]) --> up["Add / replace source"]
+    up -->|Fails| banner["Replacement failed banner"]
+    banner --> keep["Live content.pages unchanged"]
+    keep --> retry["Retry from byte zero"]
+```

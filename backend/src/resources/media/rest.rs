@@ -6,7 +6,7 @@ use actix_web::{
 
 use shared::MoveOwner;
 use shared::api::{ListQuery, PAGE_SIZE_DEFAULT};
-use shared::media::{CreateMedia, DuplicateMedia, Media, UpdateMedia};
+use shared::media::{CommitDeck, CreateMedia, DuplicateMedia, Media, UpdateMedia};
 
 use crate::auth::AuthorizationContext;
 use crate::docs::Problem;
@@ -27,6 +27,8 @@ pub fn scope(asset_upload_limits: MediaAssetUploadLimits) -> Scope {
         .service(duplicate_media)
         .service(delete_media)
         .service(cancel_media_processing)
+        .service(commit_deck)
+        .service(begin_deck_revision)
         .service(crate::resources::media_asset::rest::get_media_asset_data)
         .service(crate::resources::media_asset::rest::head_media_asset_data)
         .service(crate::resources::media_asset::rest::upload_scope(
@@ -214,6 +216,56 @@ pub async fn cancel_media_processing(
 ) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(
         svc.cancel_processing_for_user(&ctx, &id.into_inner())
+            .await?,
+    ))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/media/{id}/deck/revisions",
+    params(("id" = String, Path)),
+    responses(
+        (status = 200, description = "Begin or return the current staged slide-deck revision", body = Media),
+        (status = 400, description = "Media is not a ready slide deck", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Media absent or concealed", body = Problem, content_type = "application/problem+json")
+    ),
+    tag = "Media",
+    security(("SessionCookie" = []), ("SessionToken" = []))
+)]
+#[post("/{id}/deck/revisions")]
+pub async fn begin_deck_revision(
+    svc: Data<MediaServiceHandle>,
+    ctx: ReqData<AuthorizationContext>,
+    id: Path<String>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(
+        svc.begin_deck_revision_for_user(&ctx, &id.into_inner())
+            .await?,
+    ))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/media/{id}/deck/commit",
+    params(("id" = String, Path)),
+    request_body = CommitDeck,
+    responses(
+        (status = 200, description = "Commit the staged slide-deck revision", body = Media),
+        (status = 400, description = "Empty, stale, or still-processing revision", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Media absent or concealed", body = Problem, content_type = "application/problem+json")
+    ),
+    tag = "Media",
+    security(("SessionCookie" = []), ("SessionToken" = []))
+)]
+#[post("/{id}/deck/commit")]
+pub async fn commit_deck(
+    svc: Data<MediaServiceHandle>,
+    ctx: ReqData<AuthorizationContext>,
+    id: Path<String>,
+    payload: Json<CommitDeck>,
+) -> Result<HttpResponse, AppError> {
+    Ok(HttpResponse::Ok().json(
+        svc.commit_deck_for_user(&ctx, &id.into_inner(), payload.into_inner())
             .await?,
     ))
 }

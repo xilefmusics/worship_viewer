@@ -1171,7 +1171,8 @@
       },
       "file": {
         "video": "Video file",
-        "audio": "Audio file"
+        "audio": "Audio file",
+        "slide_deck": "PNG, JPEG, SVG, or PDF files"
       }
     },
     "list": {
@@ -1187,7 +1188,7 @@
     },
     "create": {
       "title": "Add media",
-      "description": "Add a reusable YouTube video, livestream, web page, or upload audio or video."
+      "description": "Add a reusable YouTube video, livestream, web page, slide deck, or upload audio or video."
     },
     "editor": {
       "backToList": "Back to media",
@@ -1204,6 +1205,16 @@
       "replacementProcessingBody": "A new version is processing. Your current content stays available until it finishes.",
       "metadataVideo": "Duration {{duration}} · {{width}}×{{height}}",
       "metadataAudio": "Duration {{duration}}"
+    },
+    "deck": {
+      "addPages": "Add pages",
+      "empty": "Add at least one page before saving.",
+      "emptyGuard": "A slide deck needs at least one page.",
+      "listAria": "Slide pages",
+      "pageLabel": "Page {{number}}",
+      "reorderHandle": "Reorder page {{number}}",
+      "replacePage": "Replace page",
+      "removePage": "Remove page"
     },
     "upload": {
       "progress": "Uploading… {{percent}}%",
@@ -1250,7 +1261,8 @@
       "noWritableTeam": "You need edit access to a team before you can add media.",
       "destinationRequired": "Choose a destination team.",
       "notEditable": "This media item cannot be edited.",
-      "fileRequired": "Choose a file to upload."
+      "fileRequired": "Choose a file to upload.",
+      "deckFileType": "Choose PNG, JPEG, SVG, or PDF files."
     }
   },
   "sessions": {

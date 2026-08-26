@@ -12,9 +12,9 @@ const appRoot = path.resolve(__dirname, '..')
 const repoRoot = path.resolve(appRoot, '../..')
 const flowsDoc = path.join(repoRoot, 'docs/architecture/frontend-user-flows.md')
 
-const FLOW_HEADING = /^### ([A-L]\d+)\./gm
-const FLOW_COMMENT = /\/\/ Flow:\s*([A-L]\d+(?:\s*,\s*[A-L]\d+)*)/g
-const FLOW_TITLE = /(?:test|it)\(\s*['"`]([A-L]\d+)(?:\+[A-L]\d+)?[:]/g
+const FLOW_HEADING = /^### ([A-M]\d+)\./gm
+const FLOW_COMMENT = /\/\/ Flow:\s*([A-M]\d+(?:\s*,\s*[A-M]\d+)*)/g
+const FLOW_TITLE = /(?:test|it)\(\s*['"`]([A-M]\d+)(?:\+[A-M]\d+)?[:]/g
 
 /** @param {string} dir @param {string[]} acc */
 function readAllFiles(dir, acc = []) {

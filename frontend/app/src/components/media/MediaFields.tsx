@@ -22,6 +22,7 @@ export function MediaFields({
   onUrlChange,
   onOwnerChange,
   onFileChange,
+  onFilesChange,
 }: {
   title: string
   kind: CreateMediaKind
@@ -37,6 +38,7 @@ export function MediaFields({
   onUrlChange: (value: string) => void
   onOwnerChange: (value: string) => void
   onFileChange?: (file: File | null) => void
+  onFilesChange?: (files: File[]) => void
 }) {
   const { t } = useTranslation()
   const uploadKind = isUploadMediaKind(kind)
@@ -54,6 +56,7 @@ export function MediaFields({
             <SelectItem value="youtube">{t('media.kinds.youtube')}</SelectItem>
             <SelectItem value="livestream">{t('media.kinds.livestream')}</SelectItem>
             <SelectItem value="web_page">{t('media.kinds.web_page')}</SelectItem>
+            <SelectItem value="slide_deck">{t('media.kinds.slide_deck')}</SelectItem>
             <SelectItem value="video">{t('media.kinds.video')}</SelectItem>
             <SelectItem value="audio">{t('media.kinds.audio')}</SelectItem>
           </SelectContent>
@@ -65,9 +68,14 @@ export function MediaFields({
           <Input
             id="media-file"
             type="file"
-            accept={kind === 'video' ? 'video/*,audio/*' : 'audio/*,video/*'}
+            accept={kind === 'slide_deck' ? 'image/png,image/jpeg,image/svg+xml,application/pdf,.png,.jpg,.jpeg,.svg,.pdf' : kind === 'video' ? 'video/*,audio/*' : 'audio/*,video/*'}
+            multiple={kind === 'slide_deck'}
             disabled={disabled}
-            onChange={(event) => onFileChange?.(event.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              const files = [...(event.target.files ?? [])]
+              onFilesChange?.(files)
+              onFileChange?.(files[0] ?? null)
+            }}
           />
           {uploadFileName ? <p className="text-sm text-[var(--color-muted-foreground)]">{uploadFileName}</p> : null}
         </div>

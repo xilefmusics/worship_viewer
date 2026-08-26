@@ -98,6 +98,12 @@ pub struct Settings {
     /// PDF info tool executable path. Default: `pdfinfo`.
     #[serde(default = "default_pdfinfo_path")]
     pub pdfinfo_path: String,
+    /// PDF split tool executable path. Default: `pdfseparate`.
+    #[serde(default = "default_pdfseparate_path")]
+    pub pdfseparate_path: String,
+    /// Maximum resulting pages in a slide deck. Default: 500.
+    #[serde(default = "default_media_deck_max_pages")]
+    pub media_deck_max_pages: u32,
     /// Delete abandoned staging files older than this (seconds). Default: 86400.
     #[serde(default = "default_media_staging_max_age_seconds")]
     pub media_staging_max_age_seconds: u64,
@@ -189,6 +195,8 @@ impl fmt::Debug for Settings {
             .field("ffmpeg_path", &self.ffmpeg_path)
             .field("ffprobe_path", &self.ffprobe_path)
             .field("pdfinfo_path", &self.pdfinfo_path)
+            .field("pdfseparate_path", &self.pdfseparate_path)
+            .field("media_deck_max_pages", &self.media_deck_max_pages)
             .field(
                 "media_staging_max_age_seconds",
                 &self.media_staging_max_age_seconds,
@@ -250,6 +258,8 @@ impl Default for Settings {
             ffmpeg_path: default_ffmpeg_path(),
             ffprobe_path: default_ffprobe_path(),
             pdfinfo_path: default_pdfinfo_path(),
+            pdfseparate_path: default_pdfseparate_path(),
+            media_deck_max_pages: default_media_deck_max_pages(),
             media_staging_max_age_seconds: default_media_staging_max_age_seconds(),
             media_reconciliation_interval_seconds: default_media_reconciliation_interval_seconds(),
             auth_rate_limit_rps: 1,
@@ -312,6 +322,14 @@ fn default_ffprobe_path() -> String {
 
 fn default_pdfinfo_path() -> String {
     "pdfinfo".into()
+}
+
+fn default_pdfseparate_path() -> String {
+    "pdfseparate".into()
+}
+
+fn default_media_deck_max_pages() -> u32 {
+    500
 }
 
 fn default_media_staging_max_age_seconds() -> u64 {

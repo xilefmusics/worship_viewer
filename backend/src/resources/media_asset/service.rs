@@ -44,6 +44,8 @@ pub struct MediaAssetSettings {
     pub ffmpeg_path: String,
     pub ffprobe_path: String,
     pub pdfinfo_path: String,
+    pub pdfseparate_path: String,
+    pub deck_max_pages: u32,
 }
 
 impl MediaAssetSettings {
@@ -61,6 +63,8 @@ impl MediaAssetSettings {
             ffmpeg_path: settings.ffmpeg_path.clone(),
             ffprobe_path: settings.ffprobe_path.clone(),
             pdfinfo_path: settings.pdfinfo_path.clone(),
+            pdfseparate_path: settings.pdfseparate_path.clone(),
+            deck_max_pages: settings.media_deck_max_pages,
         }
     }
 
@@ -103,6 +107,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
             ("ffmpeg", self.settings.ffmpeg_path.as_str()),
             ("ffprobe", self.settings.ffprobe_path.as_str()),
             ("pdfinfo", self.settings.pdfinfo_path.as_str()),
+            ("pdfseparate", self.settings.pdfseparate_path.as_str()),
         ] {
             check_tool_version(&[path, "--version"])
                 .await
@@ -322,7 +327,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
 
     pub async fn duplicate_uploaded_content(
         &self,
-        _source_media_id: &str,
+        source_media_id: &str,
         dest_media_id: &str,
         content: &shared::media::MediaContent,
         owner: RecordId,
@@ -392,6 +397,39 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                     blob_id: new_id,
                     duration_ms: *duration_ms,
                 })
+            }
+            MediaContent::SlideDeck { pages } => {
+                let sources = self.repo.list_assets_for_media(source_media_id).await?;
+                let mut copied = Vec::with_capacity(pages.len());
+                for page in pages {
+                    let new_id = uuid::Uuid::new_v4().to_string();
+                    self.storage
+                        .copy_final_file(&page.blob_id, &new_id)
+                        .map_err(|e| AppError::Internal(e.to_string()))?;
+                    let bytes = std::fs::read(self.final_file_path(&new_id))
+                        .map_err(|e| AppError::internal_from_err("media.duplicate.read", e))?;
+                    let etag = crate::http_range::etag_from_file_bytes(&bytes);
+                    let source_asset = sources.iter().find(|a| a.id == page.blob_id);
+                    let (kind, content_type) = source_asset
+                        .map(|a| (a.kind, a.content_type.clone()))
+                        .unwrap_or((MediaAssetKind::Image, "application/octet-stream".into()));
+                    let media_rid = RecordId::new("media", dest_media_id.to_owned());
+                    self.repo
+                        .create_final(
+                            &new_id,
+                            CreateFinalAsset {
+                                owner: owner.clone(),
+                                media_id: media_rid,
+                                kind,
+                                content_type,
+                                byte_length: bytes.len() as u64,
+                                etag,
+                            },
+                        )
+                        .await?;
+                    copied.push(shared::media::MediaDeckPage { blob_id: new_id });
+                }
+                Ok(MediaContent::SlideDeck { pages: copied })
             }
             _ => Ok(content.clone()),
         }

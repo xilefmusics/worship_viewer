@@ -19,6 +19,8 @@ use super::service::MediaAssetServiceHandle;
 #[derive(serde::Deserialize)]
 struct UploadQuery {
     kind: String,
+    #[serde(default)]
+    replace_page: Option<String>,
 }
 
 pub fn upload_scope(limits: MediaAssetUploadLimits) -> Scope {
@@ -32,7 +34,8 @@ pub fn upload_scope(limits: MediaAssetUploadLimits) -> Scope {
     path = "/api/v1/media/{media_id}/uploads",
     params(
         ("media_id" = String, Path, description = "Media identifier"),
-        ("kind" = String, Query, description = "Source kind: video, audio, image, pdf, or svg")
+        ("kind" = String, Query, description = "Source kind: video, audio, image, pdf, or svg"),
+        ("replace_page" = Option<String>, Query, description = "Existing staged/ready deck page id to replace")
     ),
     request_body(
         content = Vec<u8>,
@@ -62,6 +65,7 @@ async fn upload_media_asset(
 ) -> Result<HttpResponse, AppError> {
     let kind = MediaAssetKind::parse(&query.kind)
         .ok_or_else(|| AppError::invalid_request("invalid media asset kind"))?;
+    let replace_page = query.replace_page.clone();
     let content_type = req
         .headers()
         .get(header::CONTENT_TYPE)
@@ -76,9 +80,16 @@ async fn upload_media_asset(
     let body = svc
         .upload_staging_for_user(&ctx, &media_id, kind, content_type, content_length, payload)
         .await?;
-    if matches!(kind, MediaAssetKind::Video | MediaAssetKind::Audio) {
+    if matches!(
+        kind,
+        MediaAssetKind::Video
+            | MediaAssetKind::Audio
+            | MediaAssetKind::Image
+            | MediaAssetKind::Pdf
+            | MediaAssetKind::Svg
+    ) {
         processing
-            .begin_after_upload(&media_id, &body.operation_id, kind)
+            .begin_after_upload(&media_id, &body.operation_id, kind, replace_page)
             .await?;
     }
     Ok(HttpResponse::Ok().json(body))
