@@ -429,4 +429,33 @@ mod tests {
             .check()
             .expect("media table must exist after forward migration");
     }
+
+    #[tokio::test]
+    async fn media_asset_migration_applies_on_supported_forward_path() {
+        let address = format!("mem://{}", uuid::Uuid::new_v4());
+        let db = Database::connect(&address, "test", "test", None, None)
+            .await
+            .expect("connect");
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/db-migrations");
+        db.migrate(path).await.expect("baseline migrate");
+
+        db.db
+            .query(
+                "REMOVE TABLE media_asset; DELETE migration_script WHERE script_name = '20260826140000_define_media_asset.surql';",
+            )
+            .await
+            .expect("simulate pre-media-asset schema")
+            .check()
+            .expect("remove media_asset migration state");
+
+        db.migrate(path)
+            .await
+            .expect("forward media_asset migration");
+        db.db
+            .query("INFO FOR TABLE media_asset;")
+            .await
+            .expect("media_asset table info query")
+            .check()
+            .expect("media_asset table must exist after forward migration");
+    }
 }

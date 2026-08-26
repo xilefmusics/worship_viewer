@@ -29,6 +29,8 @@ pub enum AppError {
     NotAcceptable(String),
     #[error("precondition failed")]
     PreconditionFailed,
+    #[error("payload too large")]
+    PayloadTooLarge,
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -125,6 +127,10 @@ impl AppError {
         Self::PreconditionFailed
     }
 
+    pub fn payload_too_large() -> Self {
+        Self::PayloadTooLarge
+    }
+
     /// Log full error chain at an I/O boundary, then return [`Internal`](Self::Internal).
     pub fn internal_from_err<E: std::error::Error + 'static>(target: &'static str, err: E) -> Self {
         observability::log_error_chain(target, &err);
@@ -209,6 +215,7 @@ impl AppError {
             AppError::TooManyRequests(_) => "too_many_requests",
             AppError::NotAcceptable(_) => "not_acceptable",
             AppError::PreconditionFailed => "precondition_failed",
+            AppError::PayloadTooLarge => "payload_too_large",
             AppError::Internal(_) => "internal",
         }
     }
@@ -242,6 +249,7 @@ fn http_status_title(status: u16) -> &'static str {
         409 => "Conflict",
         429 => "Too Many Requests",
         412 => "Precondition Failed",
+        413 => "Payload Too Large",
         500 => "Internal Server Error",
         _ => "Error",
     }
@@ -260,6 +268,7 @@ impl ResponseError for AppError {
             AppError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             AppError::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
             AppError::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
+            AppError::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

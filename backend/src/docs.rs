@@ -12,6 +12,9 @@ use crate::resources::media::{
     CreateMedia, CreateMediaContent, DuplicateMedia, LivestreamType, Media, MediaContent,
     MediaDeckPage, MediaPendingRevision, MediaProcessingError, MediaStatus, UpdateMedia,
 };
+use crate::resources::media_asset::{
+    MediaAsset, MediaAssetKind, MediaAssetStatus, MediaUploadResponse,
+};
 use crate::resources::monitoring::{
     HttpAuditLog, MonitoringDurationMetrics, MonitoringMetricWindow, MonitoringMetricsDay,
     MonitoringMetricsQuery, MonitoringRequestMetrics, MonitoringUserMetrics,
@@ -78,6 +81,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         ("Songs", "song.md"),
         ("Collections", "collection.md"),
         ("Media", "media.md"),
+        ("Media assets", "media-asset.md"),
         ("Blobs", "blob.md"),
         ("Setlists", "setlist.md"),
         ("Teams", "team.md"),
@@ -117,7 +121,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             **JSON naming:** Object keys use `snake_case`. Enum wire values use the casing shown in each schema (broader enum casing standardization is planned).\n\n\
             **Pagination:** List endpoints accept `page` (0-based) and `page_size` (1–500, default 50). Responses include `X-Total-Count` with the total matching rows before pagination and RFC 5988 `Link` headers (relations: first, prev, next, last) where applicable.\n\n\
             **Rate limiting:** Versioned `/api/v1/*` routes use token-bucket limits per client IP (`Retry-After`, `X-RateLimit-*` on **429**; configurable via server settings).\n\n\
-            **Errors:** Failed requests return `Content-Type: application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details, formerly RFC 7807) with a `Problem` body (`type`, `title`, `status`, `code`, optional `detail` / `instance`). Use `detail` for human-readable text; stable machine-readable `code` values include: `unauthorized`, `forbidden`, `not_found`, `invalid_request`, `invalid_page_size`, `media_invalid_url`, `media_unsupported_url`, `conflict`, `too_many_requests`, `not_acceptable`, `precondition_failed`, `internal`. Legacy schemas `ErrorResponse` and `ProblemDetails` remain listed for one release but are deprecated in favor of `Problem`.\n\n\
+            **Errors:** Failed requests return `Content-Type: application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details, formerly RFC 7807) with a `Problem` body (`type`, `title`, `status`, `code`, optional `detail` / `instance`). Use `detail` for human-readable text; stable machine-readable `code` values include: `unauthorized`, `forbidden`, `not_found`, `invalid_request`, `invalid_page_size`, `media_invalid_url`, `media_unsupported_url`, `payload_too_large`, `conflict`, `too_many_requests`, `not_acceptable`, `precondition_failed`, `internal`. Legacy schemas `ErrorResponse` and `ProblemDetails` remain listed for one release but are deprecated in favor of `Problem`.\n\n\
             **CSRF:** Cookie sessions use `SameSite=Lax`; state-changing methods are `POST`/`PUT`/`PATCH`/`DELETE` (not `GET`). Cross-site simple requests cannot mutate state via cookies under typical browser rules. Browser `fetch` from the SPA uses `credentials: 'include'` on same-origin API calls (see `frontend/app/src/api/client.ts`). API clients using bearer tokens should still avoid exposing tokens to third-party origins.\n\n\
             **Examples:** See schema `example` fields on core DTOs in the components section.",
         license(name = "MIT", url = "https://opensource.org/licenses/MIT")
@@ -182,6 +186,9 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::media::rest::move_media,
         crate::resources::media::rest::duplicate_media,
         crate::resources::media::rest::delete_media,
+        crate::resources::media_asset::rest::upload_media_asset,
+        crate::resources::media_asset::rest::get_media_asset_data,
+        crate::resources::media_asset::rest::head_media_asset_data,
         crate::resources::blob::rest::get_blobs,
         crate::resources::blob::rest::get_blob,
         crate::resources::blob::rest::create_blob,
@@ -273,6 +280,10 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             CreateMediaContent,
             UpdateMedia,
             DuplicateMedia,
+            MediaAsset,
+            MediaAssetKind,
+            MediaAssetStatus,
+            MediaUploadResponse,
             Setlist,
             CreateSetlist,
             UpdateSetlist,

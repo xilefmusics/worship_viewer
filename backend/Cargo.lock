@@ -633,6 +633,7 @@ dependencies = [
  "actix-web",
  "actix-ws",
  "anyhow",
+ "async-stream",
  "async-trait",
  "chordlib",
  "chrono",

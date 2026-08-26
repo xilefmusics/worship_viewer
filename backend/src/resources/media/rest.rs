@@ -13,9 +13,11 @@ use crate::docs::Problem;
 use crate::error::AppError;
 use crate::http_cache::{check_if_match, if_none_match_matches, weak_etag_json};
 
+use crate::settings::MediaAssetUploadLimits;
+
 use super::service::MediaServiceHandle;
 
-pub fn scope() -> Scope {
+pub fn scope(asset_upload_limits: MediaAssetUploadLimits) -> Scope {
     web::scope("/media")
         .service(list_media)
         .service(get_media)
@@ -24,6 +26,11 @@ pub fn scope() -> Scope {
         .service(move_media)
         .service(duplicate_media)
         .service(delete_media)
+        .service(crate::resources::media_asset::rest::get_media_asset_data)
+        .service(crate::resources::media_asset::rest::head_media_asset_data)
+        .service(crate::resources::media_asset::rest::upload_scope(
+            asset_upload_limits,
+        ))
 }
 
 #[utoipa::path(get, path = "/api/v1/media",

@@ -3,12 +3,14 @@ use crate::about;
 use crate::auth::middleware::RequireUser;
 use crate::governor_audit::AuditRateLimit429;
 use crate::governor_peer::PeerOrFallbackIpKeyExtractor;
+use crate::settings::MediaAssetUploadLimits;
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{dev::HttpServiceFactory, web};
 
 pub fn scope(
     blob_upload_max_bytes: usize,
     avatar_upload_max_bytes: usize,
+    media_asset_upload_limits: MediaAssetUploadLimits,
     api_rate_limit_rps: u64,
     api_rate_limit_burst: u32,
 ) -> impl HttpServiceFactory {
@@ -29,7 +31,7 @@ pub fn scope(
                 .wrap(RequireUser)
                 .service(blob::rest::scope(blob_upload_max_bytes))
                 .service(collection::rest::scope(blob_upload_max_bytes))
-                .service(media::rest::scope())
+                .service(media::rest::scope(media_asset_upload_limits))
                 .service(setlist::rest::scope())
                 .service(song::rest::scope())
                 .service(team::rest::scope(blob_upload_max_bytes))

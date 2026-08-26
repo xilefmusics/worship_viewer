@@ -1,0 +1,374 @@
+use std::collections::HashSet;
+use std::sync::Arc;
+
+use actix_web::web::Payload;
+use shared::{MediaAsset, MediaAssetKind, MediaAssetStatus, MediaUploadResponse};
+use surrealdb::types::RecordId;
+use tokio::sync::RwLock;
+use tracing::instrument;
+
+use crate::auth::AuthorizationContext;
+use crate::database::Database;
+use crate::error::AppError;
+use crate::process_runner::check_tool_version;
+use crate::resources::media::{MediaRepository, SurrealMediaRepo};
+use crate::resources::team::parse_owner_record_id;
+use crate::settings::Settings;
+
+use super::model::CreateStagingAsset;
+use super::repository::MediaAssetRepository;
+use super::storage::{
+    FsMediaAssetStorage, MediaAssetStorage, StagingCleanupGuard, StagingUploadResult,
+};
+use super::surreal_repo::SurrealMediaAssetRepo;
+
+#[derive(Clone)]
+pub struct MediaAssetService<R, M> {
+    pub repo: R,
+    pub media_repo: M,
+    pub storage: Arc<FsMediaAssetStorage>,
+    pub settings: MediaAssetSettings,
+    active_uploads: Arc<RwLock<HashSet<String>>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct MediaAssetSettings {
+    pub video_max_bytes: usize,
+    pub audio_max_bytes: usize,
+    pub pdf_max_bytes: usize,
+    pub image_max_bytes: usize,
+    pub svg_max_bytes: usize,
+    pub staging_max_age_seconds: u64,
+    pub reconciliation_interval_seconds: u64,
+    pub processing_enabled: bool,
+    pub ffmpeg_path: String,
+    pub ffprobe_path: String,
+    pub pdfinfo_path: String,
+}
+
+impl MediaAssetSettings {
+    pub fn from_settings(settings: &Settings) -> Self {
+        let limits = settings.media_asset_upload_limits();
+        Self {
+            video_max_bytes: limits.video_max_bytes,
+            audio_max_bytes: limits.audio_max_bytes,
+            pdf_max_bytes: limits.pdf_max_bytes,
+            image_max_bytes: limits.image_max_bytes,
+            svg_max_bytes: limits.svg_max_bytes,
+            staging_max_age_seconds: settings.media_staging_max_age_seconds,
+            reconciliation_interval_seconds: settings.media_reconciliation_interval_seconds,
+            processing_enabled: settings.media_processing_enabled,
+            ffmpeg_path: settings.ffmpeg_path.clone(),
+            ffprobe_path: settings.ffprobe_path.clone(),
+            pdfinfo_path: settings.pdfinfo_path.clone(),
+        }
+    }
+
+    pub fn max_bytes_for_kind(&self, kind: MediaAssetKind) -> usize {
+        match kind {
+            MediaAssetKind::Video => self.video_max_bytes,
+            MediaAssetKind::Audio => self.audio_max_bytes,
+            MediaAssetKind::Pdf => self.pdf_max_bytes,
+            MediaAssetKind::Image => self.image_max_bytes,
+            MediaAssetKind::Svg => self.svg_max_bytes,
+        }
+    }
+}
+
+impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
+    pub fn new(
+        repo: R,
+        media_repo: M,
+        storage: Arc<FsMediaAssetStorage>,
+        settings: MediaAssetSettings,
+    ) -> Self {
+        Self {
+            repo,
+            media_repo,
+            storage,
+            settings,
+            active_uploads: Arc::new(RwLock::new(HashSet::new())),
+        }
+    }
+
+    pub async fn ensure_directories(&self) -> Result<(), AppError> {
+        self.storage.ensure_directories().await
+    }
+
+    pub async fn verify_processing_readiness(&self) -> Result<(), AppError> {
+        if !self.settings.processing_enabled {
+            return Ok(());
+        }
+        for (label, path) in [
+            ("ffmpeg", self.settings.ffmpeg_path.as_str()),
+            ("ffprobe", self.settings.ffprobe_path.as_str()),
+            ("pdfinfo", self.settings.pdfinfo_path.as_str()),
+        ] {
+            check_tool_version(&[path, "--version"])
+                .await
+                .map_err(|_| {
+                    AppError::Internal(format!(
+                        "media processing readiness failed: required tool `{label}` is missing or not executable; configure tool paths or disable media processing"
+                    ))
+                })?;
+        }
+        Ok(())
+    }
+
+    async fn register_active_upload(&self, operation_id: &str) {
+        self.active_uploads
+            .write()
+            .await
+            .insert(operation_id.to_owned());
+    }
+
+    async fn unregister_active_upload(&self, operation_id: &str) {
+        self.active_uploads.write().await.remove(operation_id);
+    }
+
+    pub async fn active_upload_ids(&self) -> HashSet<String> {
+        self.active_uploads.read().await.clone()
+    }
+
+    #[instrument(level = "debug", err, skip(self, ctx, payload))]
+    pub async fn upload_staging_for_user(
+        &self,
+        ctx: &AuthorizationContext,
+        media_id: &str,
+        kind: MediaAssetKind,
+        content_type: String,
+        content_length: Option<usize>,
+        payload: Payload,
+    ) -> Result<MediaUploadResponse, AppError> {
+        let media = self.media_repo.get(&ctx.read_teams(), media_id).await?;
+        let owner = parse_owner_record_id(&media.owner)?;
+        ctx.require_write_access_to_owner(&owner)?;
+
+        let max_bytes = self.settings.max_bytes_for_kind(kind);
+        if let Some(len) = content_length
+            && len > max_bytes
+        {
+            return Err(AppError::payload_too_large());
+        }
+
+        let operation_id = uuid::Uuid::new_v4().to_string();
+        self.register_active_upload(&operation_id).await;
+        let mut guard = StagingCleanupGuard::new(self.storage.clone(), operation_id.clone());
+
+        let StagingUploadResult { byte_length, etag } = match self
+            .storage
+            .stream_upload_to_staging(&operation_id, payload, max_bytes)
+            .await
+        {
+            Ok(result) => result,
+            Err(e) => {
+                self.unregister_active_upload(&operation_id).await;
+                return Err(e);
+            }
+        };
+
+        let media_rid = RecordId::new("media", media_id.to_owned());
+        let asset = match self
+            .repo
+            .create_staging(CreateStagingAsset {
+                owner,
+                media_id: media_rid,
+                kind,
+                content_type,
+                byte_length,
+                operation_id: operation_id.clone(),
+                etag,
+            })
+            .await
+        {
+            Ok(asset) => asset,
+            Err(e) => {
+                self.unregister_active_upload(&operation_id).await;
+                return Err(e);
+            }
+        };
+
+        guard.disarm();
+        self.unregister_active_upload(&operation_id).await;
+        let _ = asset;
+        Ok(MediaUploadResponse { operation_id })
+    }
+
+    #[instrument(level = "debug", err, skip(self, ctx))]
+    pub async fn get_final_asset_for_user(
+        &self,
+        ctx: &AuthorizationContext,
+        media_id: &str,
+        asset_id: &str,
+    ) -> Result<MediaAsset, AppError> {
+        let asset = self.repo.get_asset(&ctx.read_teams(), asset_id).await?;
+        if asset.media_id != media_id {
+            return Err(AppError::NotFound("media asset not found".into()));
+        }
+        if asset.status != MediaAssetStatus::Final {
+            return Err(AppError::NotFound("media asset not found".into()));
+        }
+        Ok(asset)
+    }
+
+    pub fn final_file_path(&self, asset_id: &str) -> std::path::PathBuf {
+        self.storage.final_path(asset_id)
+    }
+
+    #[instrument(level = "debug", err, skip(self))]
+    pub async fn promote_staging(&self, operation_id: &str) -> Result<MediaAsset, AppError> {
+        let staging = self.repo.get_staging_by_operation(operation_id).await?;
+        let asset_id = staging.id.clone();
+        let etag = staging
+            .etag
+            .clone()
+            .ok_or_else(|| AppError::Internal("staging asset missing etag".into()))?;
+
+        if let Err(e) = self.storage.promote_file(operation_id, &asset_id) {
+            self.storage.delete_final_file(&asset_id);
+            return Err(e);
+        }
+
+        match self
+            .repo
+            .promote_staging(&asset_id, operation_id, etag)
+            .await
+        {
+            Ok(asset) => Ok(asset),
+            Err(e) => {
+                self.storage.delete_final_file(&asset_id);
+                Err(e)
+            }
+        }
+    }
+
+    #[instrument(level = "debug", err, skip(self))]
+    pub async fn rollback_promotion(&self, asset_id: &str) -> Result<(), AppError> {
+        self.storage.delete_final_file(asset_id);
+        self.repo.delete_asset(asset_id).await
+    }
+
+    #[instrument(level = "debug", err, skip(self))]
+    pub async fn delete_assets_for_media(&self, media_id: &str) -> Result<(), AppError> {
+        let assets = self.repo.delete_assets_for_media(media_id).await?;
+        for asset in assets {
+            if asset.status == MediaAssetStatus::Final {
+                self.storage.delete_final_file(&asset.id);
+            } else if let Some(op) = asset.operation_id {
+                self.storage.delete_staging_file(&op);
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn reconcile_abandoned_staging(&self) -> Result<u64, AppError> {
+        let active = self.active_upload_ids().await;
+        let removed_files = self
+            .storage
+            .reconcile_staging_files(self.settings.staging_max_age_seconds, &active)?;
+
+        let stale = self
+            .repo
+            .list_staging_older_than(self.settings.staging_max_age_seconds)
+            .await?;
+        for asset in stale {
+            if let Some(op) = asset.operation_id
+                && !active.contains(&op)
+            {
+                self.storage.delete_staging_file(&op);
+                let _ = self.repo.delete_asset(&asset.id).await;
+            }
+        }
+        Ok(removed_files)
+    }
+}
+
+pub type MediaAssetServiceHandle = MediaAssetService<SurrealMediaAssetRepo, SurrealMediaRepo>;
+
+impl MediaAssetServiceHandle {
+    pub fn build(db: Arc<Database>, settings: &Settings) -> Self {
+        let storage = Arc::new(FsMediaAssetStorage::new(
+            settings.media_staging_dir.clone(),
+            settings.media_final_dir.clone(),
+        ));
+        Self::new(
+            SurrealMediaAssetRepo::new(db.clone()),
+            SurrealMediaRepo::new(db),
+            storage,
+            MediaAssetSettings::from_settings(settings),
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::resources::media_asset::model::CreateStagingAsset;
+    use crate::test_helpers::{TeamFixture, auth_ctx_for_user, media_service, test_db};
+    use shared::media::{CreateMedia, CreateMediaContent};
+
+    fn test_asset_service(db: &Arc<Database>) -> MediaAssetServiceHandle {
+        let dir = tempfile::tempdir().unwrap();
+        MediaAssetServiceHandle::build(
+            db.clone(),
+            &Settings {
+                media_staging_dir: dir.path().join("staging").to_string_lossy().into(),
+                media_final_dir: dir.path().join("final").to_string_lossy().into(),
+                media_processing_enabled: false,
+                ..Settings::default()
+            },
+        )
+    }
+
+    #[tokio::test]
+    async fn promote_and_rollback() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let media_svc = media_service(&db);
+        let asset_svc = test_asset_service(&db);
+        asset_svc.ensure_directories().await.unwrap();
+
+        let ctx = auth_ctx_for_user(&db, &fixture.writer).await.unwrap();
+        let media = media_svc
+            .create_for_user(
+                &ctx,
+                CreateMedia {
+                    title: "Upload test".into(),
+                    owner: Some(fixture.shared_team_id.clone()),
+                    content: CreateMediaContent::YouTube {
+                        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ".into(),
+                    },
+                },
+            )
+            .await
+            .unwrap();
+
+        let operation_id = uuid::Uuid::new_v4().to_string();
+        let staging_path = asset_svc.storage.staging_path(&operation_id);
+        std::fs::create_dir_all(staging_path.parent().unwrap()).unwrap();
+        std::fs::write(&staging_path, b"testdata").unwrap();
+        let etag = crate::http_range::etag_from_file_bytes(b"testdata");
+        let owner = parse_owner_record_id(&fixture.shared_team_id).unwrap();
+        let media_rid = RecordId::new("media", media.id.clone());
+        let staging = asset_svc
+            .repo
+            .create_staging(CreateStagingAsset {
+                owner,
+                media_id: media_rid,
+                kind: MediaAssetKind::Video,
+                content_type: "video/mp4".into(),
+                byte_length: 8,
+                operation_id: operation_id.clone(),
+                etag,
+            })
+            .await
+            .unwrap();
+
+        let promoted = asset_svc.promote_staging(&operation_id).await.unwrap();
+        assert_eq!(promoted.status, MediaAssetStatus::Final);
+        assert!(asset_svc.final_file_path(&staging.id).exists());
+
+        asset_svc.rollback_promotion(&staging.id).await.unwrap();
+        assert!(!asset_svc.final_file_path(&staging.id).exists());
+    }
+}

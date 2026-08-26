@@ -13,12 +13,14 @@ use crate::resources::User;
 use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::collection::service::CollectionServiceHandle;
 use crate::resources::media::service::MediaServiceHandle;
+use crate::resources::media_asset::service::MediaAssetServiceHandle;
 use crate::resources::setlist::{SetlistService, SetlistServiceHandle, SurrealSetlistRepo};
 use crate::resources::song::service::SongServiceHandle;
 use crate::resources::team::TeamServiceHandle;
 use crate::resources::team::invitation::InvitationServiceHandle;
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
+use crate::settings::Settings;
 use shared::collection::CreateCollection;
 use shared::setlist::CreateSetlist;
 use shared::setlist::SongLink as SetlistSongLink;
@@ -184,6 +186,11 @@ pub fn collection_service(db: &Arc<Database>) -> CollectionServiceHandle {
 /// Media application service (same wiring as HTTP `main`).
 pub fn media_service(db: &Arc<Database>) -> MediaServiceHandle {
     MediaServiceHandle::build(db.clone())
+}
+
+/// Media asset application service (same wiring as HTTP `main`).
+pub fn media_asset_service(db: &Arc<Database>, settings: &Settings) -> MediaAssetServiceHandle {
+    MediaAssetServiceHandle::build(db.clone(), settings)
 }
 
 /// Song application service (same wiring as HTTP `main`).

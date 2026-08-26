@@ -277,6 +277,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/{media_id}/assets/{asset_id}/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_media_asset_data"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head: operations["head_media_asset_data"];
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/{media_id}/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["upload_media_asset"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/monitoring/http-audit-logs": {
         parameters: {
             query?: never;
@@ -1288,6 +1320,31 @@ export interface components {
             status: components["schemas"]["MediaStatus"];
             title: string;
         };
+        /** @description Metadata for a media-owned asset (no filesystem paths). */
+        MediaAsset: {
+            /** Format: int64 */
+            byte_length: number;
+            content_type: string;
+            /** @description Weak ETag for delivery (`W/"..."`); set when promotion completes. */
+            etag?: string | null;
+            id: string;
+            kind: components["schemas"]["MediaAssetKind"];
+            media_id: string;
+            /** @description Present while `status` is `staging`; cleared after promotion. */
+            operation_id?: string | null;
+            owner: string;
+            status: components["schemas"]["MediaAssetStatus"];
+        };
+        /**
+         * @description Source kind for a media-owned asset; selects upload byte limits and processing paths.
+         * @enum {string}
+         */
+        MediaAssetKind: "video" | "audio" | "image" | "pdf" | "svg";
+        /**
+         * @description Lifecycle of bytes on disk for a media-owned asset.
+         * @enum {string}
+         */
+        MediaAssetStatus: "staging" | "final";
         MediaContent: {
             pages: components["schemas"]["MediaDeckPage"][];
             /** @enum {string} */
@@ -1342,6 +1399,10 @@ export interface components {
          * @enum {string}
          */
         MediaStatus: "processing" | "ready" | "failed";
+        /** @description Response from a completed streaming upload to staging. */
+        MediaUploadResponse: {
+            operation_id: string;
+        };
         MonitoringDurationMetrics: {
             /** Format: double */
             avg: number;
@@ -4013,6 +4074,188 @@ export interface operations {
             };
             /** @description Media/source/destination absent or concealed */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_media_asset_data: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+                asset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Final asset bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Partial content */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found or concealed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Range not satisfiable */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    head_media_asset_data: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+                asset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Final asset metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Partial content metadata */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found or concealed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Range not satisfiable */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    upload_media_asset: {
+        parameters: {
+            query: {
+                /** @description Source kind: video, audio, image, pdf, or svg */
+                kind: string;
+            };
+            header?: never;
+            path: {
+                /** @description Media identifier */
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Streaming upload body */
+        requestBody: {
+            content: {
+                "application/octet-stream": number[];
+            };
+        };
+        responses: {
+            /** @description Upload accepted to staging */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaUploadResponse"];
+                };
+            };
+            /** @description Invalid kind or request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Media not found or write access denied */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Upload failed */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

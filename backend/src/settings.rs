@@ -65,6 +65,46 @@ pub struct Settings {
     #[serde(default = "default_avatar_upload_max_bytes")]
     pub avatar_upload_max_bytes: usize,
 
+    /// Directory for media upload staging files. Default: `media-staging`.
+    #[serde(default = "default_media_staging_dir")]
+    pub media_staging_dir: String,
+    /// Directory for promoted final media asset files. Default: `media-assets`.
+    #[serde(default = "default_media_final_dir")]
+    pub media_final_dir: String,
+    /// Default max source video upload size. Default: 2 GiB.
+    #[serde(default = "default_media_video_upload_max_bytes")]
+    pub media_video_upload_max_bytes: usize,
+    /// Default max source audio upload size. Default: 500 MiB.
+    #[serde(default = "default_media_audio_upload_max_bytes")]
+    pub media_audio_upload_max_bytes: usize,
+    /// Default max source PDF upload size. Default: 100 MiB.
+    #[serde(default = "default_media_pdf_upload_max_bytes")]
+    pub media_pdf_upload_max_bytes: usize,
+    /// Default max source image upload size. Default: 25 MiB.
+    #[serde(default = "default_media_image_upload_max_bytes")]
+    pub media_image_upload_max_bytes: usize,
+    /// When true, FFmpeg/PDF tooling is required at startup. Default: true.
+    #[serde(default = "default_media_processing_enabled")]
+    pub media_processing_enabled: bool,
+    /// Bounded processing timeout for child processes (seconds). Default: 3600.
+    #[serde(default = "default_media_processing_timeout_seconds")]
+    pub media_processing_timeout_seconds: u64,
+    /// FFmpeg executable path. Default: `ffmpeg`.
+    #[serde(default = "default_ffmpeg_path")]
+    pub ffmpeg_path: String,
+    /// FFprobe executable path. Default: `ffprobe`.
+    #[serde(default = "default_ffprobe_path")]
+    pub ffprobe_path: String,
+    /// PDF info tool executable path. Default: `pdfinfo`.
+    #[serde(default = "default_pdfinfo_path")]
+    pub pdfinfo_path: String,
+    /// Delete abandoned staging files older than this (seconds). Default: 86400.
+    #[serde(default = "default_media_staging_max_age_seconds")]
+    pub media_staging_max_age_seconds: u64,
+    /// Interval between staging reconciliation runs (seconds). Default: 3600.
+    #[serde(default = "default_media_reconciliation_interval_seconds")]
+    pub media_reconciliation_interval_seconds: u64,
+
     /// Requests per second allowed per IP on sensitive auth endpoints (OTP + login).
     /// Default: 1 request per second with a burst of 5.
     pub auth_rate_limit_rps: u64,
@@ -123,6 +163,40 @@ impl fmt::Debug for Settings {
             .field("blob_dir", &self.blob_dir)
             .field("blob_upload_max_bytes", &self.blob_upload_max_bytes)
             .field("avatar_upload_max_bytes", &self.avatar_upload_max_bytes)
+            .field("media_staging_dir", &self.media_staging_dir)
+            .field("media_final_dir", &self.media_final_dir)
+            .field(
+                "media_video_upload_max_bytes",
+                &self.media_video_upload_max_bytes,
+            )
+            .field(
+                "media_audio_upload_max_bytes",
+                &self.media_audio_upload_max_bytes,
+            )
+            .field(
+                "media_pdf_upload_max_bytes",
+                &self.media_pdf_upload_max_bytes,
+            )
+            .field(
+                "media_image_upload_max_bytes",
+                &self.media_image_upload_max_bytes,
+            )
+            .field("media_processing_enabled", &self.media_processing_enabled)
+            .field(
+                "media_processing_timeout_seconds",
+                &self.media_processing_timeout_seconds,
+            )
+            .field("ffmpeg_path", &self.ffmpeg_path)
+            .field("ffprobe_path", &self.ffprobe_path)
+            .field("pdfinfo_path", &self.pdfinfo_path)
+            .field(
+                "media_staging_max_age_seconds",
+                &self.media_staging_max_age_seconds,
+            )
+            .field(
+                "media_reconciliation_interval_seconds",
+                &self.media_reconciliation_interval_seconds,
+            )
             .field("auth_rate_limit_rps", &self.auth_rate_limit_rps)
             .field("auth_rate_limit_burst", &self.auth_rate_limit_burst)
             .field("api_rate_limit_rps", &self.api_rate_limit_rps)
@@ -165,6 +239,19 @@ impl Default for Settings {
             blob_dir: "blobs".into(),
             blob_upload_max_bytes: 20 * 1024 * 1024,
             avatar_upload_max_bytes: default_avatar_upload_max_bytes(),
+            media_staging_dir: default_media_staging_dir(),
+            media_final_dir: default_media_final_dir(),
+            media_video_upload_max_bytes: default_media_video_upload_max_bytes(),
+            media_audio_upload_max_bytes: default_media_audio_upload_max_bytes(),
+            media_pdf_upload_max_bytes: default_media_pdf_upload_max_bytes(),
+            media_image_upload_max_bytes: default_media_image_upload_max_bytes(),
+            media_processing_enabled: default_media_processing_enabled(),
+            media_processing_timeout_seconds: default_media_processing_timeout_seconds(),
+            ffmpeg_path: default_ffmpeg_path(),
+            ffprobe_path: default_ffprobe_path(),
+            pdfinfo_path: default_pdfinfo_path(),
+            media_staging_max_age_seconds: default_media_staging_max_age_seconds(),
+            media_reconciliation_interval_seconds: default_media_reconciliation_interval_seconds(),
             auth_rate_limit_rps: 1,
             auth_rate_limit_burst: 5,
             api_rate_limit_rps: 50,
@@ -183,6 +270,58 @@ fn default_avatar_upload_max_bytes() -> usize {
     2 * 1024 * 1024
 }
 
+fn default_media_staging_dir() -> String {
+    "media-staging".into()
+}
+
+fn default_media_final_dir() -> String {
+    "media-assets".into()
+}
+
+fn default_media_video_upload_max_bytes() -> usize {
+    2 * 1024 * 1024 * 1024
+}
+
+fn default_media_audio_upload_max_bytes() -> usize {
+    500 * 1024 * 1024
+}
+
+fn default_media_pdf_upload_max_bytes() -> usize {
+    100 * 1024 * 1024
+}
+
+fn default_media_image_upload_max_bytes() -> usize {
+    25 * 1024 * 1024
+}
+
+fn default_media_processing_enabled() -> bool {
+    true
+}
+
+fn default_media_processing_timeout_seconds() -> u64 {
+    3600
+}
+
+fn default_ffmpeg_path() -> String {
+    "ffmpeg".into()
+}
+
+fn default_ffprobe_path() -> String {
+    "ffprobe".into()
+}
+
+fn default_pdfinfo_path() -> String {
+    "pdfinfo".into()
+}
+
+fn default_media_staging_max_age_seconds() -> u64 {
+    86_400
+}
+
+fn default_media_reconciliation_interval_seconds() -> u64 {
+    3600
+}
+
 /// Limits for `PUT /users/me/profile-picture` and OAuth profile image fetches.
 #[derive(Clone, Copy, Debug)]
 pub struct ProfilePictureLimits {
@@ -193,6 +332,18 @@ pub struct ProfilePictureLimits {
 #[derive(Clone, Copy, Debug)]
 pub struct CoverUploadLimits {
     pub max_bytes: usize,
+}
+
+/// Per-kind upload limits for media asset staging.
+#[derive(Clone, Copy, Debug)]
+pub struct MediaAssetUploadLimits {
+    pub video_max_bytes: usize,
+    pub audio_max_bytes: usize,
+    pub pdf_max_bytes: usize,
+    pub image_max_bytes: usize,
+    pub svg_max_bytes: usize,
+    /// Largest configured limit (for actix `PayloadConfig` ceiling).
+    pub payload_ceiling_bytes: usize,
 }
 
 impl Settings {
@@ -206,6 +357,43 @@ impl Settings {
         CoverUploadLimits {
             max_bytes: self.blob_upload_max_bytes,
         }
+    }
+
+    pub fn media_asset_upload_limits(&self) -> MediaAssetUploadLimits {
+        let svg_max_bytes = self.media_image_upload_max_bytes;
+        let payload_ceiling_bytes = [
+            self.media_video_upload_max_bytes,
+            self.media_audio_upload_max_bytes,
+            self.media_pdf_upload_max_bytes,
+            self.media_image_upload_max_bytes,
+            svg_max_bytes,
+        ]
+        .into_iter()
+        .max()
+        .unwrap_or(self.media_video_upload_max_bytes);
+        MediaAssetUploadLimits {
+            video_max_bytes: self.media_video_upload_max_bytes,
+            audio_max_bytes: self.media_audio_upload_max_bytes,
+            pdf_max_bytes: self.media_pdf_upload_max_bytes,
+            image_max_bytes: self.media_image_upload_max_bytes,
+            svg_max_bytes,
+            payload_ceiling_bytes,
+        }
+    }
+
+    pub fn max_bytes_for_media_asset_kind(&self, kind: shared::MediaAssetKind) -> usize {
+        let limits = self.media_asset_upload_limits();
+        match kind {
+            shared::MediaAssetKind::Video => limits.video_max_bytes,
+            shared::MediaAssetKind::Audio => limits.audio_max_bytes,
+            shared::MediaAssetKind::Pdf => limits.pdf_max_bytes,
+            shared::MediaAssetKind::Image => limits.image_max_bytes,
+            shared::MediaAssetKind::Svg => limits.svg_max_bytes,
+        }
+    }
+
+    pub fn media_processing_timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(self.media_processing_timeout_seconds)
     }
 
     pub fn from_env() -> Result<Self, envy::Error> {
@@ -256,5 +444,16 @@ mod tests {
         assert!(!out.contains("unique_db_pass_789"));
         assert!(!out.contains("unique_oidc_secret_abc"));
         assert!(out.contains("<redacted>"));
+    }
+
+    #[test]
+    fn media_asset_upload_limits_defaults() {
+        let s = Settings::default();
+        let limits = s.media_asset_upload_limits();
+        assert_eq!(limits.video_max_bytes, 2 * 1024 * 1024 * 1024);
+        assert_eq!(limits.audio_max_bytes, 500 * 1024 * 1024);
+        assert_eq!(limits.pdf_max_bytes, 100 * 1024 * 1024);
+        assert_eq!(limits.image_max_bytes, 25 * 1024 * 1024);
+        assert_eq!(limits.payload_ceiling_bytes, limits.video_max_bytes);
     }
 }

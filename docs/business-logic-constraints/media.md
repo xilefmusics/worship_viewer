@@ -22,3 +22,7 @@ Applies to the team-owned Media library at `/api/v1/media`.
 - **BLC-MEDIA-010:** A move validates write access to both the current and destination teams before atomically changing `owner`. Moving to the current owner is idempotent.
 - **BLC-MEDIA-011:** Duplicate requires write access to the source and destination and creates a distinct Media row with copied normalized content. In E5.1 there are no owned assets to copy; subsequent edits or deletion are independent.
 - **BLC-MEDIA-012:** List filtering applies readable-team scope first, then optional `team` and case-insensitive/full-text title search, then pagination. Ordering is stable by title and id (or search score, title, and id for searches). Responses include `X-Total-Count` and RFC 5988 pagination links.
+
+## Media-owned assets (E5.3+)
+
+Uploaded and processed bytes are governed by [media-asset.md](./media-asset.md). E5.1 URL media has no owned assets.

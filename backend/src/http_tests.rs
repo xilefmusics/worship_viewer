@@ -54,7 +54,7 @@ pub(crate) fn build_app(
         InitError = (),
     >,
 > {
-    build_app_with_api_limits(db, 50, 200)
+    build_app_with_api_limits(db, 50, 200, None)
 }
 
 /// Same as [`build_app`] but with configurable `/api/v1` per-IP rate limits (for **BLC-HTTP-004** tests).
@@ -62,6 +62,7 @@ fn build_app_with_api_limits(
     db: Arc<Database>,
     api_rate_limit_rps: u64,
     api_rate_limit_burst: u32,
+    media_settings: Option<Settings>,
 ) -> App<
     impl actix_web::dev::ServiceFactory<
         actix_web::dev::ServiceRequest,
@@ -72,8 +73,8 @@ fn build_app_with_api_limits(
     >,
 > {
     use crate::test_helpers::{
-        blob_service, collection_service, invitation_service, media_service, session_service,
-        setlist_service, song_service, team_service, user_service,
+        blob_service, collection_service, invitation_service, media_asset_service, media_service,
+        session_service, setlist_service, song_service, team_service, user_service,
     };
 
     // Unique path so parallel HTTP tests do not share blob files on disk.
@@ -84,6 +85,29 @@ fn build_app_with_api_limits(
         ))
         .to_string_lossy()
         .into_owned();
+    let test_settings = media_settings.unwrap_or_else(|| {
+        let media_staging_dir = std::env::temp_dir()
+            .join(format!(
+                "worshipviewer_http_tests_media_staging_{}",
+                uuid::Uuid::new_v4()
+            ))
+            .to_string_lossy()
+            .into_owned();
+        let media_final_dir = std::env::temp_dir()
+            .join(format!(
+                "worshipviewer_http_tests_media_final_{}",
+                uuid::Uuid::new_v4()
+            ))
+            .to_string_lossy()
+            .into_owned();
+        Settings {
+            media_staging_dir,
+            media_final_dir,
+            media_processing_enabled: false,
+            ..Settings::default()
+        }
+    });
+    let media_asset_limits = test_settings.media_asset_upload_limits();
 
     let cookie_cfg = Data::new(CookieConfig {
         name: "sso_session".into(),
@@ -102,6 +126,7 @@ fn build_app_with_api_limits(
         .app_data(Data::new(blob_service(&db, blob_dir)))
         .app_data(Data::new(collection_service(&db)))
         .app_data(Data::new(media_service(&db)))
+        .app_data(Data::new(media_asset_service(&db, &test_settings)))
         .app_data(Data::new(song_service(&db)))
         .app_data(Data::new(setlist_service(&db)))
         .app_data(Data::new(team_service(&db)))
@@ -120,6 +145,7 @@ fn build_app_with_api_limits(
         .service(resources::rest::scope(
             20 * 1024 * 1024,
             2 * 1024 * 1024,
+            media_asset_limits,
             api_rate_limit_rps,
             api_rate_limit_burst,
         ))
@@ -605,7 +631,7 @@ mod api_rate_limit_http {
         let db = test_db().await.unwrap();
         let user = create_user(&db, "api-ratelimit@test.local").await.unwrap();
         let token = create_session_token(&db, user).await.unwrap();
-        let app = test::init_service(build_app_with_api_limits(db, 1, 1)).await;
+        let app = test::init_service(build_app_with_api_limits(db, 1, 1, None)).await;
         let uri = "/api/v1/songs";
         let req1 = test::TestRequest::get()
             .uri(uri)
@@ -2874,6 +2900,177 @@ mod media_http {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let problem: Problem = test::read_body_json(response).await;
         assert_eq!(problem.code, "media_unsupported_url");
+    }
+}
+
+mod media_asset_http {
+    use actix_web::http::StatusCode;
+    use actix_web::http::header::{CONTENT_LENGTH, RANGE};
+    use actix_web::test;
+    use shared::MediaUploadResponse;
+    use shared::media::{CreateMedia, CreateMediaContent};
+
+    use crate::http_tests::{build_app_with_api_limits, create_session_token};
+    use crate::settings::Settings;
+    use crate::test_helpers::{TeamFixture, media_asset_service, media_service, test_db};
+
+    fn media_test_settings() -> Settings {
+        Settings {
+            media_staging_dir: std::env::temp_dir()
+                .join(format!(
+                    "worshipviewer_http_tests_media_staging_{}",
+                    uuid::Uuid::new_v4()
+                ))
+                .to_string_lossy()
+                .into_owned(),
+            media_final_dir: std::env::temp_dir()
+                .join(format!(
+                    "worshipviewer_http_tests_media_final_{}",
+                    uuid::Uuid::new_v4()
+                ))
+                .to_string_lossy()
+                .into_owned(),
+            media_processing_enabled: false,
+            ..Settings::default()
+        }
+    }
+
+    async fn writer_media(
+        db: &std::sync::Arc<crate::database::Database>,
+        fixture: &TeamFixture,
+    ) -> shared::media::Media {
+        media_service(db)
+            .create_for_user(
+                &crate::test_helpers::auth_ctx_for_user(db, &fixture.writer)
+                    .await
+                    .unwrap(),
+                CreateMedia {
+                    owner: Some(fixture.shared_team_id.clone()),
+                    title: "Asset parent".into(),
+                    content: CreateMediaContent::YouTube {
+                        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ".into(),
+                    },
+                },
+            )
+            .await
+            .unwrap()
+    }
+
+    #[actix_web::test]
+    async fn upload_promote_and_range_delivery() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let token = create_session_token(&db, fixture.writer.clone())
+            .await
+            .unwrap();
+        let settings = media_test_settings();
+        let app = test::init_service(build_app_with_api_limits(
+            db.clone(),
+            50,
+            200,
+            Some(settings.clone()),
+        ))
+        .await;
+        let media = writer_media(&db, &fixture).await;
+
+        let request = test::TestRequest::put()
+            .uri(&format!("/api/v1/media/{}/uploads?kind=audio", media.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header(("Content-Type", "audio/mpeg"))
+            .set_payload(b"0123456789abcdef".as_slice())
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::OK, "upload should succeed");
+        let upload: MediaUploadResponse = test::read_body_json(response).await;
+
+        let asset_svc = media_asset_service(&db, &settings);
+        let promoted = asset_svc
+            .promote_staging(&upload.operation_id)
+            .await
+            .unwrap();
+        let etag = promoted.etag.clone().expect("etag");
+
+        let request = test::TestRequest::get()
+            .uri(&format!(
+                "/api/v1/media/{}/assets/{}/data",
+                media.id, promoted.id
+            ))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header((RANGE, "bytes=2-5"))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(&test::read_body(response).await[..], b"2345");
+
+        let request = test::TestRequest::default()
+            .method(actix_web::http::Method::HEAD)
+            .uri(&format!(
+                "/api/v1/media/{}/assets/{}/data",
+                media.id, promoted.id
+            ))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header(("If-None-Match", etag))
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, request).await.status(),
+            StatusCode::NOT_MODIFIED
+        );
+    }
+
+    #[actix_web::test]
+    async fn upload_rejects_oversize_with_content_length() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let token = create_session_token(&db, fixture.writer.clone())
+            .await
+            .unwrap();
+        let app = test::init_service(build_app_with_api_limits(
+            db.clone(),
+            50,
+            200,
+            Some(media_test_settings()),
+        ))
+        .await;
+        let media = writer_media(&db, &fixture).await;
+
+        let request = test::TestRequest::default()
+            .method(actix_web::http::Method::PUT)
+            .uri(&format!("/api/v1/media/{}/uploads?kind=image", media.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header((CONTENT_LENGTH, "999999999"))
+            .insert_header(("Content-Type", "application/octet-stream"))
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, request).await.status(),
+            StatusCode::PAYLOAD_TOO_LARGE
+        );
+    }
+
+    #[actix_web::test]
+    async fn guest_cannot_upload_assets() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let guest_token = create_session_token(&db, fixture.guest.clone())
+            .await
+            .unwrap();
+        let app = test::init_service(build_app_with_api_limits(
+            db.clone(),
+            50,
+            200,
+            Some(media_test_settings()),
+        ))
+        .await;
+        let media = writer_media(&db, &fixture).await;
+
+        let guest_upload = test::TestRequest::put()
+            .uri(&format!("/api/v1/media/{}/uploads?kind=audio", media.id))
+            .insert_header(("Authorization", format!("Bearer {guest_token}")))
+            .set_payload(&b"x"[..])
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, guest_upload).await.status(),
+            StatusCode::NOT_FOUND
+        );
     }
 }
 
