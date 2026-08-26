@@ -1,4 +1,4 @@
-use super::{blob, collection, monitoring, player_room, setlist, song, team, user};
+use super::{blob, collection, media, monitoring, player_room, setlist, song, team, user};
 use crate::about;
 use crate::auth::middleware::RequireUser;
 use crate::governor_audit::AuditRateLimit429;
@@ -29,6 +29,7 @@ pub fn scope(
                 .wrap(RequireUser)
                 .service(blob::rest::scope(blob_upload_max_bytes))
                 .service(collection::rest::scope(blob_upload_max_bytes))
+                .service(media::rest::scope())
                 .service(setlist::rest::scope())
                 .service(song::rest::scope())
                 .service(team::rest::scope(blob_upload_max_bytes))

@@ -1,0 +1,10 @@
+DEFINE TABLE OVERWRITE media TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD OVERWRITE owner ON media TYPE record<team> ASSERT $value != NONE PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE title ON media TYPE string ASSERT string::len(string::trim($value)) > 0 PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE status ON media TYPE string ASSERT $value IN ['processing', 'ready', 'failed'] PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE content_json ON media TYPE none | string PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE pending_revision_json ON media TYPE none | string PERMISSIONS FULL;
+
+DEFINE INDEX OVERWRITE media_owner_idx ON media FIELDS owner CONCURRENTLY;
+DEFINE INDEX OVERWRITE media_title_search_idx ON media FIELDS title FULLTEXT ANALYZER text_search BM25(1.2,0.75) CONCURRENTLY;

@@ -8,6 +8,10 @@ use shared::AboutResponse;
 
 use crate::resources::blob::PatchBlob;
 use crate::resources::collection::PatchCollection;
+use crate::resources::media::{
+    CreateMedia, CreateMediaContent, DuplicateMedia, LivestreamType, Media, MediaContent,
+    MediaDeckPage, MediaPendingRevision, MediaProcessingError, MediaStatus, UpdateMedia,
+};
 use crate::resources::monitoring::{
     HttpAuditLog, MonitoringDurationMetrics, MonitoringMetricWindow, MonitoringMetricsDay,
     MonitoringMetricsQuery, MonitoringRequestMetrics, MonitoringUserMetrics,
@@ -73,6 +77,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         ("Users", "user.md"),
         ("Songs", "song.md"),
         ("Collections", "collection.md"),
+        ("Media", "media.md"),
         ("Blobs", "blob.md"),
         ("Setlists", "setlist.md"),
         ("Teams", "team.md"),
@@ -112,7 +117,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             **JSON naming:** Object keys use `snake_case`. Enum wire values use the casing shown in each schema (broader enum casing standardization is planned).\n\n\
             **Pagination:** List endpoints accept `page` (0-based) and `page_size` (1–500, default 50). Responses include `X-Total-Count` with the total matching rows before pagination and RFC 5988 `Link` headers (relations: first, prev, next, last) where applicable.\n\n\
             **Rate limiting:** Versioned `/api/v1/*` routes use token-bucket limits per client IP (`Retry-After`, `X-RateLimit-*` on **429**; configurable via server settings).\n\n\
-            **Errors:** Failed requests return `Content-Type: application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details, formerly RFC 7807) with a `Problem` body (`type`, `title`, `status`, `code`, optional `detail` / `instance`). Use `detail` for human-readable text; stable machine-readable `code` values include: `unauthorized`, `forbidden`, `not_found`, `invalid_request`, `invalid_page_size`, `conflict`, `too_many_requests`, `not_acceptable`, `precondition_failed`, `internal`. Legacy schemas `ErrorResponse` and `ProblemDetails` remain listed for one release but are deprecated in favor of `Problem`.\n\n\
+            **Errors:** Failed requests return `Content-Type: application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details, formerly RFC 7807) with a `Problem` body (`type`, `title`, `status`, `code`, optional `detail` / `instance`). Use `detail` for human-readable text; stable machine-readable `code` values include: `unauthorized`, `forbidden`, `not_found`, `invalid_request`, `invalid_page_size`, `media_invalid_url`, `media_unsupported_url`, `conflict`, `too_many_requests`, `not_acceptable`, `precondition_failed`, `internal`. Legacy schemas `ErrorResponse` and `ProblemDetails` remain listed for one release but are deprecated in favor of `Problem`.\n\n\
             **CSRF:** Cookie sessions use `SameSite=Lax`; state-changing methods are `POST`/`PUT`/`PATCH`/`DELETE` (not `GET`). Cross-site simple requests cannot mutate state via cookies under typical browser rules. Browser `fetch` from the SPA uses `credentials: 'include'` on same-origin API calls (see `frontend/app/src/api/client.ts`). API clients using bearer tokens should still avoid exposing tokens to third-party origins.\n\n\
             **Examples:** See schema `example` fields on core DTOs in the components section.",
         license(name = "MIT", url = "https://opensource.org/licenses/MIT")
@@ -170,6 +175,13 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::collection::rest::move_collection,
         crate::resources::collection::rest::transfer_collection_song,
         crate::resources::collection::rest::delete_collection,
+        crate::resources::media::rest::list_media,
+        crate::resources::media::rest::get_media,
+        crate::resources::media::rest::create_media,
+        crate::resources::media::rest::update_media,
+        crate::resources::media::rest::move_media,
+        crate::resources::media::rest::duplicate_media,
+        crate::resources::media::rest::delete_media,
         crate::resources::blob::rest::get_blobs,
         crate::resources::blob::rest::get_blob,
         crate::resources::blob::rest::create_blob,
@@ -250,6 +262,17 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             PatchCollection,
             TransferCollectionSong,
             TransferCollectionSongResult,
+            Media,
+            MediaStatus,
+            MediaContent,
+            MediaDeckPage,
+            MediaPendingRevision,
+            MediaProcessingError,
+            LivestreamType,
+            CreateMedia,
+            CreateMediaContent,
+            UpdateMedia,
+            DuplicateMedia,
             Setlist,
             CreateSetlist,
             UpdateSetlist,
@@ -311,6 +334,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         (name = "Users", description = "Current user (`/users/me`), directory listing, sessions (own and admin), and admin user lifecycle."),
         (name = "Songs", description = "Song CRUD, player JSON, likes, search/sort listing."),
         (name = "Collections", description = "Owned song collections, nested songs, and player views."),
+        (name = "Media", description = "Team-owned URL media library resources and lifecycle state."),
         (name = "Blobs", description = "Binary image assets: metadata, byte upload/download with cache headers."),
         (name = "Setlists", description = "Ordered sets of songs and player payloads for services."),
         (name = "Teams", description = "Team membership, roles, and invitations (nested under `/teams/{id}/invitations`)."),
@@ -368,6 +392,32 @@ mod tests {
                 .expect("url")
                 .contains("monitoring.md")
         );
+    }
+
+    #[test]
+    fn openapi_includes_media_contract_and_reserved_content_tags() {
+        let value = serde_json::to_value(ApiDoc::openapi()).expect("openapi json");
+        for path in [
+            "/api/v1/media",
+            "/api/v1/media/{id}",
+            "/api/v1/media/{id}/move",
+            "/api/v1/media/{id}/duplicate",
+        ] {
+            assert!(value["paths"].get(path).is_some(), "missing {path}");
+        }
+        let schema = &value["components"]["schemas"]["MediaContent"];
+        let serialized = serde_json::to_string(schema).unwrap();
+        for tag in [
+            "slide_deck",
+            "video",
+            "audio",
+            "youtube",
+            "livestream",
+            "web_page",
+        ] {
+            assert!(serialized.contains(tag), "missing media tag {tag}");
+        }
+        assert!(!serialized.contains("you_tube"));
     }
 
     #[test]

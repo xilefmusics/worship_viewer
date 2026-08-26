@@ -72,8 +72,8 @@ fn build_app_with_api_limits(
     >,
 > {
     use crate::test_helpers::{
-        blob_service, collection_service, invitation_service, session_service, setlist_service,
-        song_service, team_service, user_service,
+        blob_service, collection_service, invitation_service, media_service, session_service,
+        setlist_service, song_service, team_service, user_service,
     };
 
     // Unique path so parallel HTTP tests do not share blob files on disk.
@@ -101,6 +101,7 @@ fn build_app_with_api_limits(
         .app_data(Data::from(db.clone()))
         .app_data(Data::new(blob_service(&db, blob_dir)))
         .app_data(Data::new(collection_service(&db)))
+        .app_data(Data::new(media_service(&db)))
         .app_data(Data::new(song_service(&db)))
         .app_data(Data::new(setlist_service(&db)))
         .app_data(Data::new(team_service(&db)))
@@ -2735,6 +2736,144 @@ mod team_cover_http {
             "blob data should contain image bytes, got {}",
             bytes.len()
         );
+    }
+}
+
+mod media_http {
+    use super::*;
+    use actix_web::http::StatusCode;
+    use shared::MoveOwner;
+    use shared::error::Problem;
+    use shared::media::{
+        CreateMedia, CreateMediaContent, DuplicateMedia, Media, MediaContent, UpdateMedia,
+    };
+
+    #[actix_web::test]
+    async fn media_url_crud_duplicate_move_pagination_and_problem_codes() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "media-http@test.local").await.unwrap();
+        let token = create_session_token(&db, user).await.unwrap();
+        let app = test::init_service(build_app(db)).await;
+
+        let request = test::TestRequest::post()
+            .uri("/api/v1/media")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_json(CreateMedia {
+                owner: None,
+                title: "HTTP video".into(),
+                content: CreateMediaContent::YouTube {
+                    url: "https://youtu.be/dQw4w9WgXcQ?t=1".into(),
+                },
+            })
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let created: Media = test::read_body_json(response).await;
+        assert!(matches!(
+            created.content,
+            Some(MediaContent::YouTube { .. })
+        ));
+
+        let request = test::TestRequest::get()
+            .uri(&format!("/api/v1/media/{}", created.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let etag = response
+            .headers()
+            .get("etag")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+
+        let request = test::TestRequest::put()
+            .uri(&format!("/api/v1/media/{}", created.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header(("If-Match", etag))
+            .set_json(UpdateMedia {
+                title: "HTTP page".into(),
+                content: CreateMediaContent::WebPage {
+                    url: "https://example.com/".into(),
+                },
+                owner: None,
+            })
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, request).await.status(),
+            StatusCode::OK
+        );
+
+        let request = test::TestRequest::post()
+            .uri(&format!("/api/v1/media/{}/duplicate", created.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_json(DuplicateMedia::default())
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let copy: Media = test::read_body_json(response).await;
+        assert_ne!(copy.id, created.id);
+
+        let request = test::TestRequest::post()
+            .uri(&format!("/api/v1/media/{}/move", copy.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_json(MoveOwner {
+                owner: copy.owner.clone(),
+            })
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, request).await.status(),
+            StatusCode::OK
+        );
+
+        let request = test::TestRequest::get()
+            .uri("/api/v1/media?page=0&page_size=1&q=HTTP")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers().get("x-total-count").unwrap(), "2");
+        let page: Vec<Media> = test::read_body_json(response).await;
+        assert_eq!(page.len(), 1);
+
+        let request = test::TestRequest::get()
+            .uri(&format!("/api/v1/media/{}", copy.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let etag = response
+            .headers()
+            .get("etag")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let request = test::TestRequest::delete()
+            .uri(&format!("/api/v1/media/{}", copy.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header(("If-Match", etag))
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, request).await.status(),
+            StatusCode::NO_CONTENT
+        );
+
+        let request = test::TestRequest::post()
+            .uri("/api/v1/media")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_json(CreateMedia {
+                owner: None,
+                title: "Unsafe".into(),
+                content: CreateMediaContent::WebPage {
+                    url: "http://example.com".into(),
+                },
+            })
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let problem: Problem = test::read_body_json(response).await;
+        assert_eq!(problem.code, "media_unsupported_url");
     }
 }
 

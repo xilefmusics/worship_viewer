@@ -371,6 +371,13 @@ mod tests {
             "expected at least one applied migration"
         );
 
+        db.db
+            .query("INFO FOR TABLE media;")
+            .await
+            .expect("media table info query")
+            .check()
+            .expect("media table must exist after fresh migration");
+
         db.migrate(path).await.expect("idempotent second migrate");
     }
 
@@ -394,5 +401,32 @@ mod tests {
         let err = run(&db.db, path).await.expect_err("checksum mismatch");
         let msg = err.to_string();
         assert!(msg.contains("checksum mismatch"), "unexpected error: {msg}");
+    }
+
+    #[tokio::test]
+    async fn media_migration_applies_on_supported_forward_path() {
+        let address = format!("mem://{}", uuid::Uuid::new_v4());
+        let db = Database::connect(&address, "test", "test", None, None)
+            .await
+            .expect("connect");
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/db-migrations");
+        db.migrate(path).await.expect("baseline migrate");
+
+        db.db
+            .query(
+                "REMOVE TABLE media; DELETE migration_script WHERE script_name = '20260826120000_define_media.surql';",
+            )
+            .await
+            .expect("simulate last supported pre-media schema")
+            .check()
+            .expect("remove media migration state");
+
+        db.migrate(path).await.expect("forward media migration");
+        db.db
+            .query("INFO FOR TABLE media;")
+            .await
+            .expect("media table info query")
+            .check()
+            .expect("media table must exist after forward migration");
     }
 }

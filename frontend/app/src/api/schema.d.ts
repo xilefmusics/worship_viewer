@@ -213,6 +213,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_media"];
+        put?: never;
+        post: operations["create_media"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_media"];
+        put: operations["update_media"];
+        post?: never;
+        delete: operations["delete_media"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/{id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["duplicate_media"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["move_media"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/monitoring/http-audit-logs": {
         parameters: {
             query?: never;
@@ -1036,6 +1100,29 @@ export interface components {
             songs: components["schemas"]["SongLink"][];
             title: string;
         };
+        /** @description Create a synchronously validated URL-backed media resource. */
+        CreateMedia: {
+            content: components["schemas"]["CreateMediaContent"];
+            owner?: string | null;
+            title: string;
+        };
+        /**
+         * @description URL content accepted by E5.1. Uploaded/deck tags are reserved on
+         *     [`MediaContent`] but cannot be fabricated through this request.
+         */
+        CreateMediaContent: {
+            /** @enum {string} */
+            type: "youtube";
+            url: string;
+        } | {
+            /** @enum {string} */
+            type: "livestream";
+            url: string;
+        } | {
+            /** @enum {string} */
+            type: "web_page";
+            url: string;
+        };
         CreatePlayerRoom: {
             host_mode: components["schemas"]["PlayerRoomMode"];
             musical_state: components["schemas"]["PlayerRoomMusicalState"];
@@ -1108,6 +1195,12 @@ export interface components {
             credentials: components["schemas"]["PlayerRoomCredentials"];
             invite_secret: string;
             room: components["schemas"]["PlayerRoomSummary"];
+        };
+        DuplicateMedia: {
+            /** @description Destination team. Omit to keep the source owner. */
+            owner?: string | null;
+            /** @description Title for the copy. Omit to reuse the source title. */
+            title?: string | null;
         };
         /**
          * ErrorResponse
@@ -1185,6 +1278,70 @@ export interface components {
         Line: {
             parts: components["schemas"]["Part"][];
         };
+        /** @enum {string} */
+        LivestreamType: "hls" | "direct";
+        Media: {
+            content?: null | components["schemas"]["MediaContent"];
+            id: string;
+            owner: string;
+            pending_revision?: null | components["schemas"]["MediaPendingRevision"];
+            status: components["schemas"]["MediaStatus"];
+            title: string;
+        };
+        MediaContent: {
+            pages: components["schemas"]["MediaDeckPage"][];
+            /** @enum {string} */
+            type: "slide_deck";
+        } | {
+            blob_id: string;
+            /** Format: int64 */
+            duration_ms: number;
+            /** Format: int32 */
+            height: number;
+            /** @enum {string} */
+            type: "video";
+            /** Format: int32 */
+            width: number;
+        } | {
+            blob_id: string;
+            /** Format: int64 */
+            duration_ms: number;
+            /** @enum {string} */
+            type: "audio";
+        } | {
+            canonical_url: string;
+            /** @enum {string} */
+            type: "youtube";
+            video_id: string;
+        } | {
+            stream_type: components["schemas"]["LivestreamType"];
+            /** @enum {string} */
+            type: "livestream";
+            url: string;
+        } | {
+            /** @enum {string} */
+            type: "web_page";
+            url: string;
+        };
+        MediaDeckPage: {
+            blob_id: string;
+        };
+        /** @description A content replacement that has not yet replaced active Ready content. */
+        MediaPendingRevision: {
+            operation: string;
+            processing_error?: null | components["schemas"]["MediaProcessingError"];
+            status: components["schemas"]["MediaStatus"];
+        };
+        /** @description Stable, sanitized processing failure exposed to clients. */
+        MediaProcessingError: {
+            code: string;
+            detail: string;
+        };
+        /**
+         * @description Processing state for a media resource or a pending content revision.
+         * @enum {string}
+         */
+        MediaStatus: "processing" | "ready" | "failed";
         MonitoringDurationMetrics: {
             /** Format: double */
             avg: number;
@@ -1868,6 +2025,11 @@ export interface components {
             /** @description Target team id for the collection's `owner`; omit or `null` to keep the current owner. */
             owner?: string | null;
             songs: components["schemas"]["SongLink"][];
+            title: string;
+        };
+        UpdateMedia: {
+            content: components["schemas"]["CreateMediaContent"];
+            owner?: string | null;
             title: string;
         };
         /** @description Full replacement body for `PUT /api/v1/setlists/{id}`. */
@@ -3554,6 +3716,303 @@ export interface operations {
             };
             /** @description Database error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_media: {
+        parameters: {
+            query?: {
+                /** @description Zero-based page */
+                page?: number | null;
+                /** @description Items per page (1–500, default 50) */
+                page_size?: number | null;
+                /** @description Debounced-search-compatible title query */
+                q?: string;
+                /** @description Readable owning team id */
+                team?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Readable media in stable title/id order; includes X-Total-Count and pagination Link headers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Media"][];
+                };
+            };
+            /** @description Invalid query */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    create_media: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMedia"];
+            };
+        };
+        responses: {
+            /** @description Create normalized Ready URL media */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Media"];
+                };
+            };
+            /** @description Invalid payload or URL (`media_invalid_url` / `media_unsupported_url`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Target team absent or concealed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_media: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Readable media with weak ETag */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Media"];
+                };
+            };
+            /** @description Not modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Media absent or concealed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    update_media: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMedia"];
+            };
+        };
+        responses: {
+            /** @description Replace title/content and optionally owner */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Media"];
+                };
+            };
+            /** @description Invalid payload or URL */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Media or destination absent/concealed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description If-Match failed */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    delete_media: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Delete media regardless of references */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Media absent or concealed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description If-Match failed */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    duplicate_media: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DuplicateMedia"];
+            };
+        };
+        responses: {
+            /** @description Create an independent copy of URL media */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Media"];
+                };
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Media/destination absent or concealed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    move_media: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveOwner"];
+            };
+        };
+        responses: {
+            /** @description Atomically change owner after write checks on both teams */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Media"];
+                };
+            };
+            /** @description Media/source/destination absent or concealed */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

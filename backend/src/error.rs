@@ -17,6 +17,8 @@ pub enum AppError {
     NotFound(String),
     #[error("invalid request: {0}")]
     InvalidRequest(String),
+    #[error("invalid media URL: {detail}")]
+    MediaUrl { code: &'static str, detail: String },
     #[error("invalid page size: {0}")]
     InvalidPageSize(String),
     #[error("{0}")]
@@ -75,6 +77,20 @@ impl AppError {
 
     pub fn invalid_page_size<T: Into<String>>(msg: T) -> Self {
         Self::InvalidPageSize(msg.into())
+    }
+
+    pub fn media_invalid_url<T: Into<String>>(detail: T) -> Self {
+        Self::MediaUrl {
+            code: "media_invalid_url",
+            detail: detail.into(),
+        }
+    }
+
+    pub fn media_unsupported_url<T: Into<String>>(detail: T) -> Self {
+        Self::MediaUrl {
+            code: "media_unsupported_url",
+            detail: detail.into(),
+        }
     }
 
     pub fn invalid_state() -> Self {
@@ -187,6 +203,7 @@ impl AppError {
             AppError::Forbidden => "forbidden",
             AppError::NotFound(_) => "not_found",
             AppError::InvalidRequest(_) => "invalid_request",
+            AppError::MediaUrl { code, .. } => code,
             AppError::InvalidPageSize(_) => "invalid_page_size",
             AppError::Conflict(_) => "conflict",
             AppError::TooManyRequests(_) => "too_many_requests",
@@ -209,6 +226,7 @@ impl AppError {
             AppError::PreconditionFailed => {
                 "If-Match does not match the current resource representation".to_owned()
             }
+            AppError::MediaUrl { detail, .. } => detail.clone(),
             _ => self.to_string(),
         }
     }
@@ -235,7 +253,9 @@ impl ResponseError for AppError {
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
             AppError::Forbidden => StatusCode::FORBIDDEN,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
-            AppError::InvalidRequest(_) | AppError::InvalidPageSize(_) => StatusCode::BAD_REQUEST,
+            AppError::InvalidRequest(_)
+            | AppError::MediaUrl { .. }
+            | AppError::InvalidPageSize(_) => StatusCode::BAD_REQUEST,
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             AppError::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,

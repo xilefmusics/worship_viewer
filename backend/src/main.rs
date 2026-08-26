@@ -18,6 +18,7 @@ use backend::resources;
 use backend::resources::Session;
 use backend::resources::blob::service::BlobServiceHandle;
 use backend::resources::collection::service::CollectionServiceHandle;
+use backend::resources::media::service::MediaServiceHandle;
 use backend::resources::player_room::PlayerRoomService;
 use backend::resources::setlist::{SetlistService, SurrealSetlistRepo};
 use backend::resources::song::service::SongServiceHandle;
@@ -161,6 +162,7 @@ async fn main() -> AnyResult<()> {
 
     let blob_service = BlobServiceHandle::build(db.clone(), settings.blob_dir.clone());
     let collection_service = CollectionServiceHandle::build(db.clone());
+    let media_service = MediaServiceHandle::build(db.clone());
     let song_service = SongServiceHandle::build(db.clone());
     let setlist_service = SetlistService::new(SurrealSetlistRepo::new(db.clone()), db.clone());
     let team_service = TeamServiceHandle::build(db.clone());
@@ -186,6 +188,7 @@ async fn main() -> AnyResult<()> {
             .app_data(profile_picture_limits.clone())
             .app_data(cover_upload_limits.clone())
             .app_data(Data::new(collection_service.clone()))
+            .app_data(Data::new(media_service.clone()))
             .app_data(Data::new(song_service.clone()))
             .app_data(Data::new(setlist_service.clone()))
             .app_data(Data::new(team_service.clone()))

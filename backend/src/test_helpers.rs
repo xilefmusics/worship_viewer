@@ -12,6 +12,7 @@ use crate::database::Database;
 use crate::resources::User;
 use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::collection::service::CollectionServiceHandle;
+use crate::resources::media::service::MediaServiceHandle;
 use crate::resources::setlist::{SetlistService, SetlistServiceHandle, SurrealSetlistRepo};
 use crate::resources::song::service::SongServiceHandle;
 use crate::resources::team::TeamServiceHandle;
@@ -178,6 +179,11 @@ pub fn blob_service(db: &Arc<Database>, blob_dir: String) -> BlobServiceHandle {
 /// Collection application service (same wiring as HTTP `main`).
 pub fn collection_service(db: &Arc<Database>) -> CollectionServiceHandle {
     CollectionServiceHandle::build(db.clone())
+}
+
+/// Media application service (same wiring as HTTP `main`).
+pub fn media_service(db: &Arc<Database>) -> MediaServiceHandle {
+    MediaServiceHandle::build(db.clone())
 }
 
 /// Song application service (same wiring as HTTP `main`).
