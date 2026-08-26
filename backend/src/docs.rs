@@ -35,7 +35,8 @@ use shared::collection::{TransferCollectionSong, TransferCollectionSongResult};
 pub use shared::error::{ErrorResponse, Problem, ProblemDetails};
 use shared::like::LikeStatus;
 use shared::player::{
-    Orientation, Player, PlayerBlobItem, PlayerChordsItem, PlayerItem, ScrollType, TocItem,
+    Orientation, Player, PlayerBlobItem, PlayerChordsItem, PlayerItem, PlayerMediaItem, ScrollType,
+    TocItem,
 };
 use shared::player_room::{
     CreatePlayerRoom, CreatedPlayerRoom, InspectPlayerRoomInvite, JoinPlayerRoom,
@@ -43,7 +44,9 @@ use shared::player_room::{
     PlayerRoomMode, PlayerRoomMusicalState, PlayerRoomParticipant, PlayerRoomProjectionPayload,
     PlayerRoomSnapshot, PlayerRoomSourceType, PlayerRoomSummary,
 };
-use shared::setlist::SongLink as SetlistSongLink;
+use shared::setlist::{
+    SetlistItem, SetlistMediaLink, SetlistPlayerView, SongLink as SetlistSongLink,
+};
 use shared::song::{
     ChordKindSchema, ChordSchema, LineSchema, Link as SongLink, PartSchema, RootSpellingHintSchema,
     SectionSchema, SimpleChordSchema, SongDataSchema, SongFlowItemSchema, SongUserSpecificAddons,
@@ -296,6 +299,9 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             UpdateSetlist,
             PatchSetlist,
             SetlistSongLink,
+            SetlistItem,
+            SetlistMediaLink,
+            SetlistPlayerView,
             Blob,
             BlobLink,
             CreateBlob,
@@ -308,6 +314,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             PlayerItem,
             PlayerBlobItem,
             PlayerChordsItem,
+            PlayerMediaItem,
             TocItem,
             ScrollType,
             Orientation,
@@ -354,7 +361,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         (name = "Collections", description = "Owned song collections, nested songs, and player views."),
         (name = "Media", description = "Team-owned URL media library resources and lifecycle state."),
         (name = "Blobs", description = "Binary image assets: metadata, byte upload/download with cache headers."),
-        (name = "Setlists", description = "Ordered sets of songs and player payloads for services."),
+        (name = "Setlists", description = "Ordered songs and Media items, plus player payloads for services."),
         (name = "Teams", description = "Team membership, roles, and invitations (nested under `/teams/{id}/invitations`)."),
         (name = "Player Rooms", description = "Persisted cross-device player sessions, invitations, scoped media, and realtime synchronization.")
     ),

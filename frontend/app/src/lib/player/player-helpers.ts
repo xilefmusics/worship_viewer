@@ -8,7 +8,7 @@ type TocItem = components['schemas']['TocItem']
 export function itemTypeAt(items: PlayerItem[], index: number): 'blob' | 'chords' {
   const item = items[index]
   if (!item) return 'chords'
-  return item.type === 'blob' ? 'blob' : 'chords'
+  return item.type === 'chords' ? 'chords' : 'blob'
 }
 
 export function tocEntryForIndex(toc: TocItem[], index: number): TocItem | undefined {

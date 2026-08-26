@@ -793,6 +793,7 @@ export function PlayerBook({
         />
       )
     }
+    if (item.type !== 'chords') return null
 
     const showNextPreview =
       layoutPreference.nextSongPreview || isMultiColumnWithNextPreviewMode(effectiveScroll)

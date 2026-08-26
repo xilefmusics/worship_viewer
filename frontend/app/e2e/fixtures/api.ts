@@ -35,7 +35,7 @@ export type Setlist = {
   id: string
   title: string
   owner: string
-  songs: unknown[]
+  items: unknown[]
 }
 
 export type Invitation = {
@@ -248,13 +248,13 @@ export class SeedClient {
   async createSetlist(opts: {
     title: string
     owner?: string
-    songs?: unknown[]
+    items?: unknown[]
   }): Promise<Setlist> {
     const res = await this.request.post(`${this.baseURL}/api/v1/setlists`, {
       headers: this.headers({ 'Content-Type': 'application/json' }),
       data: {
         title: opts.title,
-        songs: opts.songs ?? [],
+        items: opts.items ?? [],
         ...(opts.owner ? { owner: opts.owner } : {}),
       },
     })

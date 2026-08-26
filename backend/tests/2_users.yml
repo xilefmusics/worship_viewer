@@ -607,8 +607,8 @@ testcases:
         body: |
           {
             "title": "Cascade Setlist",
-            "songs": [
-              { "id": "{{.create-default-user-song.songid}}", "nr": "1" }
+            "items": [
+              { "type": "song", "id": "{{.create-default-user-song.songid}}", "nr": "1" }
             ]
           }
         assertions:

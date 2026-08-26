@@ -1499,7 +1499,7 @@ mod team_filter {
                     CreateSetlist {
                         owner: Some(owner.to_string()),
                         title: title.into(),
-                        songs: vec![],
+                        items: vec![],
                     },
                 )
                 .await
@@ -3254,5 +3254,220 @@ mod spa_fallback_guard {
         let resp = test::call_service(&app, req).await;
         let expected = AppError::NotFound("not found".into()).error_response();
         assert_eq!(resp.status(), expected.status());
+    }
+}
+
+#[cfg(test)]
+mod setlist_items_http {
+    use super::*;
+    use actix_web::http::StatusCode;
+    use shared::media::{CreateMedia, CreateMediaContent, Media};
+    use shared::player::Player;
+    use shared::setlist::{CreateSetlist, Setlist, SetlistItem, SongLink};
+    use shared::song::Song;
+
+    use crate::test_helpers::create_song_with_title;
+
+    #[actix_web::test]
+    async fn mixed_items_roundtrip_player_views_stale_links_and_old_field_rejection() {
+        let db = test_db().await.unwrap();
+        let user = create_user(&db, "setlist-items@test.local").await.unwrap();
+        let token = create_session_token(&db, user.clone()).await.unwrap();
+        let song_a = create_song_with_title(&db, &user, "Alpha").await.unwrap();
+        let song_b = create_song_with_title(&db, &user, "Beta").await.unwrap();
+        let app = test::init_service(build_app(db)).await;
+        let auth = format!("Bearer {token}");
+
+        let request = test::TestRequest::post()
+            .uri("/api/v1/media")
+            .insert_header(("Authorization", auth.clone()))
+            .set_json(CreateMedia {
+                owner: None,
+                title: "Ready page".into(),
+                content: CreateMediaContent::WebPage {
+                    url: "https://example.com/ready".into(),
+                },
+            })
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let ready: Media = test::read_body_json(response).await;
+
+        let request = test::TestRequest::post()
+            .uri("/api/v1/media")
+            .insert_header(("Authorization", auth.clone()))
+            .set_json(CreateMedia {
+                owner: None,
+                title: "Processing video".into(),
+                content: CreateMediaContent::Video,
+            })
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let processing: Media = test::read_body_json(response).await;
+
+        let request = test::TestRequest::post()
+            .uri("/api/v1/setlists")
+            .insert_header(("Authorization", auth.clone()))
+            .set_json(serde_json::json!({
+                "title": "Legacy songs field",
+                "songs": [{ "id": song_a.id }]
+            }))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        let items = vec![
+            SetlistItem::media(&ready.id),
+            SetlistItem::Song(SongLink {
+                id: song_a.id.clone(),
+                nr: Some("1".into()),
+                key: None,
+                tempo: Some(88),
+                language: Some("de".into()),
+                flow: None,
+            }),
+            SetlistItem::media(&processing.id),
+            SetlistItem::Song(SongLink {
+                id: song_a.id.clone(),
+                nr: Some("2".into()),
+                key: None,
+                tempo: None,
+                language: None,
+                flow: None,
+            }),
+            SetlistItem::media(&ready.id),
+            SetlistItem::Song(SongLink {
+                id: song_b.id.clone(),
+                nr: None,
+                key: None,
+                tempo: None,
+                language: None,
+                flow: None,
+            }),
+        ];
+        let request = test::TestRequest::post()
+            .uri("/api/v1/setlists")
+            .insert_header(("Authorization", auth.clone()))
+            .set_json(CreateSetlist {
+                owner: None,
+                title: "Mixed service".into(),
+                items: items.clone(),
+            })
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let created: Setlist = test::read_body_json(response).await;
+        assert_eq!(created.items, items);
+
+        let request = test::TestRequest::get()
+            .uri(&format!("/api/v1/setlists/{}", created.id))
+            .insert_header(("Authorization", auth.clone()))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let fetched: Setlist = test::read_body_json(response).await;
+        assert_eq!(fetched.items, items);
+        assert_eq!(fetched.items[1].as_song().unwrap().tempo, Some(88));
+        assert_eq!(
+            fetched.items[1].as_song().unwrap().language.as_deref(),
+            Some("de")
+        );
+
+        let request = test::TestRequest::get()
+            .uri(&format!("/api/v1/setlists/{}/songs", created.id))
+            .insert_header(("Authorization", auth.clone()))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let songs: Vec<Song> = test::read_body_json(response).await;
+        assert_eq!(songs.len(), 3);
+        assert_eq!(songs[0].id, song_a.id);
+        assert_eq!(songs[1].id, song_a.id);
+        assert_eq!(songs[2].id, song_b.id);
+
+        let request = test::TestRequest::get()
+            .uri(&format!("/api/v1/setlists/{}/player", created.id))
+            .insert_header(("Authorization", auth.clone()))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let book: Player = test::read_body_json(response).await;
+        assert_eq!(book.items().len(), 3);
+        assert!(
+            book.items()
+                .iter()
+                .all(|item| { matches!(item, shared::player::PlayerItem::Chords(_)) })
+        );
+        assert_eq!(book.toc().len(), 3);
+        assert_eq!(book.toc()[0].idx, 0);
+        assert_eq!(book.toc()[1].idx, 1);
+        assert_eq!(book.toc()[2].idx, 2);
+
+        let request = test::TestRequest::get()
+            .uri(&format!("/api/v1/setlists/{}/player?view=av", created.id))
+            .insert_header(("Authorization", auth.clone()))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let av: Player = test::read_body_json(response).await;
+        assert_eq!(av.items().len(), 5);
+        assert!(matches!(
+            av.items()[0],
+            shared::player::PlayerItem::Media(_)
+        ));
+        assert!(matches!(
+            av.items()[1],
+            shared::player::PlayerItem::Chords(_)
+        ));
+        assert!(matches!(
+            av.items()[2],
+            shared::player::PlayerItem::Chords(_)
+        ));
+        assert!(matches!(
+            av.items()[3],
+            shared::player::PlayerItem::Media(_)
+        ));
+        assert!(matches!(
+            av.items()[4],
+            shared::player::PlayerItem::Chords(_)
+        ));
+        match &av.items()[0] {
+            shared::player::PlayerItem::Media(item) => {
+                assert_eq!(item.id, ready.id);
+                assert_eq!(item.title, "Ready page");
+            }
+            _ => panic!("expected media"),
+        }
+
+        let request = test::TestRequest::delete()
+            .uri(&format!("/api/v1/media/{}", ready.id))
+            .insert_header(("Authorization", auth.clone()))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+        let request = test::TestRequest::get()
+            .uri(&format!("/api/v1/setlists/{}", created.id))
+            .insert_header(("Authorization", auth.clone()))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let after_delete: Setlist = test::read_body_json(response).await;
+        assert_eq!(after_delete.items[0].as_media_id(), Some(ready.id.as_str()));
+        assert_eq!(after_delete.items[4].as_media_id(), Some(ready.id.as_str()));
+
+        let request = test::TestRequest::get()
+            .uri(&format!("/api/v1/setlists/{}/player?view=av", created.id))
+            .insert_header(("Authorization", auth.clone()))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let av_after: Player = test::read_body_json(response).await;
+        assert_eq!(av_after.items().len(), 3);
+        assert!(
+            av_after
+                .items()
+                .iter()
+                .all(|item| { matches!(item, shared::player::PlayerItem::Chords(_)) })
+        );
     }
 }

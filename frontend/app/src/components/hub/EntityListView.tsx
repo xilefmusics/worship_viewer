@@ -32,6 +32,7 @@ import {
 } from '@/components/hub/hub-list-styles'
 
 import type { Collection, Setlist, Song } from '@/api/list-fetch'
+import { songLinksFromSetlistItems } from '@/lib/setlist-items'
 import { useHubScrollContainerRef } from '@/context/HubScrollContainerContext'
 import {
   AlertDialog,
@@ -1164,7 +1165,7 @@ const SetlistRow = memo(function SetlistRow({
           <p className={HUB_LIST_TITLE_CLASS}>{setlist.title}</p>
           <div className="flex min-w-0 items-baseline gap-2">
             <p className={cn(HUB_LIST_SUBTITLE_CLASS, 'min-w-0 flex-1 truncate')}>
-              {t('hub.meta.songsCount', { count: setlist.songs.length })}
+              {t('hub.meta.songsCount', { count: songLinksFromSetlistItems(setlist.items).length })}
             </p>
             {ownerLabel ? (
               <p

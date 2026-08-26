@@ -350,15 +350,17 @@ pub fn setlist_with_songs(title: &str, song_ids: &[(&str, Option<&str>)]) -> Cre
     CreateSetlist {
         owner: None,
         title: title.into(),
-        songs: song_ids
+        items: song_ids
             .iter()
-            .map(|(id, nr)| SetlistSongLink {
-                id: (*id).into(),
-                nr: nr.map(|s| s.into()),
-                key: None,
-                tempo: None,
-                language: None,
-                flow: None,
+            .map(|(id, nr)| {
+                shared::setlist::SetlistItem::Song(SetlistSongLink {
+                    id: (*id).into(),
+                    nr: nr.map(|s| s.into()),
+                    key: None,
+                    tempo: None,
+                    language: None,
+                    flow: None,
+                })
             })
             .collect(),
     }

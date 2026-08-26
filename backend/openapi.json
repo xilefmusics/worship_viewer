@@ -448,18 +448,25 @@
       "CreateSetlist": {
         "additionalProperties": false,
         "example": {
-          "owner": "team_example_id",
-          "songs": [
+          "items": [
             {
               "flow": null,
               "id": "song_example",
               "key": null,
-              "nr": "1"
+              "nr": "1",
+              "type": "song"
             }
           ],
+          "owner": "team_example_id",
           "title": "Easter Sunday"
         },
         "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SetlistItem"
+            },
+            "type": "array"
+          },
           "owner": {
             "description": "Owning team id (same format as `Setlist.owner` in responses). Omit to create under the caller's personal team.",
             "type": [
@@ -467,19 +474,13 @@
               "null"
             ]
           },
-          "songs": {
-            "items": {
-              "$ref": "#/components/schemas/SetlistSongLink"
-            },
-            "type": "array"
-          },
           "title": {
             "type": "string"
           }
         },
         "required": [
           "title",
-          "songs"
+          "items"
         ],
         "type": "object"
       },
@@ -1594,18 +1595,18 @@
         "additionalProperties": false,
         "description": "Partial update for a setlist. Absent fields are left unchanged.",
         "properties": {
-          "owner": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "songs": {
+          "items": {
             "items": {
-              "$ref": "#/components/schemas/SetlistSongLink"
+              "$ref": "#/components/schemas/SetlistItem"
             },
             "type": [
               "array",
+              "null"
+            ]
+          },
+          "owner": {
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -1904,8 +1905,50 @@
                 "type": "object"
               }
             ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlayerMediaItem"
+              },
+              {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "media"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            ]
           }
         ]
+      },
+      "PlayerMediaItem": {
+        "description": "Immutable Ready Media snapshot for online AV (`type`: `\"media\"`).",
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/MediaContent"
+          },
+          "id": {
+            "description": "Media resource id (stable identity for this setlist slot).",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "content"
+        ],
+        "type": "object"
       },
       "PlayerRoomContent": {
         "properties": {
@@ -2399,29 +2442,34 @@
       "Setlist": {
         "example": {
           "id": "set_example",
-          "owner": "usr_example",
-          "songs": [
+          "items": [
             {
               "flow": null,
               "id": "song_example",
               "key": null,
-              "nr": "1"
+              "nr": "1",
+              "type": "song"
+            },
+            {
+              "id": "media_example",
+              "type": "media"
             }
           ],
+          "owner": "usr_example",
           "title": "Easter Sunday"
         },
         "properties": {
           "id": {
             "type": "string"
           },
-          "owner": {
-            "type": "string"
-          },
-          "songs": {
+          "items": {
             "items": {
-              "$ref": "#/components/schemas/SetlistSongLink"
+              "$ref": "#/components/schemas/SetlistItem"
             },
             "type": "array"
+          },
+          "owner": {
+            "type": "string"
           },
           "title": {
             "type": "string"
@@ -2431,11 +2479,80 @@
           "id",
           "owner",
           "title",
-          "songs"
+          "items"
         ],
         "type": "object"
       },
+      "SetlistItem": {
+        "description": "Ordered setlist slot: a song with optional overrides, or a Media id.",
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SetlistSongLink"
+              },
+              {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "song"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SetlistMediaLink"
+              },
+              {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "media"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        ]
+      },
+      "SetlistMediaLink": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Media record id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "SetlistPlayerView": {
+        "description": "Player hydration mode for a setlist snapshot.",
+        "enum": [
+          "book",
+          "av"
+        ],
+        "type": "string"
+      },
       "SetlistSongLink": {
+        "additionalProperties": false,
         "properties": {
           "flow": {
             "description": "Custom section order and repeats for this setlist slot.",
@@ -3174,6 +3291,12 @@
         "additionalProperties": false,
         "description": "Full replacement body for `PUT /api/v1/setlists/{id}`.",
         "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SetlistItem"
+            },
+            "type": "array"
+          },
           "owner": {
             "description": "Target team id for the setlist's `owner`; omit or `null` to keep the current owner.",
             "type": [
@@ -3181,19 +3304,13 @@
               "null"
             ]
           },
-          "songs": {
-            "items": {
-              "$ref": "#/components/schemas/SetlistSongLink"
-            },
-            "type": "array"
-          },
           "title": {
             "type": "string"
           }
         },
         "required": [
           "title",
-          "songs"
+          "items"
         ],
         "type": "object"
       },
@@ -7715,6 +7832,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Hydration mode. `book` (default) omits Media for Book/sheet/offline/Player Room snapshots. `av` includes Ready readable Media as one tagged item per setlist slot.",
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SetlistPlayerView"
             }
           }
         ],
@@ -12321,7 +12447,7 @@
       "name": "Blobs"
     },
     {
-      "description": "Ordered sets of songs and player payloads for services.",
+      "description": "Ordered songs and Media items, plus player payloads for services.",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
         "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/setlist.md"

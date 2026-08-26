@@ -95,9 +95,9 @@ export function CreateSetlistDialog({ open, onOpenChange, onCreated }: CreateSet
     mutationFn: async () => {
       const trimmed = title.trim()
       if (!trimmed) throw new Error(t('setlists.create.titleRequired'))
-      const body: { title: string; songs: []; owner?: string } = {
+      const body: { title: string; items: []; owner?: string } = {
         title: trimmed,
-        songs: [],
+        items: [],
       }
       if (showOwnerPicker && ownerId) body.owner = ownerId
       const { data, error, response } = await api.POST('/api/v1/setlists', { body })

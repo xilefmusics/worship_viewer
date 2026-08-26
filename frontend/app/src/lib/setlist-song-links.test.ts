@@ -8,6 +8,7 @@ import {
   type SetlistSongLink,
 } from '@/lib/setlist-song-links'
 import { buildSetlistPatchBody } from '@/lib/setlist-field-diff'
+import { mergeEditorSongsIntoItems } from '@/lib/setlist-items'
 
 function flow(title: string, occurrence_index = 0, repeats = 1): SongFlowItem {
   return { title, occurrence_index, repeats }
@@ -53,19 +54,21 @@ describe('setlist song links', () => {
   })
 
   it('treats equal flow slots as unchanged in autosave diffs', () => {
+    const songs = [
+      {
+        id: 'song-1',
+        key: null,
+        tempo: null,
+        language: null,
+        nr: null,
+        flow: [flow('Verse', 0, 1), flow('Chorus', 0, 2)],
+      },
+    ]
     const baseline = {
       title: 'Sunday',
       owner: 'team-1',
-      songs: [
-        {
-          id: 'song-1',
-          key: null,
-          tempo: null,
-          language: null,
-          nr: null,
-          flow: [flow('Verse', 0, 1), flow('Chorus', 0, 2)],
-        },
-      ],
+      songs,
+      items: mergeEditorSongsIntoItems([], songs),
     }
     const draft = {
       ...baseline,
@@ -81,19 +84,21 @@ describe('setlist song links', () => {
   })
 
   it('includes flow edits in autosave diffs', () => {
+    const songs = [
+      {
+        id: 'song-1',
+        key: null,
+        tempo: null,
+        language: null,
+        nr: null,
+        flow: [flow('Verse', 0, 1)],
+      },
+    ]
     const baseline = {
       title: 'Sunday',
       owner: 'team-1',
-      songs: [
-        {
-          id: 'song-1',
-          key: null,
-          tempo: null,
-          language: null,
-          nr: null,
-          flow: [flow('Verse', 0, 1)],
-        },
-      ],
+      songs,
+      items: mergeEditorSongsIntoItems([], songs),
     }
     const draft = {
       ...baseline,
@@ -106,6 +111,6 @@ describe('setlist song links', () => {
     }
 
     const patch = buildSetlistPatchBody(baseline, draft)
-    expect(patch?.songs?.[0]?.flow).toEqual([flow('Verse', 0, 2)])
+    expect(patch?.items?.[0]).toMatchObject({ type: 'song', flow: [flow('Verse', 0, 2)] })
   })
 })

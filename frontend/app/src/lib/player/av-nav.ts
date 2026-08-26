@@ -90,6 +90,17 @@ export function avSlidesForItem(
       kind: 'blob',
     }
   }
+  if (item.type !== 'chords') {
+    const text = blobItemSlideText(
+      (item.type === 'media' ? item.title : fallbackTitle)?.trim() || fallbackTitle?.trim() || 'Untitled',
+    )
+    return {
+      slides: [text],
+      sourceSlides: [text],
+      outline: [],
+      kind: 'blob',
+    }
+  }
   const songData =
     resolvedSongData != null
       ? ({ ...item.song.data, ...resolvedSongData } as typeof item.song.data)
@@ -293,6 +304,7 @@ export function avItemTitle(
       tocTitle,
     )
   }
+  if (item.type === 'media') return item.title
   if (tocTitle?.trim()) return tocTitle.trim()
   return ''
 }

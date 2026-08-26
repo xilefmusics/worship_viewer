@@ -8,7 +8,8 @@ import type { components } from '@/api/schema'
 
 import { hubListRootKey } from '@/lib/hub-list-keys'
 import { parseRetryAfterSeconds } from '@/lib/http-retry-after'
-import { buildSetlistPatchBody } from '@/lib/setlist-field-diff'
+import { buildSetlistPatchBody, type SetlistDiffBaseline } from '@/lib/setlist-field-diff'
+import { songLinksFromSetlistItems } from '@/lib/setlist-items'
 import { playerQueryKey, setlistDetailKey } from '@/lib/setlist-detail-key'
 
 import { normalizeSongLinksForEditor, type EditorSongLink } from '@/lib/setlist-song-links'
@@ -16,6 +17,20 @@ import { normalizeSongLinksForEditor, type EditorSongLink } from '@/lib/setlist-
 type Setlist = components['schemas']['Setlist']
 
 const DEBOUNCE_MS = 750
+
+function toDiffBaseline(base: {
+  title: string
+  songs: EditorSongLink[]
+  items?: components['schemas']['SetlistItem'][]
+  owner: string
+}): SetlistDiffBaseline {
+  return {
+    title: base.title,
+    songs: base.songs,
+    items: base.items ?? [],
+    owner: base.owner,
+  }
+}
 
 export type SaveIconState = 'idle' | 'pending' | 'saving' | 'error'
 
@@ -45,7 +60,7 @@ export function useSetlistAutosave({
   canAutosavePatch,
 }: {
   setlistId: string
-  baseline: { title: string; songs: EditorSongLink[]; owner: string } | null
+  baseline: { title: string; songs: EditorSongLink[]; items?: components['schemas']['SetlistItem'][]; owner: string } | null
   draftTitle: string
   draftSongs: EditorSongLink[]
   draftOwner: string
@@ -142,7 +157,8 @@ export function useSetlistAutosave({
           applyServerSetlistToCache(next)
           baselineRef.current = {
             title: next.title,
-            songs: normalizeSongLinksForEditor(next.songs),
+            songs: normalizeSongLinksForEditor(songLinksFromSetlistItems(next.items)),
+            items: next.items,
             owner: next.owner,
           }
         }
@@ -172,7 +188,7 @@ export function useSetlistAutosave({
       const base = baselineRef.current
       if (!canAutosavePatch || !base || saveFailure) return false
 
-      const body = buildSetlistPatchBody(base, {
+      const body = buildSetlistPatchBody(toDiffBaseline(base), {
         title: draftTitleRef.current,
         songs: draftSongsRef.current,
         owner: draftOwnerRef.current,
@@ -193,7 +209,7 @@ export function useSetlistAutosave({
         needFollowUpPatch.current = false
         const b = baselineRef.current
         if (b) {
-          const nextBody = buildSetlistPatchBody(b, {
+          const nextBody = buildSetlistPatchBody(toDiffBaseline(b), {
             title: draftTitleRef.current,
             songs: draftSongsRef.current,
             owner: draftOwnerRef.current,
@@ -215,7 +231,7 @@ export function useSetlistAutosave({
       return
     }
 
-    const body = buildSetlistPatchBody(baselineRef.current, {
+    const body = buildSetlistPatchBody(toDiffBaseline(baselineRef.current), {
       title: draftTitleRef.current,
       songs: draftSongsRef.current,
       owner: draftOwnerRef.current,
@@ -236,7 +252,7 @@ export function useSetlistAutosave({
     clearDebounceTimer()
     const base = baselineRef.current
     if (!base || saveFailure || !canAutosavePatch) return
-    const body = buildSetlistPatchBody(base, {
+    const body = buildSetlistPatchBody(toDiffBaseline(base), {
       title: draftTitleRef.current,
       songs: draftSongsRef.current,
       owner: draftOwnerRef.current,

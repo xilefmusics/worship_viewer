@@ -4,7 +4,7 @@ use surrealdb::types::{RecordId, SurrealValue};
 use shared::setlist::{CreateSetlist, Setlist};
 
 use crate::database::record_id_string;
-use crate::resources::common::SetlistSongLinkRecord;
+use crate::resources::common::SetlistItemRecord;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default, SurrealValue)]
 pub struct SetlistRecord {
@@ -14,7 +14,7 @@ pub struct SetlistRecord {
     pub owner: Option<RecordId>,
     title: String,
     #[serde(default)]
-    songs: Vec<SetlistSongLinkRecord>,
+    items: Vec<SetlistItemRecord>,
 }
 
 impl SetlistRecord {
@@ -23,7 +23,7 @@ impl SetlistRecord {
             id: self.id.map(|r| record_id_string(&r)).unwrap_or_default(),
             owner: self.owner.map(|r| record_id_string(&r)).unwrap_or_default(),
             title: self.title,
-            songs: self.songs.into_iter().map(Into::into).collect(),
+            items: self.items.into_iter().map(Into::into).collect(),
         }
     }
 
@@ -32,19 +32,19 @@ impl SetlistRecord {
         owner: Option<RecordId>,
         setlist: CreateSetlist,
     ) -> Self {
-        let CreateSetlist { title, songs, .. } = setlist;
+        let CreateSetlist { title, items, .. } = setlist;
         Self {
             id,
             owner,
             title,
-            songs: songs.into_iter().map(Into::into).collect(),
+            items: items.into_iter().map(Into::into).collect(),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use shared::setlist::SongLink;
+    use shared::setlist::{SetlistItem, SongLink};
 
     use super::*;
 
@@ -58,23 +58,26 @@ mod tests {
             CreateSetlist {
                 owner: None,
                 title: "Sunday".into(),
-                songs: vec![SongLink {
+                items: vec![SetlistItem::Song(SongLink {
                     id: "s1".into(),
                     nr: Some("1".into()),
                     key: None,
                     tempo: None,
                     language: Some("de".into()),
                     flow: None,
-                }],
+                })],
             },
         );
         let setlist = record.into_setlist();
         assert_eq!(setlist.id, "sl1");
         assert_eq!(setlist.owner, "tm");
         assert_eq!(setlist.title, "Sunday");
-        assert_eq!(setlist.songs.len(), 1);
-        assert_eq!(setlist.songs[0].id, "s1");
-        assert_eq!(setlist.songs[0].language.as_deref(), Some("de"));
+        assert_eq!(setlist.items.len(), 1);
+        assert_eq!(setlist.items[0].as_song().unwrap().id, "s1");
+        assert_eq!(
+            setlist.items[0].as_song().unwrap().language.as_deref(),
+            Some("de")
+        );
     }
 
     #[test]
@@ -85,28 +88,28 @@ mod tests {
             CreateSetlist {
                 owner: None,
                 title: "Sunday".into(),
-                songs: vec![SongLink {
+                items: vec![SetlistItem::Song(SongLink {
                     id: "s1".into(),
                     nr: Some("1".into()),
                     key: None,
                     tempo: None,
                     language: None,
                     flow: None,
-                }],
+                })],
             },
         );
         let omitted_json = serde_json::to_value(&omitted).expect("omit serialize");
-        assert!(omitted_json["songs"][0]["flow"].is_null());
+        assert!(omitted_json["items"][0]["flow"].is_null());
         let omitted_roundtrip: SetlistRecord =
             serde_json::from_value(omitted_json).expect("omit roundtrip");
         assert_eq!(omitted_roundtrip.title, "Sunday");
 
         let mut null_json = serde_json::to_value(&omitted).expect("null base");
-        null_json["songs"][0]["flow"] = serde_json::Value::Null;
+        null_json["items"][0]["flow"] = serde_json::Value::Null;
         let null_roundtrip: SetlistRecord =
             serde_json::from_value(null_json).expect("null roundtrip");
         let null_serialized = serde_json::to_value(&null_roundtrip).expect("null serialize");
-        assert!(null_serialized["songs"][0]["flow"].is_null());
+        assert!(null_serialized["items"][0]["flow"].is_null());
 
         let value_flow = SetlistRecord::from_payload(
             Some(RecordId::new("setlist", "sl1")),
@@ -114,7 +117,7 @@ mod tests {
             CreateSetlist {
                 owner: None,
                 title: "Sunday".into(),
-                songs: vec![SongLink {
+                items: vec![SetlistItem::Song(SongLink {
                     id: "s1".into(),
                     nr: Some("1".into()),
                     key: None,
@@ -125,14 +128,42 @@ mod tests {
                         occurrence_index: 0,
                         repeats: 1,
                     }]),
-                }],
+                })],
             },
         );
         let value_json = serde_json::to_value(&value_flow).expect("value serialize");
-        assert_eq!(value_json["songs"][0]["flow"][0]["title"], "Verse");
+        assert_eq!(value_json["items"][0]["flow"][0]["title"], "Verse");
         let value_roundtrip: SetlistRecord =
             serde_json::from_value(value_json).expect("value roundtrip");
         assert_eq!(value_roundtrip.title, "Sunday");
+    }
+
+    #[test]
+    fn setlist_record_preserves_media_and_duplicate_order() {
+        let record = SetlistRecord::from_payload(
+            Some(RecordId::new("setlist", "sl1")),
+            Some(RecordId::new("team", "tm")),
+            CreateSetlist {
+                owner: None,
+                title: "Mixed".into(),
+                items: vec![
+                    SetlistItem::media("m1"),
+                    SetlistItem::Song(SongLink {
+                        id: "s1".into(),
+                        nr: Some("1".into()),
+                        key: None,
+                        tempo: None,
+                        language: None,
+                        flow: None,
+                    }),
+                    SetlistItem::media("m1"),
+                ],
+            },
+        );
+        let setlist = record.into_setlist();
+        assert_eq!(setlist.items[0].as_media_id(), Some("m1"));
+        assert_eq!(setlist.items[1].as_song().unwrap().id, "s1");
+        assert_eq!(setlist.items[2].as_media_id(), Some("m1"));
     }
 
     #[tokio::test]
@@ -150,7 +181,7 @@ mod tests {
                 CreateSetlist {
                     owner: None,
                     title: "Smoke".to_string(),
-                    songs: vec![],
+                    items: vec![],
                 },
             )
             .await
@@ -161,6 +192,6 @@ mod tests {
             .expect("get setlist");
         assert_eq!(fetched.title, "Smoke");
         assert_eq!(fetched.id, created.id);
-        assert!(fetched.songs.is_empty());
+        assert!(fetched.items.is_empty());
     }
 }

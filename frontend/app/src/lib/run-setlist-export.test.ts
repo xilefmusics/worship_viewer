@@ -23,7 +23,7 @@ describe('runSetlistExport', () => {
     vi.clearAllMocks()
     fetchSetlistDetail.mockResolvedValue({
       title: 'Sunday',
-      songs: [{ id: 'song-1', nr: '1', key: null, tempo: null, language: 'de' }],
+      items: [{ type: 'song', id: 'song-1', nr: '1', key: null, tempo: null, language: 'de' }],
     })
   })
 

@@ -1226,22 +1226,23 @@ export interface components {
         };
         /**
          * @example {
-         *       "owner": "team_example_id",
-         *       "songs": [
+         *       "items": [
          *         {
          *           "flow": null,
          *           "id": "song_example",
          *           "key": null,
-         *           "nr": "1"
+         *           "nr": "1",
+         *           "type": "song"
          *         }
          *       ],
+         *       "owner": "team_example_id",
          *       "title": "Easter Sunday"
          *     }
          */
         CreateSetlist: {
+            items: components["schemas"]["SetlistItem"][];
             /** @description Owning team id (same format as `Setlist.owner` in responses). Omit to create under the caller's personal team. */
             owner?: string | null;
-            songs: components["schemas"]["SetlistSongLink"][];
             title: string;
         };
         /**
@@ -1614,8 +1615,8 @@ export interface components {
         };
         /** @description Partial update for a setlist. Absent fields are left unchanged. */
         PatchSetlist: {
+            items?: components["schemas"]["SetlistItem"][] | null;
             owner?: string | null;
-            songs?: components["schemas"]["SetlistSongLink"][] | null;
             title?: string | null;
         };
         /**
@@ -1698,7 +1699,17 @@ export interface components {
         }) | (components["schemas"]["PlayerChordsItem"] & {
             /** @enum {string} */
             type: "chords";
+        }) | (components["schemas"]["PlayerMediaItem"] & {
+            /** @enum {string} */
+            type: "media";
         });
+        /** @description Immutable Ready Media snapshot for online AV (`type`: `"media"`). */
+        PlayerMediaItem: {
+            content: components["schemas"]["MediaContent"];
+            /** @description Media resource id (stable identity for this setlist slot). */
+            id: string;
+            title: string;
+        };
         PlayerRoomContent: {
             items: components["schemas"]["PlayerItem"][];
             toc: components["schemas"]["TocItem"][];
@@ -1853,24 +1864,46 @@ export interface components {
         /**
          * @example {
          *       "id": "set_example",
-         *       "owner": "usr_example",
-         *       "songs": [
+         *       "items": [
          *         {
          *           "flow": null,
          *           "id": "song_example",
          *           "key": null,
-         *           "nr": "1"
+         *           "nr": "1",
+         *           "type": "song"
+         *         },
+         *         {
+         *           "id": "media_example",
+         *           "type": "media"
          *         }
          *       ],
+         *       "owner": "usr_example",
          *       "title": "Easter Sunday"
          *     }
          */
         Setlist: {
             id: string;
+            items: components["schemas"]["SetlistItem"][];
             owner: string;
-            songs: components["schemas"]["SetlistSongLink"][];
             title: string;
         };
+        /** @description Ordered setlist slot: a song with optional overrides, or a Media id. */
+        SetlistItem: (components["schemas"]["SetlistSongLink"] & {
+            /** @enum {string} */
+            type: "song";
+        }) | (components["schemas"]["SetlistMediaLink"] & {
+            /** @enum {string} */
+            type: "media";
+        });
+        SetlistMediaLink: {
+            /** @description Media record id. */
+            id: string;
+        };
+        /**
+         * @description Player hydration mode for a setlist snapshot.
+         * @enum {string}
+         */
+        SetlistPlayerView: "book" | "av";
         SetlistSongLink: {
             /** @description Custom section order and repeats for this setlist slot. */
             flow?: components["schemas"]["SongFlowItem"][] | null;
@@ -2170,9 +2203,9 @@ export interface components {
         };
         /** @description Full replacement body for `PUT /api/v1/setlists/{id}`. */
         UpdateSetlist: {
+            items: components["schemas"]["SetlistItem"][];
             /** @description Target team id for the setlist's `owner`; omit or `null` to keep the current owner. */
             owner?: string | null;
-            songs: components["schemas"]["SetlistSongLink"][];
             title: string;
         };
         /**
@@ -5332,7 +5365,10 @@ export interface operations {
     };
     get_setlist_player: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Hydration mode. `book` (default) omits Media for Book/sheet/offline/Player Room snapshots. `av` includes Ready readable Media as one tagged item per setlist slot. */
+                view?: components["schemas"]["SetlistPlayerView"];
+            };
             header?: never;
             path: {
                 /** @description Setlist identifier */

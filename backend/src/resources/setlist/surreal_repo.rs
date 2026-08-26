@@ -7,6 +7,7 @@ use serde::Deserialize;
 use surrealdb::types::SurrealValue;
 
 use shared::api::ListQuery;
+use shared::media::Media;
 use shared::setlist::{CreateSetlist, Setlist};
 use shared::song::LinkOwned as SongLinkOwned;
 
@@ -14,8 +15,8 @@ use crate::database::Database;
 use crate::error::AppError;
 
 use crate::resources::common::{
-    SetlistSongLinkListRow, SetlistSongLinkRecord, belongs_to, resource_id,
-    setlist_song_links_to_owned,
+    SetlistItemListRow, SetlistItemRecord, belongs_to, media_records_by_ids, media_thing,
+    resource_id, setlist_song_links_to_owned,
 };
 
 use super::model::SetlistRecord;
@@ -129,20 +130,34 @@ impl SetlistRepository for SurrealSetlistRepo {
         let (tb, sid) = resource_id("setlist", id)?;
         let mut response = db
             .db
-            .query("SELECT owner, songs FROM type::record($tb, $sid)")
+            .query("SELECT owner, items FROM type::record($tb, $sid)")
             .bind(("tb", tb))
             .bind(("sid", sid))
             .await?;
 
         let record = response
-            .take::<Option<SetlistSongLinkListRow>>(0)?
+            .take::<Option<SetlistItemListRow>>(0)?
             .ok_or_else(|| AppError::NotFound("setlist not found".into()))?;
 
         if !belongs_to(&record.owner, read_teams) {
             return Err(AppError::NotFound("setlist not found".into()));
         }
 
-        setlist_song_links_to_owned(&db.db, record.songs).await
+        let song_links = record
+            .items
+            .into_iter()
+            .filter_map(|item| item.as_song_link_record())
+            .collect();
+        setlist_song_links_to_owned(&db.db, song_links).await
+    }
+
+    async fn load_media_unscoped(&self, ids: &[String]) -> Result<Vec<Media>, AppError> {
+        let record_ids: Vec<RecordId> = ids.iter().map(|id| media_thing(id)).collect();
+        media_records_by_ids(&self.inner().db, record_ids)
+            .await?
+            .into_iter()
+            .map(|row| row.into_media())
+            .collect()
     }
 
     async fn create_setlist(
@@ -168,32 +183,32 @@ impl SetlistRepository for SurrealSetlistRepo {
     ) -> Result<Setlist, AppError> {
         let db = self.inner();
         let (tb, sid) = resource_id("setlist", id)?;
-        let songs: Vec<SetlistSongLinkRecord> = setlist.songs.into_iter().map(Into::into).collect();
+        let items: Vec<SetlistItemRecord> = setlist.items.into_iter().map(Into::into).collect();
         let title = setlist.title;
 
         let mut response = if let Some(ref owner_rid) = owner {
             db.db
                 .query(
-                    "UPDATE type::record($tb, $sid) SET title = $title, songs = $songs, owner = $owner \
+                    "UPDATE type::record($tb, $sid) SET title = $title, items = $items, owner = $owner \
                      WHERE owner IN $teams RETURN AFTER",
                 )
                 .bind(("tb", tb))
                 .bind(("sid", sid))
                 .bind(("title", title))
-                .bind(("songs", songs))
+                .bind(("items", items))
                 .bind(("owner", owner_rid.clone()))
                 .bind(("teams", write_teams.to_vec()))
                 .await?
         } else {
             db.db
                 .query(
-                    "UPDATE type::record($tb, $sid) SET title = $title, songs = $songs \
+                    "UPDATE type::record($tb, $sid) SET title = $title, items = $items \
                      WHERE owner IN $teams RETURN AFTER",
                 )
                 .bind(("tb", tb))
                 .bind(("sid", sid))
                 .bind(("title", title))
-                .bind(("songs", songs))
+                .bind(("items", items))
                 .bind(("teams", write_teams.to_vec()))
                 .await?
         };

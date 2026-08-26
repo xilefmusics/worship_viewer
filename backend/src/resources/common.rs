@@ -6,8 +6,9 @@ use surrealdb::Surreal;
 use surrealdb::engine::any::Any;
 use surrealdb::types::{Kind, RecordId, SurrealValue, Value, kind};
 
+use crate::resources::media::MediaRecord;
 use shared::player::Player;
-use shared::setlist::SongLink as SetlistSongLink;
+use shared::setlist::{SetlistItem, SetlistMediaLink, SongLink as SetlistSongLink};
 use shared::song::{Link as SongLink, LinkOwned as SongLinkOwned};
 
 use crate::database::record_id_string;
@@ -62,6 +63,14 @@ pub fn song_thing(id: &str) -> RecordId {
     match RecordId::parse_simple(id) {
         Ok(rid) if rid.table.as_str() == "song" => rid,
         _ => RecordId::new("song", id.to_owned()),
+    }
+}
+
+/// Coerce a string to a `media:…` [`RecordId`], validating the table prefix when present.
+pub fn media_thing(id: &str) -> RecordId {
+    match RecordId::parse_simple(id) {
+        Ok(rid) if rid.table.as_str() == "media" => rid,
+        _ => RecordId::new("media", id.to_owned()),
     }
 }
 
@@ -173,16 +182,16 @@ pub async fn song_links_to_owned(
     song_link_records_to_owned(links, records)
 }
 
-/// Owner + embedded song link rows for setlists.
+/// Owner + embedded tagged items for setlists.
 #[derive(Deserialize, SurrealValue)]
-pub struct SetlistSongLinkListRow {
+pub struct SetlistItemListRow {
     #[serde(default)]
     pub owner: Option<RecordId>,
     #[serde(default)]
-    pub songs: Vec<SetlistSongLinkRecord>,
+    pub items: Vec<SetlistItemRecord>,
 }
 
-/// Load full [`Song`] values for setlist link rows (`array<object>` with `id: record<song>`).
+/// Load full [`Song`] values for setlist song slots.
 pub async fn setlist_song_links_to_owned(
     db: &Surreal<Any>,
     links: Vec<SetlistSongLinkRecord>,
@@ -200,6 +209,24 @@ pub async fn setlist_song_links_to_owned(
         .take(0)
         .map_err(|e| crate::log_and_convert!(AppError::database, "song.batch_by_id.take", e))?;
     setlist_song_link_records_to_owned(links, records)
+}
+
+/// Load media rows by id without ACL filtering (caller applies read-team + Ready checks).
+pub async fn media_records_by_ids(
+    db: &Surreal<Any>,
+    ids: Vec<RecordId>,
+) -> Result<Vec<MediaRecord>, AppError> {
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut response = db
+        .query("SELECT * FROM $ids")
+        .bind(("ids", ids))
+        .await
+        .map_err(|e| crate::log_and_convert!(AppError::database, "media.batch_by_id", e))?;
+    response
+        .take(0)
+        .map_err(|e| crate::log_and_convert!(AppError::database, "media.batch_by_id.take", e))
 }
 
 fn song_link_records_to_owned(
@@ -319,6 +346,88 @@ impl From<SongLink> for SongLinkRecord {
             tempo: link.tempo,
             language: link.language,
         }
+    }
+}
+
+/// DB record for a tagged setlist item (`kind`: `song` | `media`).
+#[derive(Clone, Debug, Serialize, Deserialize, SurrealValue)]
+pub struct SetlistItemRecord {
+    pub kind: String,
+    pub id: RecordId,
+    #[serde(default)]
+    pub nr: Option<String>,
+    #[serde(default)]
+    pub key: Option<SimpleChordField>,
+    #[serde(default)]
+    pub tempo: Option<u32>,
+    #[serde(default)]
+    pub language: Option<String>,
+    #[serde(default)]
+    pub flow: Option<Vec<serde_json::Value>>,
+}
+
+impl SetlistItemRecord {
+    pub fn as_song_link_record(&self) -> Option<SetlistSongLinkRecord> {
+        if self.kind != "song" {
+            return None;
+        }
+        Some(SetlistSongLinkRecord {
+            id: self.id.clone(),
+            nr: self.nr.clone(),
+            key: self.key.clone(),
+            tempo: self.tempo,
+            language: self.language.clone(),
+            flow: self.flow.clone(),
+        })
+    }
+}
+
+impl From<SetlistItem> for SetlistItemRecord {
+    fn from(item: SetlistItem) -> Self {
+        match item {
+            SetlistItem::Song(link) => Self {
+                kind: "song".into(),
+                id: song_thing(&link.id),
+                nr: link.nr,
+                key: link.key.map(SimpleChordField),
+                tempo: link.tempo,
+                language: link.language,
+                flow: link.flow.map(|flow| {
+                    flow.into_iter()
+                        .map(|item| serde_json::to_value(item).unwrap_or(serde_json::Value::Null))
+                        .collect()
+                }),
+            },
+            SetlistItem::Media(link) => Self {
+                kind: "media".into(),
+                id: media_thing(&link.id),
+                nr: None,
+                key: None,
+                tempo: None,
+                language: None,
+                flow: None,
+            },
+        }
+    }
+}
+
+impl From<SetlistItemRecord> for SetlistItem {
+    fn from(record: SetlistItemRecord) -> Self {
+        if record.kind == "media" {
+            return SetlistItem::Media(SetlistMediaLink {
+                id: record_id_string(&record.id),
+            });
+        }
+        SetlistItem::Song(SetlistSongLink {
+            id: record_id_string(&record.id),
+            nr: record.nr,
+            key: record.key.map(|k| k.0),
+            tempo: record.tempo,
+            language: record.language,
+            flow: record
+                .flow
+                .and_then(|flow| serde_json::from_value(serde_json::Value::Array(flow)).ok()),
+        })
     }
 }
 

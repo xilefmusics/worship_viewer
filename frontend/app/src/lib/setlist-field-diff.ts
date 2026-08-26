@@ -1,41 +1,29 @@
 import type { components } from '@/api/schema'
 
 import {
-  coerceMusicalKeyString,
-  normalizeSongLinkId,
-  normalizeSongLinkLanguage,
-  songFlowEqual,
-  songLinkForSetlistMutation,
-  songLinkTempoEditorToWire,
+  mergeEditorSongsIntoItems,
+  setlistItemsEqual,
+  type SetlistItem,
+} from '@/lib/setlist-items'
+import {
   type EditorSongLink,
 } from '@/lib/setlist-song-links'
 
 export type Setlist = components['schemas']['Setlist']
 export type SetlistPatchDirty = components['schemas']['PatchSetlist']
 
-function songsEqual(a: EditorSongLink[], b: EditorSongLink[]): boolean {
-  if (a.length !== b.length) return false
-  for (let i = 0; i < a.length; i++) {
-    if (normalizeSongLinkId(a[i].id) !== normalizeSongLinkId(b[i].id)) return false
-    const ka = coerceMusicalKeyString(a[i].key)
-    const kb = coerceMusicalKeyString(b[i].key)
-    if (ka !== kb) return false
-    const ta = songLinkTempoEditorToWire(a[i].tempo)
-    const tb = songLinkTempoEditorToWire(b[i].tempo)
-    if (ta !== tb) return false
-    const la = normalizeSongLinkLanguage(a[i].language)
-    const lb = normalizeSongLinkLanguage(b[i].language)
-    if (la !== lb) return false
-    if (!songFlowEqual(a[i].flow, b[i].flow)) return false
-  }
-  return true
+export type SetlistDiffBaseline = {
+  title: string
+  items: SetlistItem[]
+  songs: EditorSongLink[]
+  owner: string
 }
 
 /**
  * PATCH body with only dirty top-level fields; `null` when nothing to send.
  */
 export function buildSetlistPatchBody(
-  baseline: { title: string; songs: EditorSongLink[]; owner: string },
+  baseline: SetlistDiffBaseline,
   draft: { title: string; songs: EditorSongLink[]; owner: string },
 ): SetlistPatchDirty | null {
   const body: SetlistPatchDirty = {}
@@ -46,9 +34,10 @@ export function buildSetlistPatchBody(
   if (draftOwner && draftOwner !== baseline.owner) {
     body.owner = draftOwner
   }
-  if (!songsEqual(draft.songs, baseline.songs)) {
-    body.songs = draft.songs.map((l) => songLinkForSetlistMutation(l))
+  const nextItems = mergeEditorSongsIntoItems(baseline.items, draft.songs)
+  if (!setlistItemsEqual(baseline.items, nextItems)) {
+    body.items = nextItems
   }
-  if (body.title === undefined && body.songs === undefined && body.owner === undefined) return null
+  if (body.title === undefined && body.items === undefined && body.owner === undefined) return null
   return body
 }

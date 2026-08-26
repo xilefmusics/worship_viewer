@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use surrealdb::types::RecordId;
 
 use shared::api::ListQuery;
+use shared::media::Media;
 use shared::setlist::{CreateSetlist, Setlist};
 use shared::song::LinkOwned as SongLinkOwned;
 
@@ -30,6 +31,8 @@ pub trait SetlistRepository: Send + Sync {
         read_teams: &[RecordId],
         id: &str,
     ) -> Result<Vec<SongLinkOwned>, AppError>;
+
+    async fn load_media_unscoped(&self, ids: &[String]) -> Result<Vec<Media>, AppError>;
 
     async fn create_setlist(
         &self,

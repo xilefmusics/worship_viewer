@@ -1349,7 +1349,7 @@ mod tests {
             .get_setlist_for_user(&u_p2, &sl.id)
             .await
             .expect("get setlist");
-        assert!(g.songs.is_empty());
+        assert!(g.items.iter().all(|item| !item.is_song()));
     }
 
     /// BLC-SONG-020–021: move between shared teams and idempotent same-owner.

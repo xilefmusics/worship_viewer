@@ -21,6 +21,7 @@ use shared::MoveOwner;
 use shared::api::{ListQuery, PAGE_SIZE_DEFAULT, PageQuery};
 #[allow(unused_imports)]
 use shared::player::Player;
+use shared::setlist::SetlistPlayerView;
 
 pub fn scope() -> Scope {
     web::scope("/setlists")
@@ -136,7 +137,8 @@ async fn get_setlist(
     get,
     path = "/api/v1/setlists/{id}/player",
     params(
-        ("id" = String, Path, description = "Setlist identifier")
+        ("id" = String, Path, description = "Setlist identifier"),
+        ("view" = Option<SetlistPlayerView>, Query, description = "Hydration mode. `book` (default) omits Media for Book/sheet/offline/Player Room snapshots. `av` includes Ready readable Media as one tagged item per setlist slot.")
     ),
     responses(
         (status = 200, description = "Return player metadata for a setlist", body = Player),
@@ -159,13 +161,23 @@ async fn get_setlist_player(
     svc: Data<SetlistServiceHandle>,
     ctx: ReqData<AuthorizationContext>,
     id: Path<String>,
+    query: Query<SetlistPlayerQuery>,
 ) -> Result<HttpResponse, AppError> {
     if !accepts_worship_player_json(&req) {
         return Err(AppError::not_acceptable(
             "supported Accept values include application/json, application/vnd.worship.player+json, and */*",
         ));
     }
-    Ok(HttpResponse::Ok().json(svc.setlist_player_for_user(&ctx, &id).await?))
+    Ok(HttpResponse::Ok().json(
+        svc.setlist_player_view_for_user(&ctx, &id, query.into_inner().view)
+            .await?,
+    ))
+}
+
+#[derive(serde::Deserialize, Default)]
+struct SetlistPlayerQuery {
+    #[serde(default)]
+    view: SetlistPlayerView,
 }
 
 #[utoipa::path(

@@ -40,6 +40,7 @@ import { useOnline } from '@/hooks/use-online'
 import { useSetlistAutosave } from '@/hooks/useSetlistAutosave'
 import { useSetlistDetailQuery } from '@/hooks/useSetlistDetailQuery'
 import { brokenSlotGate, type SongHydrationOutcome } from '@/lib/setlist-broken-rows'
+import { songLinksFromSetlistItems } from '@/lib/setlist-items'
 import { MUSICAL_KEYS } from '@/lib/setlist-editor-constants'
 import { makeSlotRow, slotsFromSongLinks, type SlotRow } from '@/lib/setlist-editor-slots'
 import type { SetlistPaletteBridge } from '@/lib/setlist-palette-bridge'
@@ -101,7 +102,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
     lastLoadedSetlistRef.current = setlistId
     setTitleDraft(detail.title)
     setOwnerDraft(detail.owner)
-    setSlotRows(slotsFromSongLinks(normalizeSongLinksForEditor(detail.songs)))
+    setSlotRows(slotsFromSongLinks(normalizeSongLinksForEditor(songLinksFromSetlistItems(detail.items))))
   }, [detail, setlistId])
 
   const draftLinks = useMemo(() => slotRows.map((s) => s.link), [slotRows])
@@ -111,7 +112,8 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
       detail
         ? {
             title: detail.title,
-            songs: normalizeSongLinksForEditor(detail.songs),
+            songs: normalizeSongLinksForEditor(songLinksFromSetlistItems(detail.items)),
+            items: detail.items,
             owner: detail.owner,
           }
         : null,
@@ -356,7 +358,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
     if (!detail) return
     setTitleDraft(detail.title)
     setOwnerDraft(detail.owner)
-    setSlotRows(slotsFromSongLinks(normalizeSongLinksForEditor(detail.songs)))
+    setSlotRows(slotsFromSongLinks(normalizeSongLinksForEditor(songLinksFromSetlistItems(detail.items))))
     notifyDraftEdited()
   }
 
@@ -368,7 +370,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
     if (r.data) {
       setTitleDraft(r.data.title)
       setOwnerDraft(r.data.owner)
-      setSlotRows(slotsFromSongLinks(normalizeSongLinksForEditor(r.data.songs)))
+      setSlotRows(slotsFromSongLinks(normalizeSongLinksForEditor(songLinksFromSetlistItems(r.data.items))))
     }
   }
 

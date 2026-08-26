@@ -22,12 +22,18 @@ describe('duplicate hub entity', () => {
       id: 'sl-1',
       title: 'Main',
       owner: 'team-a',
-      songs: [{ id: 'song-1', nr: '1' }, { id: 'song-2' }],
+      items: [
+        { type: 'song', id: 'song-1', nr: '1' },
+        { type: 'song', id: 'song-2' },
+      ],
     }
     expect(buildDuplicateSetlistBody(source, '(copy)')).toEqual({
       title: 'Main (copy)',
       owner: 'team-a',
-      songs: [{ id: 'song-1', nr: '1' }, { id: 'song-2' }],
+      items: [
+        { type: 'song', id: 'song-1', nr: '1' },
+        { type: 'song', id: 'song-2' },
+      ],
     })
   })
 

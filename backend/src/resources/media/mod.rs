@@ -14,6 +14,7 @@ pub mod av_processor;
 pub mod deck_processor;
 pub mod processing;
 
+pub use model::MediaRecord;
 pub use repository::MediaRepository;
 pub use service::{MediaService, MediaServiceHandle};
 pub use surreal_repo::SurrealMediaRepo;

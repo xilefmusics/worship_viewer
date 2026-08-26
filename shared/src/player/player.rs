@@ -375,6 +375,28 @@ impl From<SongLinkOwned> for Player {
     }
 }
 
+impl From<super::PlayerMediaItem> for Player {
+    fn from(media: super::PlayerMediaItem) -> Self {
+        let title = media.title.clone();
+        let id = media.id.clone();
+        Self {
+            items: vec![super::PlayerItem::Media(Box::new(media))],
+            toc: vec![TocItem {
+                idx: 0,
+                title,
+                id: Some(id),
+                nr: String::new(),
+                liked: false,
+            }],
+            scroll_type: ScrollType::default(),
+            scroll_type_cache_other_orientation: ScrollType::Book,
+            orientation: Orientation::Portrait,
+            between_items: bool::default(),
+            index: usize::default(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -515,5 +537,43 @@ mod tests {
         assert_eq!(player.toc.len(), 2);
         assert_eq!(player.toc[0].idx, 0);
         assert_eq!(player.toc[1].idx, 0);
+    }
+
+    #[test]
+    fn media_item_is_one_player_slot_with_resource_id() {
+        let media = crate::player::PlayerMediaItem {
+            id: "media-1".into(),
+            title: "Announcement".into(),
+            content: crate::media::MediaContent::WebPage {
+                url: "https://example.com/page".into(),
+            },
+        };
+        let player = Player::from(media);
+        assert_eq!(player.items.len(), 1);
+        match &player.items[0] {
+            PlayerItem::Media(item) => {
+                assert_eq!(item.id, "media-1");
+                assert_eq!(item.title, "Announcement");
+            }
+            _ => panic!("expected media item"),
+        }
+        assert_eq!(player.toc.len(), 1);
+        assert_eq!(player.toc[0].id.as_deref(), Some("media-1"));
+        assert_eq!(player.toc[0].idx, 0);
+
+        let song = Player::from(SongLinkOwned {
+            song: song_with_tempo(None),
+            nr: Some("1".into()),
+            key: None,
+            tempo: None,
+            flow: None,
+            language: None,
+            liked: false,
+        });
+        let mixed = player + song;
+        assert_eq!(mixed.items.len(), 2);
+        assert!(matches!(mixed.items[0], PlayerItem::Media(_)));
+        assert!(matches!(mixed.items[1], PlayerItem::Chords(_)));
+        assert_eq!(mixed.toc[1].idx, 1);
     }
 }
