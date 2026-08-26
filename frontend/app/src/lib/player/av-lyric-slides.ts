@@ -475,6 +475,7 @@ export type AvSlideDeckEntry = {
   lines?: AvLyricLine[]
   isSubSlide: boolean
   hasText: boolean
+  deckPage?: { mediaId: string; assetId: string }
 }
 
 /** Clickable slide cards for the current item (legacy presenter Slides panel). */

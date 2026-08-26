@@ -12,6 +12,7 @@ import { effectiveAvTransition } from '@/lib/player/av-preferences'
 import { AvBackgroundLayer } from '@/components/player/av/AvBackgroundLayer'
 import { AvSlideContent } from '@/components/player/av/AvSlideContent'
 import { AvSlideScaledStage } from '@/components/player/av/AvSlideScaledStage'
+import { MediaDeckPageView } from '@/components/media/MediaDeckPageView'
 import { cn } from '@/lib/utils'
 
 import './player-av.css'
@@ -19,6 +20,8 @@ import './player-av.css'
 type AvSlideViewProps = {
   contentText?: string
   contentLines?: AvLyricLine[]
+  deckPage?: { mediaId: string; assetId: string }
+  onDeckPageStatus?: (status: 'ready' | 'error') => void
   contentLayer: AvContentLayer
   backgroundLayer: AvBackgroundLayerPrefs
   transition: AvTransition
@@ -34,6 +37,8 @@ type AvSlideViewProps = {
 function AvSlideCanvas({
   contentText,
   contentLines,
+  deckPage,
+  onDeckPageStatus,
   contentLayer,
   backgroundLayer,
   compact,
@@ -42,6 +47,8 @@ function AvSlideCanvas({
   AvSlideViewProps,
   | 'contentText'
   | 'contentLines'
+  | 'deckPage'
+  | 'onDeckPageStatus'
   | 'contentLayer'
   | 'backgroundLayer'
   | 'compact'
@@ -53,12 +60,24 @@ function AvSlideCanvas({
         <AvBackgroundLayer layer={backgroundLayer} className="av-slide-view__background" />
       ) : null}
       <div className="av-slide-view__content">
-        <AvSlideContent
-          text={contentLines ? undefined : contentText}
-          lines={contentLines}
-          contentLayer={contentLayer}
-          compact={compact}
-        />
+        {deckPage ? (
+          <div className="av-slide-view__deck-page">
+            <MediaDeckPageView
+              mediaId={deckPage.mediaId}
+              blobId={deckPage.assetId}
+              label=""
+              variant="contain"
+              onStatus={onDeckPageStatus}
+            />
+          </div>
+        ) : (
+          <AvSlideContent
+            text={contentLines ? undefined : contentText}
+            lines={contentLines}
+            contentLayer={contentLayer}
+            compact={compact}
+          />
+        )}
       </div>
     </>
   )
@@ -67,6 +86,8 @@ function AvSlideCanvas({
 export function AvSlideView({
   contentText,
   contentLines,
+  deckPage,
+  onDeckPageStatus,
   contentLayer,
   backgroundLayer,
   transition,
@@ -111,6 +132,8 @@ export function AvSlideView({
     <AvSlideCanvas
       contentText={contentText}
       contentLines={contentLines}
+      deckPage={deckPage}
+      onDeckPageStatus={onDeckPageStatus}
       contentLayer={contentLayer}
       backgroundLayer={backgroundLayer}
       compact={compact}
@@ -147,7 +170,11 @@ export function AvSlideView({
         ) : (
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
-              key={contentText ?? contentLines?.map((line) => line.primary).join('\n') ?? ''}
+              key={
+                deckPage
+                  ? `deck:${deckPage.mediaId}:${deckPage.assetId}`
+                  : contentText ?? contentLines?.map((line) => line.primary).join('\n') ?? ''
+              }
               initial={
                 effectiveTransition.style === 'none'
                   ? false

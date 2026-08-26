@@ -199,3 +199,33 @@ describe('avSlidesForItem custom flow', () => {
     expect(result.outline.map((row) => row.title)).toEqual(['Chorus', 'Verse 1'])
   })
 })
+
+describe('avSlidesForItem media decks', () => {
+  it('expands Ready slide-deck pages in order and keeps other media as a title placeholder', () => {
+    const deck = {
+      type: 'media',
+      id: 'media-1',
+      title: 'Welcome',
+      content: {
+        type: 'slide_deck',
+        pages: [{ blob_id: 'a' }, { blob_id: 'b' }, { blob_id: 'c' }],
+      },
+    } as PlayerItem
+    const video = {
+      type: 'media',
+      id: 'media-2',
+      title: 'Clip',
+      content: { type: 'video', blob_id: 'v1', duration_ms: 1000, width: 1920, height: 1080 },
+    } as PlayerItem
+
+    const deckSlides = avSlidesForItem(deck, 0, split)
+    expect(deckSlides.kind).toBe('deck')
+    expect(deckSlides.mediaId).toBe('media-1')
+    expect(deckSlides.pages?.map((page) => page.blobId)).toEqual(['a', 'b', 'c'])
+    expect(deckSlides.slides).toHaveLength(3)
+
+    const videoSlides = avSlidesForItem(video, 1, split)
+    expect(videoSlides.kind).toBe('blob')
+    expect(videoSlides.slides).toEqual(['Clip'])
+  })
+})

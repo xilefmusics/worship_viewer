@@ -50,6 +50,22 @@
   height: 100%;
 }
 
+.av-slide-view__deck-page {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 2%;
+}
+
+.av-slide-view__deck-image {
+  display: block;
+  width: auto;
+  height: auto;
+}
+
 .av-slide-content {
   display: flex;
   width: 100%;

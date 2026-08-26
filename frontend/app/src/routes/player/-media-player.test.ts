@@ -20,6 +20,18 @@ describe('direct media player mapping', () => {
     expect(player?.toc).toEqual([{ idx: 0, id: 'media:1', title: 'Welcome video', nr: '', liked: false }])
   })
 
+  it('maps Ready slide decks onto the same player item shape used for projection', () => {
+    const player = playerFromReadyMedia(
+      media('ready', { type: 'slide_deck', pages: [{ blob_id: 'p1' }, { blob_id: 'p2' }] }),
+    )
+    expect(player?.items[0]).toEqual({
+      type: 'media',
+      id: 'media:1',
+      title: 'Welcome video',
+      content: { type: 'slide_deck', pages: [{ blob_id: 'p1' }, { blob_id: 'p2' }] },
+    })
+  })
+
   it.each(['processing', 'failed'] as const)('rejects %s media', (status) => {
     expect(playerFromReadyMedia(media(status, null))).toBeNull()
   })

@@ -60,12 +60,18 @@ vi.mock('@/hooks/useAvBilingualPreference', () => ({
 
 vi.mock('@/lib/player/av-projection-sync', () => ({
   AV_PROJECTION_SHARED_SESSION_ID: 'shared',
+  createAvProjectionChannel: () => ({
+    send: broadcast,
+    close: closeSync,
+    readLatestCommand: vi.fn(),
+  }),
   createAvProjectionSync: () => ({
     broadcast,
     close: closeSync,
     readLatest: vi.fn(),
   }),
   getAvProjectionSessionId: () => 'shared',
+  newAvOutputWindowName: () => 'wv-av-output-test',
 }))
 
 vi.mock('@/lib/player/av-preferences', () => ({
@@ -92,6 +98,7 @@ vi.mock('@/lib/player/av-preferences', () => ({
       ? Math.min(100, Math.max(0, Math.trunc(value)))
       : fallback,
   buildAvProjectionPayload: (input: unknown) => input,
+  effectiveAvTransition: (transition: unknown) => transition,
   readAvPreferences: () => readPreferences(),
   writeAvPreferences: (...args: unknown[]) => writePreferences(...args),
 }))
@@ -137,18 +144,22 @@ vi.mock('@/components/player/av/AvSlideView', () => ({
   AvSlideView: ({
     contentText,
     contentLines,
+    deckPage,
   }: {
     contentText?: string
     contentLines?: Array<{ primary: string; secondary?: string }>
+    deckPage?: { mediaId: string; assetId: string }
   }) => (
     <div data-testid="preview-text">
-      {contentLines
-        ? contentLines
-            .map((line) =>
-              line.secondary ? `${line.primary}|${line.secondary}` : line.primary,
-            )
-            .join('//')
-        : contentText}
+      {deckPage
+        ? `deck:${deckPage.mediaId}:${deckPage.assetId}`
+        : contentLines
+          ? contentLines
+              .map((line) =>
+                line.secondary ? `${line.primary}|${line.secondary}` : line.primary,
+              )
+              .join('//')
+          : contentText}
     </div>
   ),
 }))
@@ -441,11 +452,13 @@ describe('PlayerAv', () => {
     })
 
     const lastPayload = broadcast.mock.calls.at(-1)?.[0] as {
-      contentText?: string
-      contentLines?: Array<{ primary: string; secondary?: string }>
+      content?: { type: string; contentText?: string; contentLines?: Array<{ primary: string; secondary?: string }> }
     }
-    expect(lastPayload.contentText).toBe('Hello')
-    expect(lastPayload.contentLines).toEqual([{ primary: 'Hello', secondary: 'Hallo' }])
+    expect(lastPayload.content).toEqual({
+      type: 'lyrics',
+      contentText: 'Hello',
+      contentLines: [{ primary: 'Hello', secondary: 'Hallo' }],
+    })
   })
 
   it('does not republish an unchanged room projection when the callback changes', async () => {
@@ -498,8 +511,10 @@ describe('PlayerAv', () => {
       expect(broadcast).toHaveBeenCalled()
     })
 
-    const projectedPayload = broadcast.mock.calls.at(-1)?.[0] as { contentText?: string }
-    expect(projectedPayload.contentText).toBe('Tschuess')
+    const projectedPayload = broadcast.mock.calls.at(-1)?.[0] as {
+      content?: { type: string; contentText?: string }
+    }
+    expect(projectedPayload.content?.contentText).toBe('Tschuess')
 
     broadcast.mockClear()
 
@@ -509,8 +524,8 @@ describe('PlayerAv', () => {
     expect(screen.getByTestId('preview-text')).toHaveTextContent('Tschuess')
 
     for (const call of broadcast.mock.calls) {
-      const payload = call[0] as { contentText?: string }
-      expect(payload.contentText).not.toBe('Second song line')
+      const payload = call[0] as { content?: { type: string; contentText?: string } }
+      expect(payload.content?.contentText).not.toBe('Second song line')
     }
 
     await user.click(screen.getByRole('button', { name: 'Select slide 0' }))
@@ -520,8 +535,10 @@ describe('PlayerAv', () => {
     })
 
     expect(screen.getByTestId('preview-text')).toHaveTextContent('Second song line')
-    const nextPayload = broadcast.mock.calls.at(-1)?.[0] as { contentText?: string }
-    expect(nextPayload.contentText).toBe('Second song line')
+    const nextPayload = broadcast.mock.calls.at(-1)?.[0] as {
+      content?: { type: string; contentText?: string }
+    }
+    expect(nextPayload.content?.contentText).toBe('Second song line')
   })
 
   it('lets an AV-only room host navigate slides without changing musical state', async () => {
@@ -569,5 +586,112 @@ describe('PlayerAv', () => {
     expect(screen.getByText('Anker')).toBeInTheDocument()
     expect(screen.queryByText('Second Song')).not.toBeInTheDocument()
     expect(onRoomMusicalStateChange).not.toHaveBeenCalled()
+  })
+
+  const deckPlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Deck', id: 'media-1', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-1',
+        title: 'Deck',
+        content: {
+          type: 'slide_deck',
+          pages: [{ blob_id: 'page-a' }, { blob_id: 'page-b' }],
+        },
+      },
+    ],
+  } as Player
+
+  const mixedPlayer = {
+    index: 0,
+    toc: [
+      { idx: 0, nr: '1', title: 'Anchor', id: 'song-1', liked: false },
+      { idx: 1, nr: '', title: 'Deck', id: 'media-1', liked: false },
+    ],
+    items: [
+      ...player.items,
+      {
+        type: 'media',
+        id: 'media-1',
+        title: 'Deck',
+        content: {
+          type: 'slide_deck',
+          pages: [{ blob_id: 'page-a' }, { blob_id: 'page-b' }],
+        },
+      },
+    ],
+  } as Player
+
+  it('I3: warns when a page is projected with no ready output', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={player}
+        allowNetworkFetch={false}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => {
+      expect(screen.getByText('player.av.missingOutput')).toBeInTheDocument()
+    })
+  })
+
+  it('projects a selected deck page as a tagged command and not through Player Rooms', async () => {
+    const user = userEvent.setup()
+    const onRoomProjectionChange = vi.fn()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={deckPlayer}
+        allowNetworkFetch={false}
+        canControlRoomProjection
+        onRoomProjectionChange={onRoomProjectionChange}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const command = broadcast.mock.calls.at(-1)?.[0] as {
+      type?: string
+      content?: { type: string; mediaId?: string; assetId?: string }
+    }
+    expect(command.type).toBe('command')
+    expect(command.content).toEqual({ type: 'deck_page', mediaId: 'media-1', assetId: 'page-b' })
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('deck:media-1:page-b')
+    expect(onRoomProjectionChange).not.toHaveBeenCalled()
+  })
+
+  it('keeps the projected lyric when selecting a mixed-setlist deck TOC row', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={mixedPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const lyricCommand = broadcast.mock.calls.at(-1)?.[0] as {
+      content?: { type: string; contentText?: string }
+    }
+    expect(lyricCommand.content?.contentText).toBe('Tschuess')
+
+    broadcast.mockClear()
+    await user.keyboard('n')
+    expect(screen.getByText('Deck')).toBeInTheDocument()
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('Tschuess')
+    for (const call of broadcast.mock.calls) {
+      const payload = call[0] as { content?: { type: string } }
+      expect(payload.content?.type).not.toBe('deck_page')
+    }
   })
 })

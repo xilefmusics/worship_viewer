@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 import { AvBackgroundSelector } from '@/components/player/av/AvBackgroundSelector'
 import { AvSlideView } from '@/components/player/av/AvSlideView'
+import { MediaDeckPageView } from '@/components/media/MediaDeckPageView'
 import { observeElementResize } from '@/lib/browser-apis'
 import type {
   AvBackgroundLayer,
@@ -149,17 +150,26 @@ export function AvSlidesPanel({
                   : 'av-slides-panel__preview--compact',
               )}
             >
-              <AvSlideView
-                contentText={preview.contentText}
-                contentLines={preview.contentLines}
-                contentLayer={contentLayer}
-                backgroundLayer={backgroundLayer}
-                transition={transition}
-                screenState="live"
-                compact={!multiColumn}
-                showBackground={false}
-                className={multiColumn ? undefined : 'av-slide-view--compact'}
-              />
+              {entry.deckPage ? (
+                <MediaDeckPageView
+                  mediaId={entry.deckPage.mediaId}
+                  blobId={entry.deckPage.assetId}
+                  label={entry.label}
+                  variant="thumb"
+                />
+              ) : (
+                <AvSlideView
+                  contentText={preview.contentText}
+                  contentLines={preview.contentLines}
+                  contentLayer={contentLayer}
+                  backgroundLayer={backgroundLayer}
+                  transition={transition}
+                  screenState="live"
+                  compact={!multiColumn}
+                  showBackground={false}
+                  className={multiColumn ? undefined : 'av-slide-view--compact'}
+                />
+              )}
             </div>
           </button>
         )

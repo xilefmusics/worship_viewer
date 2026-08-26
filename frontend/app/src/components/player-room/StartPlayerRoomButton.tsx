@@ -11,6 +11,7 @@ import type { PlayerMode } from '@/lib/player/player-mode'
 import type { PlayerEntityType } from '@/lib/player-route'
 import { songLanguageOptions } from '@/lib/player/song-language'
 import { getAvProjectionSessionId, readAvProjectionSnapshot } from '@/lib/player/av-projection-sync'
+import { lyricsPayloadFromCommand } from '@/lib/player/av-projection-protocol'
 import {
   PLAYER_HEADER_ICON_SIZE,
   playerHeaderIconButtonClass,
@@ -59,16 +60,17 @@ export function StartPlayerRoomButton({
             : []
         const language = languageOptions[languageIndex]?.label ?? null
         const latest = mode === 'av' ? readAvProjectionSnapshot(getAvProjectionSessionId()) : null
-        const projection = latest
+        const payload = latest ? lyricsPayloadFromCommand(latest) : null
+        const projection = payload
           ? {
-              content_text: latest.contentText,
-              content_lines: latest.contentLines,
-              content_layer: latest.contentLayer,
-              background_layer: latest.backgroundLayer,
-              transition: latest.transition,
-              screen_state: latest.screenState,
-              item_title: latest.itemTitle,
-              next_preview: latest.nextPreview,
+              content_text: payload.contentText,
+              content_lines: payload.contentLines,
+              content_layer: payload.contentLayer,
+              background_layer: payload.backgroundLayer,
+              transition: payload.transition,
+              screen_state: payload.screenState,
+              item_title: payload.itemTitle,
+              next_preview: payload.nextPreview,
             }
           : null
         void createPlayerRoom({

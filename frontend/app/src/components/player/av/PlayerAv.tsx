@@ -29,6 +29,7 @@ import {
   avNextSlideInItem,
   avPrevItemIndex,
   avPrevSlideInItem,
+  buildAvDeckPageEntries,
   resolveAvItemLanguageIndex,
   avSlidesForPlayerItem,
 } from '@/lib/player/av-nav'
@@ -45,7 +46,6 @@ import {
 } from '@/lib/player/av-lyric-slides'
 import { readLyricCollapseWhitespacePreference } from '@/lib/lyric-whitespace-preference'
 import {
-  buildAvProjectionPayload,
   readAvPreferences,
   writeAvPreferences,
   type AvBackgroundPreset,
@@ -53,9 +53,26 @@ import {
   type AvScreenState,
 } from '@/lib/player/av-preferences'
 import {
-  createAvProjectionSync,
+  buildAvProjectionCommand,
+  lyricsPayloadFromCommand,
+  slideViewPropsFromCommand,
+  type AvProjectionCommand,
+  type AvProjectionContent,
+} from '@/lib/player/av-projection-protocol'
+import {
+  AV_OUTPUT_HEARTBEAT_MS,
+  INITIAL_CONTROLLER_PROJECTION_STATE,
+  hasReadyAvOutput,
+  nextAvProjectionCommandId,
+  reduceControllerProjection,
+  summarizeAvOutputs,
+  type AvControllerProjectionState,
+} from '@/lib/player/av-projection-reducer'
+import {
+  createAvProjectionChannel,
   getAvProjectionSessionId,
-  type AvProjectionSync,
+  newAvOutputWindowName,
+  type AvProjectionChannel,
 } from '@/lib/player/av-projection-sync'
 import {
   readAvSessionState,
@@ -187,12 +204,16 @@ export function PlayerAv({
     [viewState.languageByItem],
   )
 
-  const sessionIdRef = useRef(getAvProjectionSessionId())
-  const syncRef = useRef<AvProjectionSync | null>(null)
-  const outputWindowRef = useRef<Window | null>(null)
+  const sessionId = getAvProjectionSessionId()
+  const syncRef = useRef<AvProjectionChannel | null>(null)
   const skipProjectionBroadcastRef = useRef(true)
   const lastProjectionBroadcastRef = useRef<string | null>(null)
   const lastRoomProjectionRef = useRef<string | null>(null)
+  const controllerRef = useRef<AvControllerProjectionState>(INITIAL_CONTROLLER_PROJECTION_STATE)
+  const [outputRegistry, setOutputRegistry] = useState<AvControllerProjectionState>(
+    INITIAL_CONTROLLER_PROJECTION_STATE,
+  )
+  const [missingOutputWarning, setMissingOutputWarning] = useState(false)
 
   const itemsLen = player.items.length
   const tocRow = tocEntryForIndex(player.toc, session.itemIndex)
@@ -281,20 +302,27 @@ export function PlayerAv({
   }, [session.screenState, session.slideIndex, slideCount, t, title])
   const slideDeckEntries = useMemo(
     () =>
-      buildAvSlideDeckEntries(
-        currentItem.outline,
-        currentItem.sourceSlides,
-        currentItem.structuredSourceSlides,
-      ),
-    [currentItem.outline, currentItem.sourceSlides, currentItem.structuredSourceSlides],
+      currentItem.kind === 'deck' && currentItem.mediaId && currentItem.pages
+        ? buildAvDeckPageEntries(currentItem.mediaId, currentItem.pages, (index) =>
+            t('player.av.outputPage', { n: index + 1 }),
+          )
+        : buildAvSlideDeckEntries(
+            currentItem.outline,
+            currentItem.sourceSlides,
+            currentItem.structuredSourceSlides,
+          ),
+    [currentItem, t],
   )
   const outlineRows = useMemo(
     () => buildAvOutlineRows(currentItem.outline, session.slideIndex),
     [currentItem.outline, session.slideIndex],
   )
   const selectedDeckSlideIndex = useMemo(
-    () => avSlideDeckEntrySlideIndex(currentItem.outline, session.slideIndex),
-    [currentItem.outline, session.slideIndex],
+    () =>
+      currentItem.kind === 'deck'
+        ? session.slideIndex
+        : avSlideDeckEntrySlideIndex(currentItem.outline, session.slideIndex),
+    [currentItem.kind, currentItem.outline, session.slideIndex],
   )
 
   const currentText = useMemo(() => {
@@ -421,67 +449,125 @@ export function PlayerAv({
   }, [type, id, session])
 
   useEffect(() => {
-    syncRef.current = createAvProjectionSync(sessionIdRef.current)
+    const channel = createAvProjectionChannel(sessionId, (message) => {
+      const next = reduceControllerProjection(
+        controllerRef.current,
+        { type: 'message', message },
+        Date.now(),
+      )
+      controllerRef.current = next
+      setOutputRegistry(next)
+      if (hasReadyAvOutput(next)) setMissingOutputWarning(false)
+    })
+    syncRef.current = channel
+    const tick = window.setInterval(() => {
+      const next = reduceControllerProjection(controllerRef.current, { type: 'tick' }, Date.now())
+      controllerRef.current = next
+      setOutputRegistry(next)
+    }, AV_OUTPUT_HEARTBEAT_MS)
     return () => {
-      syncRef.current?.close()
+      window.clearInterval(tick)
+      channel.close()
       syncRef.current = null
-      outputWindowRef.current = null
     }
-  }, [])
+  }, [sessionId])
 
   const openOutputWindow = useCallback(() => {
-    const existing = outputWindowRef.current
-    if (existing && !existing.closed) {
-      existing.focus()
-      return
+    const url = `/player/output?s=${encodeURIComponent(sessionId)}`
+    window.open(url, newAvOutputWindowName(), 'noopener,noreferrer')
+  }, [sessionId])
+
+  const projectedContent = useMemo((): AvProjectionContent => {
+    if (projectedItem.kind === 'deck' && projectedItem.mediaId && projectedItem.pages?.length) {
+      const page = projectedItem.pages[projected.slideIndex] ?? projectedItem.pages[0]
+      if (page) return { type: 'deck_page', mediaId: projectedItem.mediaId, assetId: page.blobId }
     }
-    const url = `/player/output?s=${encodeURIComponent(sessionIdRef.current)}`
-    const opened = window.open(url, 'wv-av-output', 'noopener,noreferrer')
-    if (opened) {
-      outputWindowRef.current = opened
+    return {
+      type: 'lyrics',
+      contentText: projectedText,
+      ...(projectedLines && projectedLines.length > 0 ? { contentLines: projectedLines } : {}),
     }
-  }, [])
+  }, [
+    projected.slideIndex,
+    projectedItem.kind,
+    projectedItem.mediaId,
+    projectedItem.pages,
+    projectedLines,
+    projectedText,
+  ])
+
+  const projectedCommand = useMemo(
+    (): AvProjectionCommand =>
+      buildAvProjectionCommand({
+        sessionId,
+        commandId: 0,
+        content: projectedContent,
+        contentLayer: prefs.contentLayer,
+        backgroundLayer: prefs.backgroundLayer,
+        transition: prefs.transition,
+        screenState: projected.screenState,
+        itemTitle: projectedTitle || t('player.untitled'),
+        nextPreview: projectedNextText,
+        prefersReducedMotion: reduceMotion ?? false,
+      }),
+    [
+      prefs.backgroundLayer,
+      prefs.contentLayer,
+      prefs.transition,
+      projected.screenState,
+      projectedContent,
+      projectedNextText,
+      projectedTitle,
+      reduceMotion,
+      sessionId,
+      t,
+    ],
+  )
+
+  const projectedSlideView = slideViewPropsFromCommand(projectedCommand)
+  const outputSummary = summarizeAvOutputs(outputRegistry)
 
   useEffect(() => {
     if (skipProjectionBroadcastRef.current) {
       skipProjectionBroadcastRef.current = false
       return
     }
-    const payload = buildAvProjectionPayload({
-      contentText: projectedText,
-      contentLines: projectedLines,
-      contentLayer: prefs.contentLayer,
-      backgroundLayer: prefs.backgroundLayer,
-      transition: prefs.transition,
-      screenState: projected.screenState,
-      itemTitle: projectedTitle || t('player.untitled'),
-      nextPreview: projectedNextText,
-      prefersReducedMotion: reduceMotion ?? false,
+    const commandId = nextAvProjectionCommandId(controllerRef.current)
+    const command: AvProjectionCommand = { ...projectedCommand, commandId }
+    const serializedPayload = JSON.stringify({
+      intent: command.intent,
+      screenState: command.screenState,
+      content: command.content,
+      backgroundLayer: command.backgroundLayer,
+      contentLayer: command.contentLayer,
+      transition: command.transition,
+      itemTitle: command.itemTitle,
+      nextPreview: command.nextPreview,
     })
-    const serializedPayload = JSON.stringify(payload)
-    if (lastProjectionBroadcastRef.current !== serializedPayload) {
-      lastProjectionBroadcastRef.current = serializedPayload
-      syncRef.current?.broadcast(payload)
-    }
-    if (
-      canControlRoomProjection &&
-      onRoomProjectionChange &&
-      lastRoomProjectionRef.current !== serializedPayload
-    ) {
-      lastRoomProjectionRef.current = serializedPayload
-      onRoomProjectionChange(payload)
+    if (lastProjectionBroadcastRef.current === serializedPayload) return
+    lastProjectionBroadcastRef.current = serializedPayload
+    const issued = reduceControllerProjection(
+      controllerRef.current,
+      { type: 'issue', command },
+      Date.now(),
+    )
+    controllerRef.current = issued
+    setOutputRegistry(issued)
+    if (!hasReadyAvOutput(issued)) setMissingOutputWarning(true)
+    syncRef.current?.send(command)
+
+    const roomPayload = lyricsPayloadFromCommand(command)
+    if (canControlRoomProjection && onRoomProjectionChange && roomPayload) {
+      const serializedRoom = JSON.stringify(roomPayload)
+      if (lastRoomProjectionRef.current !== serializedRoom) {
+        lastRoomProjectionRef.current = serializedRoom
+        onRoomProjectionChange(roomPayload)
+      }
     }
   }, [
-    projectedText,
-    projectedLines,
-    projectedNextText,
-    projected.screenState,
-    projectedTitle,
-    prefs,
-    reduceMotion,
-    t,
     canControlRoomProjection,
     onRoomProjectionChange,
+    projectedCommand,
   ])
 
   const setBackgroundPreset = useCallback((preset: AvBackgroundPreset) => {
@@ -661,6 +747,15 @@ export function PlayerAv({
 
   const showAvRightPanel = !roomSidebar || rightPanel === 'av'
   const showRoomSidebar = Boolean(roomSidebar) && rightPanel === 'room'
+  const outputSummaryLabel =
+    outputSummary.total === 0
+      ? t('player.av.outputSummaryNone')
+      : outputSummary.failed > 0
+        ? t('player.av.outputSummaryFailed', {
+            ready: outputSummary.ready,
+            failed: outputSummary.failed,
+          })
+        : t('player.av.outputSummary', { ready: outputSummary.ready })
 
   if (itemsLen === 0 || slideCount === 0) {
     return (
@@ -678,6 +773,10 @@ export function PlayerAv({
       {evicted ? (
         <p className="player-av-warning" role="status" aria-live="polite">
           {t('player.evicted')}
+        </p>
+      ) : missingOutputWarning ? (
+        <p className="player-av-warning" role="status" aria-live="polite">
+          {t('player.av.missingOutput')}
         </p>
       ) : null}
 
@@ -758,12 +857,16 @@ export function PlayerAv({
             variant="outline"
             size="icon"
             className={playerHeaderIconButtonClass}
-            aria-label={t('player.av.openOutput')}
+            aria-label={`${t('player.av.openOutput')}. ${outputSummaryLabel}`}
             aria-keyshortcuts={AV_OPEN_OUTPUT_SHORTCUT_KEY}
+            title={outputSummaryLabel}
             onClick={() => openOutputWindow()}
           >
             <OutputIcon size={PLAYER_HEADER_ICON_SIZE} className={playerHeaderIconClass} />
           </Button>
+          <span className="sr-only" data-testid="output-summary">
+            {outputSummaryLabel}
+          </span>
           {allowLibraryActions ? <PlayerEditMenu
             playerType={type}
             canEditSong={rawItem?.type === 'chords'}
@@ -857,8 +960,9 @@ export function PlayerAv({
               <div className="player-av__preview">
                 <AvSlideView
                   preview
-                  contentText={projectedLines ? undefined : projectedText}
-                  contentLines={projectedLines}
+                  contentText={projectedSlideView.contentText}
+                  contentLines={projectedSlideView.contentLines}
+                  deckPage={projectedSlideView.deckPage}
                   contentLayer={prefs.contentLayer}
                   backgroundLayer={prefs.backgroundLayer}
                   transition={prefs.transition}

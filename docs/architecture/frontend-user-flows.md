@@ -645,16 +645,24 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    av(["/player AV"]) -->|"Open output (O)"| open["window.open('/player/output?s=sessionId', 'wv-av-output')"]
+    av(["/player AV"]) -->|"Open output (O)"| open["window.open('/player/output?s=shared', unique name)"]
     open --> out(["Projection output window"])
-    out --> render["Renders projected slide: Live (bg+text) / Blank (bg only) / Blackout (black)"]
-    av -. "BroadcastChannel + localStorage snapshot" .-> render
+    out --> hello["hello + heartbeat with outputId"]
+    page["Lyric or deck page select"] --> cmd["Tagged command: session/command id, content, screen, background"]
+    cmd --> bc["BroadcastChannel + latest-command snapshot"]
+    bc --> out
+    out --> ack["Ack applied or safe error"]
+    ack --> registry["Controller summarizes Ready / missing / failed"]
+    cmd --> warn{"Zero ready outputs?"}
+    warn -->|yes| missing["Warn: page was not shown on a screen"]
+    out --> render["Live: lyrics or contained deck page / Blank: hide content / Blackout: black"]
     out --> fs{"Double-click"}
     fs -->|'Allow fullscreen' setting on| full["Enter fullscreen"]
     fs -->|off| nofull["No-op"]
-    out --> missing["No ?s param → 'Missing projection session.'"]
     av -->|AV settings gear| settings["→ /settings?tab=playerRoles (return context)"]
 ```
+
+TOC/item changes stay on the controller. Deck pages use the same replace command as lyrics; Media is not sent through Player Rooms. Missing `?s` defaults to the shared session.
 
 ---
 

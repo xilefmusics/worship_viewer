@@ -4,6 +4,7 @@ import {
   type AvLyricLine,
   type AvBilingualLyricSlidesResult,
   type AvSectionOutline,
+  type AvSlideDeckEntry,
   blobItemSlideText,
   buildAvBilingualLyricSlides,
   buildAvLyricSlides,
@@ -22,13 +23,19 @@ type PlayerItem = components['schemas']['PlayerItem']
 
 export type AvLanguageIndexResolver = (itemIndex: number) => number | undefined
 
+export type AvDeckPage = {
+  blobId: string
+}
+
 export type AvItemSlides = {
   slides: string[]
   sourceSlides: string[]
   structuredSlides?: AvLyricLine[][]
   structuredSourceSlides?: AvLyricLine[][]
   outline: AvSectionOutline[]
-  kind: 'lyrics' | 'blob'
+  kind: 'lyrics' | 'blob' | 'deck'
+  mediaId?: string
+  pages?: AvDeckPage[]
 }
 
 function songTitleAtLanguageIndex(
@@ -88,6 +95,20 @@ export function avSlidesForItem(
       sourceSlides: [text],
       outline: [],
       kind: 'blob',
+    }
+  }
+  if (item.type === 'media' && item.content?.type === 'slide_deck') {
+    const pages = item.content.pages.map((page) => ({ blobId: page.blob_id }))
+    if (pages.length > 0) {
+      const slides = pages.map((_, index) => `Page ${index + 1}`)
+      return {
+        slides,
+        sourceSlides: slides,
+        outline: [],
+        kind: 'deck',
+        mediaId: item.id,
+        pages,
+      }
     }
   }
   if (item.type !== 'chords') {
@@ -171,6 +192,21 @@ export function avSlidesForItem(
     outline: lyricData.outline,
     kind: 'lyrics',
   }
+}
+
+export function buildAvDeckPageEntries(
+  mediaId: string,
+  pages: AvDeckPage[],
+  labelForPage: (index: number) => string,
+): AvSlideDeckEntry[] {
+  return pages.map((page, index) => ({
+    slideIndex: index,
+    label: labelForPage(index),
+    text: '',
+    isSubSlide: false,
+    hasText: true,
+    deckPage: { mediaId, assetId: page.blobId },
+  }))
 }
 
 export function avSlidesForPlayerItem(

@@ -10,6 +10,22 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('motion/react', () => ({
   useReducedMotion: () => false,
+  AnimatePresence: ({ children }: { children?: unknown }) => children,
+  motion: {
+    div: ({ children, className }: { children?: unknown; className?: string }) => (
+      <div className={className}>{children as never}</div>
+    ),
+  },
+}))
+
+vi.mock('@/components/player/av/AvSlideScaledStage', () => ({
+  AvSlideScaledStage: ({ children }: { children?: unknown }) => <div>{children as never}</div>,
+}))
+
+vi.mock('@/components/media/MediaDeckPageView', () => ({
+  MediaDeckPageView: ({ mediaId, blobId }: { mediaId: string; blobId: string }) => (
+    <img alt="deck-page" data-testid="deck-page" data-media={mediaId} data-asset={blobId} />
+  ),
 }))
 
 describe('AvSlideView', () => {
@@ -48,5 +64,27 @@ describe('AvSlideView', () => {
     expect(container.firstElementChild).not.toHaveClass(
       'av-slide-view--transparent-preview',
     )
+  })
+
+  it('contains a live deck page and hides it for blank and blackout', () => {
+    const view = (screenState: 'live' | 'blank' | 'blackout') => (
+      <AvSlideView
+        deckPage={{ mediaId: 'media-1', assetId: 'page-a' }}
+        contentLayer={DEFAULT_AV_PREFERENCES.contentLayer}
+        backgroundLayer={DEFAULT_AV_PREFERENCES.backgroundLayer}
+        transition={DEFAULT_AV_PREFERENCES.transition}
+        screenState={screenState}
+      />
+    )
+    const { rerender } = render(view('live'))
+    expect(screen.getByTestId('deck-page')).toHaveAttribute('data-asset', 'page-a')
+
+    rerender(view('blank'))
+    expect(screen.queryByTestId('deck-page')).not.toBeInTheDocument()
+    expect(screen.getByText('player.av.blankOn')).toBeInTheDocument()
+
+    rerender(view('blackout'))
+    expect(screen.queryByTestId('deck-page')).not.toBeInTheDocument()
+    expect(document.querySelector('.av-slide-view--blackout')).toBeTruthy()
   })
 })
