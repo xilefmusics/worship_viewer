@@ -33,14 +33,18 @@ type HubMenuIconProps = {
 type PlayerEditMenuProps = {
   playerType: PlayerEntityType
   canEditSong: boolean
+  canEditMedia?: boolean
   onEditSong: () => void
+  onEditMedia?: () => void
   onEditResource: () => void
 }
 
 export function PlayerEditMenu({
   playerType,
   canEditSong,
+  canEditMedia,
   onEditSong,
+  onEditMedia,
   onEditResource,
 }: PlayerEditMenuProps) {
   const { t } = useTranslation()
@@ -54,6 +58,9 @@ export function PlayerEditMenu({
     }> = [
       ...(canEditSong
         ? [{ key: 'song', label: t('player.editSong'), onSelect: onEditSong, Icon: IconHubSongs }]
+        : []),
+      ...(canEditMedia && onEditMedia
+        ? [{ key: 'media', label: t('player.editSlideDeck'), onSelect: onEditMedia, Icon: PencilIcon }]
         : []),
       ...(playerType === 'setlist'
         ? [
@@ -77,7 +84,7 @@ export function PlayerEditMenu({
         : []),
     ]
     return list
-  }, [canEditSong, onEditResource, onEditSong, playerType, t])
+  }, [canEditMedia, canEditSong, onEditMedia, onEditResource, onEditSong, playerType, t])
 
   if (items.length === 0) return null
 

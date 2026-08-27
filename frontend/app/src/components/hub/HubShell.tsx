@@ -390,6 +390,9 @@ function HubChrome({
   const collectionEditorPlayerReturn = isCollectionDetail
     ? parsePlayerEditorReturnSearch(locationSearch as Record<string, unknown>)
     : null
+  const mediaEditorPlayerReturn = isMediaDetail
+    ? parsePlayerEditorReturnSearch(locationSearch as Record<string, unknown>)
+    : null
   const settingsPlayerReturn = isSettings
     ? parsePlayerEditorReturnSearch(locationSearch as Record<string, unknown>)
     : null
@@ -425,9 +428,12 @@ function HubChrome({
   const [detailTitleHovered, setDetailTitleHovered] = useState(false)
   const [isEditingDetailTitle, setIsEditingDetailTitle] = useState(false)
   const [detailTitleDraft, setDetailTitleDraft] = useState('')
+  const [isEditingMediaTitle, setIsEditingMediaTitle] = useState(false)
+  const [mediaTitleDraft, setMediaTitleDraft] = useState('')
   const searchIconActive = searchFieldHovered || searchFocused
   const mainScrollRef = useRef<HTMLElement>(null)
   const detailTitleInputRef = useRef<HTMLInputElement>(null)
+  const mediaTitleInputRef = useRef<HTMLInputElement>(null)
   const prevHubSectionRef = useRef<string | null>(null)
   const online = useOnline()
   const prevOnlineRef = useRef(online)
@@ -486,6 +492,12 @@ function HubChrome({
     detailTitleInputRef.current?.focus()
     detailTitleInputRef.current?.select()
   }, [isEditingDetailTitle])
+
+  useEffect(() => {
+    if (!isEditingMediaTitle) return
+    mediaTitleInputRef.current?.focus()
+    mediaTitleInputRef.current?.select()
+  }, [isEditingMediaTitle])
 
   if (!user) return null
 
@@ -767,18 +779,70 @@ function HubChrome({
                 type="button"
                 size="icon"
                 variant="outline"
-                onClick={() => void navigate({ to: '/media' })}
+                onClick={() => {
+                  if (mediaEditorPlayerReturn) {
+                    navigateBackToPlayer(mediaEditorPlayerReturn)
+                    return
+                  }
+                  void navigate({ to: '/media' })
+                }}
                 className={hubDetailBackButtonClass}
                 aria-label={t('media.editor.backToList')}
               >
                 <ChevronLeftIcon className="text-[var(--color-foreground)]" size={20} />
               </Button>
               <div ref={searchAnchorRef} className="group relative my-[0.36rem] min-w-0 flex-1">
-                <div className={cn(HUB_SEARCH_INPUT_CLASS, 'pointer-events-none flex min-w-0 items-center justify-center')}>
-                  <p className={cn('w-full truncate px-5 text-center font-medium text-[var(--color-foreground)]', HUB_SEARCH_PILL_TEXT_CLASS)}>
-                    {headerMedia?.title ?? t('common.load')}
-                  </p>
-                </div>
+                {isEditingMediaTitle ? (
+                  <div className={cn(HUB_SEARCH_INPUT_CLASS, 'flex min-w-0 items-center gap-1 px-3')}>
+                    <Input
+                      ref={mediaTitleInputRef}
+                      type="text"
+                      value={mediaTitleDraft}
+                      onChange={(event) => {
+                        setMediaTitleDraft(event.target.value)
+                        window.dispatchEvent(new CustomEvent('media-editor-title-change', { detail: event.target.value }))
+                      }}
+                      onBlur={() => setIsEditingMediaTitle(false)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          mediaTitleInputRef.current?.blur()
+                        } else if (event.key === 'Escape') {
+                          event.preventDefault()
+                          const originalTitle = headerMedia?.title ?? ''
+                          setMediaTitleDraft(originalTitle)
+                          window.dispatchEvent(new CustomEvent('media-editor-title-change', { detail: originalTitle }))
+                          setIsEditingMediaTitle(false)
+                        }
+                      }}
+                      maxLength={200}
+                      className="min-w-0 flex-1 border-0 bg-transparent px-0 text-center font-medium shadow-none focus-visible:ring-0"
+                      aria-label={t('media.fields.title')}
+                    />
+                    {headerMedia?.content.type === 'slide_deck' ? (
+                      <PencilIcon size={16} className="shrink-0 text-[var(--color-foreground)]" />
+                    ) : null}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={cn(HUB_SEARCH_INPUT_CLASS, 'flex min-w-0 items-center justify-center gap-1 px-3')}
+                    onClick={() => {
+                      if (headerMedia?.content.type !== 'slide_deck') return
+                      setMediaTitleDraft(headerMedia.title)
+                      setIsEditingMediaTitle(true)
+                    }}
+                    aria-label={t('media.editor.editTitle')}
+                    disabled={headerMedia?.content.type !== 'slide_deck'}
+                  >
+                    <p className={cn('min-w-0 truncate text-center font-medium text-[var(--color-foreground)]', HUB_SEARCH_PILL_TEXT_CLASS)}>
+                      {headerMedia?.title ?? t('common.load')}
+                    </p>
+                    {headerMedia?.content.type === 'slide_deck' ? (
+                      <PencilIcon size={16} className="shrink-0 text-[var(--color-foreground)]" />
+                    ) : null}
+                  </button>
+                )}
               </div>
             </>
           ) : isSettings ? (

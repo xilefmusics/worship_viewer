@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
 import { uploadMediaSource, mediaAssetDataUrl } from '@/api/media-upload'
 import {
@@ -36,12 +35,24 @@ import { canEditTeamLibrary } from '@/lib/team-permissions'
 
 function deckPagesFromMedia(media: Media): DeckEditorPage[] {
   if (media.pending_revision) {
-    return media.pending_revision.pages.map((page) => ({ id: page.id, blob_id: page.blob_id }))
+    return media.pending_revision.pages.map((page) => ({
+      id: page.id,
+      blob_id: page.blob_id,
+      section_title: page.section_title ?? null,
+    }))
   }
   if (media.content.type === 'slide_deck') {
-    return media.content.pages.map((page) => ({ id: page.blob_id, blob_id: page.blob_id }))
+    return media.content.pages.map((page) => ({
+      id: page.blob_id,
+      blob_id: page.blob_id,
+      section_title: page.section_title ?? null,
+    }))
   }
   return []
+}
+
+function draftSignatureForMedia(value: Media): string {
+  return JSON.stringify({ title: value.title, owner: value.owner, pages: deckPagesFromMedia(value) })
 }
 
 export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
@@ -64,6 +75,13 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
   const [error, setError] = useState('')
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [deckPages, setDeckPages] = useState<DeckEditorPage[]>([])
+  const loadedDraftRef = useRef<string | null>(null)
+  const queuedAutosaveRef = useRef<string | null>(null)
+
+  const draftSignature = useMemo(
+    () => JSON.stringify({ title, owner, pages: deckPages }),
+    [deckPages, owner, title],
+  )
 
   useEffect(() => {
     if (!media) return
@@ -71,6 +89,7 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
     setTitle(media.title)
     setOwner(media.owner)
     setDeckPages(deckPagesFromMedia(media))
+    loadedDraftRef.current = draftSignatureForMedia(media)
     const displayKind = mediaDisplayKind(media)
     if (isUrlMediaKind(displayKind)) {
       setKind(displayKind)
@@ -82,8 +101,16 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
   const uploaded = media ? isUploadedDisplayKind(displayKind) : false
   const isDeck = displayKind === 'slide_deck'
   const editableUrl = media ? isUrlMediaKind(displayKind) : false
-  const deckSaveBlocked = isDeck && deckPages.length === 0
 
+  useEffect(() => {
+    if (!isDeck) return
+    const onTitleChange = (event: Event) => {
+      const titleChange = event as CustomEvent<string>
+      setTitle(titleChange.detail)
+    }
+    window.addEventListener('media-editor-title-change', onTitleChange)
+    return () => window.removeEventListener('media-editor-title-change', onTitleChange)
+  }, [isDeck])
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!canEdit || !media) throw new Error(t('media.validation.notEditable'))
@@ -98,7 +125,14 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
         if (!pending) throw new Error(t('media.deck.emptyGuard'))
         const byBlob = new Map((pending.pages ?? []).map((page) => [page.blob_id, page.id]))
         const pageIds = deckPages.map((page) => byBlob.get(page.blob_id) ?? page.id)
-        return commitDeck(queryClient, mediaId, { revision_id: pending.revision_id, page_ids: pageIds })
+        return commitDeck(queryClient, mediaId, {
+          revision_id: pending.revision_id,
+          page_ids: pageIds,
+          section_titles: deckPages.map((page) => {
+            const sectionTitle = page.section_title?.trim() ?? ''
+            return sectionTitle.length > 0 ? sectionTitle : null
+          }),
+        })
       }
       if (uploaded) {
         return updateMedia(queryClient, mediaId, { title: title.trim(), owner })
@@ -114,10 +148,20 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
     onSuccess: (saved) => {
       queryClient.setQueryData(mediaDetailKey(mediaId), saved)
       void queryClient.invalidateQueries({ queryKey: mediaListRootKey })
-      toast.success(t('media.editor.saved'))
     },
     onError: (cause: Error) => setError(cause.message),
   })
+
+  useEffect(() => {
+    if (!isDeck || !canEdit || !online || deckPages.length === 0 || saveMutation.isPending) return
+    if (draftSignature === loadedDraftRef.current || draftSignature === queuedAutosaveRef.current) return
+    const timer = window.setTimeout(() => {
+      queuedAutosaveRef.current = draftSignature
+      setError('')
+      saveMutation.mutate()
+    }, 700)
+    return () => window.clearTimeout(timer)
+  }, [canEdit, deckPages.length, draftSignature, isDeck, online, saveMutation])
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -143,7 +187,15 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
   })
 
   const deckUploadMutation = useMutation({
-    mutationFn: async ({ files, replacePage }: { files: File[]; replacePage?: string }) => {
+    mutationFn: async ({
+      files,
+      replacePage,
+      insertionIndex,
+    }: {
+      files: File[]
+      replacePage?: string
+      insertionIndex?: number
+    }) => {
       setUploadProgress(0)
       let saved: Media | null = null
       for (let index = 0; index < files.length; index += 1) {
@@ -161,7 +213,40 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
         })
       }
       if (!saved) throw new Error(t('media.validation.fileRequired'))
-      return saved
+      if (insertionIndex == null || replacePage) return saved
+
+      const pending = saved.pending_revision
+      if (!pending) throw new Error(t('media.deck.emptyGuard'))
+      const existingBlobIds = new Set(deckPages.map((page) => page.blob_id))
+      const pendingByBlobId = new Map(pending.pages.map((page) => [page.blob_id, page]))
+      const localByBlobId = new Map(deckPages.map((page) => [page.blob_id, page]))
+      const existingPages = deckPages.flatMap((page) => {
+        const pendingPage = pendingByBlobId.get(page.blob_id)
+        return pendingPage ? [pendingPage] : []
+      })
+      const matchedExistingIds = new Set(existingPages.map((page) => page.id))
+      existingPages.push(
+        ...pending.pages.filter(
+          (page) => existingBlobIds.has(page.blob_id) && !matchedExistingIds.has(page.id),
+        ),
+      )
+      const addedPages = pending.pages.filter((page) => !existingBlobIds.has(page.blob_id))
+      const insertAt = Math.max(0, Math.min(insertionIndex, existingPages.length))
+      const orderedPages = [
+        ...existingPages.slice(0, insertAt),
+        ...addedPages,
+        ...existingPages.slice(insertAt),
+      ]
+
+      return commitDeck(queryClient, mediaId, {
+        revision_id: pending.revision_id,
+        page_ids: orderedPages.map((page) => page.id),
+        section_titles: orderedPages.map((page) => {
+          const sectionTitle = localByBlobId.get(page.blob_id)?.section_title ?? page.section_title
+          const trimmed = sectionTitle?.trim() ?? ''
+          return trimmed.length > 0 ? trimmed : null
+        }),
+      })
     },
     onSuccess: (saved) => {
       setUploadProgress(null)
@@ -193,19 +278,23 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
   const showUploadedEditor = uploaded
 
   return (
-    <section className="mx-auto grid w-full max-w-2xl gap-6 pb-8" aria-labelledby="media-editor-heading">
-      <div className="grid gap-1">
-        <h1 id="media-editor-heading" className="text-xl font-semibold">{media.title}</h1>
-        <p className="text-sm text-[var(--color-muted-foreground)]">{t(`media.kinds.${displayKind}`)}</p>
-        <div className="pt-2"><Button asChild size="sm"><a href={`/player/media/${encodeURIComponent(media.id)}`}>{t('media.actions.play')}</a></Button></div>
-      </div>
+    <section className={`mx-auto grid w-full pb-8 ${isDeck ? 'max-w-5xl gap-3' : 'max-w-2xl gap-6'}`}>
+      {isDeck ? (
+        null
+      ) : (
+        <div className="grid gap-1">
+          <h1 className="text-xl font-semibold">{media.title}</h1>
+          <p className="text-sm text-[var(--color-muted-foreground)]">{t(`media.kinds.${displayKind}`)}</p>
+          <div className="pt-2"><Button asChild size="sm"><a href={`/player/media/${encodeURIComponent(media.id)}`}>{t('media.actions.play')}</a></Button></div>
+        </div>
+      )}
 
       {showUploadedEditor ? (
-        <div className="grid gap-4">
-          <div className="grid gap-1.5">
+        <div className={`grid ${isDeck ? 'gap-3' : 'gap-4'}`}>
+          {!isDeck ? <div className="grid gap-1.5">
             <label htmlFor="media-editor-title" className="text-sm font-medium">{t('media.fields.title')}</label>
             <Input id="media-editor-title" value={title} onChange={(event) => setTitle(event.target.value)} disabled={!canEdit || !online || saveMutation.isPending} maxLength={200} />
-          </div>
+          </div> : null}
           {media.content.type === 'video' ? (
             <p className="text-sm text-[var(--color-muted-foreground)]">
               {t('media.editor.metadataVideo', {
@@ -234,7 +323,19 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
               onReorder={setDeckPages}
               onRemove={(id) => setDeckPages((current) => current.filter((page) => page.id !== id))}
               onReplace={(id, file) => deckUploadMutation.mutate({ files: [file], replacePage: id })}
-              onAdd={(files) => deckUploadMutation.mutate({ files })}
+              onAdd={(files, insertionIndex) => deckUploadMutation.mutate({ files, insertionIndex })}
+              onSectionTitleChange={(id, sectionTitle) => {
+                setDeckPages((current) =>
+                  current.map((page) =>
+                    page.id === id ? { ...page, section_title: sectionTitle } : page,
+                  ),
+                )
+              }}
+              onRemoveSection={(id) => {
+                setDeckPages((current) =>
+                  current.map((page) => (page.id === id ? { ...page, section_title: null } : page)),
+                )
+              }}
             />
           ) : null}
           {canEdit && !isDeck ? (
@@ -257,9 +358,9 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
               </div>
             </div>
           ) : null}
-          {canEdit ? (
+          {canEdit && !isDeck ? (
             <div className="flex justify-end">
-              <Button disabled={!online || saveMutation.isPending || deckSaveBlocked} onClick={() => { setError(''); saveMutation.mutate() }}>
+              <Button disabled={!online || saveMutation.isPending} onClick={() => { setError(''); saveMutation.mutate() }}>
                 {saveMutation.isPending ? t('common.load') : t('media.actions.save')}
               </Button>
             </div>

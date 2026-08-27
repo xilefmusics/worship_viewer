@@ -14,6 +14,7 @@ import {
   type Media,
 } from '@/api/media'
 import { Button } from '@/components/ui/button'
+import { emptyEditorReturnSearch } from '@/lib/player/player-editor-return'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -82,7 +83,7 @@ export function MediaListView() {
           {debouncedQ.trim() ? <Button size="sm" variant="outline" onClick={() => setQInput('')}>{t('hub.empty.clearSearch')}</Button> : null}
         </div>
       ) : null}
-      {!query.isError && items.map((media) => <MediaRow key={media.id} media={media} canMove={writableTeams.some((team) => team.id !== media.owner)} onOpen={() => void navigate({ to: '/media/$mediaId', params: { mediaId: media.id } })} onMove={() => setMoveTarget(media)} onDelete={() => setDeleteTarget(media)} />)}
+      {!query.isError && items.map((media) => <MediaRow key={media.id} media={media} canMove={writableTeams.some((team) => team.id !== media.owner)} onOpen={() => void navigate({ to: '/media/$mediaId', params: { mediaId: media.id }, search: emptyEditorReturnSearch() })} onMove={() => setMoveTarget(media)} onDelete={() => setDeleteTarget(media)} />)}
       {query.hasNextPage ? <div className="flex justify-center py-4"><Button variant="outline" size="sm" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{query.isFetchingNextPage ? t('common.load') : t('hub.loadMore')}</Button></div> : null}
 
       <AlertDialog open={deleteTarget != null} onOpenChange={(open) => !open && setDeleteTarget(null)}>

@@ -25,6 +25,7 @@ export type AvLanguageIndexResolver = (itemIndex: number) => number | undefined
 
 export type AvDeckPage = {
   blobId: string
+  sectionTitle?: string | null
 }
 
 export type AvItemSlides = {
@@ -103,13 +104,16 @@ export function avSlidesForItem(
     }
   }
   if (item.type === 'media' && item.content?.type === 'slide_deck') {
-    const pages = item.content.pages.map((page) => ({ blobId: page.blob_id }))
+    const pages = item.content.pages.map((page) => ({
+      blobId: page.blob_id,
+      sectionTitle: page.section_title,
+    }))
     if (pages.length > 0) {
       const slides = pages.map((_, index) => `Page ${index + 1}`)
       return {
         slides,
         sourceSlides: slides,
-        outline: [],
+      outline: buildAvDeckOutline(pages, fallbackTitle),
         kind: 'deck',
         mediaId: item.id,
         pages,
@@ -249,15 +253,57 @@ export function buildAvDeckPageEntries(
   mediaId: string,
   pages: AvDeckPage[],
   labelForPage: (index: number) => string,
+  fallbackTitle?: string,
 ): AvSlideDeckEntry[] {
+  const sectionTitles = new Map(
+    buildAvDeckOutline(pages, fallbackTitle).flatMap((section) =>
+      (section.slideLabels ?? [section.title]).map((label, offset) => [section.textIdx + offset, label] as const),
+    ),
+  )
   return pages.map((page, index) => ({
     slideIndex: index,
-    label: labelForPage(index),
+    label: sectionTitles.get(index) ?? labelForPage(index),
     text: '',
     isSubSlide: false,
     hasText: true,
     deckPage: { mediaId, assetId: page.blobId },
   }))
+}
+
+function buildAvDeckOutline(pages: AvDeckPage[], fallbackTitle?: string): AvSectionOutline[] {
+  const outline: AvSectionOutline[] = []
+  let sectionNumber = 0
+
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
+    const page = pages[pageIndex]
+    if (!page) continue
+    const explicitTitle = page.sectionTitle?.trim()
+    const startsSection = pageIndex === 0 || Boolean(explicitTitle)
+    if (!startsSection) continue
+
+    sectionNumber += 1
+    let len = 1
+    while (pageIndex + len < pages.length) {
+      const nextPage = pages[pageIndex + len]
+      if (!nextPage || nextPage.sectionTitle?.trim()) break
+      len += 1
+    }
+
+    const title = explicitTitle || (pageIndex === 0 ? fallbackTitle?.trim() : '') || `Section ${sectionNumber}`
+    outline.push({
+      title,
+      textIdx: pageIndex,
+      outlineIdx: pageIndex,
+      len,
+      slideLabels: pages
+        .slice(pageIndex, pageIndex + len)
+        .map((_, offset) => (offset === 0 ? title : `${title} (${offset + 1})`)),
+      duplicate: false,
+      hasText: true,
+    })
+  }
+
+  return outline
 }
 
 export function avSlidesForPlayerItem(
@@ -267,12 +313,13 @@ export function avSlidesForPlayerItem(
   resolveLanguageIndex?: AvLanguageIndexResolver,
   bilingualEnabled = false,
   resolvedSongData?: ChordSongData,
+  fallbackTitle?: string,
 ): AvItemSlides {
   return avSlidesForItem(
     items[itemIndex],
     itemIndex,
     split,
-    undefined,
+    fallbackTitle,
     resolveLanguageIndex,
     bilingualEnabled,
     resolvedSongData,

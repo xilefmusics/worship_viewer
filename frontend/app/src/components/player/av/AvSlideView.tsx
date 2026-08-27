@@ -114,7 +114,7 @@ export function AvSlideView({
     return <div className={cn('av-slide-view av-slide-view--blackout', className)} aria-hidden />
   }
 
-  if (screenState === 'blank') {
+  if (screenState === 'blank' && !deckPage) {
     return (
       <div className={cn('av-slide-view', className)} aria-hidden>
         {compact ? (
@@ -207,6 +207,12 @@ export function AvSlideView({
           </AnimatePresence>
         )}
       </AvSlideScaledStage>
+      {screenState === 'blank' && deckPage ? (
+        <div className="av-slide-view__blank-overlay">
+          <AvBackgroundLayer layer={backgroundLayer} className="av-slide-view__blank-background" />
+          <p className="sr-only">{t('player.av.blankOn')}</p>
+        </div>
+      ) : null}
     </div>
   )
 }

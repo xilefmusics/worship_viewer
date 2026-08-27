@@ -84,7 +84,11 @@ export async function beginDeckRevision(queryClient: QueryClient, id: string) {
 export async function commitDeck(
   queryClient: QueryClient,
   id: string,
-  body: { revision_id: string; page_ids: string[] },
+  body: {
+    revision_id: string
+    page_ids: string[]
+    section_titles?: Array<string | null>
+  },
 ) {
   const result = await api.POST('/api/v1/media/{id}/deck/commit', {
     params: { path: { id } },

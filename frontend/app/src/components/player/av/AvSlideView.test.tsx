@@ -83,7 +83,9 @@ describe('AvSlideView', () => {
     expect(container.querySelector('.av-slide-view__animated-layer')).not.toBeInTheDocument()
 
     rerender(view('blank'))
-    expect(screen.queryByTestId('deck-page')).not.toBeInTheDocument()
+    expect(screen.getByTestId('deck-page')).toHaveAttribute('data-asset', 'page-a')
+    expect(container.querySelector('.av-slide-view__blank-overlay')).toBeInTheDocument()
+    expect(container.querySelector('.av-slide-view__blank-background')).toBeInTheDocument()
     expect(screen.getByText('player.av.blankOn')).toBeInTheDocument()
 
     rerender(view('blackout'))

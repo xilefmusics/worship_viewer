@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { CreateMediaDialog } from '@/components/media/CreateMediaDialog'
 import { MediaListView } from '@/components/media/MediaListView'
+import { emptyEditorReturnSearch } from '@/lib/player/player-editor-return'
 
 export const Route = createFileRoute('/_hub/media')({
   component: MediaRoute,
@@ -33,7 +34,7 @@ function MediaRoute() {
         onOpenChange={setCreateOpen}
         onCreated={(mediaId) => {
           setCreateOpen(false)
-          void navigate({ to: '/media/$mediaId', params: { mediaId } })
+          void navigate({ to: '/media/$mediaId', params: { mediaId }, search: emptyEditorReturnSearch() })
         }}
       />
     </>

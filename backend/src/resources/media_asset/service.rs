@@ -466,7 +466,10 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                             },
                         )
                         .await?;
-                    copied.push(shared::media::MediaDeckPage { blob_id: new_id });
+                    copied.push(shared::media::MediaDeckPage {
+                        blob_id: new_id,
+                        section_title: page.section_title.clone(),
+                    });
                 }
                 Ok(MediaContent::SlideDeck { pages: copied })
             }

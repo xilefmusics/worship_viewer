@@ -282,7 +282,10 @@ impl MediaProcessingHandle {
                             )
                             .await?;
                         cleanup.track(asset.id.clone());
-                        pages.push(MediaDeckPage { blob_id: asset.id });
+                        pages.push(MediaDeckPage {
+                            blob_id: asset.id,
+                            section_title: None,
+                        });
                     }
                 }
                 if pages.is_empty() || pages.len() > self.deck_max_pages {
@@ -493,6 +496,7 @@ impl MediaProcessingHandle {
             ingested.push(MediaStagedDeckPage {
                 id: uuid::Uuid::new_v4().to_string(),
                 blob_id: asset.id,
+                section_title: None,
             });
         }
         let mut replaced_asset = None;
@@ -586,8 +590,15 @@ impl MediaProcessingHandle {
                 "a slide deck requires at least one page",
             ));
         }
+        if let Some(section_titles) = &payload.section_titles
+            && section_titles.len() != payload.page_ids.len()
+        {
+            return Err(AppError::invalid_request(
+                "section titles must match the number of deck pages",
+            ));
+        }
         let mut ordered = Vec::new();
-        for page_id in &payload.page_ids {
+        for (index, page_id) in payload.page_ids.iter().enumerate() {
             let page = pending
                 .pages
                 .iter()
@@ -599,12 +610,17 @@ impl MediaProcessingHandle {
             {
                 return Err(AppError::invalid_request("duplicate deck page id"));
             }
-            ordered.push(page.clone());
+            let mut page = page.clone();
+            if let Some(section_titles) = &payload.section_titles {
+                page.section_title = section_titles[index].clone();
+            }
+            ordered.push(page);
         }
         let committed = ordered
             .iter()
             .map(|page| MediaDeckPage {
                 blob_id: page.blob_id.clone(),
+                section_title: page.section_title.clone(),
             })
             .collect::<Vec<_>>();
         let keep = committed
@@ -690,6 +706,7 @@ fn staged_pages_from_content(content: &MediaContent) -> Vec<MediaStagedDeckPage>
             .map(|page| MediaStagedDeckPage {
                 id: uuid::Uuid::new_v4().to_string(),
                 blob_id: page.blob_id.clone(),
+                section_title: page.section_title.clone(),
             })
             .collect(),
         _ => Vec::new(),

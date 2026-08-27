@@ -10,6 +10,7 @@ export type AvSectionOutline = {
   textIdx: number
   outlineIdx: number
   len: number
+  slideLabels?: string[]
   duplicate: boolean
   hasText: boolean
 }
@@ -543,7 +544,10 @@ export function buildAvOutlineRows(
     for (let offset = 0; offset < item.len; offset += 1) {
       rows.push({
         slideIndex,
-        label: offset === 0 ? item.title : `${item.title} (${offset + 1})`,
+        label:
+          offset === 0
+            ? item.title
+            : item.slideLabels?.[offset] ?? `${item.title} (${offset + 1})`,
         isSubSlide: offset > 0,
         hasText: item.hasText,
         selected: slideIndex === currentSlideIndex,

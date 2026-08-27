@@ -32,6 +32,7 @@ Applies to the team-owned Media library at `/api/v1/media`.
 - **BLC-MEDIA-022:** `POST /api/v1/media/{id}/deck/commit` with `{ revision_id, page_ids }` atomically installs the selected non-empty order, rejects stale/unknown/duplicate ids, clears the revision, and deletes unreferenced assets.
 - **BLC-MEDIA-023:** `POST /api/v1/media/{id}/deck/revisions` copies committed pages into a revision for reorder/removal without altering live content.
 - **BLC-MEDIA-024:** Sources are sniffed by bytes (PNG/JPEG/sanitized SVG/PDF). Invalid, encrypted, animated, unsafe, oversized, or over-500-page inputs fail synchronously. PDF pages remain single-page PDFs without stored rasterization.
+- **BLC-MEDIA-025:** Slide-deck pages may carry an optional `section_title` on the first page of a section. The title is preserved through draft revisions, commit, and duplicate, and it does not affect page identity or commit ordering.
 
 ## Access and operations
 

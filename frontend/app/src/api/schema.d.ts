@@ -1143,6 +1143,8 @@ export interface components {
         CommitDeck: {
             page_ids: string[];
             revision_id: string;
+            /** @description Optional section titles in the same order as `page_ids`. */
+            section_titles?: (string | null)[] | null;
         };
         /**
          * @example {
@@ -1440,6 +1442,7 @@ export interface components {
         };
         MediaDeckPage: {
             blob_id: string;
+            section_title?: string | null;
         };
         /** @description A staged slide-deck revision that has not replaced active content yet. */
         MediaPendingRevision: {
@@ -1450,6 +1453,7 @@ export interface components {
         MediaStagedDeckPage: {
             blob_id: string;
             id: string;
+            section_title?: string | null;
         };
         MonitoringDurationMetrics: {
             /** Format: double */

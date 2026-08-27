@@ -67,7 +67,7 @@ export const PencilIcon = forwardRef<PencilIconHandle, PencilIconProps>(
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2"
-          transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+          transition={{ type: 'tween', duration: 0.35, ease: 'easeInOut' }}
           variants={{
             normal: { rotate: 0, x: 0, y: 0 },
             animate: {

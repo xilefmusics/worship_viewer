@@ -261,6 +261,13 @@ export function PlayerAv({
 
   const currentPlayerItem = player.items[session.itemIndex]
   const projectedPlayerItem = player.items[projected.itemIndex]
+  const projectedTocRow = tocEntryForIndex(player.toc, projected.itemIndex)
+  const projectedTitle = avItemTitle(
+    player.items,
+    projected.itemIndex,
+    resourceTitle || projectedTocRow?.title,
+    resolveLanguageIndexForItem,
+  )
   const resolvedCurrentSongData = useResolvedPlayerItemChordData(currentPlayerItem)
   const resolvedProjectedSongData = useResolvedPlayerItemChordData(projectedPlayerItem)
 
@@ -270,7 +277,7 @@ export function PlayerAv({
         maxLinesPerSlide: prefs.contentLayer.maxLinesPerSlide,
         balanceSlideLines: prefs.contentLayer.balanceSlideLines,
         collapseLyricWhitespace,
-      }, resolveLanguageIndexForItem, bilingualEnabled, resolvedCurrentSongData),
+      }, resolveLanguageIndexForItem, bilingualEnabled, resolvedCurrentSongData, title),
     [
       player.items,
       prefs.contentLayer.maxLinesPerSlide,
@@ -280,6 +287,7 @@ export function PlayerAv({
       session.itemIndex,
       bilingualEnabled,
       resolvedCurrentSongData,
+      title,
     ],
   )
 
@@ -289,7 +297,7 @@ export function PlayerAv({
         maxLinesPerSlide: prefs.contentLayer.maxLinesPerSlide,
         balanceSlideLines: prefs.contentLayer.balanceSlideLines,
         collapseLyricWhitespace,
-      }, resolveLanguageIndexForItem, bilingualEnabled, resolvedProjectedSongData),
+      }, resolveLanguageIndexForItem, bilingualEnabled, resolvedProjectedSongData, projectedTitle),
     [
       player.items,
       prefs.contentLayer.maxLinesPerSlide,
@@ -299,15 +307,8 @@ export function PlayerAv({
       projected.itemIndex,
       bilingualEnabled,
       resolvedProjectedSongData,
+      projectedTitle,
     ],
-  )
-
-  const projectedTocRow = tocEntryForIndex(player.toc, projected.itemIndex)
-  const projectedTitle = avItemTitle(
-    player.items,
-    projected.itemIndex,
-    resourceTitle || projectedTocRow?.title,
-    resolveLanguageIndexForItem,
   )
 
   const slideCount = currentItem.slides.length
@@ -325,13 +326,14 @@ export function PlayerAv({
       currentItem.kind === 'deck' && currentItem.mediaId && currentItem.pages
         ? buildAvDeckPageEntries(currentItem.mediaId, currentItem.pages, (index) =>
             t('player.av.outputPage', { n: index + 1 }),
+            title,
           )
         : buildAvSlideDeckEntries(
             currentItem.outline,
             currentItem.sourceSlides,
             currentItem.structuredSourceSlides,
           ),
-    [currentItem, t],
+    [currentItem, t, title],
   )
   const outlineRows = useMemo(
     () => buildAvOutlineRows(currentItem.outline, session.slideIndex),
@@ -442,6 +444,16 @@ export function PlayerAv({
     void navigate({
       to: '/songs/$songId',
       params: { songId: item.song.id },
+      search: buildSongEditorReturnSearch(playerReturnContext),
+    })
+  }, [navigate, player.items, playerReturnContext, session.itemIndex])
+
+  const navigateToMediaEditor = useCallback(() => {
+    const item = player.items[session.itemIndex]
+    if (item?.type !== 'media' || item.content?.type !== 'slide_deck') return
+    void navigate({
+      to: '/media/$mediaId',
+      params: { mediaId: item.id },
       search: buildSongEditorReturnSearch(playerReturnContext),
     })
   }, [navigate, player.items, playerReturnContext, session.itemIndex])
@@ -1028,7 +1040,9 @@ export function PlayerAv({
           {allowLibraryActions ? <PlayerEditMenu
             playerType={type}
             canEditSong={rawItem?.type === 'chords'}
+            canEditMedia={rawItem?.type === 'media' && currentItem.kind === 'deck'}
             onEditSong={navigateToSongEditor}
+            onEditMedia={navigateToMediaEditor}
             onEditResource={navigateToResourceEditor}
           /> : null}
           {!roomMusicalState && allowPlayerRoomActions ? (

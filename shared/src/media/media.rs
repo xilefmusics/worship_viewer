@@ -19,6 +19,8 @@ pub struct MediaPendingRevision {
 pub struct MediaStagedDeckPage {
     pub id: String,
     pub blob_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section_title: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,6 +67,8 @@ pub enum MediaContent {
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct MediaDeckPage {
     pub blob_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section_title: Option<String>,
 }
 
 /// Uploaded media kind accepted by synchronous multipart creation.
@@ -169,6 +173,9 @@ pub struct DuplicateMedia {
 pub struct CommitDeck {
     pub revision_id: String,
     pub page_ids: Vec<String>,
+    /// Optional section titles in the same order as `page_ids`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section_titles: Option<Vec<Option<String>>>,
 }
 
 #[cfg(test)]
@@ -178,7 +185,7 @@ mod tests {
     #[test]
     fn all_content_tags_round_trip() {
         let values = [
-            serde_json::json!({"type":"slide_deck","pages":[{"blob_id":"b1"}]}),
+            serde_json::json!({"type":"slide_deck","pages":[{"blob_id":"b1","section_title":"Intro"}]}),
             serde_json::json!({"type":"video","blob_id":"b1","duration_ms":1,"width":2,"height":3}),
             serde_json::json!({"type":"audio","blob_id":"b1","duration_ms":1}),
             serde_json::json!({"type":"youtube","video_id":"dQw4w9WgXcQ","canonical_url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}),
@@ -219,10 +226,11 @@ mod tests {
     fn pending_revision_pages_default_and_commit_round_trip() {
         let pending: MediaPendingRevision = serde_json::from_value(serde_json::json!({
             "revision_id": "rev1",
-            "pages": [{"id": "p1", "blob_id": "b1"}]
+            "pages": [{"id": "p1", "blob_id": "b1", "section_title": "Intro"}]
         }))
         .unwrap();
         assert_eq!(pending.pages[0].id, "p1");
+        assert_eq!(pending.pages[0].section_title.as_deref(), Some("Intro"));
         let commit: CommitDeck = serde_json::from_value(serde_json::json!({
             "revision_id": "rev1",
             "page_ids": ["p1"]

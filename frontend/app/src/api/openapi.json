@@ -195,6 +195,19 @@
           },
           "revision_id": {
             "type": "string"
+          },
+          "section_titles": {
+            "description": "Optional section titles in the same order as `page_ids`.",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -1059,6 +1072,12 @@
         "properties": {
           "blob_id": {
             "type": "string"
+          },
+          "section_title": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -1095,6 +1114,12 @@
           },
           "id": {
             "type": "string"
+          },
+          "section_title": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [

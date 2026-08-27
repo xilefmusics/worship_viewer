@@ -101,6 +101,19 @@
   background: #000;
 }
 
+.av-slide-view__blank-overlay {
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.av-slide-view__blank-background {
+  position: absolute;
+  inset: 0;
+}
+
 .av-slide-view--deck,
 .av-slide-view--deck .av-slide-view__stage,
 .av-slide-view--deck .av-slide-view__scaled-slot,
@@ -519,9 +532,9 @@
 }
 
 .av-slides-panel__preview--compact {
-  height: 2.75rem;
-  min-height: 2.75rem;
-  max-height: 2.75rem;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  min-height: 6rem;
 }
 
 .av-slides-panel__preview--full {

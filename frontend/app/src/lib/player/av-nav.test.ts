@@ -6,6 +6,7 @@ import {
   avSlidesForItem,
   avSlidesForPlayerItem,
   buildAvFlatSlides,
+  buildAvDeckPageEntries,
   resolveAvItemLanguageIndex,
 } from '@/lib/player/av-nav'
 import {
@@ -89,6 +90,52 @@ describe('avSlidesForItem', () => {
     expect(german.sourceSlides).toEqual(german.slides)
     expect(avItemTitle([item], 0, 'Setlist title', () => 0)).toBe('Anchor')
     expect(avItemTitle([item], 0, 'Setlist title', () => 1)).toBe('Anker')
+  })
+
+  it('builds a deck outline from stored media section titles', () => {
+    const item: PlayerItem = {
+      type: 'media',
+      id: 'media-1',
+      title: 'Slides',
+      content: {
+        type: 'slide_deck',
+        pages: [
+          { blob_id: 'p1', section_title: 'Welcome' },
+          { blob_id: 'p2' },
+          { blob_id: 'p3', section_title: 'Teaching' },
+        ],
+      },
+    }
+
+    const result = avSlidesForItem(item, 0, split)
+
+    expect(result.outline.map(({ title, len }) => ({ title, len }))).toEqual([
+      { title: 'Welcome', len: 2 },
+      { title: 'Teaching', len: 1 },
+    ])
+    expect(buildAvOutlineRows(result.outline, 1).map((row) => ({
+      label: row.label,
+      slideIndex: row.slideIndex,
+      selected: row.selected,
+    }))).toEqual([
+      { label: 'Welcome', slideIndex: 0, selected: false },
+      { label: 'Welcome (2)', slideIndex: 1, selected: true },
+      { label: 'Teaching', slideIndex: 2, selected: false },
+    ])
+  })
+
+  it('uses song-style section labels for every deck page card', () => {
+    const pages = [
+      { blobId: 'p1', sectionTitle: undefined },
+      { blobId: 'p2', sectionTitle: '1. Das Herz' },
+      { blobId: 'p3', sectionTitle: undefined },
+    ]
+
+    expect(
+      buildAvDeckPageEntries('media-1', pages, (index) => `Page ${index + 1}`, 'Seminar Anbetung').map(
+        (entry) => entry.label,
+      ),
+    ).toEqual(['Seminar Anbetung', '1. Das Herz', '1. Das Herz (2)'])
   })
 })
 
