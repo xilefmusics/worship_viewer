@@ -1,4 +1,5 @@
 import { parseProblemResponse } from '@/api/problem'
+import type { Media } from '@/api/media'
 
 export type UploadMediaKind = 'video' | 'audio' | 'image' | 'pdf' | 'svg'
 
@@ -20,8 +21,6 @@ export function mediaAssetDataUrl(mediaId: string, assetId: string): string {
   return base ? `${base}${path}` : path
 }
 
-export type MediaUploadResult = { operation_id: string }
-
 export async function uploadMediaSource(args: {
   mediaId: string
   kind: UploadMediaKind
@@ -29,7 +28,7 @@ export async function uploadMediaSource(args: {
   replacePage?: string
   onProgress?: (ratio: number) => void
   signal?: AbortSignal
-}): Promise<MediaUploadResult> {
+}): Promise<Media> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('PUT', uploadUrl(args.mediaId, args.kind, args.replacePage))
@@ -51,7 +50,7 @@ export async function uploadMediaSource(args: {
     xhr.onload = async () => {
       if (xhr.status === 200) {
         try {
-          resolve(JSON.parse(xhr.responseText) as MediaUploadResult)
+          resolve(JSON.parse(xhr.responseText) as Media)
         } catch {
           reject(new Error('upload_failed'))
         }
@@ -76,5 +75,62 @@ export async function uploadMediaSource(args: {
     xhr.onerror = () => reject(new Error('upload_failed'))
     xhr.onabort = () => reject(new DOMException('Aborted', 'AbortError'))
     xhr.send(args.file)
+  })
+}
+
+export async function createUploadedMedia(args: {
+  kind: 'video' | 'audio' | 'slide_deck'
+  title: string
+  owner?: string
+  files: Blob[]
+  onProgress?: (ratio: number) => void
+  signal?: AbortSignal
+}): Promise<Media> {
+  const base = apiBase()
+  const path = `/api/v1/media/uploads?${new URLSearchParams({ kind: args.kind }).toString()}`
+  const form = new FormData()
+  form.append('metadata', new Blob([JSON.stringify({ title: args.title, owner: args.owner })], { type: 'application/json' }))
+  for (const file of args.files) form.append('file', file)
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', base ? `${base}${path}` : path)
+    xhr.withCredentials = true
+    xhr.responseType = 'text'
+    if (args.signal) {
+      if (args.signal.aborted) {
+        reject(new DOMException('Aborted', 'AbortError'))
+        return
+      }
+      args.signal.addEventListener('abort', () => xhr.abort())
+    }
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) args.onProgress?.(event.loaded / event.total)
+    }
+    xhr.onload = async () => {
+      if (xhr.status === 201) {
+        try {
+          resolve(JSON.parse(xhr.responseText) as Media)
+        } catch {
+          reject(new Error('upload_failed'))
+        }
+        return
+      }
+      if (xhr.status === 413) {
+        reject(new Error('payload_too_large'))
+        return
+      }
+      try {
+        const problem = await parseProblemResponse(new Response(xhr.responseText, {
+          status: xhr.status,
+          headers: { 'Content-Type': 'application/problem+json' },
+        }))
+        reject(new Error(problem?.detail ?? problem?.title ?? 'upload_failed'))
+      } catch {
+        reject(new Error('upload_failed'))
+      }
+    }
+    xhr.onerror = () => reject(new Error('upload_failed'))
+    xhr.onabort = () => reject(new DOMException('Aborted', 'AbortError'))
+    xhr.send(form)
   })
 }

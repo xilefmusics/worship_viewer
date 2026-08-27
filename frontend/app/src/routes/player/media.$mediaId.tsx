@@ -14,7 +14,6 @@ export const Route = createFileRoute('/player/media/$mediaId')({
 })
 
 export function playerFromReadyMedia(media: components['schemas']['Media']): Player | null {
-  if (media.status !== 'ready' || !media.content) return null
   return {
     items: [{ type: 'media', id: media.id, title: media.title, content: media.content }],
     toc: [{ idx: 0, id: media.id, title: media.title, nr: '', liked: false }],

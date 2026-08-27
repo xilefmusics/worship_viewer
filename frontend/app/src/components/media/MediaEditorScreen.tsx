@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 import { uploadMediaSource, mediaAssetDataUrl } from '@/api/media-upload'
 import {
   beginDeckRevision,
-  cancelMediaProcessing,
   commitDeck,
   fetchMedia,
   mediaDetailKey,
@@ -22,29 +21,24 @@ import { useTeamDetail } from '@/hooks/useTeamDetail'
 import { useWritableTeams } from '@/hooks/useWritableTeams'
 import {
   formatMediaDuration,
-  hasReplacementFailure,
-  isProcessingActive,
-  isReadyUploaded,
   isUploadedDisplayKind,
   isUrlMediaKind,
   isValidUrlMediaInput,
   mediaCanonicalUrl,
   mediaDisplayKind,
-  mediaDisplayStatus,
   sniffAssetUploadKind,
   type UrlMediaKind,
   urlContent,
 } from '@/lib/media-display'
 import { canEditTeamLibrary } from '@/lib/team-permissions'
 
-// Flow: M2, M4, M5, M6 — preview/edit draft pages, commit, empty-guard, failed replacement
+// Flow: M2, M4, M5 — preview/edit draft pages, commit, empty-guard
 
 function deckPagesFromMedia(media: Media): DeckEditorPage[] {
-  const pending = media.pending_revision?.pages ?? []
-  if (pending.length > 0) {
-    return pending.map((page) => ({ id: page.id, blob_id: page.blob_id }))
+  if (media.pending_revision) {
+    return media.pending_revision.pages.map((page) => ({ id: page.id, blob_id: page.blob_id }))
   }
-  if (media.content?.type === 'slide_deck') {
+  if (media.content.type === 'slide_deck') {
     return media.content.pages.map((page) => ({ id: page.blob_id, blob_id: page.blob_id }))
   }
   return []
@@ -58,10 +52,6 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
   const detailQuery = useQuery({
     queryKey: mediaDetailKey(mediaId),
     queryFn: ({ signal }) => fetchMedia(queryClient, mediaId, signal),
-    refetchInterval: (query) => {
-      const media = query.state.data
-      return media && isProcessingActive(media) ? 2000 : false
-    },
   })
   const media = detailQuery.data
   const ownerTeam = useTeamDetail(media?.owner ?? '', { enabled: Boolean(media?.owner) })
@@ -89,15 +79,10 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
   }, [media])
 
   const displayKind = media ? mediaDisplayKind(media) : 'unknown'
-  const displayStatus = media ? mediaDisplayStatus(media) : 'unknown'
   const uploaded = media ? isUploadedDisplayKind(displayKind) : false
   const isDeck = displayKind === 'slide_deck'
-  const editableUrl = media ? displayStatus === 'ready' && isUrlMediaKind(displayKind) : false
-  const processingActive = media ? isProcessingActive(media) : false
-  const initialFailed = media?.status === 'failed'
-  const replacementFailed = media ? hasReplacementFailure(media) : false
-  const readyUploaded = media ? isReadyUploaded(media) : false
-  const deckSaveBlocked = isDeck && (processingActive || deckPages.length === 0)
+  const editableUrl = media ? isUrlMediaKind(displayKind) : false
+  const deckSaveBlocked = isDeck && deckPages.length === 0
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -113,7 +98,7 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
         if (!pending) throw new Error(t('media.deck.emptyGuard'))
         const byBlob = new Map((pending.pages ?? []).map((page) => [page.blob_id, page.id]))
         const pageIds = deckPages.map((page) => byBlob.get(page.blob_id) ?? page.id)
-        return commitDeck(queryClient, mediaId, { operation: pending.operation, page_ids: pageIds })
+        return commitDeck(queryClient, mediaId, { revision_id: pending.revision_id, page_ids: pageIds })
       }
       if (uploaded) {
         return updateMedia(queryClient, mediaId, { title: title.trim(), owner })
@@ -139,13 +124,12 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
       if (!media || !isUploadedDisplayKind(displayKind) || isDeck) throw new Error(t('media.validation.notEditable'))
       const uploadKind = displayKind === 'video' ? 'video' : 'audio'
       setUploadProgress(0)
-      await uploadMediaSource({
+      return uploadMediaSource({
         mediaId,
         kind: uploadKind,
         file,
         onProgress: (ratio) => setUploadProgress(ratio),
       })
-      return fetchMedia(queryClient, mediaId)
     },
     onSuccess: (saved) => {
       setUploadProgress(null)
@@ -161,13 +145,14 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
   const deckUploadMutation = useMutation({
     mutationFn: async ({ files, replacePage }: { files: File[]; replacePage?: string }) => {
       setUploadProgress(0)
+      let saved: Media | null = null
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index]
         const sniff = sniffAssetUploadKind(file)
         if (sniff !== 'image' && sniff !== 'pdf' && sniff !== 'svg') {
           throw new Error(t('media.validation.deckFileType'))
         }
-        await uploadMediaSource({
+        saved = await uploadMediaSource({
           mediaId,
           kind: sniff,
           file,
@@ -175,26 +160,19 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
           onProgress: (ratio) => setUploadProgress((index + ratio) / files.length),
         })
       }
-      return fetchMedia(queryClient, mediaId)
+      if (!saved) throw new Error(t('media.validation.fileRequired'))
+      return saved
     },
     onSuccess: (saved) => {
       setUploadProgress(null)
       queryClient.setQueryData(mediaDetailKey(mediaId), saved)
       void queryClient.invalidateQueries({ queryKey: mediaListRootKey })
     },
+    // Flow: M6
     onError: (cause: Error) => {
       setUploadProgress(null)
       setError(cause.message)
     },
-  })
-
-  const cancelMutation = useMutation({
-    mutationFn: () => cancelMediaProcessing(queryClient, mediaId),
-    onSuccess: (saved) => {
-      queryClient.setQueryData(mediaDetailKey(mediaId), saved)
-      toast.success(t('media.upload.cancelled'))
-    },
-    onError: (cause: Error) => toast.error(cause.message),
   })
 
   const avFileAccept = useMemo(() => (displayKind === 'video' ? 'video/*,audio/*' : 'audio/*,video/*'), [displayKind])
@@ -208,39 +186,19 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
 
   const canonicalUrl = mediaCanonicalUrl(media)
   const previewBlobId =
-    media.content?.type === 'video' || media.content?.type === 'audio'
+    media.content.type === 'video' || media.content.type === 'audio'
       ? media.content.blob_id
       : null
   const previewUrl = previewBlobId ? mediaAssetDataUrl(mediaId, previewBlobId) : null
-  const showUploadedEditor = uploaded || initialFailed || readyUploaded || isDeck
+  const showUploadedEditor = uploaded
 
   return (
     <section className="mx-auto grid w-full max-w-2xl gap-6 pb-8" aria-labelledby="media-editor-heading">
       <div className="grid gap-1">
         <h1 id="media-editor-heading" className="text-xl font-semibold">{media.title}</h1>
-        <p className="text-sm text-[var(--color-muted-foreground)]">{t(`media.states.${displayStatus}`)} · {t(`media.kinds.${displayKind}`)}</p>
-        {media.status === 'ready' && media.content ? <div className="pt-2"><Button asChild size="sm"><a href={`/player/media/${encodeURIComponent(media.id)}`}>{t('media.actions.play')}</a></Button></div> : null}
+        <p className="text-sm text-[var(--color-muted-foreground)]">{t(`media.kinds.${displayKind}`)}</p>
+        <div className="pt-2"><Button asChild size="sm"><a href={`/player/media/${encodeURIComponent(media.id)}`}>{t('media.actions.play')}</a></Button></div>
       </div>
-
-      {initialFailed ? (
-        <div role="alert" className="rounded-lg border border-[var(--color-destructive)]/40 bg-[var(--color-destructive)]/5 p-3 text-sm">
-          <p className="font-medium">{t('media.editor.failedTitle')}</p>
-          <p className="text-[var(--color-muted-foreground)]">{media.pending_revision?.processing_error?.detail ?? t('media.editor.failedBody')}</p>
-        </div>
-      ) : null}
-
-      {replacementFailed ? (
-        <div role="alert" className="rounded-lg border border-[var(--color-destructive)]/40 bg-[var(--color-destructive)]/5 p-3 text-sm">
-          <p className="font-medium">{t('media.editor.replacementFailedTitle')}</p>
-          <p className="text-[var(--color-muted-foreground)]">{media.pending_revision?.processing_error?.detail ?? t('media.editor.replacementFailedBody')}</p>
-        </div>
-      ) : null}
-
-      {processingActive ? (
-        <div role="status" className="rounded-lg border border-[var(--color-border)] bg-[var(--color-muted)]/30 p-3 text-sm">
-          {readyUploaded ? t('media.editor.replacementProcessingBody') : t('media.editor.processingBody')}
-        </div>
-      ) : null}
 
       {showUploadedEditor ? (
         <div className="grid gap-4">
@@ -248,7 +206,7 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
             <label htmlFor="media-editor-title" className="text-sm font-medium">{t('media.fields.title')}</label>
             <Input id="media-editor-title" value={title} onChange={(event) => setTitle(event.target.value)} disabled={!canEdit || !online || saveMutation.isPending} maxLength={200} />
           </div>
-          {media.content?.type === 'video' ? (
+          {media.content.type === 'video' ? (
             <p className="text-sm text-[var(--color-muted-foreground)]">
               {t('media.editor.metadataVideo', {
                 duration: formatMediaDuration(media.content.duration_ms),
@@ -257,22 +215,22 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
               })}
             </p>
           ) : null}
-          {media.content?.type === 'audio' ? (
+          {media.content.type === 'audio' ? (
             <p className="text-sm text-[var(--color-muted-foreground)]">
               {t('media.editor.metadataAudio', { duration: formatMediaDuration(media.content.duration_ms) })}
             </p>
           ) : null}
-          {previewUrl && media.content?.type === 'video' ? (
+          {previewUrl && media.content.type === 'video' ? (
             <video className="w-full rounded-lg border border-[var(--color-border)]" controls src={previewUrl} />
           ) : null}
-          {previewUrl && media.content?.type === 'audio' ? (
+          {previewUrl && media.content.type === 'audio' ? (
             <audio className="w-full" controls src={previewUrl} />
           ) : null}
           {isDeck ? (
             <DeckPagesEditor
               mediaId={mediaId}
               pages={deckPages}
-              disabled={!canEdit || !online || processingActive || deckUploadMutation.isPending}
+              disabled={!canEdit || !online || deckUploadMutation.isPending}
               onReorder={setDeckPages}
               onRemove={(id) => setDeckPages((current) => current.filter((page) => page.id !== id))}
               onReplace={(id, file) => deckUploadMutation.mutate({ files: [file], replacePage: id })}
@@ -286,22 +244,10 @@ export function MediaEditorScreen({ mediaId }: { mediaId: string }) {
                 if (file) uploadMutation.mutate(file)
                 event.target.value = ''
               }} />
-              {(initialFailed || readyUploaded) && !processingActive ? (
-                <Button type="button" variant="outline" disabled={!online || uploadMutation.isPending} onClick={() => fileInputRef.current?.click()}>
-                  {initialFailed ? t('media.upload.retry') : t('media.upload.replace')}
-                </Button>
-              ) : null}
-              {media.pending_revision?.status === 'processing' ? (
-                <Button type="button" variant="outline" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate()}>
-                  {t('media.upload.cancel')}
-                </Button>
-              ) : null}
+              <Button type="button" variant="outline" disabled={!online || uploadMutation.isPending} onClick={() => fileInputRef.current?.click()}>
+                {t('media.upload.replace')}
+              </Button>
             </div>
-          ) : null}
-          {canEdit && isDeck && media.pending_revision?.status === 'processing' ? (
-            <Button type="button" variant="outline" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate()}>
-              {t('media.upload.cancel')}
-            </Button>
           ) : null}
           {uploadProgress != null ? (
             <div role="status" className="grid gap-1">

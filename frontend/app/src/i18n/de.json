@@ -755,20 +755,23 @@
       "addMedia": "Medium hinzufügen",
       "addSongTitle": "Song hinzufügen",
       "addMediaTitle": "Medium hinzufügen",
+      "createMedia": "Medium erstellen",
       "manageMedia": "Medien verwalten",
-      "mediaPickerSearchPlaceholder": "Bereite Medien suchen…",
-      "mediaPickerSearchAria": "Medien zum Hinzufügen suchen",
-      "mediaPickerTeamAria": "Medien nach Team filtern",
-      "mediaPickerAllTeams": "Alle zugänglichen Teams",
-      "mediaPickerEmpty": "Keine bereiten Medien gefunden.",
+      "mediaPickerSearchPlaceholder": "Suchen…",
+      "mediaPickerSearchAria": "Suchen",
+      "mediaQuickUploadTitle": "Hier ablegen",
+      "mediaQuickUploadHint": "Bilder, PDFs, Audio oder Video",
+      "mediaQuickUploadAria": "Mediendateien zum Hochladen auswählen",
+      "mediaQuickUploadUnsupported": "Wähle entweder Bilder und PDFs, eine Audiodatei oder eine Videodatei aus.",
+      "mediaPickerEmpty": "Keine Medien gefunden.",
       "mediaPickerError": "Medien konnten nicht geladen werden.",
       "mediaUnavailable": "Medium nicht verfügbar",
       "mediaBrokenHint": "Dieses Medium wurde gelöscht oder ist nicht mehr zugänglich. Du kannst die Zeile entfernen.",
       "dragMediaHandleAria": "{{title}} zum Sortieren ziehen",
       "removeMediaAria": "{{title}} aus der Setliste entfernen",
       "directMediaUnavailable": "Dieses Medium ist nicht verfügbar, nicht bereit oder nicht mehr zugänglich.",
-      "pickerSearchPlaceholder": "Songs suchen…",
-      "pickerSearchAria": "Songs zum Hinzufügen suchen",
+      "pickerSearchPlaceholder": "Suchen…",
+      "pickerSearchAria": "Suchen",
       "waitForSave": "Bitte bis zum Speichern warten",
       "pickerExcluded": "Dieser Eintrag kann nicht zu Setlisten hinzugefügt werden.",
       "removedSlot": "Zeile entfernt.",
@@ -1204,12 +1207,6 @@
       "audio": "Audio",
       "unknown": "Unbekanntes Medium"
     },
-    "states": {
-      "processing": "Wird verarbeitet",
-      "ready": "Bereit",
-      "failed": "Fehlgeschlagen",
-      "unknown": "Unbekannter Status"
-    },
     "fields": {
       "title": "Titel",
       "kind": "Inhaltstyp",
@@ -1234,7 +1231,7 @@
       "error": "Beim Laden der Medien ist ein Fehler aufgetreten."
     },
     "row": {
-      "openAria": "{{title}} öffnen, {{kind}}, {{status}}",
+      "openAria": "{{title}} öffnen, {{kind}}",
       "actionsAria": "Aktionen für {{title}}"
     },
     "create": {
@@ -1246,14 +1243,7 @@
       "saved": "Medium gespeichert.",
       "loadFailed": "Dieses Medium konnte nicht geladen werden.",
       "readOnly": "Du kannst dieses Medium ansehen, aber nicht bearbeiten.",
-      "processingBody": "Dieses Medium wird noch verarbeitet und kann noch nicht verwendet werden.",
-      "failedTitle": "Verarbeitung fehlgeschlagen",
-      "failedBody": "Dieses Medium konnte nicht verarbeitet werden.",
-      "notReady": "Dieses Medium kann erst bearbeitet werden, wenn es bereit ist.",
       "futureKind": "Dieser Medientyp kann hier angesehen werden, der Editor ist aber noch nicht verfügbar.",
-      "replacementFailedTitle": "Ersetzen fehlgeschlagen",
-      "replacementFailedBody": "Der neue Upload konnte nicht verarbeitet werden. Dein bisheriger Inhalt bleibt aktiv.",
-      "replacementProcessingBody": "Eine neue Version wird verarbeitet. Dein aktueller Inhalt bleibt verfügbar, bis sie fertig ist.",
       "metadataVideo": "Dauer {{duration}} · {{width}}×{{height}}",
       "metadataAudio": "Dauer {{duration}}"
     },
@@ -1271,8 +1261,6 @@
       "progress": "Upload… {{percent}} %",
       "retry": "Erneut hochladen",
       "replace": "Datei ersetzen",
-      "cancel": "Verarbeitung abbrechen",
-      "cancelled": "Verarbeitung abgebrochen.",
       "errors": {
         "tooLarge": "Diese Datei ist größer als das erlaubte Limit.",
         "failed": "Upload fehlgeschlagen. Versuche es erneut."

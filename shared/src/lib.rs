@@ -22,4 +22,4 @@ pub mod team;
 pub mod user;
 pub use about::AboutResponse;
 pub use chordlib::Error as ChordlibError;
-pub use media_asset::{MediaAsset, MediaAssetKind, MediaAssetStatus, MediaUploadResponse};
+pub use media_asset::{MediaAsset, MediaAssetKind, MediaAssetStatus};

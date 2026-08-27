@@ -9,13 +9,11 @@ use shared::AboutResponse;
 use crate::resources::blob::PatchBlob;
 use crate::resources::collection::PatchCollection;
 use crate::resources::media::{
-    CommitDeck, CreateMedia, CreateMediaContent, DeclaredMediaKind, DuplicateMedia, LivestreamType,
-    Media, MediaContent, MediaDeckPage, MediaPendingRevision, MediaProcessingError,
-    MediaStagedDeckPage, MediaStatus, UpdateMedia,
+    CommitDeck, CreateMedia, CreateMediaContent, CreateUploadedMedia, DuplicateMedia,
+    LivestreamType, Media, MediaContent, MediaDeckPage, MediaPendingRevision, MediaStagedDeckPage,
+    UpdateMedia, UploadedMediaKind,
 };
-use crate::resources::media_asset::{
-    MediaAsset, MediaAssetKind, MediaAssetStatus, MediaUploadResponse,
-};
+use crate::resources::media_asset::{MediaAsset, MediaAssetKind, MediaAssetStatus};
 use crate::resources::monitoring::{
     HttpAuditLog, MonitoringDurationMetrics, MonitoringMetricWindow, MonitoringMetricsDay,
     MonitoringMetricsQuery, MonitoringRequestMetrics, MonitoringUserMetrics,
@@ -190,10 +188,10 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::media::rest::move_media,
         crate::resources::media::rest::duplicate_media,
         crate::resources::media::rest::delete_media,
-        crate::resources::media::rest::cancel_media_processing,
         crate::resources::media::rest::begin_deck_revision,
         crate::resources::media::rest::commit_deck,
         crate::resources::media_asset::rest::upload_media_asset,
+        crate::resources::media_asset::rest::create_uploaded_media,
         crate::resources::media_asset::rest::get_media_asset_data,
         crate::resources::media_asset::rest::head_media_asset_data,
         crate::resources::blob::rest::get_blobs,
@@ -277,15 +275,14 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             TransferCollectionSong,
             TransferCollectionSongResult,
             Media,
-            MediaStatus,
             MediaContent,
             MediaDeckPage,
             MediaStagedDeckPage,
             MediaPendingRevision,
-            MediaProcessingError,
-            DeclaredMediaKind,
+            UploadedMediaKind,
             LivestreamType,
             CreateMedia,
+            CreateUploadedMedia,
             CreateMediaContent,
             UpdateMedia,
             DuplicateMedia,
@@ -293,7 +290,6 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             MediaAsset,
             MediaAssetKind,
             MediaAssetStatus,
-            MediaUploadResponse,
             Setlist,
             CreateSetlist,
             UpdateSetlist,

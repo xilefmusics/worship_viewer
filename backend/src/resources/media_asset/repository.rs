@@ -36,6 +36,8 @@ pub trait MediaAssetRepository: Send + Sync {
         max_age_seconds: u64,
     ) -> Result<Vec<MediaAsset>, AppError>;
 
+    async fn delete_orphan_assets(&self) -> Result<Vec<MediaAsset>, AppError>;
+
     async fn create_final(
         &self,
         asset_id: &str,

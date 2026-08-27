@@ -1,4 +1,4 @@
-pub use shared::{MediaAsset, MediaAssetKind, MediaAssetStatus, MediaUploadResponse};
+pub use shared::{MediaAsset, MediaAssetKind, MediaAssetStatus};
 
 mod model;
 mod repository;

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};
 
-use shared::media::{DeclaredMediaKind, Media, MediaContent, MediaPendingRevision, MediaStatus};
+use shared::media::{Media, MediaContent, MediaPendingRevision};
 
 use crate::database::record_id_string;
 use crate::error::AppError;
@@ -9,10 +9,8 @@ use crate::error::AppError;
 #[derive(Clone, Debug)]
 pub struct MediaWrite {
     pub title: String,
-    pub status: MediaStatus,
-    pub content: Option<MediaContent>,
+    pub content: MediaContent,
     pub pending_revision: Option<MediaPendingRevision>,
-    pub declared_kind: Option<DeclaredMediaKind>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, SurrealValue)]
@@ -22,13 +20,9 @@ pub struct MediaRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner: Option<RecordId>,
     pub title: String,
-    pub status: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub content_json: Option<String>,
+    pub content_json: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending_revision_json: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub declared_kind: Option<String>,
 }
 
 impl MediaRecord {
@@ -41,18 +35,13 @@ impl MediaRecord {
             id,
             owner,
             title: value.title,
-            status: status_string(value.status).into(),
-            content_json: value
-                .content
-                .map(|v| serde_json::to_string(&v))
-                .transpose()
+            content_json: serde_json::to_string(&value.content)
                 .map_err(|e| AppError::internal_from_err("media.model", e))?,
             pending_revision_json: value
                 .pending_revision
                 .map(|v| serde_json::to_string(&v))
                 .transpose()
                 .map_err(|e| AppError::internal_from_err("media.model", e))?,
-            declared_kind: value.declared_kind.map(declared_kind_string),
         })
     }
 
@@ -61,55 +50,30 @@ impl MediaRecord {
             id: self.id.map(|v| record_id_string(&v)).unwrap_or_default(),
             owner: self.owner.map(|v| record_id_string(&v)).unwrap_or_default(),
             title: self.title,
-            status: parse_status(&self.status)?,
-            content: self
-                .content_json
-                .map(|v| serde_json::from_str(&v))
-                .transpose()
+            content: serde_json::from_str(&self.content_json)
                 .map_err(|e| AppError::internal_from_err("media.model", e))?,
             pending_revision: self
                 .pending_revision_json
-                .map(|v| serde_json::from_str(&v))
+                .map(|v| parse_pending_revision(&v))
                 .transpose()
                 .map_err(|e| AppError::internal_from_err("media.model", e))?,
-            declared_kind: self
-                .declared_kind
-                .map(|v| parse_declared_kind(&v))
-                .transpose()?,
         })
     }
 }
 
-fn status_string(status: MediaStatus) -> &'static str {
-    match status {
-        MediaStatus::Processing => "processing",
-        MediaStatus::Ready => "ready",
-        MediaStatus::Failed => "failed",
+fn parse_pending_revision(value: &str) -> Result<MediaPendingRevision, serde_json::Error> {
+    if let Ok(current) = serde_json::from_str(value) {
+        return Ok(current);
     }
-}
-
-fn parse_status(value: &str) -> Result<MediaStatus, AppError> {
-    match value {
-        "processing" => Ok(MediaStatus::Processing),
-        "ready" => Ok(MediaStatus::Ready),
-        "failed" => Ok(MediaStatus::Failed),
-        _ => Err(AppError::Internal("invalid persisted media status".into())),
+    #[derive(Deserialize)]
+    struct LegacyPendingRevision {
+        operation: String,
+        #[serde(default)]
+        pages: Vec<shared::media::MediaStagedDeckPage>,
     }
-}
-
-fn declared_kind_string(kind: DeclaredMediaKind) -> String {
-    match kind {
-        DeclaredMediaKind::SlideDeck => "slide_deck".into(),
-        DeclaredMediaKind::Video => "video".into(),
-        DeclaredMediaKind::Audio => "audio".into(),
-    }
-}
-
-fn parse_declared_kind(value: &str) -> Result<DeclaredMediaKind, AppError> {
-    match value {
-        "slide_deck" => Ok(DeclaredMediaKind::SlideDeck),
-        "video" => Ok(DeclaredMediaKind::Video),
-        "audio" => Ok(DeclaredMediaKind::Audio),
-        _ => Err(AppError::Internal("invalid persisted declared_kind".into())),
-    }
+    let legacy: LegacyPendingRevision = serde_json::from_str(value)?;
+    Ok(MediaPendingRevision {
+        revision_id: legacy.operation,
+        pages: legacy.pages,
+    })
 }

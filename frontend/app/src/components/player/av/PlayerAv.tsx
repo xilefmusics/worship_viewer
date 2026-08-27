@@ -241,9 +241,12 @@ export function PlayerAv({
     resolveLanguageIndexForItem,
   )
   const showToc = player.toc.length > 0
+  const containsMedia = player.items.some((item) => item.type === 'media')
+  const watchSetlistMirrorEviction =
+    type === 'setlist' && watchSetlistEviction && !containsMedia
   const evicted = useSetlistEvictionWatch(
-    type === 'setlist' && watchSetlistEviction ? id : undefined,
-    type === 'setlist' && watchSetlistEviction,
+    watchSetlistMirrorEviction ? id : undefined,
+    watchSetlistMirrorEviction,
   )
   const navBlocked = evicted || Boolean(roomMusicalState && !canControlRoomMusicalState)
   const backTo = backToOverride ?? hubPathForPlayerType(type)

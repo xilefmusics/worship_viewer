@@ -1,16 +1,17 @@
 //! Slide-deck source probing, SVG sanitization, and PDF splitting.
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use async_trait::async_trait;
+use lopdf::{Document, LoadOptions};
 use shared::MediaAssetKind;
 
-use crate::process_runner::{ProcessError, TempWorkDir, run_command, run_command_capture};
+use crate::process_runner::TempWorkDir;
 use crate::resources::media::av_processor::AvProcessFailure;
 
-pub const MAX_PDFINFO_STDOUT_BYTES: usize = 16_384;
-pub const MAX_TOOL_STDERR_BYTES: usize = 8_192;
+const MAX_PDF_DECOMPRESSED_STREAM_BYTES: usize = 256 * 1024 * 1024;
 
 #[derive(Debug)]
 pub struct DeckPageOutput {
@@ -58,14 +59,12 @@ impl DeckProcessor for UnsupportedDeckProcessor {
 }
 
 #[derive(Clone)]
-pub struct PopplerDeckProcessor {
-    pub pdfinfo_path: String,
-    pub pdfseparate_path: String,
+pub struct LopdfDeckProcessor {
     pub timeout: Duration,
 }
 
 #[async_trait]
-impl DeckProcessor for PopplerDeckProcessor {
+impl DeckProcessor for LopdfDeckProcessor {
     async fn expand_source(
         &self,
         input: &Path,
@@ -73,141 +72,126 @@ impl DeckProcessor for PopplerDeckProcessor {
         work_parent: &Path,
         remaining_page_budget: usize,
     ) -> Result<DeckExpandResult, AvProcessFailure> {
-        let bytes = std::fs::read(input).map_err(|_| AvProcessFailure::InputInvalid)?;
-        let detected = detect_deck_source(&bytes)?;
-        if !declared_kind_matches(declared_kind, detected) {
-            return Err(AvProcessFailure::InputUnsupported);
-        }
-        match detected {
-            DetectedDeckSource::Png | DetectedDeckSource::Jpeg => {
-                if remaining_page_budget < 1 {
-                    return Err(AvProcessFailure::InputUnsupported);
-                }
-                Ok(DeckExpandResult::new(
-                    vec![DeckPageOutput {
-                        path: input.to_path_buf(),
-                        content_type: detected.content_type(),
-                        kind: MediaAssetKind::Image,
-                    }],
-                    None,
-                ))
-            }
-            DetectedDeckSource::Svg => {
-                if remaining_page_budget < 1 {
-                    return Err(AvProcessFailure::InputUnsupported);
-                }
-                let text =
-                    std::str::from_utf8(&bytes).map_err(|_| AvProcessFailure::InputInvalid)?;
-                let sanitized = sanitize_svg(text)?;
-                let work = TempWorkDir::new(work_parent).map_err(|_| AvProcessFailure::Failed)?;
-                let output = work.path().join("page.svg");
-                std::fs::write(&output, sanitized.as_bytes())
-                    .map_err(|_| AvProcessFailure::Failed)?;
-                Ok(DeckExpandResult::new(
-                    vec![DeckPageOutput {
-                        path: output,
-                        content_type: "image/svg+xml",
-                        kind: MediaAssetKind::Svg,
-                    }],
-                    Some(work),
-                ))
-            }
-            DetectedDeckSource::Pdf => {
-                self.expand_pdf(input, work_parent, remaining_page_budget)
-                    .await
-            }
-        }
+        let input = input.to_path_buf();
+        let work_parent = work_parent.to_path_buf();
+        let task = tokio::task::spawn_blocking(move || {
+            expand_source_blocking(&input, declared_kind, &work_parent, remaining_page_budget)
+        });
+        tokio::time::timeout(self.timeout, task)
+            .await
+            .map_err(|_| AvProcessFailure::TimedOut)?
+            .map_err(|_| AvProcessFailure::Failed)?
     }
 }
 
-impl PopplerDeckProcessor {
-    async fn expand_pdf(
-        &self,
-        input: &Path,
-        work_parent: &Path,
-        remaining_page_budget: usize,
-    ) -> Result<DeckExpandResult, AvProcessFailure> {
-        let input_str = input.to_str().ok_or(AvProcessFailure::Failed)?;
-        let info = run_command_capture(
-            &[self.pdfinfo_path.as_str(), input_str],
-            self.timeout,
-            MAX_PDFINFO_STDOUT_BYTES,
-            MAX_TOOL_STDERR_BYTES,
-        )
-        .await
-        .map_err(map_process_error)?;
-        if !info.status.success() {
-            return Err(AvProcessFailure::InputInvalid);
-        }
-        if pdf_is_encrypted(&info.stdout) {
-            return Err(AvProcessFailure::InputInvalid);
-        }
-        let page_count = parse_pdf_page_count(&info.stdout)?;
-        if page_count == 0 {
-            return Err(AvProcessFailure::InputInvalid);
-        }
-        if page_count > remaining_page_budget {
-            return Err(AvProcessFailure::InputUnsupported);
-        }
-        if page_count == 1 {
-            return Ok(DeckExpandResult::new(
+fn expand_source_blocking(
+    input: &Path,
+    declared_kind: MediaAssetKind,
+    work_parent: &Path,
+    remaining_page_budget: usize,
+) -> Result<DeckExpandResult, AvProcessFailure> {
+    let detected = detect_deck_source_path(input)?;
+    if !declared_kind_matches(declared_kind, detected) {
+        return Err(AvProcessFailure::InputUnsupported);
+    }
+    match detected {
+        DetectedDeckSource::Png | DetectedDeckSource::Jpeg => {
+            if remaining_page_budget < 1 {
+                return Err(AvProcessFailure::InputUnsupported);
+            }
+            Ok(DeckExpandResult::new(
                 vec![DeckPageOutput {
                     path: input.to_path_buf(),
-                    content_type: "application/pdf",
-                    kind: MediaAssetKind::Pdf,
+                    content_type: detected.content_type(),
+                    kind: MediaAssetKind::Image,
                 }],
                 None,
-            ));
+            ))
         }
-
-        let work = TempWorkDir::new(work_parent).map_err(|_| AvProcessFailure::Failed)?;
-        let pattern = work.path().join("page-%d.pdf");
-        let pattern_str = pattern.to_str().ok_or(AvProcessFailure::Failed)?;
-        let split = run_command(
-            &[self.pdfseparate_path.as_str(), input_str, pattern_str],
-            self.timeout,
-            MAX_TOOL_STDERR_BYTES,
-        )
-        .await
-        .map_err(map_process_error)?;
-        if !split.status.success() {
-            return Err(AvProcessFailure::Failed);
-        }
-
-        let mut pages = Vec::new();
-        for index in 1..=page_count {
-            let path = work.path().join(format!("page-{index}.pdf"));
-            if !path.is_file() {
-                return Err(AvProcessFailure::Failed);
+        DetectedDeckSource::Svg => {
+            if remaining_page_budget < 1 {
+                return Err(AvProcessFailure::InputUnsupported);
             }
-            self.validate_single_page_pdf(&path).await?;
-            pages.push(DeckPageOutput {
-                path,
+            let text =
+                std::fs::read_to_string(input).map_err(|_| AvProcessFailure::InputInvalid)?;
+            let sanitized = sanitize_svg(&text)?;
+            let work = TempWorkDir::new(work_parent).map_err(|_| AvProcessFailure::Failed)?;
+            let output = work.path().join("page.svg");
+            std::fs::write(&output, sanitized.as_bytes()).map_err(|_| AvProcessFailure::Failed)?;
+            Ok(DeckExpandResult::new(
+                vec![DeckPageOutput {
+                    path: output,
+                    content_type: "image/svg+xml",
+                    kind: MediaAssetKind::Svg,
+                }],
+                Some(work),
+            ))
+        }
+        DetectedDeckSource::Pdf => expand_pdf(input, work_parent, remaining_page_budget),
+    }
+}
+
+fn expand_pdf(
+    input: &Path,
+    work_parent: &Path,
+    remaining_page_budget: usize,
+) -> Result<DeckExpandResult, AvProcessFailure> {
+    let document = Document::load_with_options(
+        input,
+        LoadOptions {
+            max_decompressed_size: Some(MAX_PDF_DECOMPRESSED_STREAM_BYTES),
+            ..LoadOptions::default()
+        },
+    )
+    .map_err(|_| AvProcessFailure::InputInvalid)?;
+    if document.was_encrypted() {
+        return Err(AvProcessFailure::InputInvalid);
+    }
+    let page_count = document.get_pages().len();
+    if page_count == 0 {
+        return Err(AvProcessFailure::InputInvalid);
+    }
+    if page_count > remaining_page_budget {
+        return Err(AvProcessFailure::InputUnsupported);
+    }
+    if page_count == 1 {
+        return Ok(DeckExpandResult::new(
+            vec![DeckPageOutput {
+                path: input.to_path_buf(),
                 content_type: "application/pdf",
                 kind: MediaAssetKind::Pdf,
-            });
-        }
-        Ok(DeckExpandResult::new(pages, Some(work)))
+            }],
+            None,
+        ));
     }
 
-    async fn validate_single_page_pdf(&self, path: &Path) -> Result<(), AvProcessFailure> {
-        let path_str = path.to_str().ok_or(AvProcessFailure::Failed)?;
-        let info = run_command_capture(
-            &[self.pdfinfo_path.as_str(), path_str],
-            self.timeout,
-            MAX_PDFINFO_STDOUT_BYTES,
-            MAX_TOOL_STDERR_BYTES,
-        )
-        .await
-        .map_err(map_process_error)?;
-        if !info.status.success() || pdf_is_encrypted(&info.stdout) {
+    let work = TempWorkDir::new(work_parent).map_err(|_| AvProcessFailure::Failed)?;
+    let all_pages: Vec<u32> = document.get_pages().keys().copied().collect();
+    let mut pages = Vec::with_capacity(page_count);
+    for page_number in &all_pages {
+        let mut page_document = document.clone();
+        let pages_to_delete: Vec<u32> = all_pages
+            .iter()
+            .copied()
+            .filter(|candidate| candidate != page_number)
+            .collect();
+        page_document.delete_pages(&pages_to_delete);
+        page_document.prune_objects();
+        page_document.renumber_objects();
+        if page_document.get_pages().len() != 1 {
             return Err(AvProcessFailure::Failed);
         }
-        if parse_pdf_page_count(&info.stdout)? != 1 {
-            return Err(AvProcessFailure::Failed);
-        }
-        Ok(())
+        let path = work.path().join(format!("page-{page_number}.pdf"));
+        page_document
+            .save(&path)
+            .map_err(|_| AvProcessFailure::Failed)?;
+        pages.push(DeckPageOutput {
+            path,
+            content_type: "application/pdf",
+            kind: MediaAssetKind::Pdf,
+        });
     }
+    Ok(DeckExpandResult::new(pages, Some(work)))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -263,6 +247,25 @@ fn detect_deck_source(bytes: &[u8]) -> Result<DetectedDeckSource, AvProcessFailu
         return Ok(DetectedDeckSource::Svg);
     }
     Err(AvProcessFailure::InputUnsupported)
+}
+
+pub fn detect_deck_source_kind(path: &Path) -> Result<MediaAssetKind, AvProcessFailure> {
+    match detect_deck_source_path(path)? {
+        DetectedDeckSource::Png | DetectedDeckSource::Jpeg => Ok(MediaAssetKind::Image),
+        DetectedDeckSource::Svg => Ok(MediaAssetKind::Svg),
+        DetectedDeckSource::Pdf => Ok(MediaAssetKind::Pdf),
+    }
+}
+
+fn detect_deck_source_path(path: &Path) -> Result<DetectedDeckSource, AvProcessFailure> {
+    const SNIFF_BYTES: usize = 64 * 1024;
+    let mut file = std::fs::File::open(path).map_err(|_| AvProcessFailure::InputInvalid)?;
+    let mut bytes = Vec::with_capacity(SNIFF_BYTES);
+    file.by_ref()
+        .take(SNIFF_BYTES as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|_| AvProcessFailure::InputInvalid)?;
+    detect_deck_source(&bytes)
 }
 
 fn png_is_animated(bytes: &[u8]) -> bool {
@@ -411,40 +414,10 @@ fn strip_unsafe_attributes(tag: &str) -> Result<String, AvProcessFailure> {
     Ok(out)
 }
 
-fn pdf_is_encrypted(stdout: &str) -> bool {
-    stdout.lines().any(|line| {
-        let line = line.trim().to_ascii_lowercase();
-        let Some(rest) = line.strip_prefix("encrypted:") else {
-            return false;
-        };
-        !rest.trim().starts_with("no")
-    })
-}
-
-fn parse_pdf_page_count(stdout: &str) -> Result<usize, AvProcessFailure> {
-    for line in stdout.lines() {
-        let line = line.trim();
-        if let Some(rest) = line.strip_prefix("Pages:") {
-            return rest
-                .trim()
-                .parse()
-                .map_err(|_| AvProcessFailure::InputInvalid);
-        }
-    }
-    Err(AvProcessFailure::InputInvalid)
-}
-
-fn map_process_error(err: ProcessError) -> AvProcessFailure {
-    match err {
-        ProcessError::TimedOut => AvProcessFailure::TimedOut,
-        ProcessError::SpawnFailed => AvProcessFailure::Failed,
-        _ => AvProcessFailure::InputInvalid,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lopdf::{Object, Stream, dictionary};
 
     const TINY_PNG: &[u8] = &[
         0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44,
@@ -518,12 +491,47 @@ mod tests {
     }
 
     #[test]
-    fn pdfinfo_page_and_encryption_parsing() {
-        assert_eq!(
-            parse_pdf_page_count("Title: x\nPages:          12\n").unwrap(),
-            12
+    fn splits_pdf_into_valid_single_page_documents() {
+        let temp = tempfile::tempdir().unwrap();
+        let input = temp.path().join("deck.pdf");
+        let mut document = Document::with_version("1.5");
+        let pages_id = document.new_object_id();
+        let mut page_ids = Vec::new();
+        for _ in 0..3 {
+            let content_id = document.add_object(Stream::new(dictionary! {}, Vec::new()));
+            let page_id = document.add_object(dictionary! {
+                "Type" => "Page",
+                "Parent" => pages_id,
+                "MediaBox" => vec![0.into(), 0.into(), 100.into(), 100.into()],
+                "Contents" => content_id,
+                "Resources" => dictionary! {},
+            });
+            page_ids.push(page_id);
+        }
+        document.objects.insert(
+            pages_id,
+            Object::Dictionary(dictionary! {
+                "Type" => "Pages",
+                "Kids" => page_ids.iter().copied().map(Object::Reference).collect::<Vec<_>>(),
+                "Count" => page_ids.len() as i64,
+            }),
         );
-        assert!(!pdf_is_encrypted("Encrypted:      no\n"));
-        assert!(pdf_is_encrypted("Encrypted:      yes (print:no copy:no)\n"));
+        let catalog_id = document.add_object(dictionary! {
+            "Type" => "Catalog",
+            "Pages" => pages_id,
+        });
+        document.trailer.set("Root", catalog_id);
+        document.save(&input).unwrap();
+        assert!(matches!(
+            expand_pdf(&input, temp.path(), 2),
+            Err(AvProcessFailure::InputUnsupported)
+        ));
+        let expanded = expand_pdf(&input, temp.path(), 3).unwrap();
+
+        assert_eq!(expanded.pages.len(), 3);
+        for page in expanded.pages {
+            let split = Document::load(&page.path).unwrap();
+            assert_eq!(split.get_pages().len(), 1);
+        }
     }
 }

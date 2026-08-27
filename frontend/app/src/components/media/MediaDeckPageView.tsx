@@ -52,7 +52,6 @@ export function MediaDeckPageView({
   }, [onStatus])
 
   useEffect(() => {
-    let revoked: string | null = null
     let cancelled = false
     let cleanupPdf: (() => void) | null = null
     void sniffPreview(url)
@@ -83,11 +82,12 @@ export function MediaDeckPageView({
           return
         }
         const nextUrl = URL.createObjectURL(blob)
-        revoked = nextUrl
-        if (!cancelled) {
-          setResult({ url, objectUrl: nextUrl, kind: 'image', error: false })
-          onStatusRef.current?.('ready')
+        if (cancelled) {
+          URL.revokeObjectURL(nextUrl)
+          return
         }
+        setResult({ url, objectUrl: nextUrl, kind: 'image', error: false })
+        onStatusRef.current?.('ready')
       })
       .catch(() => {
         if (!cancelled) {
@@ -97,13 +97,20 @@ export function MediaDeckPageView({
       })
     return () => {
       cancelled = true
-      if (revoked) URL.revokeObjectURL(revoked)
       cleanupPdf?.()
     }
   }, [url, variant])
 
+  useEffect(() => {
+    const objectUrl = result?.kind === 'image' ? result.objectUrl : null
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [result])
+
   const thumb = variant === 'thumb'
-  const active = result?.url === url ? result : null
+  // Keep the last rendered frame visible while the next asset is fetched and decoded.
+  const active = result
   const error = active?.error ?? false
   const objectUrl = active?.objectUrl ?? null
   const kind = active?.kind ?? 'unknown'
@@ -140,9 +147,10 @@ export function MediaDeckPageView({
       src={objectUrl}
       alt={label}
       className={cn(
-        'object-contain',
-        thumb && 'aspect-[4/3] w-full rounded-md border border-[var(--color-border)] bg-[var(--color-muted)]/20',
-        !thumb && 'av-slide-view__deck-image max-h-full max-w-full',
+        'min-h-0 min-w-0 max-h-full max-w-full object-contain',
+        thumb &&
+          'media-deck-page-view--thumb aspect-[4/3] h-full w-full rounded-md border border-[var(--color-border)] bg-[var(--color-muted)]/20',
+        !thumb && 'media-deck-page-view--contain av-slide-view__deck-image',
         className,
       )}
       draggable={false}

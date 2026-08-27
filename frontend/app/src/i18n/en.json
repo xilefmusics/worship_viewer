@@ -755,20 +755,23 @@
       "addMedia": "Add media",
       "addSongTitle": "Add a song",
       "addMediaTitle": "Add media",
+      "createMedia": "Create media",
       "manageMedia": "Manage media",
-      "mediaPickerSearchPlaceholder": "Search Ready media…",
-      "mediaPickerSearchAria": "Search media to add",
-      "mediaPickerTeamAria": "Filter media by team",
-      "mediaPickerAllTeams": "All accessible teams",
-      "mediaPickerEmpty": "No Ready media found.",
+      "mediaPickerSearchPlaceholder": "Search…",
+      "mediaPickerSearchAria": "Search",
+      "mediaQuickUploadTitle": "Drop here",
+      "mediaQuickUploadHint": "Images, PDFs, audio, or video",
+      "mediaQuickUploadAria": "Choose media files to upload",
+      "mediaQuickUploadUnsupported": "Choose either images and PDFs, one audio file, or one video file.",
+      "mediaPickerEmpty": "No media found.",
       "mediaPickerError": "Could not load media.",
       "mediaUnavailable": "Unavailable media",
       "mediaBrokenHint": "This media was deleted or is no longer accessible. You can remove this row.",
       "dragMediaHandleAria": "Drag {{title}} to reorder",
       "removeMediaAria": "Remove {{title}} from setlist",
       "directMediaUnavailable": "This media is unavailable, not Ready, or you no longer have access.",
-      "pickerSearchPlaceholder": "Search songs…",
-      "pickerSearchAria": "Search songs to add",
+      "pickerSearchPlaceholder": "Search…",
+      "pickerSearchAria": "Search",
       "waitForSave": "Wait for save to finish",
       "pickerExcluded": "This item can’t be added to setlists.",
       "removedSlot": "Slot removed.",
@@ -1204,12 +1207,6 @@
       "audio": "Audio",
       "unknown": "Unknown media"
     },
-    "states": {
-      "processing": "Processing",
-      "ready": "Ready",
-      "failed": "Failed",
-      "unknown": "Unknown status"
-    },
     "fields": {
       "title": "Title",
       "kind": "Content type",
@@ -1234,7 +1231,7 @@
       "error": "Something went wrong while loading media."
     },
     "row": {
-      "openAria": "Open {{title}}, {{kind}}, {{status}}",
+      "openAria": "Open {{title}}, {{kind}}",
       "actionsAria": "Actions for {{title}}"
     },
     "create": {
@@ -1246,14 +1243,7 @@
       "saved": "Media saved.",
       "loadFailed": "Could not load this media item.",
       "readOnly": "You can view this item, but you do not have permission to change it.",
-      "processingBody": "This media is still processing and is not ready to use.",
-      "failedTitle": "Processing failed",
-      "failedBody": "This media could not be processed.",
-      "notReady": "This media cannot be edited until it is Ready.",
       "futureKind": "This media type can be viewed here, but its editor is not available yet.",
-      "replacementFailedTitle": "Replacement failed",
-      "replacementFailedBody": "The new upload could not be processed. Your previous content is still active.",
-      "replacementProcessingBody": "A new version is processing. Your current content stays available until it finishes.",
       "metadataVideo": "Duration {{duration}} · {{width}}×{{height}}",
       "metadataAudio": "Duration {{duration}}"
     },
@@ -1271,8 +1261,6 @@
       "progress": "Uploading… {{percent}}%",
       "retry": "Upload again",
       "replace": "Replace file",
-      "cancel": "Cancel processing",
-      "cancelled": "Processing cancelled.",
       "errors": {
         "tooLarge": "This file is larger than the allowed limit.",
         "failed": "Upload failed. Try again."

@@ -26,7 +26,6 @@ pub fn scope(asset_upload_limits: MediaAssetUploadLimits) -> Scope {
         .service(move_media)
         .service(duplicate_media)
         .service(delete_media)
-        .service(cancel_media_processing)
         .service(commit_deck)
         .service(begin_deck_revision)
         .service(crate::resources::media_asset::rest::get_media_asset_data)
@@ -199,34 +198,11 @@ pub async fn delete_media(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/media/{id}/processing/cancel",
-    params(("id" = String, Path)),
-    responses(
-        (status = 200, description = "Cancel in-flight replacement processing", body = Media),
-        (status = 404, description = "Media absent or concealed", body = Problem, content_type = "application/problem+json")
-    ),
-    tag = "Media",
-    security(("SessionCookie" = []), ("SessionToken" = []))
-)]
-#[post("/{id}/processing/cancel")]
-pub async fn cancel_media_processing(
-    svc: Data<MediaServiceHandle>,
-    ctx: ReqData<AuthorizationContext>,
-    id: Path<String>,
-) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json(
-        svc.cancel_processing_for_user(&ctx, &id.into_inner())
-            .await?,
-    ))
-}
-
-#[utoipa::path(
-    post,
     path = "/api/v1/media/{id}/deck/revisions",
     params(("id" = String, Path)),
     responses(
         (status = 200, description = "Begin or return the current staged slide-deck revision", body = Media),
-        (status = 400, description = "Media is not a ready slide deck", body = Problem, content_type = "application/problem+json"),
+        (status = 400, description = "Media is not a slide deck", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Media absent or concealed", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Media",
@@ -251,7 +227,7 @@ pub async fn begin_deck_revision(
     request_body = CommitDeck,
     responses(
         (status = 200, description = "Commit the staged slide-deck revision", body = Media),
-        (status = 400, description = "Empty, stale, or still-processing revision", body = Problem, content_type = "application/problem+json"),
+        (status = 400, description = "Empty or stale revision", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Media absent or concealed", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Media",

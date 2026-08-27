@@ -1,17 +1,25 @@
+use actix_multipart::Multipart;
 use actix_web::http::header;
 use actix_web::{
-    HttpRequest, HttpResponse, Scope, get, head, put,
+    HttpRequest, HttpResponse, Scope, get, head, post, put,
     web::{self, Data, Path, Query, ReqData},
 };
 
 use std::sync::Arc;
 
-use shared::{MediaAssetKind, MediaUploadResponse};
+use futures_util::StreamExt;
+use shared::MediaAssetKind;
+use shared::media::{CreateUploadedMedia, Media, UploadedMediaKind};
+use tokio::io::AsyncWriteExt;
 
 use crate::auth::AuthorizationContext;
 use crate::docs::Problem;
 use crate::error::AppError;
 use crate::http_range::file_data_response;
+use crate::process_runner::TempWorkDir;
+use crate::resources::media::av_processor::app_error_from_failure;
+use crate::resources::media::deck_processor::detect_deck_source_kind;
+use crate::resources::media::processing::UploadedSource;
 use crate::settings::MediaAssetUploadLimits;
 
 use super::service::MediaAssetServiceHandle;
@@ -26,7 +34,142 @@ struct UploadQuery {
 pub fn upload_scope(limits: MediaAssetUploadLimits) -> Scope {
     web::scope("")
         .app_data(web::PayloadConfig::new(limits.payload_ceiling_bytes))
+        .app_data(Data::new(limits))
+        .service(create_uploaded_media)
         .service(upload_media_asset)
+}
+
+#[derive(serde::Deserialize)]
+struct CreateUploadQuery {
+    kind: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/media/uploads",
+    params(("kind" = String, Query, description = "Uploaded media kind: video, audio, or slide_deck")),
+    request_body(content = String, content_type = "multipart/form-data", description = "One JSON metadata part and one or more file parts"),
+    responses(
+        (status = 201, description = "Uploaded media processed and created", body = Media),
+        (status = 400, description = "Invalid metadata, source, or file count", body = Problem, content_type = "application/problem+json"),
+        (status = 413, description = "A source exceeds its configured limit", body = Problem, content_type = "application/problem+json")
+    ),
+    tag = "Media",
+    security(("SessionCookie" = []), ("SessionToken" = []))
+)]
+#[post("/uploads")]
+pub async fn create_uploaded_media(
+    svc: Data<MediaAssetServiceHandle>,
+    processing: Data<Arc<crate::resources::media::processing::MediaProcessingHandle>>,
+    limits: Data<MediaAssetUploadLimits>,
+    ctx: ReqData<AuthorizationContext>,
+    query: Query<CreateUploadQuery>,
+    mut multipart: Multipart,
+) -> Result<HttpResponse, AppError> {
+    let kind = UploadedMediaKind::parse(&query.kind)
+        .ok_or_else(|| AppError::invalid_request("invalid uploaded media kind"))?;
+    if matches!(kind, UploadedMediaKind::Video | UploadedMediaKind::Audio) {
+        let asset_kind = if kind == UploadedMediaKind::Video {
+            MediaAssetKind::Video
+        } else {
+            MediaAssetKind::Audio
+        };
+        svc.require_processing_tools_for_upload(asset_kind).await?;
+    }
+    let work = TempWorkDir::new(std::env::temp_dir().join("worshipviewer_media_uploads"))
+        .map_err(|e| AppError::internal_from_err("media.multipart.temp", e))?;
+    let mut metadata = None;
+    let mut sources = Vec::new();
+    while let Some(field) = multipart.next().await {
+        let mut field =
+            field.map_err(|e| AppError::invalid_request(format!("multipart upload error: {e}")))?;
+        let name = field.name().unwrap_or_default().to_owned();
+        if name == "metadata" {
+            if metadata.is_some() {
+                return Err(AppError::invalid_request(
+                    "metadata part must appear exactly once",
+                ));
+            }
+            let mut bytes = Vec::new();
+            while let Some(chunk) = field.next().await {
+                let chunk = chunk.map_err(|e| {
+                    AppError::invalid_request(format!("multipart upload error: {e}"))
+                })?;
+                if bytes.len() + chunk.len() > 64 * 1024 {
+                    return Err(AppError::payload_too_large());
+                }
+                bytes.extend_from_slice(&chunk);
+            }
+            metadata = Some(
+                serde_json::from_slice::<CreateUploadedMedia>(&bytes).map_err(|e| {
+                    AppError::invalid_request(format!("invalid metadata part: {e}"))
+                })?,
+            );
+        } else if name == "file" {
+            let index = sources.len();
+            let path = work.path().join(format!("source-{index}"));
+            let mut output = tokio::fs::File::create(&path)
+                .await
+                .map_err(|e| AppError::internal_from_err("media.multipart.create", e))?;
+            let provisional_limit = match kind {
+                UploadedMediaKind::Video => limits.video_max_bytes,
+                UploadedMediaKind::Audio => limits.audio_max_bytes,
+                UploadedMediaKind::SlideDeck => limits
+                    .pdf_max_bytes
+                    .max(limits.image_max_bytes)
+                    .max(limits.svg_max_bytes),
+            };
+            let mut written = 0usize;
+            while let Some(chunk) = field.next().await {
+                let chunk = chunk.map_err(|e| {
+                    AppError::invalid_request(format!("multipart upload error: {e}"))
+                })?;
+                if written + chunk.len() > provisional_limit {
+                    return Err(AppError::payload_too_large());
+                }
+                output
+                    .write_all(&chunk)
+                    .await
+                    .map_err(|e| AppError::internal_from_err("media.multipart.write", e))?;
+                written += chunk.len();
+            }
+            output
+                .flush()
+                .await
+                .map_err(|e| AppError::internal_from_err("media.multipart.flush", e))?;
+            let asset_kind = match kind {
+                UploadedMediaKind::Video => MediaAssetKind::Video,
+                UploadedMediaKind::Audio => MediaAssetKind::Audio,
+                UploadedMediaKind::SlideDeck => {
+                    detect_deck_source_kind(&path).map_err(app_error_from_failure)?
+                }
+            };
+            let exact_limit = match asset_kind {
+                MediaAssetKind::Video => limits.video_max_bytes,
+                MediaAssetKind::Audio => limits.audio_max_bytes,
+                MediaAssetKind::Pdf => limits.pdf_max_bytes,
+                MediaAssetKind::Image => limits.image_max_bytes,
+                MediaAssetKind::Svg => limits.svg_max_bytes,
+            };
+            if written > exact_limit {
+                return Err(AppError::payload_too_large());
+            }
+            sources.push(UploadedSource {
+                path,
+                kind: asset_kind,
+            });
+        } else {
+            return Err(AppError::invalid_request(
+                "multipart fields must be named metadata or file",
+            ));
+        }
+    }
+    let metadata =
+        metadata.ok_or_else(|| AppError::invalid_request("metadata part is required"))?;
+    let media = processing
+        .create_uploaded_for_user(&ctx, metadata, kind, sources)
+        .await?;
+    Ok(HttpResponse::Created().json(media))
 }
 
 #[utoipa::path(
@@ -43,8 +186,8 @@ pub fn upload_scope(limits: MediaAssetUploadLimits) -> Scope {
         description = "Streaming upload body"
     ),
     responses(
-        (status = 200, description = "Upload accepted to staging", body = MediaUploadResponse),
-        (status = 400, description = "Invalid kind or request", body = Problem, content_type = "application/problem+json"),
+        (status = 200, description = "Upload processed and media updated", body = Media),
+        (status = 400, description = "Invalid kind or request, or required processing tooling is unavailable", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Media not found or write access denied", body = Problem, content_type = "application/problem+json"),
         (status = 413, description = "Payload too large", body = Problem, content_type = "application/problem+json"),
@@ -77,7 +220,7 @@ async fn upload_media_asset(
         .get(header::CONTENT_LENGTH)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.parse().ok());
-    let body = svc
+    let operation_id = svc
         .upload_staging_for_user(&ctx, &media_id, kind, content_type, content_length, payload)
         .await?;
     if matches!(
@@ -88,11 +231,18 @@ async fn upload_media_asset(
             | MediaAssetKind::Pdf
             | MediaAssetKind::Svg
     ) {
-        processing
-            .begin_after_upload(&media_id, &body.operation_id, kind, replace_page)
+        let media = processing
+            .replace_after_upload_for_user(
+                &ctx,
+                &media_id,
+                &operation_id,
+                kind,
+                replace_page.as_deref(),
+            )
             .await?;
+        return Ok(HttpResponse::Ok().json(media));
     }
-    Ok(HttpResponse::Ok().json(body))
+    Err(AppError::invalid_request("unsupported media upload kind"))
 }
 
 #[utoipa::path(

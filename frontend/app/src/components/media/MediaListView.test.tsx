@@ -18,7 +18,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, string>) =>
       key === 'media.row.openAria' && options
-        ? `${options.title} ${options.kind} ${options.status}`
+        ? `${options.title} ${options.kind}`
         : key,
   }),
 }))
@@ -33,18 +33,18 @@ beforeEach(() => {
 })
 
 describe('MediaListView', () => {
-  it('renders Ready, Processing, Failed, and unknown-safe rows accessibly without read-only actions', () => {
+  it('renders content-driven and unknown-safe rows accessibly without read-only actions', () => {
     queryResult.data = { pages: [{ total: 4, items: [
-      { id: '1', owner: 'team:1', title: 'YouTube', status: 'ready', content: { type: 'youtube', video_id: 'abcdefghijk', canonical_url: 'https://www.youtube.com/watch?v=abcdefghijk' } },
-      { id: '2', owner: 'team:1', title: 'Pending', status: 'processing' },
-      { id: '3', owner: 'team:1', title: 'Broken', status: 'failed' },
-      { id: '4', owner: 'team:1', title: 'Future', status: 'future', content: { type: 'future' } },
+      { id: '1', owner: 'team:1', title: 'YouTube', content: { type: 'youtube', video_id: 'abcdefghijk', canonical_url: 'https://www.youtube.com/watch?v=abcdefghijk' } },
+      { id: '2', owner: 'team:1', title: 'Video', content: { type: 'video', blob_id: 'b1', duration_ms: 1, width: 2, height: 3 } },
+      { id: '3', owner: 'team:1', title: 'Deck', content: { type: 'slide_deck', pages: [{ blob_id: 'b2' }] } },
+      { id: '4', owner: 'team:1', title: 'Future', content: { type: 'future' } },
     ] }] }
     render(<MediaListView />)
-    expect(screen.getByRole('button', { name: /YouTube.*media.states.ready/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Pending.*media.states.processing/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Broken.*media.states.failed/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Future.*media.states.unknown/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /YouTube.*media.kinds.youtube/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Video.*media.kinds.video/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Deck.*media.kinds.slide_deck/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Future.*media.kinds.unknown/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Actions for/ })).not.toBeInTheDocument()
   })
 

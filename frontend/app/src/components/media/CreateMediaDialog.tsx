@@ -3,16 +3,28 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { uploadMediaSource } from '@/api/media-upload'
-import { createMedia, mediaListRootKey } from '@/api/media'
+import { createUploadedMedia } from '@/api/media-upload'
+import { createMedia, mediaListRootKey, type Media } from '@/api/media'
 import { MediaFields } from '@/components/media/MediaFields'
 import { Button } from '@/components/ui/button'
 import { useWritableTeams } from '@/hooks/useWritableTeams'
-import { sniffAssetUploadKind, isCreateMediaKind, isUploadMediaKind, isValidUrlMediaInput, type CreateMediaKind, uploadCreateContent, urlContent } from '@/lib/media-display'
+import { sniffAssetUploadKind, isCreateMediaKind, isUploadMediaKind, isValidUrlMediaInput, type CreateMediaKind, urlContent } from '@/lib/media-display'
 
 // Flow: M1 — create a slide deck from mixed PNG/JPEG/SVG/PDF files
 
-export function CreateMediaDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (id: string) => void }) {
+export function CreateMediaDialog({
+  open,
+  onOpenChange,
+  onCreated,
+  defaultOwner,
+  elevated = false,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onCreated: (id: string, media: Media) => void
+  defaultOwner?: string
+  elevated?: boolean
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { teams, user, isPending: teamsPending } = useWritableTeams('mediaCreate', open)
@@ -26,9 +38,11 @@ export function CreateMediaDialog({ open, onOpenChange, onCreated }: { open: boo
   const [error, setError] = useState('')
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initialize the owner after the async team list arrives
-    if (open && !owner && teams[0]) setOwner(teams[0].id)
-  }, [open, owner, teams])
+    if (open && !owner && teams[0]) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- initialize the owner after the async team list arrives
+      setOwner(teams.find((team) => team.id === defaultOwner)?.id ?? teams[0].id)
+    }
+  }, [defaultOwner, open, owner, teams])
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -37,41 +51,18 @@ export function CreateMediaDialog({ open, onOpenChange, onCreated }: { open: boo
       if (isUploadMediaKind(kind)) {
         if (kind === 'slide_deck') {
           if (files.length === 0) throw new Error(t('media.validation.fileRequired'))
-          const created = await createMedia(queryClient, {
-            title: title.trim(),
-            owner,
-            content: uploadCreateContent(kind),
-          })
-          setUploadProgress(0)
-          for (let index = 0; index < files.length; index += 1) {
-            const next = files[index]
+          for (const next of files) {
             const sniff = sniffAssetUploadKind(next)
             if (sniff !== 'image' && sniff !== 'pdf' && sniff !== 'svg') {
               throw new Error(t('media.validation.deckFileType'))
             }
-            await uploadMediaSource({
-              mediaId: created.id,
-              kind: sniff,
-              file: next,
-              onProgress: (ratio) => setUploadProgress((index + ratio) / files.length),
-            })
           }
-          return created
+          setUploadProgress(0)
+          return createUploadedMedia({ kind, title: title.trim(), owner, files, onProgress: setUploadProgress })
         }
         if (!file) throw new Error(t('media.validation.fileRequired'))
-        const created = await createMedia(queryClient, {
-          title: title.trim(),
-          owner,
-          content: uploadCreateContent(kind),
-        })
         setUploadProgress(0)
-        await uploadMediaSource({
-          mediaId: created.id,
-          kind,
-          file,
-          onProgress: (ratio) => setUploadProgress(ratio),
-        })
-        return created
+        return createUploadedMedia({ kind, title: title.trim(), owner, files: [file], onProgress: setUploadProgress })
       }
       if (!isValidUrlMediaInput(kind, url)) throw new Error(t('media.validation.invalidUrl'))
       return createMedia(queryClient, {
@@ -82,7 +73,7 @@ export function CreateMediaDialog({ open, onOpenChange, onCreated }: { open: boo
     },
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: mediaListRootKey })
-      onCreated(created.id)
+      onCreated(created.id, created)
     },
     onError: (cause: Error) => {
       setUploadProgress(null)
@@ -113,8 +104,8 @@ export function CreateMediaDialog({ open, onOpenChange, onCreated }: { open: boo
   return (
     <Dialog.Root open={open} onOpenChange={close}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid max-h-[90dvh] w-[min(32rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-elevated)]">
+        <Dialog.Overlay className={`fixed inset-0 bg-black/40 ${elevated ? 'z-[70]' : 'z-50'}`} />
+        <Dialog.Content className={`fixed left-1/2 top-1/2 grid max-h-[90dvh] w-[min(32rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-elevated)] ${elevated ? 'z-[71]' : 'z-50'}`}>
           <div className="grid gap-1.5">
             <Dialog.Title className="text-lg font-semibold">{t('media.create.title')}</Dialog.Title>
             <Dialog.Description className="text-sm text-[var(--color-muted-foreground)]">{t('media.create.description')}</Dialog.Description>

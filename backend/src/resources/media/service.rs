@@ -4,8 +4,8 @@ use reqwest::Url;
 use shared::MoveOwner;
 use shared::api::ListQuery;
 use shared::media::{
-    CreateMedia, CreateMediaContent, DeclaredMediaKind, DuplicateMedia, LivestreamType, Media,
-    MediaContent, MediaStatus, UpdateMedia,
+    CreateMedia, CreateMediaContent, DuplicateMedia, LivestreamType, Media, MediaContent,
+    UpdateMedia,
 };
 use tracing::instrument;
 
@@ -150,57 +150,39 @@ impl<R: MediaRepository> MediaService<R> {
         };
         let source_title = source.title.clone();
         let title = checked_title(payload.title.unwrap_or(source_title))?;
-        let ready_uploaded = is_ready_uploaded(&source);
-        let uploaded_shell = is_uploaded_shell(&source);
-        let created = if ready_uploaded {
-            let shell = self
-                .repo
-                .create(
-                    owner.clone(),
-                    MediaWrite {
-                        title: title.clone(),
-                        status: MediaStatus::Ready,
-                        content: None,
-                        pending_revision: None,
-                        declared_kind: None,
-                    },
-                )
-                .await?;
+        let created = if is_uploaded(&source.content) {
+            let media_id = uuid::Uuid::new_v4().to_string();
             let content = self
                 .asset_svc
-                .duplicate_uploaded_content(
-                    &source.id,
-                    &shell.id,
-                    source.content.as_ref().unwrap(),
-                    owner,
-                )
+                .duplicate_uploaded_content(&source.id, &media_id, &source.content, owner.clone())
                 .await?;
-            self.repo
-                .update_unscoped(
-                    &shell.id,
+            match self
+                .repo
+                .create_with_id(
+                    &media_id,
+                    owner,
                     MediaWrite {
                         title,
-                        status: MediaStatus::Ready,
-                        content: Some(content),
+                        content,
                         pending_revision: None,
-                        declared_kind: None,
                     },
                 )
-                .await?
+                .await
+            {
+                Ok(media) => media,
+                Err(error) => {
+                    let _ = self.asset_svc.delete_assets_for_media(&media_id).await;
+                    return Err(error);
+                }
+            }
         } else {
             self.repo
                 .create(
                     owner,
                     MediaWrite {
                         title,
-                        status: source.status,
                         content: source.content.clone(),
-                        pending_revision: if uploaded_shell {
-                            None
-                        } else {
-                            source.pending_revision.clone()
-                        },
-                        declared_kind: source.declared_kind,
+                        pending_revision: None,
                     },
                 )
                 .await?
@@ -213,19 +195,7 @@ impl<R: MediaRepository> MediaService<R> {
         ctx: &AuthorizationContext,
         id: &str,
     ) -> Result<Media, AppError> {
-        let write_teams = ctx.write_teams();
-        let media = self.repo.get(&write_teams, id).await?;
-        self.processing.cancel_for_delete(&media).await;
-        self.asset_svc.delete_assets_for_media(id).await?;
-        self.repo.delete(&write_teams, id).await
-    }
-
-    pub async fn cancel_processing_for_user(
-        &self,
-        ctx: &AuthorizationContext,
-        id: &str,
-    ) -> Result<Media, AppError> {
-        self.processing.cancel_pending_for_user(ctx, id).await
+        self.processing.delete_for_user(ctx, id).await
     }
 
     pub async fn begin_deck_revision_for_user(
@@ -247,12 +217,7 @@ impl<R: MediaRepository> MediaService<R> {
 }
 
 fn create_write(title: String, content: CreateMediaContent) -> Result<MediaWrite, AppError> {
-    match content {
-        CreateMediaContent::Video | CreateMediaContent::Audio | CreateMediaContent::SlideDeck => {
-            processing_shell_write(title, content)
-        }
-        _ => ready_write(title, content),
-    }
+    content_write(title, content)
 }
 
 fn update_write(
@@ -260,7 +225,7 @@ fn update_write(
     title: String,
     content: Option<CreateMediaContent>,
 ) -> Result<MediaWrite, AppError> {
-    if is_uploaded_shell(&existing) || existing.declared_kind.is_some() {
+    if is_uploaded(&existing.content) {
         if content.is_some() {
             return Err(AppError::invalid_request(
                 "uploaded media title updates cannot change content",
@@ -268,67 +233,27 @@ fn update_write(
         }
         Ok(MediaWrite {
             title: checked_title(title)?,
-            status: existing.status,
             content: existing.content,
             pending_revision: existing.pending_revision,
-            declared_kind: existing.declared_kind,
         })
     } else {
         let content = content.ok_or_else(|| AppError::invalid_request("content is required"))?;
-        ready_write(title, content)
+        content_write(title, content)
     }
 }
 
-fn processing_shell_write(
-    title: String,
-    content: CreateMediaContent,
-) -> Result<MediaWrite, AppError> {
-    let declared_kind = match content {
-        CreateMediaContent::Video => DeclaredMediaKind::Video,
-        CreateMediaContent::Audio => DeclaredMediaKind::Audio,
-        CreateMediaContent::SlideDeck => DeclaredMediaKind::SlideDeck,
-        _ => return Err(AppError::invalid_request("invalid upload create content")),
-    };
+fn is_uploaded(content: &MediaContent) -> bool {
+    matches!(
+        content,
+        MediaContent::Video { .. } | MediaContent::Audio { .. } | MediaContent::SlideDeck { .. }
+    )
+}
+
+fn content_write(title: String, content: CreateMediaContent) -> Result<MediaWrite, AppError> {
     Ok(MediaWrite {
         title: checked_title(title)?,
-        status: MediaStatus::Processing,
-        content: None,
+        content: normalize_content(content)?,
         pending_revision: None,
-        declared_kind: Some(declared_kind),
-    })
-}
-
-fn is_ready_uploaded(media: &Media) -> bool {
-    media.status == MediaStatus::Ready
-        && media.content.as_ref().is_some_and(|c| {
-            matches!(
-                c,
-                MediaContent::Video { .. }
-                    | MediaContent::Audio { .. }
-                    | MediaContent::SlideDeck { .. }
-            )
-        })
-}
-
-fn is_uploaded_shell(media: &Media) -> bool {
-    media.declared_kind.is_some()
-        || media.content.as_ref().is_some_and(|c| {
-            matches!(
-                c,
-                MediaContent::Video { .. }
-                    | MediaContent::Audio { .. }
-                    | MediaContent::SlideDeck { .. }
-            )
-        })
-}
-
-fn ready_write(title: String, content: CreateMediaContent) -> Result<MediaWrite, AppError> {
-    Ok(MediaWrite {
-        title: checked_title(title)?,
-        status: MediaStatus::Ready,
-        content: Some(normalize_content(content)?),
-        pending_revision: None,
-        declared_kind: None,
     })
 }
 
@@ -342,11 +267,6 @@ fn checked_title(title: String) -> Result<String, AppError> {
 
 pub(crate) fn normalize_content(value: CreateMediaContent) -> Result<MediaContent, AppError> {
     match value {
-        CreateMediaContent::Video | CreateMediaContent::Audio | CreateMediaContent::SlideDeck => {
-            Err(AppError::invalid_request(
-                "uploaded content cannot be set directly",
-            ))
-        }
         CreateMediaContent::YouTube { url } => normalize_youtube(&url),
         CreateMediaContent::Livestream { url } => {
             let url = normalize_https_url(&url)?;

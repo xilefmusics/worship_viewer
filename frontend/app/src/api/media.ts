@@ -11,7 +11,6 @@ export type MediaContent = components['schemas']['MediaContent']
 export type CreateMediaContent = components['schemas']['CreateMediaContent']
 export type CreateMedia = components['schemas']['CreateMedia']
 export type UpdateMedia = components['schemas']['UpdateMedia']
-export type DeclaredMediaKind = components['schemas']['DeclaredMediaKind']
 
 export const mediaListRootKey = ['media'] as const
 export const mediaDetailKey = (id: string) => [...mediaListRootKey, 'detail', id] as const
@@ -75,13 +74,6 @@ export async function updateMedia(queryClient: QueryClient, id: string, body: Up
   return requireOk(queryClient, result, 'Could not save media.')
 }
 
-export async function cancelMediaProcessing(queryClient: QueryClient, id: string) {
-  const result = await api.POST('/api/v1/media/{id}/processing/cancel', {
-    params: { path: { id } },
-  })
-  return requireOk(queryClient, result, 'Could not cancel processing.')
-}
-
 export async function beginDeckRevision(queryClient: QueryClient, id: string) {
   const result = await api.POST('/api/v1/media/{id}/deck/revisions', {
     params: { path: { id } },
@@ -92,7 +84,7 @@ export async function beginDeckRevision(queryClient: QueryClient, id: string) {
 export async function commitDeck(
   queryClient: QueryClient,
   id: string,
-  body: { operation: string; page_ids: string[] },
+  body: { revision_id: string; page_ids: string[] },
 ) {
   const result = await api.POST('/api/v1/media/{id}/deck/commit', {
     params: { path: { id } },

@@ -168,10 +168,12 @@ async fn main() -> AnyResult<()> {
         .ensure_directories()
         .await
         .context("failed to initialize media asset storage directories")?;
-    media_asset_service
-        .verify_processing_readiness()
-        .await
-        .context("media processing readiness check failed")?;
+    if let Err(err) = media_asset_service.verify_processing_readiness().await {
+        tracing::warn!(
+            error = %err,
+            "media processing tools are unavailable; backend startup will continue and uploads requiring those tools will be rejected"
+        );
+    }
     let media_processing = Arc::new(
         backend::resources::media::processing::MediaProcessingHandle::build(
             db.clone(),
@@ -185,35 +187,29 @@ async fn main() -> AnyResult<()> {
         media_processing.clone(),
     );
     let reconciliation_asset = media_asset_service.clone();
-    let reconciliation_processing = media_processing.clone();
     let reconciliation_interval = settings.media_reconciliation_interval_seconds;
     tokio::spawn(async move {
         let interval = std::time::Duration::from_secs(reconciliation_interval.max(60));
         loop {
-            let extra = reconciliation_processing
-                .active_processing_operation_ids()
-                .await;
+            let extra = std::collections::HashSet::new();
             if let Err(err) = reconciliation_asset
                 .reconcile_abandoned_staging(&extra)
                 .await
             {
                 tracing::warn!(error = %err, "media staging reconciliation failed");
             }
-            if let Err(err) = reconciliation_processing.reconcile_stranded().await {
-                tracing::warn!(error = %err, "media processing reconciliation failed");
-            }
             tokio::time::sleep(interval).await;
         }
     });
-    let extra = media_processing.active_processing_operation_ids().await;
+    let extra = std::collections::HashSet::new();
     if let Err(err) = media_asset_service
         .reconcile_abandoned_staging(&extra)
         .await
     {
         tracing::warn!(error = %err, "initial media staging reconciliation failed");
     }
-    if let Err(err) = media_processing.reconcile_stranded().await {
-        tracing::warn!(error = %err, "initial media processing reconciliation failed");
+    if let Err(err) = media_asset_service.reconcile_orphan_assets().await {
+        tracing::warn!(error = %err, "initial orphaned media asset reconciliation failed");
     }
     let song_service = SongServiceHandle::build(db.clone());
     let setlist_service = SetlistService::new(SurrealSetlistRepo::new(db.clone()), db.clone());

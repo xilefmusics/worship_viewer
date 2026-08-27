@@ -143,6 +143,19 @@ impl MediaAssetRepository for SurrealMediaAssetRepo {
             .collect()
     }
 
+    async fn delete_orphan_assets(&self) -> Result<Vec<MediaAsset>, AppError> {
+        let mut response = self
+            .db
+            .db
+            .query("DELETE media_asset WHERE media_id NOT IN (SELECT VALUE id FROM media) RETURN BEFORE")
+            .await?;
+        response
+            .take::<Vec<MediaAssetRecord>>(0)?
+            .into_iter()
+            .map(MediaAssetRecord::into_asset)
+            .collect()
+    }
+
     async fn create_final(
         &self,
         asset_id: &str,

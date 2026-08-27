@@ -69,14 +69,6 @@ pub struct MediaAsset {
     pub etag: Option<String>,
 }
 
-/// Response from a completed streaming upload to staging.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-#[cfg_attr(feature = "backend", derive(ToSchema))]
-pub struct MediaUploadResponse {
-    pub operation_id: String,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,15 +87,5 @@ mod tests {
             assert_eq!(parsed, kind);
             assert_eq!(MediaAssetKind::parse(kind.as_str()), Some(kind));
         }
-    }
-
-    #[test]
-    fn upload_response_serde() {
-        let body = MediaUploadResponse {
-            operation_id: "op_example".into(),
-        };
-        let json = serde_json::to_string(&body).unwrap();
-        assert!(json.contains("operation_id"));
-        assert!(!json.contains("path"));
     }
 }

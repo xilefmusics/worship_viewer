@@ -7,7 +7,11 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-import { AV_OUTPUT_CSP, isAvOutputPath } from './src/lib/player/av-output-csp'
+import {
+  AV_OUTPUT_CSP,
+  AV_OUTPUT_DEV_CSP,
+  isAvOutputPath,
+} from './src/lib/player/av-output-csp'
 
 function gitVersion(): string {
   try {
@@ -22,23 +26,23 @@ function gitVersion(): string {
 }
 
 function avOutputCspPlugin(): Plugin {
-  const apply = (
+  const apply = (csp: string) => (
     req: { url?: string },
     res: { setHeader: (name: string, value: string) => void },
     next: () => void,
   ) => {
     if (isAvOutputPath(req.url ?? '')) {
-      res.setHeader('Content-Security-Policy', AV_OUTPUT_CSP)
+      res.setHeader('Content-Security-Policy', csp)
     }
     next()
   }
   return {
     name: 'av-output-csp',
     configureServer(server) {
-      server.middlewares.use(apply)
+      server.middlewares.use(apply(AV_OUTPUT_DEV_CSP))
     },
     configurePreviewServer(server) {
-      server.middlewares.use(apply)
+      server.middlewares.use(apply(AV_OUTPUT_CSP))
     },
   }
 }

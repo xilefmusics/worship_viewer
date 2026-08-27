@@ -7,6 +7,7 @@ default-run = "backend"
 
 [dependencies]
 actix-web = { version = "4", default-features = true }
+actix-multipart = "0.7"
 anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = [
     "clock",
@@ -59,6 +60,7 @@ chordlib = { version = "0.15.0", features = ["html"] }
 zip = "8.6.0"
 imagesize = "0.14"
 async-stream = "0.3"
+lopdf = { version = "0.44", default-features = false }
 
 [[bin]]
 name = "venom-test"

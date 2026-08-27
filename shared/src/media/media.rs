@@ -3,57 +3,13 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "backend")]
 use utoipa::ToSchema;
 
-/// Processing state for a media resource or a pending content revision.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-#[cfg_attr(feature = "backend", derive(ToSchema))]
-pub enum MediaStatus {
-    Processing,
-    Ready,
-    Failed,
-}
-
-/// Stable, sanitized processing failure exposed to clients.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-#[cfg_attr(feature = "backend", derive(ToSchema))]
-pub struct MediaProcessingError {
-    pub code: String,
-    pub detail: String,
-}
-
-/// A content replacement that has not yet replaced active Ready content.
+/// A staged slide-deck revision that has not replaced active content yet.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct MediaPendingRevision {
-    pub operation: String,
-    pub status: MediaStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub processing_error: Option<MediaProcessingError>,
-    /// Draft slide-deck pages. Empty for audio/video revisions.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub revision_id: String,
     pub pages: Vec<MediaStagedDeckPage>,
-}
-
-impl MediaPendingRevision {
-    pub fn processing(operation: impl Into<String>) -> Self {
-        Self {
-            operation: operation.into(),
-            status: MediaStatus::Processing,
-            processing_error: None,
-            pages: Vec::new(),
-        }
-    }
-
-    pub fn failed(operation: impl Into<String>, processing_error: MediaProcessingError) -> Self {
-        Self {
-            operation: operation.into(),
-            status: MediaStatus::Failed,
-            processing_error: Some(processing_error),
-            pages: Vec::new(),
-        }
-    }
 }
 
 /// A page in a staged (not yet committed) slide-deck revision.
@@ -111,14 +67,25 @@ pub struct MediaDeckPage {
     pub blob_id: String,
 }
 
-/// Upload kind declared at create time before active content exists.
+/// Uploaded media kind accepted by synchronous multipart creation.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
-pub enum DeclaredMediaKind {
+pub enum UploadedMediaKind {
     SlideDeck,
     Video,
     Audio,
+}
+
+impl UploadedMediaKind {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "slide_deck" => Some(Self::SlideDeck),
+            "video" => Some(Self::Video),
+            "audio" => Some(Self::Audio),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -128,14 +95,19 @@ pub struct Media {
     pub id: String,
     pub owner: String,
     pub title: String,
-    pub status: MediaStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub content: Option<MediaContent>,
+    pub content: MediaContent,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending_revision: Option<MediaPendingRevision>,
-    /// Present for uploaded/deck shells until Ready content is set.
+}
+
+/// Metadata part for synchronous multipart uploaded-media creation.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub struct CreateUploadedMedia {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub declared_kind: Option<DeclaredMediaKind>,
+    pub owner: Option<String>,
+    pub title: String,
 }
 
 /// Create a synchronously validated URL-backed media resource.
@@ -155,9 +127,6 @@ pub struct CreateMedia {
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub enum CreateMediaContent {
-    SlideDeck,
-    Video,
-    Audio,
     #[serde(rename = "youtube")]
     YouTube {
         url: String,
@@ -198,7 +167,7 @@ pub struct DuplicateMedia {
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct CommitDeck {
-    pub operation: String,
+    pub revision_id: String,
     pub page_ids: Vec<String>,
 }
 
@@ -223,9 +192,9 @@ mod tests {
     }
 
     #[test]
-    fn lifecycle_optional_fields_and_unknown_tags_are_stable() {
+    fn pending_revision_is_optional_and_unknown_tags_are_stable() {
         let value = serde_json::json!({
-            "id":"m1", "owner":"t1", "title":"Video", "status":"ready",
+            "id":"m1", "owner":"t1", "title":"Video",
             "content":{"type":"youtube","video_id":"dQw4w9WgXcQ","canonical_url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}
         });
         let media: Media = serde_json::from_value(value).unwrap();
@@ -236,47 +205,29 @@ mod tests {
     }
 
     #[test]
-    fn create_upload_kinds_and_declared_kind_round_trip() {
-        for (kind, tag, expected) in [
-            ("video", "video", DeclaredMediaKind::Video),
-            ("audio", "audio", DeclaredMediaKind::Audio),
-            ("slide_deck", "slide_deck", DeclaredMediaKind::SlideDeck),
+    fn uploaded_media_kind_parses() {
+        for (raw, expected) in [
+            ("video", UploadedMediaKind::Video),
+            ("audio", UploadedMediaKind::Audio),
+            ("slide_deck", UploadedMediaKind::SlideDeck),
         ] {
-            let create: CreateMediaContent =
-                serde_json::from_value(serde_json::json!({"type": tag})).unwrap();
-            assert_eq!(
-                serde_json::to_value(create).unwrap(),
-                serde_json::json!({"type": tag})
-            );
-            let media: Media = serde_json::from_value(serde_json::json!({
-                "id":"m1","owner":"t1","title":"Clip","status":"processing",
-                "declared_kind": kind
-            }))
-            .unwrap();
-            assert_eq!(media.declared_kind, Some(expected));
+            assert_eq!(UploadedMediaKind::parse(raw), Some(expected));
         }
     }
 
     #[test]
     fn pending_revision_pages_default_and_commit_round_trip() {
         let pending: MediaPendingRevision = serde_json::from_value(serde_json::json!({
-            "operation": "rev1",
-            "status": "ready",
+            "revision_id": "rev1",
             "pages": [{"id": "p1", "blob_id": "b1"}]
         }))
         .unwrap();
         assert_eq!(pending.pages[0].id, "p1");
         let commit: CommitDeck = serde_json::from_value(serde_json::json!({
-            "operation": "rev1",
+            "revision_id": "rev1",
             "page_ids": ["p1"]
         }))
         .unwrap();
         assert_eq!(commit.page_ids, vec!["p1"]);
-        let av: MediaPendingRevision = serde_json::from_value(serde_json::json!({
-            "operation": "op1",
-            "status": "processing"
-        }))
-        .unwrap();
-        assert!(av.pages.is_empty());
     }
 }

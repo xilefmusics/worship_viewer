@@ -229,6 +229,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_uploaded_media"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/{id}": {
         parameters: {
             query?: never;
@@ -303,22 +319,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["move_media"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/media/{id}/processing/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["cancel_media_processing"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1141,8 +1141,8 @@ export interface components {
         };
         /** @description Finalize a staged slide-deck revision in the operator-selected order. */
         CommitDeck: {
-            operation: string;
             page_ids: string[];
+            revision_id: string;
         };
         /**
          * @example {
@@ -1196,15 +1196,6 @@ export interface components {
          *     [`MediaContent`] but cannot be fabricated through this request.
          */
         CreateMediaContent: {
-            /** @enum {string} */
-            type: "slide_deck";
-        } | {
-            /** @enum {string} */
-            type: "video";
-        } | {
-            /** @enum {string} */
-            type: "audio";
-        } | {
             /** @enum {string} */
             type: "youtube";
             url: string;
@@ -1276,6 +1267,11 @@ export interface components {
             members?: components["schemas"]["TeamMemberInput"][];
             name: string;
         };
+        /** @description Metadata part for synchronous multipart uploaded-media creation. */
+        CreateUploadedMedia: {
+            owner?: string | null;
+            title: string;
+        };
         /**
          * @example {
          *       "email": "singer@example.com",
@@ -1291,11 +1287,6 @@ export interface components {
             invite_secret: string;
             room: components["schemas"]["PlayerRoomSummary"];
         };
-        /**
-         * @description Upload kind declared at create time before active content exists.
-         * @enum {string}
-         */
-        DeclaredMediaKind: "slide_deck" | "video" | "audio";
         DuplicateMedia: {
             /** @description Destination team. Omit to keep the source owner. */
             owner?: string | null;
@@ -1381,12 +1372,10 @@ export interface components {
         /** @enum {string} */
         LivestreamType: "hls" | "direct";
         Media: {
-            content?: null | components["schemas"]["MediaContent"];
-            declared_kind?: null | components["schemas"]["DeclaredMediaKind"];
+            content: components["schemas"]["MediaContent"];
             id: string;
             owner: string;
             pending_revision?: null | components["schemas"]["MediaPendingRevision"];
-            status: components["schemas"]["MediaStatus"];
             title: string;
         };
         /** @description Metadata for a media-owned asset (no filesystem paths). */
@@ -1452,32 +1441,15 @@ export interface components {
         MediaDeckPage: {
             blob_id: string;
         };
-        /** @description A content replacement that has not yet replaced active Ready content. */
+        /** @description A staged slide-deck revision that has not replaced active content yet. */
         MediaPendingRevision: {
-            operation: string;
-            /** @description Draft slide-deck pages. Empty for audio/video revisions. */
-            pages?: components["schemas"]["MediaStagedDeckPage"][];
-            processing_error?: null | components["schemas"]["MediaProcessingError"];
-            status: components["schemas"]["MediaStatus"];
-        };
-        /** @description Stable, sanitized processing failure exposed to clients. */
-        MediaProcessingError: {
-            code: string;
-            detail: string;
+            pages: components["schemas"]["MediaStagedDeckPage"][];
+            revision_id: string;
         };
         /** @description A page in a staged (not yet committed) slide-deck revision. */
         MediaStagedDeckPage: {
             blob_id: string;
             id: string;
-        };
-        /**
-         * @description Processing state for a media resource or a pending content revision.
-         * @enum {string}
-         */
-        MediaStatus: "processing" | "ready" | "failed";
-        /** @description Response from a completed streaming upload to staging. */
-        MediaUploadResponse: {
-            operation_id: string;
         };
         MonitoringDurationMetrics: {
             /** Format: double */
@@ -1703,7 +1675,7 @@ export interface components {
             /** @enum {string} */
             type: "media";
         });
-        /** @description Immutable Ready Media snapshot for online AV (`type`: `"media"`). */
+        /** @description Immutable Media snapshot for online AV (`type`: `"media"`). */
         PlayerMediaItem: {
             content: components["schemas"]["MediaContent"];
             /** @description Media resource id (stable identity for this setlist slot). */
@@ -2233,6 +2205,11 @@ export interface components {
             members?: components["schemas"]["TeamMemberInput"][] | null;
             name: string;
         };
+        /**
+         * @description Uploaded media kind accepted by synchronous multipart creation.
+         * @enum {string}
+         */
+        UploadedMediaKind: "slide_deck" | "video" | "audio";
         /**
          * @example {
          *       "avatar_blob_id": null,
@@ -3983,6 +3960,52 @@ export interface operations {
             };
         };
     };
+    create_uploaded_media: {
+        parameters: {
+            query: {
+                /** @description Uploaded media kind: video, audio, or slide_deck */
+                kind: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One JSON metadata part and one or more file parts */
+        requestBody: {
+            content: {
+                "multipart/form-data": string;
+            };
+        };
+        responses: {
+            /** @description Uploaded media processed and created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Media"];
+                };
+            };
+            /** @description Invalid metadata, source, or file count */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A source exceeds its configured limit */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     get_media: {
         parameters: {
             query?: never;
@@ -4136,7 +4159,7 @@ export interface operations {
                     "application/json": components["schemas"]["Media"];
                 };
             };
-            /** @description Empty, stale, or still-processing revision */
+            /** @description Empty or stale revision */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4176,7 +4199,7 @@ export interface operations {
                     "application/json": components["schemas"]["Media"];
                 };
             };
-            /** @description Media is not a ready slide deck */
+            /** @description Media is not a slide deck */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4265,37 +4288,6 @@ export interface operations {
                 };
             };
             /** @description Media/source/destination absent or concealed */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    cancel_media_processing: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Cancel in-flight replacement processing */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Media"];
-                };
-            };
-            /** @description Media absent or concealed */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4434,16 +4426,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Upload accepted to staging */
+            /** @description Upload processed and media updated */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MediaUploadResponse"];
+                    "application/json": components["schemas"]["Media"];
                 };
             };
-            /** @description Invalid kind or request */
+            /** @description Invalid kind or request, or required processing tooling is unavailable */
             400: {
                 headers: {
                     [name: string]: unknown;

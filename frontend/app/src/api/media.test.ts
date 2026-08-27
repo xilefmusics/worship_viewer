@@ -10,7 +10,7 @@ vi.mock('@/lib/api-unauthorized', () => ({ redirectToLoginAfterUnauthorized: vi.
 
 const queryClient = {} as never
 const response = (status = 200, headers?: Record<string, string>) => new Response(null, { status, headers })
-const media = { id: 'media:1', owner: 'team:1', title: 'Stream', status: 'ready' as const, content: { type: 'livestream' as const, stream_type: 'hls' as const, url: 'https://example.com/live.m3u8' } }
+const media = { id: 'media:1', owner: 'team:1', title: 'Stream', content: { type: 'livestream' as const, stream_type: 'hls' as const, url: 'https://example.com/live.m3u8' } }
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -41,9 +41,9 @@ describe('Media API mapping', () => {
   it('maps deck revision and commit requests', async () => {
     vi.mocked(api.POST).mockResolvedValue({ data: media, response: response() } as never)
     await beginDeckRevision(queryClient, media.id)
-    await commitDeck(queryClient, media.id, { operation: 'rev1', page_ids: ['p1'] })
+    await commitDeck(queryClient, media.id, { revision_id: 'rev1', page_ids: ['p1'] })
     expect(api.POST).toHaveBeenCalledWith('/api/v1/media/{id}/deck/revisions', expect.objectContaining({ params: { path: { id: media.id } } }))
-    expect(api.POST).toHaveBeenCalledWith('/api/v1/media/{id}/deck/commit', expect.objectContaining({ body: { operation: 'rev1', page_ids: ['p1'] } }))
+    expect(api.POST).toHaveBeenCalledWith('/api/v1/media/{id}/deck/commit', expect.objectContaining({ body: { revision_id: 'rev1', page_ids: ['p1'] } }))
   })
 
   it('surfaces validation problem detail', async () => {

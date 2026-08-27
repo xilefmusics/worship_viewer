@@ -460,6 +460,62 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn synchronous_media_migration_removes_shells_and_rewrites_deck_drafts() {
+        #[derive(Debug, Deserialize, SurrealValue)]
+        struct MigratedMedia {
+            pending_revision_json: Option<String>,
+        }
+
+        let address = format!("mem://{}", uuid::Uuid::new_v4());
+        let db = Database::connect(&address, "test", "test", None, None)
+            .await
+            .expect("connect");
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/db-migrations");
+        db.migrate(path).await.expect("baseline migrate");
+
+        db.db
+            .query(
+                "DEFINE FIELD OVERWRITE content_json ON media TYPE none | string PERMISSIONS FULL; \
+                 DEFINE FIELD OVERWRITE status ON media TYPE string PERMISSIONS FULL; \
+                 DEFINE FIELD OVERWRITE declared_kind ON media TYPE none | string PERMISSIONS FULL; \
+                 CREATE media:incomplete SET owner = team:test, title = 'Incomplete', status = 'processing', declared_kind = 'video'; \
+                 CREATE media:deck SET owner = team:test, title = 'Deck', status = 'ready', content_json = '{\"type\":\"slide_deck\",\"pages\":[{\"blob_id\":\"asset:live\"}]}', pending_revision_json = '{\"operation\":\"rev-1\",\"status\":\"processing\",\"pages\":[{\"id\":\"page-1\",\"blob_id\":\"asset:draft\"}]}'; \
+                 CREATE media:audio SET owner = team:test, title = 'Audio', status = 'ready', content_json = '{\"type\":\"audio\",\"blob_id\":\"asset:audio\",\"duration_ms\":1000}', pending_revision_json = '{\"operation\":\"replace-1\",\"status\":\"processing\"}'; \
+                 DELETE migration_script WHERE script_name = '20260827090000_sync_media_content.surql';",
+            )
+            .await
+            .expect("prepare legacy media rows")
+            .check()
+            .expect("legacy media rows must be valid");
+
+        db.migrate(path).await.expect("synchronous media migration");
+
+        let incomplete: Option<MigratedMedia> = db
+            .db
+            .select(("media", "incomplete"))
+            .await
+            .expect("select incomplete media");
+        assert!(incomplete.is_none());
+        let deck: Option<MigratedMedia> = db
+            .db
+            .select(("media", "deck"))
+            .await
+            .expect("select deck media");
+        assert_eq!(
+            deck.unwrap().pending_revision_json.as_deref(),
+            Some(
+                "{\"revision_id\":\"rev-1\",\"pages\":[{\"id\":\"page-1\",\"blob_id\":\"asset:draft\"}]}"
+            )
+        );
+        let audio: Option<MigratedMedia> = db
+            .db
+            .select(("media", "audio"))
+            .await
+            .expect("select audio media");
+        assert_eq!(audio.unwrap().pending_revision_json, None);
+    }
+
+    #[tokio::test]
     async fn setlist_items_migration_converts_legacy_songs_and_is_idempotent() {
         use crate::resources::setlist::SetlistServiceHandle;
         use crate::test_helpers::{

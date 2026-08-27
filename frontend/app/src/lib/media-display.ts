@@ -4,7 +4,6 @@ export type UrlMediaKind = 'youtube' | 'livestream' | 'web_page'
 export type UploadMediaKind = 'video' | 'audio' | 'slide_deck'
 export type CreateMediaKind = UrlMediaKind | UploadMediaKind
 export type MediaDisplayKind = CreateMediaKind | 'unknown'
-export type MediaDisplayStatus = 'processing' | 'ready' | 'failed' | 'unknown'
 export type AssetUploadKind = 'video' | 'audio' | 'image' | 'pdf' | 'svg'
 
 const URL_KINDS = new Set<UrlMediaKind>(['youtube', 'livestream', 'web_page'])
@@ -23,7 +22,7 @@ export function isCreateMediaKind(value: string): value is CreateMediaKind {
 }
 
 export function mediaDisplayKind(media: Media): MediaDisplayKind {
-  const type = (media.content as { type?: unknown } | null | undefined)?.type
+  const type = media.content.type
   switch (type) {
     case 'youtube':
     case 'livestream':
@@ -33,50 +32,16 @@ export function mediaDisplayKind(media: Media): MediaDisplayKind {
     case 'audio':
       return type
     default:
-      if (media.declared_kind === 'video') return 'video'
-      if (media.declared_kind === 'audio') return 'audio'
-      if (media.declared_kind === 'slide_deck') return 'slide_deck'
       return 'unknown'
   }
-}
-
-export function mediaDisplayStatus(media: Media): MediaDisplayStatus {
-  switch ((media as { status?: unknown }).status) {
-    case 'processing':
-    case 'ready':
-    case 'failed':
-      return media.status
-    default:
-      return 'unknown'
-  }
-}
-
-export function isProcessingActive(media: Media): boolean {
-  if (media.pending_revision?.status === 'processing') return true
-  if (media.status !== 'processing') return false
-  const draftPages = media.pending_revision?.pages?.length ?? 0
-  if (media.pending_revision?.status === 'ready' && draftPages > 0) return false
-  return true
 }
 
 export function isUploadedDisplayKind(kind: MediaDisplayKind): boolean {
   return kind === 'video' || kind === 'audio' || kind === 'slide_deck'
 }
 
-export function isReadyUploaded(media: Media): boolean {
-  return media.status === 'ready' && isUploadedDisplayKind(mediaDisplayKind(media))
-}
-
-export function hasReplacementFailure(media: Media): boolean {
-  return (
-    media.status === 'ready' &&
-    media.pending_revision?.status === 'failed'
-  )
-}
-
 export function mediaCanonicalUrl(media: Media): string | null {
   const content = media.content
-  if (!content) return null
   switch (content.type) {
     case 'youtube':
       return content.canonical_url
@@ -90,10 +55,6 @@ export function mediaCanonicalUrl(media: Media): string | null {
 
 export function urlContent(kind: UrlMediaKind, url: string): CreateMediaContent {
   return { type: kind, url }
-}
-
-export function uploadCreateContent(kind: UploadMediaKind): CreateMediaContent {
-  return { type: kind }
 }
 
 export function isValidUrlMediaInput(kind: UrlMediaKind, rawUrl: string): boolean {

@@ -15,6 +15,12 @@ pub trait MediaRepository: Send + Sync {
     async fn count(&self, read_teams: &[RecordId], q: Option<&str>) -> Result<u64, AppError>;
     async fn get(&self, read_teams: &[RecordId], id: &str) -> Result<Media, AppError>;
     async fn create(&self, owner: RecordId, value: MediaWrite) -> Result<Media, AppError>;
+    async fn create_with_id(
+        &self,
+        id: &str,
+        owner: RecordId,
+        value: MediaWrite,
+    ) -> Result<Media, AppError>;
     async fn update(
         &self,
         write_teams: &[RecordId],
@@ -32,5 +38,4 @@ pub trait MediaRepository: Send + Sync {
     /// Internal read without ACL checks (processing jobs and reconciliation).
     async fn get_unscoped(&self, id: &str) -> Result<Media, AppError>;
     async fn update_unscoped(&self, id: &str, value: MediaWrite) -> Result<Media, AppError>;
-    async fn list_processing_media(&self) -> Result<Vec<Media>, AppError>;
 }

@@ -4,9 +4,9 @@ Applies to the team-owned Media library at `/api/v1/media`.
 
 ## Resource and lifecycle
 
-- **BLC-MEDIA-001:** Media has an opaque `id`, one team `owner`, a non-empty `title`, `status` (`processing`, `ready`, or `failed`), optional active tagged `content`, optional `pending_revision`, and optional `declared_kind` (`video`, `audio`, or `slide_deck`) for upload shells without active content. URL media created in E5.1 is validated synchronously and is returned as `ready`.
-- **BLC-MEDIA-002:** Active content is tagged by `type`. The stable tags are `slide_deck`, `video`, `audio`, `youtube`, `livestream`, and `web_page`. Create bodies accept `youtube`, `livestream`, `web_page`, and unit `video` / `audio` / `slide_deck` shells; clients cannot fabricate processed upload content or slide-deck page lists.
-- **BLC-MEDIA-003:** Deletion is permitted without reference checks. Future stale links remain the referencing resource's concern. Deleting media cancels in-flight processing and removes owned final and staging assets.
+- **BLC-MEDIA-001:** Every stored Media has an opaque `id`, one team `owner`, a non-empty `title`, and required tagged `content`. There is no persisted lifecycle status or incomplete upload shell. Slide decks may additionally have a status-free `pending_revision` while being edited.
+- **BLC-MEDIA-002:** Content tags are `slide_deck`, `video`, `audio`, `youtube`, `livestream`, and `web_page`. JSON create accepts only URL-backed tags; uploaded content is created by the multipart upload endpoint and cannot be fabricated by clients.
+- **BLC-MEDIA-003:** Deletion is permitted without reference checks, is serialized against replacement/deck mutations, and removes every owned final or staging asset.
 
 ## URL safety and normalization
 
@@ -17,28 +17,28 @@ Applies to the team-owned Media library at `/api/v1/media`.
 
 ## Uploaded audio/video (E5.4)
 
-- **BLC-MEDIA-013:** `POST /api/v1/media` with `content.type` `video`, `audio`, or `slide_deck` creates a processing shell: `status=processing`, `content=null`, and `declared_kind` set so list and editor surfaces know the intended kind.
-- **BLC-MEDIA-014:** After a successful `PUT /uploads?kind=video|audio`, the server returns `{ operation_id }` immediately and spawns asynchronous FFmpeg processing. Upload kind must match `declared_kind` or the active uploaded content type; URL media rejects uploads with **400**.
-- **BLC-MEDIA-015:** Initial upload sets `pending_revision` with `status=processing` and the operation id. Replacement of ready uploaded media keeps `status=ready` and active `content` while `pending_revision` tracks the new operation. A newer upload supersedes in-flight work; stale job completion is ignored and its temp output is discarded.
-- **BLC-MEDIA-016:** Success ingests a new final asset and sets `content` to `video` or `audio` with `blob_id`, duration, and video dimensions when applicable; `status=ready`; clears `pending_revision`; deletes the staging source and any superseded final asset. Initial failure sets `status=failed` with no content. Replacement failure leaves ready content unchanged and sets `pending_revision.status=failed` with a safe `processing_error`.
+- **BLC-MEDIA-013:** `POST /api/v1/media/uploads?kind=video|audio|slide_deck` accepts multipart metadata plus files, processes all sources inside the request, and creates the Media only after final content and assets are complete.
+- **BLC-MEDIA-014:** Audio/video creation requires exactly one source. FFprobe and FFmpeg complete before the response; success returns `201 Media`, while failure returns a Problem and leaves no Media or final assets.
+- **BLC-MEDIA-015:** `PUT /api/v1/media/{id}/uploads?kind=video|audio` synchronously replaces matching uploaded content and returns the updated Media. Existing content remains unchanged on every failure.
+- **BLC-MEDIA-016:** Successful replacement atomically swaps the content reference and then deletes the superseded asset. Media mutations for the same id are serialized.
 - **BLC-MEDIA-017:** Processing errors expose stable codes (`media_input_invalid`, `media_input_unsupported`, `media_processing_timeout`, `media_processing_failed`) and short English detail only—never argv, paths, or raw tool output.
-- **BLC-MEDIA-018:** Retry is always a new upload from byte zero (new operation). `POST /api/v1/media/{id}/processing/cancel` clears replacement `pending_revision`, cancels the job, and does not delete ready media.
+- **BLC-MEDIA-018:** Retry is a new request from byte zero. Request cancellation terminates child processing and cleanup guards remove temporary and partially ingested data; there is no processing-cancel endpoint.
 - **BLC-MEDIA-019:** `UpdateMedia.content` is optional. Uploaded items may update title (and owner via move) without sending URL content. Sending URL content onto an uploaded item is rejected.
 
 ## Slide decks (E5.5)
 
-- **BLC-MEDIA-020:** `PUT /uploads?kind=image|pdf|svg` on a slide-deck shell or ready deck starts asynchronous expansion into a **draft revision**. Further sources **append** to the same `pending_revision.operation` (they do not cancel in-flight deck work). Audio/video uploads still supersede the prior operation.
-- **BLC-MEDIA-021:** Draft pages are listed on `pending_revision.pages` as `{ id, blob_id }` after each successful source. Media `status` stays `processing` (initial) or `ready` (replacement) until `POST /api/v1/media/{id}/deck/commit`. Expansion never auto-promotes a deck to Ready content.
-- **BLC-MEDIA-022:** `POST /api/v1/media/{id}/deck/commit` with `{ operation, page_ids }` atomically sets `content` to `slide_deck` with the selected order, requires at least one page, rejects unknown/stale ids and in-flight expansion, clears `pending_revision`, and deletes unreferenced page assets. Empty decks cannot be finalized.
-- **BLC-MEDIA-023:** `POST /api/v1/media/{id}/deck/revisions` copies a Ready deck's pages into a new pending revision so reorder/add/replace/remove can happen without changing live content until commit. Cancel discards draft-only assets and leaves Ready content intact.
-- **BLC-MEDIA-024:** Sources are sniffed by file bytes (PNG/JPEG/sanitized SVG/PDF). Encrypted or malformed PDFs, animated/unsupported images, unsafe SVG, per-source size limits, and more than 500 resulting pages fail with the same stable processing codes as BLC-MEDIA-017. PDF pages remain single-page PDFs (no rasterization). A failed replacement keeps the previous Ready deck.
+- **BLC-MEDIA-020:** Multipart deck creation requires one or more files, expands every source synchronously in form order, and creates no Media if any source fails.
+- **BLC-MEDIA-021:** Synchronous deck additions/replacements return a draft as `pending_revision={revision_id,pages}`. Committed `content` remains playable and unchanged until commit.
+- **BLC-MEDIA-022:** `POST /api/v1/media/{id}/deck/commit` with `{ revision_id, page_ids }` atomically installs the selected non-empty order, rejects stale/unknown/duplicate ids, clears the revision, and deletes unreferenced assets.
+- **BLC-MEDIA-023:** `POST /api/v1/media/{id}/deck/revisions` copies committed pages into a revision for reorder/removal without altering live content.
+- **BLC-MEDIA-024:** Sources are sniffed by bytes (PNG/JPEG/sanitized SVG/PDF). Invalid, encrypted, animated, unsafe, oversized, or over-500-page inputs fail synchronously. PDF pages remain single-page PDFs without stored rasterization.
 
 ## Access and operations
 
 - **BLC-MEDIA-008:** Reads and list results use the caller's membership-derived readable teams. Unreadable or nonexistent ids return the same concealed `404`.
 - **BLC-MEDIA-009:** Create, update, duplicate, move, and delete require library write access (`admin` or `content_maintainer`) to the owning team. Guests/read-only members may read but not mutate; denied mutations use concealed `404` responses.
 - **BLC-MEDIA-010:** A move validates write access to both the current and destination teams before atomically changing `owner` and all owned `media_asset` rows. Moving to the current owner is idempotent.
-- **BLC-MEDIA-011:** Duplicate requires write access to the source and destination. URL duplicates copy normalized content only. Ready uploaded video/audio/slide-deck duplicates copy final asset bytes to new opaque ids and rewrite `blob_id` (and deck `pages`) in content; `pending_revision` and staging are not copied.
+- **BLC-MEDIA-011:** Duplicate requires write access to the source and destination. URL duplicates copy normalized content only. Uploaded video/audio/slide-deck duplicates copy final asset bytes to new opaque ids and rewrite `blob_id` values; deck revisions and staging are not copied.
 - **BLC-MEDIA-012:** List filtering applies readable-team scope first, then optional `team` and case-insensitive/full-text title search, then pagination. Ordering is stable by title and id (or search score, title, and id for searches). Responses include `X-Total-Count` and RFC 5988 pagination links.
 
 ## Media-owned assets (E5.3+)

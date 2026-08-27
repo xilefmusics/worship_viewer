@@ -76,8 +76,11 @@ describe('AvSlideView', () => {
         screenState={screenState}
       />
     )
-    const { rerender } = render(view('live'))
+    const { container, rerender } = render(view('live'))
     expect(screen.getByTestId('deck-page')).toHaveAttribute('data-asset', 'page-a')
+    expect(container.firstElementChild).toHaveClass('av-slide-view--deck')
+    expect(container.querySelector('.av-slide-view__background')).not.toBeInTheDocument()
+    expect(container.querySelector('.av-slide-view__animated-layer')).not.toBeInTheDocument()
 
     rerender(view('blank'))
     expect(screen.queryByTestId('deck-page')).not.toBeInTheDocument()

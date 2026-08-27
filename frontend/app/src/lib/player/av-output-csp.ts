@@ -15,6 +15,15 @@ export const AV_OUTPUT_CSP = [
   "frame-ancestors 'none'",
 ].join('; ')
 
+/**
+ * Vite injects the React Refresh preamble as an inline module in development.
+ * Keep this allowance out of preview and production responses.
+ */
+export const AV_OUTPUT_DEV_CSP = AV_OUTPUT_CSP.replace(
+  "script-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+)
+
 export function isAvOutputPath(pathname: string): boolean {
   const path = pathname.split('?')[0] ?? ''
   return path === '/player/output' || path.startsWith('/player/output/')

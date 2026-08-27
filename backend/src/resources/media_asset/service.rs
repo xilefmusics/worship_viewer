@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use actix_web::web::Payload;
-use shared::{MediaAsset, MediaAssetKind, MediaAssetStatus, MediaUploadResponse};
+use shared::{MediaAsset, MediaAssetKind, MediaAssetStatus};
 use surrealdb::types::RecordId;
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -43,8 +43,6 @@ pub struct MediaAssetSettings {
     pub processing_enabled: bool,
     pub ffmpeg_path: String,
     pub ffprobe_path: String,
-    pub pdfinfo_path: String,
-    pub pdfseparate_path: String,
     pub deck_max_pages: u32,
 }
 
@@ -62,8 +60,6 @@ impl MediaAssetSettings {
             processing_enabled: settings.media_processing_enabled,
             ffmpeg_path: settings.ffmpeg_path.clone(),
             ffprobe_path: settings.ffprobe_path.clone(),
-            pdfinfo_path: settings.pdfinfo_path.clone(),
-            pdfseparate_path: settings.pdfseparate_path.clone(),
             deck_max_pages: settings.media_deck_max_pages,
         }
     }
@@ -106,8 +102,6 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
         for (label, path) in [
             ("ffmpeg", self.settings.ffmpeg_path.as_str()),
             ("ffprobe", self.settings.ffprobe_path.as_str()),
-            ("pdfinfo", self.settings.pdfinfo_path.as_str()),
-            ("pdfseparate", self.settings.pdfseparate_path.as_str()),
         ] {
             check_tool_version(&[path, "--version"])
                 .await
@@ -116,6 +110,45 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                         "media processing readiness failed: required tool `{label}` is missing or not executable; configure tool paths or disable media processing"
                     ))
                 })?;
+        }
+        Ok(())
+    }
+
+    pub async fn require_processing_tools_for_upload(
+        &self,
+        kind: MediaAssetKind,
+    ) -> Result<(), AppError> {
+        let (label, tools): (&str, &[(&str, &str)]) = match kind {
+            MediaAssetKind::Video | MediaAssetKind::Audio => (
+                "audio/video",
+                &[
+                    ("ffmpeg", self.settings.ffmpeg_path.as_str()),
+                    ("ffprobe", self.settings.ffprobe_path.as_str()),
+                ],
+            ),
+            MediaAssetKind::Image | MediaAssetKind::Pdf | MediaAssetKind::Svg => return Ok(()),
+        };
+
+        if !self.settings.processing_enabled {
+            return Err(AppError::media_processing(
+                "media_processing_unavailable",
+                format!("{label} uploads are unavailable because media processing is disabled."),
+            ));
+        }
+
+        for (tool, path) in tools {
+            if check_tool_version(&[path, "--version"]).await.is_err() {
+                tracing::warn!(
+                    tool,
+                    "rejecting upload because a required media processing tool is unavailable"
+                );
+                return Err(AppError::media_processing(
+                    "media_processing_unavailable",
+                    format!(
+                        "{label} uploads are unavailable because a required media processing tool is not installed."
+                    ),
+                ));
+            }
         }
         Ok(())
     }
@@ -144,10 +177,16 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
         content_type: String,
         content_length: Option<usize>,
         payload: Payload,
-    ) -> Result<MediaUploadResponse, AppError> {
+    ) -> Result<String, AppError> {
         let media = self.media_repo.get(&ctx.read_teams(), media_id).await?;
         let owner = parse_owner_record_id(&media.owner)?;
         ctx.require_write_access_to_owner(&owner)?;
+
+        let requires_external_processing =
+            matches!(kind, MediaAssetKind::Video | MediaAssetKind::Audio);
+        if requires_external_processing {
+            self.require_processing_tools_for_upload(kind).await?;
+        }
 
         let max_bytes = self.settings.max_bytes_for_kind(kind);
         if let Some(len) = content_length
@@ -196,7 +235,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
         guard.disarm();
         self.unregister_active_upload(&operation_id).await;
         let _ = asset;
-        Ok(MediaUploadResponse { operation_id })
+        Ok(operation_id)
     }
 
     #[instrument(level = "debug", err, skip(self, ctx))]
@@ -460,6 +499,22 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
         }
         Ok(removed_files)
     }
+
+    pub async fn reconcile_orphan_assets(&self) -> Result<u64, AppError> {
+        let assets = self.repo.delete_orphan_assets().await?;
+        let count = assets.len() as u64;
+        for asset in assets {
+            match asset.status {
+                MediaAssetStatus::Final => self.storage.delete_final_file(&asset.id),
+                MediaAssetStatus::Staging => {
+                    if let Some(operation_id) = asset.operation_id {
+                        self.storage.delete_staging_file(&operation_id);
+                    }
+                }
+            }
+        }
+        Ok(count)
+    }
 }
 
 pub type MediaAssetServiceHandle = MediaAssetService<SurrealMediaAssetRepo, SurrealMediaRepo>;
@@ -549,5 +604,59 @@ mod tests {
 
         asset_svc.rollback_promotion(&staging.id).await.unwrap();
         assert!(!asset_svc.final_file_path(&staging.id).exists());
+    }
+
+    #[tokio::test]
+    async fn orphan_reconciliation_removes_records_and_final_files() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let media_svc = media_service(&db);
+        let asset_svc = test_asset_service(&db);
+        asset_svc.ensure_directories().await.unwrap();
+        let ctx = auth_ctx_for_user(&db, &fixture.writer).await.unwrap();
+        let media = media_svc
+            .create_for_user(
+                &ctx,
+                CreateMedia {
+                    title: "Orphan owner".into(),
+                    owner: Some(fixture.shared_team_id.clone()),
+                    content: CreateMediaContent::WebPage {
+                        url: "https://example.com/orphan".into(),
+                    },
+                },
+            )
+            .await
+            .unwrap();
+        let source = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(source.path(), b"asset bytes").unwrap();
+        let asset = asset_svc
+            .ingest_processed_file(
+                parse_owner_record_id(&fixture.shared_team_id).unwrap(),
+                RecordId::new("media", media.id.clone()),
+                MediaAssetKind::Image,
+                "image/png".into(),
+                source.path(),
+            )
+            .await
+            .unwrap();
+        assert!(asset_svc.final_file_path(&asset.id).exists());
+
+        db.db
+            .query("DELETE type::record('media', $id)")
+            .bind(("id", media.id.clone()))
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+        assert_eq!(asset_svc.reconcile_orphan_assets().await.unwrap(), 1);
+        assert!(!asset_svc.final_file_path(&asset.id).exists());
+        assert!(
+            asset_svc
+                .repo
+                .list_assets_for_media(&media.id)
+                .await
+                .unwrap()
+                .is_empty()
+        );
     }
 }

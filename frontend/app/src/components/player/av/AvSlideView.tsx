@@ -59,7 +59,7 @@ function AvSlideCanvas({
 >) {
   return (
     <>
-      {showBackground ? (
+      {showBackground && !deckPage ? (
         <AvBackgroundLayer layer={backgroundLayer} className="av-slide-view__background" />
       ) : null}
       <div className="av-slide-view__content">
@@ -155,6 +155,7 @@ export function AvSlideView({
       <div
         className={cn(
           'av-slide-view',
+          deckPage && 'av-slide-view--deck',
           !showBackground && 'av-slide-view--transparent-preview',
           className,
         )}
@@ -168,21 +169,20 @@ export function AvSlideView({
     <div
       className={cn(
         'av-slide-view',
+        deckPage && 'av-slide-view--deck',
         preview && 'av-slide-view--preview',
         !showBackground && 'av-slide-view--transparent-preview',
         className,
       )}
     >
       <AvSlideScaledStage>
-        {preview ? (
+        {preview || deckPage ? (
           slideBody
         ) : (
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={
-                deckPage
-                  ? `deck:${deckPage.mediaId}:${deckPage.assetId}`
-                  : contentText ?? contentLines?.map((line) => line.primary).join('\n') ?? ''
+                contentText ?? contentLines?.map((line) => line.primary).join('\n') ?? ''
               }
               initial={
                 effectiveTransition.style === 'none'

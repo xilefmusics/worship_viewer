@@ -292,13 +292,6 @@ impl AvProcessor for FfmpegAvProcessor {
     }
 }
 
-pub fn processing_error(failure: AvProcessFailure) -> shared::media::MediaProcessingError {
-    shared::media::MediaProcessingError {
-        code: failure.code().into(),
-        detail: failure.detail().into(),
-    }
-}
-
 pub fn app_error_from_failure(failure: AvProcessFailure) -> AppError {
     AppError::media_processing(failure.code(), failure.detail())
 }

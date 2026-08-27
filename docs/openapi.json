@@ -187,18 +187,18 @@
         "additionalProperties": false,
         "description": "Finalize a staged slide-deck revision in the operator-selected order.",
         "properties": {
-          "operation": {
-            "type": "string"
-          },
           "page_ids": {
             "items": {
               "type": "string"
             },
             "type": "array"
+          },
+          "revision_id": {
+            "type": "string"
           }
         },
         "required": [
-          "operation",
+          "revision_id",
           "page_ids"
         ],
         "type": "object"
@@ -314,48 +314,6 @@
       "CreateMediaContent": {
         "description": "URL content accepted by E5.1. Uploaded/deck tags are reserved on\n[`MediaContent`] but cannot be fabricated through this request.",
         "oneOf": [
-          {
-            "properties": {
-              "type": {
-                "enum": [
-                  "slide_deck"
-                ],
-                "type": "string"
-              }
-            },
-            "required": [
-              "type"
-            ],
-            "type": "object"
-          },
-          {
-            "properties": {
-              "type": {
-                "enum": [
-                  "video"
-                ],
-                "type": "string"
-              }
-            },
-            "required": [
-              "type"
-            ],
-            "type": "object"
-          },
-          {
-            "properties": {
-              "type": {
-                "enum": [
-                  "audio"
-                ],
-                "type": "string"
-              }
-            },
-            "required": [
-              "type"
-            ],
-            "type": "object"
-          },
           {
             "properties": {
               "type": {
@@ -546,6 +504,25 @@
         ],
         "type": "object"
       },
+      "CreateUploadedMedia": {
+        "additionalProperties": false,
+        "description": "Metadata part for synchronous multipart uploaded-media creation.",
+        "properties": {
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
       "CreateUser": {
         "additionalProperties": false,
         "example": {
@@ -583,15 +560,6 @@
           "invite_secret"
         ],
         "type": "object"
-      },
-      "DeclaredMediaKind": {
-        "description": "Upload kind declared at create time before active content exists.",
-        "enum": [
-          "slide_deck",
-          "video",
-          "audio"
-        ],
-        "type": "string"
       },
       "DuplicateMedia": {
         "additionalProperties": false,
@@ -837,25 +805,7 @@
         "additionalProperties": false,
         "properties": {
           "content": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/MediaContent"
-              }
-            ]
-          },
-          "declared_kind": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/DeclaredMediaKind",
-                "description": "Present for uploaded/deck shells until Ready content is set."
-              }
-            ]
+            "$ref": "#/components/schemas/MediaContent"
           },
           "id": {
             "type": "string"
@@ -873,9 +823,6 @@
               }
             ]
           },
-          "status": {
-            "$ref": "#/components/schemas/MediaStatus"
-          },
           "title": {
             "type": "string"
           }
@@ -884,7 +831,7 @@
           "id",
           "owner",
           "title",
-          "status"
+          "content"
         ],
         "type": "object"
       },
@@ -1121,52 +1068,21 @@
       },
       "MediaPendingRevision": {
         "additionalProperties": false,
-        "description": "A content replacement that has not yet replaced active Ready content.",
+        "description": "A staged slide-deck revision that has not replaced active content yet.",
         "properties": {
-          "operation": {
-            "type": "string"
-          },
           "pages": {
-            "description": "Draft slide-deck pages. Empty for audio/video revisions.",
             "items": {
               "$ref": "#/components/schemas/MediaStagedDeckPage"
             },
             "type": "array"
           },
-          "processing_error": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/MediaProcessingError"
-              }
-            ]
-          },
-          "status": {
-            "$ref": "#/components/schemas/MediaStatus"
-          }
-        },
-        "required": [
-          "operation",
-          "status"
-        ],
-        "type": "object"
-      },
-      "MediaProcessingError": {
-        "additionalProperties": false,
-        "description": "Stable, sanitized processing failure exposed to clients.",
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "detail": {
+          "revision_id": {
             "type": "string"
           }
         },
         "required": [
-          "code",
-          "detail"
+          "revision_id",
+          "pages"
         ],
         "type": "object"
       },
@@ -1184,28 +1100,6 @@
         "required": [
           "id",
           "blob_id"
-        ],
-        "type": "object"
-      },
-      "MediaStatus": {
-        "description": "Processing state for a media resource or a pending content revision.",
-        "enum": [
-          "processing",
-          "ready",
-          "failed"
-        ],
-        "type": "string"
-      },
-      "MediaUploadResponse": {
-        "additionalProperties": false,
-        "description": "Response from a completed streaming upload to staging.",
-        "properties": {
-          "operation_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "operation_id"
         ],
         "type": "object"
       },
@@ -1930,7 +1824,7 @@
         ]
       },
       "PlayerMediaItem": {
-        "description": "Immutable Ready Media snapshot for online AV (`type`: `\"media\"`).",
+        "description": "Immutable Media snapshot for online AV (`type`: `\"media\"`).",
         "properties": {
           "content": {
             "$ref": "#/components/schemas/MediaContent"
@@ -3376,6 +3270,15 @@
           "name"
         ],
         "type": "object"
+      },
+      "UploadedMediaKind": {
+        "description": "Uploaded media kind accepted by synchronous multipart creation.",
+        "enum": [
+          "slide_deck",
+          "video",
+          "audio"
+        ],
+        "type": "string"
       },
       "User": {
         "example": {
@@ -5806,6 +5709,76 @@
         ]
       }
     },
+    "/api/v1/media/uploads": {
+      "post": {
+        "operationId": "create_uploaded_media",
+        "parameters": [
+          {
+            "description": "Uploaded media kind: video, audio, or slide_deck",
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "One JSON metadata part and one or more file parts",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Uploaded media processed and created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid metadata, source, or file count"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A source exceeds its configured limit"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
     "/api/v1/media/{id}": {
       "delete": {
         "operationId": "delete_media",
@@ -6024,7 +5997,7 @@
                 }
               }
             },
-            "description": "Empty, stale, or still-processing revision"
+            "description": "Empty or stale revision"
           },
           "404": {
             "content": {
@@ -6082,7 +6055,7 @@
                 }
               }
             },
-            "description": "Media is not a ready slide deck"
+            "description": "Media is not a slide deck"
           },
           "404": {
             "content": {
@@ -6219,54 +6192,6 @@
               }
             },
             "description": "Media/source/destination absent or concealed"
-          }
-        },
-        "security": [
-          {
-            "SessionCookie": []
-          },
-          {
-            "SessionToken": []
-          }
-        ],
-        "tags": [
-          "Media"
-        ]
-      }
-    },
-    "/api/v1/media/{id}/processing/cancel": {
-      "post": {
-        "operationId": "cancel_media_processing",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Media"
-                }
-              }
-            },
-            "description": "Cancel in-flight replacement processing"
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Media absent or concealed"
           }
         },
         "security": [
@@ -6463,11 +6388,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MediaUploadResponse"
+                  "$ref": "#/components/schemas/Media"
                 }
               }
             },
-            "description": "Upload accepted to staging"
+            "description": "Upload processed and media updated"
           },
           "400": {
             "content": {
@@ -6477,7 +6402,7 @@
                 }
               }
             },
-            "description": "Invalid kind or request"
+            "description": "Invalid kind or request, or required processing tooling is unavailable"
           },
           "401": {
             "content": {

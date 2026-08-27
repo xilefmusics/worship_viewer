@@ -883,8 +883,8 @@ flowchart TD
     fab(["Media + Add media"]) --> dlg["Kind = Slide deck · multi-file PNG/JPEG/SVG/PDF"]
     dlg -->|No files| guard["'Choose a file to upload.'"]
     dlg -->|Wrong type| type["'Choose PNG, JPEG, SVG, or PDF files.'"]
-    dlg -->|Valid| create["POST media type=slide_deck → sequential PUT uploads"]
-    create --> editor["Open editor · poll while expanding"]
+    dlg -->|Valid| create["Multipart POST /media/uploads?kind=slide_deck"]
+    create -->|All sources processed| editor["Open completed deck editor"]
 ```
 
 ### M2. Preview and edit draft pages
@@ -893,15 +893,15 @@ flowchart TD
 flowchart TD
     editor(["/media/:id slide deck"]) --> src{Page source}
     src -->|pending_revision.pages| draft["Draft pages"]
-    src -->|Ready content.pages| live["Live pages (immutable until commit)"]
+    src -->|content.pages| live["Live pages (immutable until commit)"]
     draft --> prev["Preview: img for PNG/JPEG/SVG · pdf.js canvas for PDF"]
     live --> prev
     prev --> acts{Action}
     acts -->|Add| add["Upload more sources · append to revision"]
     acts -->|Replace| rep["PUT uploads?replace_page=id"]
     acts -->|Remove| rm["Omit from local order until Save"]
-    acts -->|Processing| wait["Save disabled · Cancel processing"]
-    acts -->|Replacement failed| keep["Banner: previous Ready deck still active"]
+    acts -->|Request pending| wait["Local progress · Save disabled"]
+    acts -->|Request failed| keep["Error · committed deck remains active"]
 ```
 
 ### M3. Reorder slide pages
@@ -915,16 +915,16 @@ flowchart TD
     local --> save["Save sends that order"]
 ```
 
-### M4. Commit a slide deck to Ready
+### M4. Commit a slide-deck revision
 
 ```mermaid
 flowchart TD
     save(["Save"]) --> pending{Pending revision?}
-    pending -->|No Ready deck| begin["POST /deck/revisions copies live pages"]
-    pending -->|Yes| commit["POST /deck/commit {operation, page_ids}"]
+    pending -->|No revision| begin["POST /deck/revisions copies live pages"]
+    pending -->|Yes| commit["POST /deck/commit {revision_id, page_ids}"]
     begin --> commit
-    commit -->|OK| ready["status=ready content.slide_deck"]
-    commit -->|Stale / empty / in-flight| err["Keep current Ready or draft · surface error"]
+    commit -->|OK| ready["Replace content.slide_deck · clear revision"]
+    commit -->|Stale / empty| err["Keep current content or draft · surface error"]
 ```
 
 ### M5. Empty-guard before save
@@ -932,17 +932,18 @@ flowchart TD
 ```mermaid
 flowchart TD
     editor(["Deck editor"]) --> pages{Pages?}
-    pages -->|0 or still processing| dis["Save disabled"]
+    pages -->|0| dis["Save disabled"]
     pages -->|≥1 idle| en["Save enabled"]
     dis --> hint["'Add at least one page before saving.'"]
 ```
 
-### M6. Failed replacement keeps the Ready deck
+### M6. Failed synchronous replacement keeps the committed deck
 
 ```mermaid
 flowchart TD
-    ready(["Ready deck"]) --> up["Add / replace source"]
-    up -->|Fails| banner["Replacement failed banner"]
-    banner --> keep["Live content.pages unchanged"]
+    ready(["Committed deck"]) --> up["Add / replace source"]
+    up --> process["PUT waits for source validation and expansion"]
+    process -->|Problem response| error["Show local request error"]
+    error --> keep["Live content.pages unchanged"]
     keep --> retry["Retry from byte zero"]
 ```

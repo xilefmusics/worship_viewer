@@ -52,6 +52,7 @@ pub async fn run_command_capture(
     let (program, args) = argv.split_first().ok_or(ProcessError::SpawnFailed)?;
     let mut child = Command::new(program)
         .args(args)
+        .kill_on_drop(true)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

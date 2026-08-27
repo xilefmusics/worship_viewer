@@ -36,7 +36,6 @@ vi.mock('@/api/media', () => ({
   updateMedia: (...args: unknown[]) => updateMedia(...args),
   commitDeck: (...args: unknown[]) => commitDeck(...args),
   beginDeckRevision: vi.fn(),
-  cancelMediaProcessing: vi.fn(),
   mediaDetailKey: (id: string) => ['media', 'detail', id],
   mediaListRootKey: ['media'],
 }))
@@ -51,11 +50,9 @@ function deckMedia(overrides: Partial<Media> = {}): Media {
     id: 'media:deck',
     owner: 'team:1',
     title: 'Sunday',
-    status: 'processing',
-    declared_kind: 'slide_deck',
+    content: { type: 'slide_deck', pages: [{ blob_id: 'b1' }, { blob_id: 'b2' }] },
     pending_revision: {
-      operation: 'rev1',
-      status: 'ready',
+      revision_id: 'rev1',
       pages: [
         { id: 'p1', blob_id: 'b1' },
         { id: 'p2', blob_id: 'b2' },
@@ -81,7 +78,6 @@ beforeEach(() => {
     deckMedia({ title: body.title }),
   )
   commitDeck.mockResolvedValue(deckMedia({
-    status: 'ready',
     pending_revision: undefined,
     content: { type: 'slide_deck', pages: [{ blob_id: 'b1' }, { blob_id: 'b2' }] },
   }))
@@ -91,7 +87,7 @@ describe('MediaEditorScreen slide decks', () => {
   it('M2: previews draft pages once expansion is idle', async () => {
     renderEditor()
     expect(await screen.findByTestId('deck-pages')).toHaveTextContent('p1,p2')
-    expect(screen.getByText(/media.states.processing/)).toBeInTheDocument()
+    expect(screen.getByText('media.kinds.slide_deck')).toBeInTheDocument()
   })
 
   it('M4: save commits the draft page order', async () => {
@@ -101,7 +97,7 @@ describe('MediaEditorScreen slide decks', () => {
     await user.click(screen.getByRole('button', { name: 'media.actions.save' }))
     await waitFor(() => {
       expect(commitDeck).toHaveBeenCalledWith(expect.anything(), 'media:deck', {
-        operation: 'rev1',
+        revision_id: 'rev1',
         page_ids: ['p1', 'p2'],
       })
     })
@@ -109,28 +105,11 @@ describe('MediaEditorScreen slide decks', () => {
 
   it('M5: disables save when the deck has no pages', async () => {
     fetchMedia.mockResolvedValue(deckMedia({
-      pending_revision: { operation: 'rev1', status: 'ready', pages: [] },
+      pending_revision: { revision_id: 'rev1', pages: [] },
     }))
     renderEditor()
     const save = await screen.findByRole('button', { name: 'media.actions.save' })
     expect(save).toBeDisabled()
   })
 
-  it('M6: keeps the Ready deck visible after a replacement failure', async () => {
-    fetchMedia.mockResolvedValue(deckMedia({
-      status: 'ready',
-      declared_kind: undefined,
-      content: { type: 'slide_deck', pages: [{ blob_id: 'live' }] },
-      pending_revision: {
-        operation: 'rev2',
-        status: 'failed',
-        processing_error: { code: 'media_input_invalid', detail: 'Encrypted PDF.' },
-        pages: [{ id: 'p1', blob_id: 'live' }],
-      },
-    }))
-    renderEditor()
-    expect(await screen.findByText('media.editor.replacementFailedTitle')).toBeInTheDocument()
-    expect(screen.getByText('Encrypted PDF.')).toBeInTheDocument()
-    expect(screen.getByTestId('deck-pages')).toHaveTextContent('p1')
-  })
 })

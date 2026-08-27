@@ -2806,10 +2806,7 @@ mod media_http {
         let response = test::call_service(&app, request).await;
         assert_eq!(response.status(), StatusCode::CREATED);
         let created: Media = test::read_body_json(response).await;
-        assert!(matches!(
-            created.content,
-            Some(MediaContent::YouTube { .. })
-        ));
+        assert!(matches!(created.content, MediaContent::YouTube { .. }));
 
         let request = test::TestRequest::get()
             .uri(&format!("/api/v1/media/{}", created.id))
@@ -2914,7 +2911,7 @@ mod media_http {
     }
 
     #[actix_web::test]
-    async fn create_video_shell_and_reject_url_upload() {
+    async fn json_create_rejects_uploaded_media_tags_and_url_media_rejects_uploads() {
         let db = test_db().await.unwrap();
         let user = create_user(&db, "media-video-shell@test.local")
             .await
@@ -2925,31 +2922,13 @@ mod media_http {
         let request = test::TestRequest::post()
             .uri("/api/v1/media")
             .insert_header(("Authorization", format!("Bearer {token}")))
-            .set_json(CreateMedia {
-                owner: None,
-                title: "Upload shell".into(),
-                content: CreateMediaContent::Video,
-            })
+            .set_json(serde_json::json!({
+                "title": "Upload shell",
+                "content": { "type": "video" }
+            }))
             .to_request();
         let response = test::call_service(&app, request).await;
-        assert_eq!(response.status(), StatusCode::CREATED);
-        let created: Media = test::read_body_json(response).await;
-        assert_eq!(created.status, shared::media::MediaStatus::Processing);
-        assert!(created.content.is_none());
-        assert_eq!(
-            created.declared_kind,
-            Some(shared::media::DeclaredMediaKind::Video)
-        );
-
-        let request = test::TestRequest::put()
-            .uri(&format!("/api/v1/media/{}/uploads?kind=audio", created.id))
-            .insert_header(("Authorization", format!("Bearer {token}")))
-            .set_payload(b"fake-audio".as_slice())
-            .to_request();
-        assert_eq!(
-            test::call_service(&app, request).await.status(),
-            StatusCode::BAD_REQUEST
-        );
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
         let request = test::TestRequest::post()
             .uri("/api/v1/media")
@@ -2976,46 +2955,6 @@ mod media_http {
             test::call_service(&app, request).await.status(),
             StatusCode::BAD_REQUEST
         );
-
-        let request = test::TestRequest::post()
-            .uri("/api/v1/media")
-            .insert_header(("Authorization", format!("Bearer {token}")))
-            .set_json(CreateMedia {
-                owner: None,
-                title: "Deck shell".into(),
-                content: CreateMediaContent::SlideDeck,
-            })
-            .to_request();
-        let response = test::call_service(&app, request).await;
-        assert_eq!(response.status(), StatusCode::CREATED);
-        let deck: Media = test::read_body_json(response).await;
-        assert_eq!(deck.status, shared::media::MediaStatus::Processing);
-        assert_eq!(
-            deck.declared_kind,
-            Some(shared::media::DeclaredMediaKind::SlideDeck)
-        );
-        let request = test::TestRequest::post()
-            .uri(&format!("/api/v1/media/{}/deck/commit", deck.id))
-            .insert_header(("Authorization", format!("Bearer {token}")))
-            .set_json(shared::media::CommitDeck {
-                operation: "missing".into(),
-                page_ids: vec![],
-            })
-            .to_request();
-        assert_eq!(
-            test::call_service(&app, request).await.status(),
-            StatusCode::BAD_REQUEST
-        );
-
-        let request = test::TestRequest::put()
-            .uri(&format!("/api/v1/media/{}/uploads?kind=video", deck.id))
-            .insert_header(("Authorization", format!("Bearer {token}")))
-            .set_payload(b"fake-video".as_slice())
-            .to_request();
-        assert_eq!(
-            test::call_service(&app, request).await.status(),
-            StatusCode::BAD_REQUEST
-        );
     }
 }
 
@@ -3023,12 +2962,12 @@ mod media_asset_http {
     use actix_web::http::StatusCode;
     use actix_web::http::header::{CONTENT_LENGTH, RANGE};
     use actix_web::test;
-    use shared::MediaUploadResponse;
+    use shared::error::Problem;
     use shared::media::{CreateMedia, CreateMediaContent};
 
     use crate::http_tests::{build_app_with_api_limits, create_session_token};
     use crate::settings::Settings;
-    use crate::test_helpers::{TeamFixture, media_asset_service, media_service, test_db};
+    use crate::test_helpers::{TeamFixture, media_service, test_db};
 
     fn media_test_settings() -> Settings {
         Settings {
@@ -3073,7 +3012,7 @@ mod media_asset_http {
     }
 
     #[actix_web::test]
-    async fn upload_promote_and_range_delivery() {
+    async fn multipart_deck_creation_is_synchronous_and_deliverable() {
         let db = test_db().await.unwrap();
         let fixture = TeamFixture::build(&db).await.unwrap();
         let token = create_session_token(&db, fixture.writer.clone())
@@ -3087,50 +3026,136 @@ mod media_asset_http {
             Some(settings.clone()),
         ))
         .await;
-        let media = writer_media(&db, &fixture).await;
-
-        let request = test::TestRequest::put()
-            .uri(&format!("/api/v1/media/{}/uploads?kind=image", media.id))
+        let boundary = "worshipviewer-boundary";
+        let mut body = format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n{{\"title\":\"Deck\",\"owner\":\"{}\"}}\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"page.png\"\r\nContent-Type: image/png\r\n\r\n",
+            fixture.shared_team_id
+        ).into_bytes();
+        body.extend_from_slice(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]);
+        body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+        let request = test::TestRequest::post()
+            .uri("/api/v1/media/uploads?kind=slide_deck")
             .insert_header(("Authorization", format!("Bearer {token}")))
-            .insert_header(("Content-Type", "image/png"))
-            .set_payload(b"0123456789abcdef".as_slice())
+            .insert_header((
+                "Content-Type",
+                format!("multipart/form-data; boundary={boundary}"),
+            ))
+            .set_payload(body)
             .to_request();
         let response = test::call_service(&app, request).await;
-        assert_eq!(response.status(), StatusCode::OK, "upload should succeed");
-        let upload: MediaUploadResponse = test::read_body_json(response).await;
-
-        let asset_svc = media_asset_service(&db, &settings);
-        let promoted = asset_svc
-            .promote_staging(&upload.operation_id)
-            .await
-            .unwrap();
-        let etag = promoted.etag.clone().expect("etag");
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let media: shared::media::Media = test::read_body_json(response).await;
+        let asset_id = match &media.content {
+            shared::media::MediaContent::SlideDeck { pages } => pages[0].blob_id.clone(),
+            other => panic!("expected deck, got {other:?}"),
+        };
 
         let request = test::TestRequest::get()
             .uri(&format!(
                 "/api/v1/media/{}/assets/{}/data",
-                media.id, promoted.id
+                media.id, asset_id
             ))
             .insert_header(("Authorization", format!("Bearer {token}")))
-            .insert_header((RANGE, "bytes=2-5"))
+            .insert_header((RANGE, "bytes=0-3"))
             .to_request();
         let response = test::call_service(&app, request).await;
         assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
-        assert_eq!(&test::read_body(response).await[..], b"2345");
+        assert_eq!(
+            &test::read_body(response).await[..],
+            &[0x89, b'P', b'N', b'G']
+        );
 
         let request = test::TestRequest::default()
             .method(actix_web::http::Method::HEAD)
             .uri(&format!(
                 "/api/v1/media/{}/assets/{}/data",
-                media.id, promoted.id
+                media.id, asset_id
             ))
             .insert_header(("Authorization", format!("Bearer {token}")))
-            .insert_header(("If-None-Match", etag))
             .to_request();
         assert_eq!(
             test::call_service(&app, request).await.status(),
-            StatusCode::NOT_MODIFIED
+            StatusCode::OK
         );
+    }
+
+    #[actix_web::test]
+    async fn failed_multipart_deck_creation_leaves_no_media_or_assets() {
+        use serde::Deserialize;
+        use surrealdb::types::SurrealValue;
+
+        #[derive(Deserialize, SurrealValue)]
+        struct CountRow {
+            count: i64,
+        }
+
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let token = create_session_token(&db, fixture.writer.clone())
+            .await
+            .unwrap();
+        let settings = media_test_settings();
+        let final_dir = settings.media_final_dir.clone();
+        let app = test::init_service(build_app_with_api_limits(
+            db.clone(),
+            50,
+            200,
+            Some(settings),
+        ))
+        .await;
+        let boundary = "worshipviewer-failing-boundary";
+        let mut body = format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n{{\"title\":\"Broken deck\"}}\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"page.png\"\r\n\r\n"
+        )
+        .into_bytes();
+        body.extend_from_slice(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]);
+        body.extend_from_slice(
+            format!(
+                "\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"broken.pdf\"\r\n\r\n%PDF-not-a-document\r\n--{boundary}--\r\n"
+            )
+            .as_bytes(),
+        );
+        let request = test::TestRequest::post()
+            .uri("/api/v1/media/uploads?kind=slide_deck")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header((
+                "Content-Type",
+                format!("multipart/form-data; boundary={boundary}"),
+            ))
+            .set_payload(body)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        for _ in 0..20 {
+            let mut response = db
+                .db
+                .query("SELECT count() AS count FROM media_asset GROUP ALL")
+                .await
+                .unwrap();
+            let count = response
+                .take::<Vec<CountRow>>(0)
+                .unwrap()
+                .first()
+                .map_or(0, |row| row.count);
+            if count == 0 {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+        let media: Vec<shared::media::Media> = test::call_and_read_body_json(
+            &app,
+            test::TestRequest::get()
+                .uri("/api/v1/media?page=0&page_size=50")
+                .insert_header(("Authorization", format!("Bearer {token}")))
+                .to_request(),
+        )
+        .await;
+        assert!(media.is_empty());
+        let final_files = std::fs::read_dir(final_dir)
+            .map(|entries| entries.count())
+            .unwrap_or(0);
+        assert_eq!(final_files, 0);
     }
 
     #[actix_web::test]
@@ -3186,6 +3211,49 @@ mod media_asset_http {
         assert_eq!(
             test::call_service(&app, guest_upload).await.status(),
             StatusCode::NOT_FOUND
+        );
+    }
+
+    #[actix_web::test]
+    async fn video_upload_is_rejected_when_ffmpeg_is_unavailable() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let token = create_session_token(&db, fixture.writer.clone())
+            .await
+            .unwrap();
+        let mut settings = media_test_settings();
+        settings.media_processing_enabled = true;
+        settings.ffmpeg_path = "definitely-missing-worshipviewer-ffmpeg".into();
+        settings.ffprobe_path = "definitely-missing-worshipviewer-ffprobe".into();
+        let staging_dir = settings.media_staging_dir.clone();
+        let app = test::init_service(build_app_with_api_limits(
+            db.clone(),
+            50,
+            200,
+            Some(settings),
+        ))
+        .await;
+        let request = test::TestRequest::post()
+            .uri("/api/v1/media/uploads?kind=video")
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header(("Content-Type", "multipart/form-data; boundary=x"))
+            .set_payload(b"--x--\r\n".as_slice())
+            .to_request();
+        let response = test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let problem: Problem = test::read_body_json(response).await;
+        assert_eq!(problem.code, "media_processing_unavailable");
+        assert!(
+            !problem
+                .detail
+                .as_deref()
+                .unwrap_or_default()
+                .contains("definitely-missing")
+        );
+        assert!(
+            !std::path::Path::new(&staging_dir).exists(),
+            "rejected upload must not create a staging directory"
         );
     }
 }
@@ -3336,13 +3404,15 @@ mod setlist_items_http {
             .insert_header(("Authorization", auth.clone()))
             .set_json(CreateMedia {
                 owner: None,
-                title: "Processing video".into(),
-                content: CreateMediaContent::Video,
+                title: "Second page".into(),
+                content: CreateMediaContent::WebPage {
+                    url: "https://example.com/second".into(),
+                },
             })
             .to_request();
         let response = test::call_service(&app, request).await;
         assert_eq!(response.status(), StatusCode::CREATED);
-        let processing: Media = test::read_body_json(response).await;
+        let second: Media = test::read_body_json(response).await;
 
         let request = test::TestRequest::post()
             .uri("/api/v1/setlists")
@@ -3365,7 +3435,7 @@ mod setlist_items_http {
                 language: Some("de".into()),
                 flow: None,
             }),
-            SetlistItem::media(&processing.id),
+            SetlistItem::media(&second.id),
             SetlistItem::Song(SongLink {
                 id: song_a.id.clone(),
                 nr: Some("2".into()),
@@ -3449,7 +3519,7 @@ mod setlist_items_http {
         let response = test::call_service(&app, request).await;
         assert_eq!(response.status(), StatusCode::OK);
         let av: Player = test::read_body_json(response).await;
-        assert_eq!(av.items().len(), 5);
+        assert_eq!(av.items().len(), 6);
         assert!(matches!(
             av.items()[0],
             shared::player::PlayerItem::Media(_)
@@ -3460,14 +3530,18 @@ mod setlist_items_http {
         ));
         assert!(matches!(
             av.items()[2],
-            shared::player::PlayerItem::Chords(_)
-        ));
-        assert!(matches!(
-            av.items()[3],
             shared::player::PlayerItem::Media(_)
         ));
         assert!(matches!(
+            av.items()[3],
+            shared::player::PlayerItem::Chords(_)
+        ));
+        assert!(matches!(
             av.items()[4],
+            shared::player::PlayerItem::Media(_)
+        ));
+        assert!(matches!(
+            av.items()[5],
             shared::player::PlayerItem::Chords(_)
         ));
         match &av.items()[0] {
@@ -3500,12 +3574,10 @@ mod setlist_items_http {
             .to_request();
         let response = test::call_service(&app, request).await;
         let av_after: Player = test::read_body_json(response).await;
-        assert_eq!(av_after.items().len(), 3);
-        assert!(
-            av_after
-                .items()
-                .iter()
-                .all(|item| { matches!(item, shared::player::PlayerItem::Chords(_)) })
-        );
+        assert_eq!(av_after.items().len(), 4);
+        assert!(matches!(
+            av_after.items()[1],
+            shared::player::PlayerItem::Media(_)
+        ));
     }
 }

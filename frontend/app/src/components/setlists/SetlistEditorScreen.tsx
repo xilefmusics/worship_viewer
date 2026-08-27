@@ -596,7 +596,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
                     row={row}
                     media={media}
                     hydrationPending={mediaQuery?.isPending ?? false}
-                    brokenHydration={mediaQuery?.isError === true || (!mediaQuery?.isPending && (!media || media.status !== 'ready' || !media.content))}
+                    brokenHydration={mediaQuery?.isError === true || (!mediaQuery?.isPending && !media)}
                     duplicateCount={slotRows.filter((candidate) => candidate.type === 'media' && candidate.link.id === row.link.id).length}
                     canEditUi={canEdit && !blockingAll && !offlineFrozen && !resumePrompt}
                     blockingAll={blockingAll || !canEdit}
@@ -698,7 +698,8 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
         open={mediaPickerOpen}
         onOpenChange={setMediaPickerOpen}
         duplicateCountFor={(mediaId) => slotRows.filter((row) => row.type === 'media' && row.link.id === mediaId).length}
-        blockedAdd={patchInFlight}
+        blockedAdd={blockingAll}
+        defaultOwner={ownerDraft}
         onPickMedia={insertMediaFromPicker}
       />
 
@@ -788,7 +789,7 @@ const SortableMediaRow = memo(function SortableMediaRow({
           {hydrationPending ? <div className="h-4 w-2/3 animate-pulse rounded bg-[var(--color-muted)]" /> : (
             <>
               <p className={cn('truncate font-medium', brokenHydration && 'text-[var(--color-danger)]')}>{brokenHydration ? t('setlists.editor.mediaUnavailable') : media?.title ?? '—'}</p>
-              <p className="text-xs text-[var(--color-muted-foreground)]">{brokenHydration ? t('setlists.editor.mediaBrokenHint') : `${t(`media.kinds.${kind}`)} · ${t('media.states.ready')}`}</p>
+              <p className="text-xs text-[var(--color-muted-foreground)]">{brokenHydration ? t('setlists.editor.mediaBrokenHint') : t(`media.kinds.${kind}`)}</p>
             </>
           )}
           {duplicateCount > 1 ? <p className="mt-1 text-[0.65rem] uppercase text-[var(--color-muted-foreground)]">{t('common.duplicateBadge', { container: t('common.containerSetlist'), count: duplicateCount })}</p> : null}

@@ -83,7 +83,8 @@ pub struct Settings {
     /// Default max source image upload size. Default: 25 MiB.
     #[serde(default = "default_media_image_upload_max_bytes")]
     pub media_image_upload_max_bytes: usize,
-    /// When true, FFmpeg/PDF tooling is required at startup. Default: true.
+    /// When true, FFmpeg-backed uploads are accepted when its tools are available.
+    /// Missing tools produce a startup warning and reject only affected uploads. Default: true.
     #[serde(default = "default_media_processing_enabled")]
     pub media_processing_enabled: bool,
     /// Bounded processing timeout for child processes (seconds). Default: 3600.
@@ -95,12 +96,6 @@ pub struct Settings {
     /// FFprobe executable path. Default: `ffprobe`.
     #[serde(default = "default_ffprobe_path")]
     pub ffprobe_path: String,
-    /// PDF info tool executable path. Default: `pdfinfo`.
-    #[serde(default = "default_pdfinfo_path")]
-    pub pdfinfo_path: String,
-    /// PDF split tool executable path. Default: `pdfseparate`.
-    #[serde(default = "default_pdfseparate_path")]
-    pub pdfseparate_path: String,
     /// Maximum resulting pages in a slide deck. Default: 500.
     #[serde(default = "default_media_deck_max_pages")]
     pub media_deck_max_pages: u32,
@@ -194,8 +189,6 @@ impl fmt::Debug for Settings {
             )
             .field("ffmpeg_path", &self.ffmpeg_path)
             .field("ffprobe_path", &self.ffprobe_path)
-            .field("pdfinfo_path", &self.pdfinfo_path)
-            .field("pdfseparate_path", &self.pdfseparate_path)
             .field("media_deck_max_pages", &self.media_deck_max_pages)
             .field(
                 "media_staging_max_age_seconds",
@@ -257,8 +250,6 @@ impl Default for Settings {
             media_processing_timeout_seconds: default_media_processing_timeout_seconds(),
             ffmpeg_path: default_ffmpeg_path(),
             ffprobe_path: default_ffprobe_path(),
-            pdfinfo_path: default_pdfinfo_path(),
-            pdfseparate_path: default_pdfseparate_path(),
             media_deck_max_pages: default_media_deck_max_pages(),
             media_staging_max_age_seconds: default_media_staging_max_age_seconds(),
             media_reconciliation_interval_seconds: default_media_reconciliation_interval_seconds(),
@@ -318,14 +309,6 @@ fn default_ffmpeg_path() -> String {
 
 fn default_ffprobe_path() -> String {
     "ffprobe".into()
-}
-
-fn default_pdfinfo_path() -> String {
-    "pdfinfo".into()
-}
-
-fn default_pdfseparate_path() -> String {
-    "pdfseparate".into()
 }
 
 fn default_media_deck_max_pages() -> u32 {

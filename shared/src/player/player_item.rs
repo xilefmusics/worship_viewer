@@ -1,4 +1,4 @@
-use crate::media::{Media, MediaContent, MediaStatus};
+use crate::media::{Media, MediaContent};
 use crate::song::Song;
 use chordlib::types::SongFlowItem;
 use serde::{Deserialize, Serialize};
@@ -33,7 +33,7 @@ pub struct PlayerChordsItem {
     pub flow: Option<Vec<SongFlowItem>>,
 }
 
-/// Immutable Ready Media snapshot for online AV (`type`: `"media"`).
+/// Immutable Media snapshot for online AV (`type`: `"media"`).
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct PlayerMediaItem {
@@ -44,16 +44,12 @@ pub struct PlayerMediaItem {
 }
 
 impl PlayerMediaItem {
-    /// Snapshot Ready media for AV. Returns `None` when content is not playable.
+    /// Snapshot playable media for AV.
     pub fn from_ready_media(media: &Media) -> Option<Self> {
-        if media.status != MediaStatus::Ready {
-            return None;
-        }
-        let content = media.content.clone()?;
         Some(Self {
             id: media.id.clone(),
             title: media.title.clone(),
-            content,
+            content: media.content.clone(),
         })
     }
 }

@@ -43,8 +43,8 @@ vi.mock('@/hooks/usePlayerIndexSearchSync', () => ({
 }))
 
 vi.mock('@/hooks/useSetlistEvictionWatch', () => ({
-  useSetlistEvictionWatch: () => {
-    setEvictionWatch()
+  useSetlistEvictionWatch: (setlistId: string | undefined, enabled: boolean) => {
+    setEvictionWatch(setlistId, enabled)
     return false
   },
 }))
@@ -636,6 +636,19 @@ describe('PlayerAv', () => {
       },
     ],
   } as Player
+
+  it('does not watch media setlists for offline mirror eviction', () => {
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-with-media"
+        player={mixedPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+
+    expect(setEvictionWatch).toHaveBeenLastCalledWith(undefined, false)
+  })
 
   it('I3: warns when a page is projected with no ready output', async () => {
     const user = userEvent.setup()

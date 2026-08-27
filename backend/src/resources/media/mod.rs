@@ -1,7 +1,7 @@
 pub use shared::media::{
-    CommitDeck, CreateMedia, CreateMediaContent, DeclaredMediaKind, DuplicateMedia, LivestreamType,
-    Media, MediaContent, MediaDeckPage, MediaPendingRevision, MediaProcessingError,
-    MediaStagedDeckPage, MediaStatus, UpdateMedia,
+    CommitDeck, CreateMedia, CreateMediaContent, CreateUploadedMedia, DuplicateMedia,
+    LivestreamType, Media, MediaContent, MediaDeckPage, MediaPendingRevision, MediaStagedDeckPage,
+    UpdateMedia, UploadedMediaKind,
 };
 
 mod model;

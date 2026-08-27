@@ -37,15 +37,11 @@ import { useTeamDetail } from '@/hooks/useTeamDetail'
 import { useWritableTeams } from '@/hooks/useWritableTeams'
 import { getNextPageIndex } from '@/lib/list-pagination'
 import {
-  isReadyUploaded,
-  isUrlMediaKind,
   mediaCanonicalUrl,
   mediaDisplayKind,
-  mediaDisplayStatus,
 } from '@/lib/media-display'
 import { getTeamDisplayName } from '@/lib/team-display-name'
 import { canEditTeamLibrary } from '@/lib/team-permissions'
-import { cn } from '@/lib/utils'
 
 export function MediaListView() {
   const { t } = useTranslation()
@@ -111,9 +107,7 @@ function MediaRow({ media, canMove, onOpen, onMove, onDelete }: { media: Media; 
   const { data: user } = useSession()
   const ownerTeam = useTeamDetail(media.owner)
   const canEdit = Boolean(ownerTeam.data && user?.id && canEditTeamLibrary(ownerTeam.data, user.id))
-  const status = mediaDisplayStatus(media)
   const kind = mediaDisplayKind(media)
-  const canDuplicate = (status === 'ready' && isUrlMediaKind(kind)) || isReadyUploaded(media)
   const duplicateMutation = useMutation({
     mutationFn: () => duplicateMedia(queryClient, media.id, t('media.duplicate.title', { title: media.title })),
     onSuccess: (created) => {
@@ -125,16 +119,16 @@ function MediaRow({ media, canMove, onOpen, onMove, onDelete }: { media: Media; 
   const identity = mediaCanonicalUrl(media)
   return (
     <div className="flex min-h-16 items-center gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0">
-      <button type="button" onClick={onOpen} className="min-w-0 flex-1 rounded-md px-1 py-1 text-left outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]" aria-label={t('media.row.openAria', { title: media.title, kind: t(`media.kinds.${kind}`), status: t(`media.states.${status}`) })}>
+      <button type="button" onClick={onOpen} className="min-w-0 flex-1 rounded-md px-1 py-1 text-left outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]" aria-label={t('media.row.openAria', { title: media.title, kind: t(`media.kinds.${kind}`) })}>
         <span className="block truncate font-medium">{media.title}</span>
-        <span className="flex min-w-0 items-center gap-2 text-sm text-[var(--color-muted-foreground)]"><span>{t(`media.kinds.${kind}`)}</span><span aria-hidden>·</span><span className={cn(status === 'failed' && 'text-[var(--color-destructive)]', status === 'processing' && 'text-[var(--color-warning,var(--color-muted-foreground))]')}>{t(`media.states.${status}`)}</span>{identity ? <><span aria-hidden>·</span><span className="truncate">{identity}</span></> : null}</span>
+        <span className="flex min-w-0 items-center gap-2 text-sm text-[var(--color-muted-foreground)]"><span>{t(`media.kinds.${kind}`)}</span>{identity ? <><span aria-hidden>·</span><span className="truncate">{identity}</span></> : null}</span>
       </button>
       {canEdit ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label={t('media.row.actionsAria', { title: media.title })}>•••</Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={onOpen}>{t('media.actions.edit')}</DropdownMenuItem>
-            {canDuplicate ? <DropdownMenuItem disabled={duplicateMutation.isPending} onSelect={() => duplicateMutation.mutate()}>{t('media.actions.duplicate')}</DropdownMenuItem> : null}
+            <DropdownMenuItem disabled={duplicateMutation.isPending} onSelect={() => duplicateMutation.mutate()}>{t('media.actions.duplicate')}</DropdownMenuItem>
             {canMove ? <DropdownMenuItem onSelect={onMove}>{t('media.actions.move')}</DropdownMenuItem> : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-[var(--color-destructive)]" onSelect={onDelete}>{t('media.actions.delete')}</DropdownMenuItem>
