@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CommandPalette } from '@/components/hub/CommandPalette'
+import { AdminMobileNav } from '@/components/admin/AdminNavigation'
 import { SessionLoadingFallback } from '@/components/SessionLoadingFallback'
 import { SessionUnavailableScreen } from '@/components/SessionUnavailableScreen'
 import { SetlistPaletteRegistrarProvider } from '@/context/SetlistPaletteBridgeContext'
@@ -76,6 +77,8 @@ const hubDetailBackButtonClass =
 
 /** Hub list tab id from pathname; stable when only a sub-segment changes (e.g. `/songs` → `/songs/:id`). */
 function hubSearchSectionKey(pathname: string): string | null {
+  if (pathname === '/admin/users') return 'admin-users'
+  if (pathname === '/admin/metrics') return 'admin-metrics'
   const seg = pathname.split('/').filter(Boolean)[0]
   if (
     seg === 'collections' ||
@@ -135,6 +138,8 @@ function HubLibrarySearchField({
   onSearchBlur,
   onSearchMouseEnter,
   onSearchMouseLeave,
+  placeholder,
+  ariaLabel,
 }: {
   searchAnchorRef: RefObject<HTMLDivElement | null>
   searchInputRef: RefObject<HTMLInputElement | null>
@@ -146,6 +151,8 @@ function HubLibrarySearchField({
   onSearchBlur: () => void
   onSearchMouseEnter: () => void
   onSearchMouseLeave: () => void
+  placeholder?: string
+  ariaLabel?: string
 }) {
   const { t } = useTranslation()
   const { selectedTeamId } = useHubSearch()
@@ -180,8 +187,8 @@ function HubLibrarySearchField({
           onChange={(e) => setQInput(e.target.value)}
           onFocus={onSearchFocus}
           onBlur={onSearchBlur}
-          placeholder={t('hub.searchPlaceholder')}
-          aria-label={t('hub.searchAria')}
+          placeholder={placeholder ?? t('hub.searchPlaceholder')}
+          aria-label={ariaLabel ?? t('hub.searchAria')}
           tabIndex={paletteOpen ? -1 : 0}
           className="h-full min-w-0 flex-1 rounded-full border-0 bg-transparent pl-2 pr-1 shadow-none focus-visible:outline-none"
         />
@@ -366,7 +373,9 @@ function HubChrome({
   const isMediaDetail = /^\/media\/[^/]+$/.test(pathname)
   const mediaEditorId = isMediaDetail ? pathname.slice('/media/'.length) : ''
   const isSettings = pathname === '/settings'
-  const isAdmin = pathname === '/admin'
+  const isAdmin = pathname === '/admin/metrics'
+  const isAdminUsers = pathname === '/admin/users'
+  const isAdminArea = pathname === '/admin' || pathname.startsWith('/admin/')
   const isSessions = pathname === '/sessions'
   const isAbout = pathname === '/about'
   const adminSearch = locationSearch as Record<string, unknown>
@@ -403,7 +412,7 @@ function HubChrome({
   const hideHubPlus =
     pathname === '/sessions' ||
     pathname === '/settings' ||
-    pathname === '/admin' ||
+    isAdminArea ||
     pathname === '/about' ||
     isTeamDetail ||
     isSetlistDetail ||
@@ -418,7 +427,7 @@ function HubChrome({
     !isSongDetail &&
     !isMediaDetail &&
     !isSettings &&
-    !isAdmin &&
+    !isAdminArea &&
     !isSessions &&
     !isAbout
   const reduceMotion = useReducedMotion()
@@ -549,7 +558,7 @@ function HubChrome({
 
   function navigateAdminSearch(nextStart: string, nextEnd: string) {
     void navigate({
-      to: '/admin',
+      to: '/admin/metrics',
       search: {
         start: nextStart,
         end: nextEnd,
@@ -880,18 +889,7 @@ function HubChrome({
             </>
           ) : isAdmin ? (
             <>
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                onClick={() => {
-                  void navigate({ to: '/collections' })
-                }}
-                className={hubDetailBackButtonClass}
-                aria-label={t('adminDashboard.back')}
-              >
-                <ChevronLeftIcon className="text-[var(--color-foreground)]" size={20} />
-              </Button>
+              <AdminMobileNav />
               <AdminDateRangeField
                 searchAnchorRef={searchAnchorRef}
                 paletteOpen={paletteOpen}
@@ -905,6 +903,24 @@ function HubChrome({
                 searchIconActive={searchIconActive}
                 onSearchMouseEnter={() => setSearchFieldHovered(true)}
                 onSearchMouseLeave={() => setSearchFieldHovered(false)}
+              />
+            </>
+          ) : isAdminUsers ? (
+            <>
+              <AdminMobileNav />
+              <HubLibrarySearchField
+                searchAnchorRef={searchAnchorRef}
+                searchInputRef={searchInputRef}
+                paletteOpen={paletteOpen}
+                qInput={qInput}
+                setQInput={setQInput}
+                searchIconActive={searchIconActive}
+                onSearchFocus={() => setSearchFocused(true)}
+                onSearchBlur={() => setSearchFocused(false)}
+                onSearchMouseEnter={() => setSearchFieldHovered(true)}
+                onSearchMouseLeave={() => setSearchFieldHovered(false)}
+                placeholder={t('adminUsers.searchPlaceholder')}
+                ariaLabel={t('adminUsers.searchAria')}
               />
             </>
           ) : isSessions ? (

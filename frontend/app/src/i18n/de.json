@@ -474,6 +474,46 @@
       "prevMonth": "Vormonat"
     }
   },
+  "adminNav": {
+    "kicker": "Verwaltung",
+    "title": "Admin",
+    "aria": "Admin-Navigation",
+    "metrics": "Metriken",
+    "users": "Nutzer",
+    "back": "Zurück zur Bibliothek",
+    "open": "Admin-Navigation öffnen"
+  },
+  "adminUsers": {
+    "title": "Nutzer",
+    "description": "Alle bei Worship Viewer registrierten Nutzerkonten durchsuchen.",
+    "searchPlaceholder": "Nutzer suchen...",
+    "searchAria": "Nutzer nach E-Mail-Adresse oder ID suchen",
+    "columns": {
+      "email": "E-Mail",
+      "id": "Nutzer-ID",
+      "role": "Rolle",
+      "created": "Erstellt"
+    },
+    "roles": {
+      "admin": "Admin",
+      "default": "Nutzer"
+    },
+    "loading": "Nutzer werden geladen...",
+    "errorTitle": "Nutzer konnten nicht geladen werden",
+    "errorBody": "Bitte versuche es in einem Moment erneut.",
+    "retry": "Erneut versuchen",
+    "emptyTitle": "Noch keine Nutzer",
+    "emptyBody": "Nutzerkonten erscheinen hier, nachdem sie sich registriert haben.",
+    "noResultsTitle": "Keine passenden Nutzer",
+    "noResultsBody": "Versuche eine andere E-Mail-Adresse oder Nutzer-ID.",
+    "clearSearch": "Suche löschen",
+    "pagination": {
+      "range": "{{first}}–{{last}} von {{total}} Nutzern",
+      "rangeUnknown": "{{first}}–{{last}} Nutzer",
+      "previous": "Zurück",
+      "next": "Weiter"
+    }
+  },
   "settings": {
     "title": "Einstellungen",
     "description": "Lege fest, wie Worship Viewer auf diesem Gerät funktioniert.",
