@@ -33,6 +33,7 @@ import { Route as HubCollectionsRouteImport } from './routes/_hub/collections'
 import { Route as HubAdminRouteImport } from './routes/_hub/admin'
 import { Route as HubAboutRouteImport } from './routes/_hub/about'
 import { Route as PlayerRoomsInviteIndexRouteImport } from './routes/player-rooms.invite.index'
+import { Route as HubAdminIndexRouteImport } from './routes/_hub/admin.index'
 import { Route as PlayerRoomRoomIdRouteImport } from './routes/player/room.$roomId'
 import { Route as PlayerMediaMediaIdRouteImport } from './routes/player/media.$mediaId'
 import { Route as PlayerRoomsInviteRoomIdRouteImport } from './routes/player-rooms.invite.$roomId'
@@ -41,6 +42,8 @@ import { Route as HubSongsSongIdRouteImport } from './routes/_hub/songs.$songId'
 import { Route as HubSetlistsSetlistIdRouteImport } from './routes/_hub/setlists.$setlistId'
 import { Route as HubMediaMediaIdRouteImport } from './routes/_hub/media.$mediaId'
 import { Route as HubCollectionsCollectionIdRouteImport } from './routes/_hub/collections.$collectionId'
+import { Route as HubAdminUsersRouteImport } from './routes/_hub/admin.users'
+import { Route as HubAdminMetricsRouteImport } from './routes/_hub/admin.metrics'
 
 const LogoutRoute = LogoutRouteImport.update({
   id: '/logout',
@@ -161,6 +164,11 @@ const PlayerRoomsInviteIndexRoute = PlayerRoomsInviteIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PlayerRoomsInviteRoute,
 } as any)
+const HubAdminIndexRoute = HubAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => HubAdminRoute,
+} as any)
 const PlayerRoomRoomIdRoute = PlayerRoomRoomIdRouteImport.update({
   id: '/room/$roomId',
   path: '/room/$roomId',
@@ -202,6 +210,16 @@ const HubCollectionsCollectionIdRoute =
     path: '/$collectionId',
     getParentRoute: () => HubCollectionsRoute,
   } as any)
+const HubAdminUsersRoute = HubAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => HubAdminRoute,
+} as any)
+const HubAdminMetricsRoute = HubAdminMetricsRouteImport.update({
+  id: '/metrics',
+  path: '/metrics',
+  getParentRoute: () => HubAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -211,7 +229,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/about': typeof HubAboutRoute
-  '/admin': typeof HubAdminRoute
+  '/admin': typeof HubAdminRouteWithChildren
   '/collections': typeof HubCollectionsRouteWithChildren
   '/media': typeof HubMediaRouteWithChildren
   '/player-rooms': typeof HubPlayerRoomsRoute
@@ -226,6 +244,8 @@ export interface FileRoutesByFullPath {
   '/player-rooms/invite': typeof PlayerRoomsInviteRouteWithChildren
   '/player/output': typeof PlayerOutputRoute
   '/player/': typeof PlayerIndexRoute
+  '/admin/metrics': typeof HubAdminMetricsRoute
+  '/admin/users': typeof HubAdminUsersRoute
   '/collections/$collectionId': typeof HubCollectionsCollectionIdRoute
   '/media/$mediaId': typeof HubMediaMediaIdRoute
   '/setlists/$setlistId': typeof HubSetlistsSetlistIdRoute
@@ -234,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/player-rooms/invite/$roomId': typeof PlayerRoomsInviteRoomIdRoute
   '/player/media/$mediaId': typeof PlayerMediaMediaIdRoute
   '/player/room/$roomId': typeof PlayerRoomRoomIdRoute
+  '/admin/': typeof HubAdminIndexRoute
   '/player-rooms/invite/': typeof PlayerRoomsInviteIndexRoute
 }
 export interface FileRoutesByTo {
@@ -243,7 +264,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/about': typeof HubAboutRoute
-  '/admin': typeof HubAdminRoute
   '/collections': typeof HubCollectionsRouteWithChildren
   '/media': typeof HubMediaRouteWithChildren
   '/player-rooms': typeof HubPlayerRoomsRoute
@@ -257,6 +277,8 @@ export interface FileRoutesByTo {
   '/ugc': typeof HubUgcRoute
   '/player/output': typeof PlayerOutputRoute
   '/player': typeof PlayerIndexRoute
+  '/admin/metrics': typeof HubAdminMetricsRoute
+  '/admin/users': typeof HubAdminUsersRoute
   '/collections/$collectionId': typeof HubCollectionsCollectionIdRoute
   '/media/$mediaId': typeof HubMediaMediaIdRoute
   '/setlists/$setlistId': typeof HubSetlistsSetlistIdRoute
@@ -265,6 +287,7 @@ export interface FileRoutesByTo {
   '/player-rooms/invite/$roomId': typeof PlayerRoomsInviteRoomIdRoute
   '/player/media/$mediaId': typeof PlayerMediaMediaIdRoute
   '/player/room/$roomId': typeof PlayerRoomRoomIdRoute
+  '/admin': typeof HubAdminIndexRoute
   '/player-rooms/invite': typeof PlayerRoomsInviteIndexRoute
 }
 export interface FileRoutesById {
@@ -277,7 +300,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/_hub/about': typeof HubAboutRoute
-  '/_hub/admin': typeof HubAdminRoute
+  '/_hub/admin': typeof HubAdminRouteWithChildren
   '/_hub/collections': typeof HubCollectionsRouteWithChildren
   '/_hub/media': typeof HubMediaRouteWithChildren
   '/_hub/player-rooms': typeof HubPlayerRoomsRoute
@@ -292,6 +315,8 @@ export interface FileRoutesById {
   '/player-rooms/invite': typeof PlayerRoomsInviteRouteWithChildren
   '/player/output': typeof PlayerOutputRoute
   '/player/': typeof PlayerIndexRoute
+  '/_hub/admin/metrics': typeof HubAdminMetricsRoute
+  '/_hub/admin/users': typeof HubAdminUsersRoute
   '/_hub/collections/$collectionId': typeof HubCollectionsCollectionIdRoute
   '/_hub/media/$mediaId': typeof HubMediaMediaIdRoute
   '/_hub/setlists/$setlistId': typeof HubSetlistsSetlistIdRoute
@@ -300,6 +325,7 @@ export interface FileRoutesById {
   '/player-rooms/invite/$roomId': typeof PlayerRoomsInviteRoomIdRoute
   '/player/media/$mediaId': typeof PlayerMediaMediaIdRoute
   '/player/room/$roomId': typeof PlayerRoomRoomIdRoute
+  '/_hub/admin/': typeof HubAdminIndexRoute
   '/player-rooms/invite/': typeof PlayerRoomsInviteIndexRoute
 }
 export interface FileRouteTypes {
@@ -327,6 +353,8 @@ export interface FileRouteTypes {
     | '/player-rooms/invite'
     | '/player/output'
     | '/player/'
+    | '/admin/metrics'
+    | '/admin/users'
     | '/collections/$collectionId'
     | '/media/$mediaId'
     | '/setlists/$setlistId'
@@ -335,6 +363,7 @@ export interface FileRouteTypes {
     | '/player-rooms/invite/$roomId'
     | '/player/media/$mediaId'
     | '/player/room/$roomId'
+    | '/admin/'
     | '/player-rooms/invite/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -344,7 +373,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/about'
-    | '/admin'
     | '/collections'
     | '/media'
     | '/player-rooms'
@@ -358,6 +386,8 @@ export interface FileRouteTypes {
     | '/ugc'
     | '/player/output'
     | '/player'
+    | '/admin/metrics'
+    | '/admin/users'
     | '/collections/$collectionId'
     | '/media/$mediaId'
     | '/setlists/$setlistId'
@@ -366,6 +396,7 @@ export interface FileRouteTypes {
     | '/player-rooms/invite/$roomId'
     | '/player/media/$mediaId'
     | '/player/room/$roomId'
+    | '/admin'
     | '/player-rooms/invite'
   id:
     | '__root__'
@@ -392,6 +423,8 @@ export interface FileRouteTypes {
     | '/player-rooms/invite'
     | '/player/output'
     | '/player/'
+    | '/_hub/admin/metrics'
+    | '/_hub/admin/users'
     | '/_hub/collections/$collectionId'
     | '/_hub/media/$mediaId'
     | '/_hub/setlists/$setlistId'
@@ -400,6 +433,7 @@ export interface FileRouteTypes {
     | '/player-rooms/invite/$roomId'
     | '/player/media/$mediaId'
     | '/player/room/$roomId'
+    | '/_hub/admin/'
     | '/player-rooms/invite/'
   fileRoutesById: FileRoutesById
 }
@@ -584,6 +618,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayerRoomsInviteIndexRouteImport
       parentRoute: typeof PlayerRoomsInviteRoute
     }
+    '/_hub/admin/': {
+      id: '/_hub/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof HubAdminIndexRouteImport
+      parentRoute: typeof HubAdminRoute
+    }
     '/player/room/$roomId': {
       id: '/player/room/$roomId'
       path: '/room/$roomId'
@@ -640,6 +681,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HubCollectionsCollectionIdRouteImport
       parentRoute: typeof HubCollectionsRoute
     }
+    '/_hub/admin/users': {
+      id: '/_hub/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof HubAdminUsersRouteImport
+      parentRoute: typeof HubAdminRoute
+    }
+    '/_hub/admin/metrics': {
+      id: '/_hub/admin/metrics'
+      path: '/metrics'
+      fullPath: '/admin/metrics'
+      preLoaderRoute: typeof HubAdminMetricsRouteImport
+      parentRoute: typeof HubAdminRoute
+    }
   }
 }
 
@@ -659,6 +714,22 @@ const PlayerRouteRouteChildren: PlayerRouteRouteChildren = {
 
 const PlayerRouteRouteWithChildren = PlayerRouteRoute._addFileChildren(
   PlayerRouteRouteChildren,
+)
+
+interface HubAdminRouteChildren {
+  HubAdminMetricsRoute: typeof HubAdminMetricsRoute
+  HubAdminUsersRoute: typeof HubAdminUsersRoute
+  HubAdminIndexRoute: typeof HubAdminIndexRoute
+}
+
+const HubAdminRouteChildren: HubAdminRouteChildren = {
+  HubAdminMetricsRoute: HubAdminMetricsRoute,
+  HubAdminUsersRoute: HubAdminUsersRoute,
+  HubAdminIndexRoute: HubAdminIndexRoute,
+}
+
+const HubAdminRouteWithChildren = HubAdminRoute._addFileChildren(
+  HubAdminRouteChildren,
 )
 
 interface HubCollectionsRouteChildren {
@@ -723,7 +794,7 @@ const HubTeamsRouteWithChildren = HubTeamsRoute._addFileChildren(
 
 interface HubRouteChildren {
   HubAboutRoute: typeof HubAboutRoute
-  HubAdminRoute: typeof HubAdminRoute
+  HubAdminRoute: typeof HubAdminRouteWithChildren
   HubCollectionsRoute: typeof HubCollectionsRouteWithChildren
   HubMediaRoute: typeof HubMediaRouteWithChildren
   HubPlayerRoomsRoute: typeof HubPlayerRoomsRoute
@@ -739,7 +810,7 @@ interface HubRouteChildren {
 
 const HubRouteChildren: HubRouteChildren = {
   HubAboutRoute: HubAboutRoute,
-  HubAdminRoute: HubAdminRoute,
+  HubAdminRoute: HubAdminRouteWithChildren,
   HubCollectionsRoute: HubCollectionsRouteWithChildren,
   HubMediaRoute: HubMediaRouteWithChildren,
   HubPlayerRoomsRoute: HubPlayerRoomsRoute,

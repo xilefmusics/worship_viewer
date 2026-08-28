@@ -474,6 +474,46 @@
       "prevMonth": "Previous month"
     }
   },
+  "adminNav": {
+    "kicker": "Administration",
+    "title": "Admin",
+    "aria": "Admin navigation",
+    "metrics": "Metrics",
+    "users": "Users",
+    "back": "Back to library",
+    "open": "Open admin navigation"
+  },
+  "adminUsers": {
+    "title": "Users",
+    "description": "Browse all user accounts registered with Worship Viewer.",
+    "searchPlaceholder": "Search users...",
+    "searchAria": "Search users by email or ID",
+    "columns": {
+      "email": "Email",
+      "id": "User ID",
+      "role": "Role",
+      "created": "Created"
+    },
+    "roles": {
+      "admin": "Admin",
+      "default": "User"
+    },
+    "loading": "Loading users...",
+    "errorTitle": "Could not load users",
+    "errorBody": "Try again in a moment.",
+    "retry": "Try again",
+    "emptyTitle": "No users yet",
+    "emptyBody": "User accounts will appear here after they register.",
+    "noResultsTitle": "No matching users",
+    "noResultsBody": "Try a different email address or user ID.",
+    "clearSearch": "Clear search",
+    "pagination": {
+      "range": "Showing {{first}}–{{last}} of {{total}} users",
+      "rangeUnknown": "Showing {{first}}–{{last}} users",
+      "previous": "Previous",
+      "next": "Next"
+    }
+  },
   "settings": {
     "title": "Settings",
     "description": "Choose how Worship Viewer behaves on this device.",

@@ -25,7 +25,6 @@ import { useUserAvatarDisplay } from '@/hooks/useUserAvatarDisplay'
 import { performLogout } from '@/lib/logout-queue'
 import { usePwaInstall } from '@/pwa/pwa-install-context'
 import { Route as RootRoute } from '@/routes/__root'
-import { formatAdminDateInputValue, resolveAdminQuickRange } from '@/lib/admin-dashboard'
 import { cn } from '@/lib/utils'
 
 type ProfileMenuProps = {
@@ -123,14 +122,8 @@ export function ProfileMenu({ user, offline = false }: ProfileMenuProps) {
             onSelect={() => {
               void (async () => {
                 if (!(await leaveSongEditorIfNeeded())) return
-                const range = resolveAdminQuickRange('30d')
                 void navigate({
-                  to: '/admin',
-                  search: {
-                    start: formatAdminDateInputValue(range.start),
-                    end: formatAdminDateInputValue(range.end),
-                  },
-                  replace: true,
+                  to: '/admin/users',
                 })
               })()
             }}
