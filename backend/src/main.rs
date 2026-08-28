@@ -192,6 +192,9 @@ async fn main() -> AnyResult<()> {
             {
                 tracing::warn!(error = %err, "media staging reconciliation failed");
             }
+            if let Err(err) = reconciliation_asset.reconcile_orphan_assets().await {
+                tracing::warn!(error = %err, "orphaned media asset reconciliation failed");
+            }
             tokio::time::sleep(interval).await;
         }
     });

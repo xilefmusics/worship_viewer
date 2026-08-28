@@ -18,6 +18,7 @@ use crate::error::AppError;
 use crate::http_cache::{if_none_match_matches, weak_etag_from_bytes};
 
 const CHUNK_SIZE: usize = 64 * 1024;
+const X_CONTENT_TYPE_OPTIONS: &str = "x-content-type-options";
 
 /// Parsed single HTTP range against a file of `total_len` bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -224,6 +225,7 @@ pub async fn file_data_response(
             builder
                 .insert_header((ETAG, etag_hdr))
                 .insert_header((CONTENT_TYPE, ct))
+                .insert_header((X_CONTENT_TYPE_OPTIONS, "nosniff"))
                 .insert_header((CACHE_CONTROL, private_cache_headers()))
                 .insert_header((ACCEPT_RANGES, HeaderValue::from_static("bytes")))
                 .insert_header((CONTENT_LENGTH, total_len.to_string()));
@@ -238,6 +240,7 @@ pub async fn file_data_response(
                 builder
                     .insert_header((ETAG, etag_hdr))
                     .insert_header((CONTENT_TYPE, ct))
+                    .insert_header((X_CONTENT_TYPE_OPTIONS, "nosniff"))
                     .insert_header((CACHE_CONTROL, private_cache_headers()))
                     .insert_header((ACCEPT_RANGES, HeaderValue::from_static("bytes")))
                     .insert_header((CONTENT_LENGTH, total_len.to_string()));
@@ -252,6 +255,7 @@ pub async fn file_data_response(
             builder
                 .insert_header((ETAG, etag_hdr))
                 .insert_header((CONTENT_TYPE, ct))
+                .insert_header((X_CONTENT_TYPE_OPTIONS, "nosniff"))
                 .insert_header((CACHE_CONTROL, private_cache_headers()))
                 .insert_header((ACCEPT_RANGES, HeaderValue::from_static("bytes")))
                 .insert_header((CONTENT_RANGE, cr))
@@ -372,6 +376,10 @@ mod tests {
         let req = actix_web::test::TestRequest::get().uri("/").to_request();
         let resp = actix_web::test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers().get(X_CONTENT_TYPE_OPTIONS).unwrap(),
+            "nosniff"
+        );
         let body = actix_web::test::read_body(resp).await;
         assert_eq!(&body[..], b"hello world");
 

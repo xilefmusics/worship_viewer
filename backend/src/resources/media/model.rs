@@ -62,18 +62,5 @@ impl MediaRecord {
 }
 
 fn parse_pending_revision(value: &str) -> Result<MediaPendingRevision, serde_json::Error> {
-    if let Ok(current) = serde_json::from_str(value) {
-        return Ok(current);
-    }
-    #[derive(Deserialize)]
-    struct LegacyPendingRevision {
-        operation: String,
-        #[serde(default)]
-        pages: Vec<shared::media::MediaStagedDeckPage>,
-    }
-    let legacy: LegacyPendingRevision = serde_json::from_str(value)?;
-    Ok(MediaPendingRevision {
-        revision_id: legacy.operation,
-        pages: legacy.pages,
-    })
+    serde_json::from_str(value)
 }

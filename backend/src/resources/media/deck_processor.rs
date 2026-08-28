@@ -2,14 +2,16 @@
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use lopdf::{Document, LoadOptions};
 use shared::MediaAssetKind;
 
-use crate::process_runner::TempWorkDir;
-use crate::resources::media::av_processor::AvProcessFailure;
+use crate::error::AppError;
+use crate::temp_work_dir::TempWorkDir;
 
 const MAX_PDF_DECOMPRESSED_STREAM_BYTES: usize = 256 * 1024 * 1024;
 
@@ -40,27 +42,52 @@ pub trait DeckProcessor: Send + Sync {
         declared_kind: MediaAssetKind,
         work_parent: &Path,
         remaining_page_budget: usize,
-    ) -> Result<DeckExpandResult, AvProcessFailure>;
+    ) -> Result<DeckExpandResult, DeckProcessFailure>;
 }
 
-pub struct UnsupportedDeckProcessor;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeckProcessFailure {
+    InputInvalid,
+    InputUnsupported,
+    TimedOut,
+    Failed,
+}
 
-#[async_trait]
-impl DeckProcessor for UnsupportedDeckProcessor {
-    async fn expand_source(
-        &self,
-        _input: &Path,
-        _declared_kind: MediaAssetKind,
-        _work_parent: &Path,
-        _remaining_page_budget: usize,
-    ) -> Result<DeckExpandResult, AvProcessFailure> {
-        Err(AvProcessFailure::InputUnsupported)
+impl DeckProcessFailure {
+    fn code(self) -> &'static str {
+        match self {
+            Self::InputInvalid => "media_input_invalid",
+            Self::InputUnsupported => "media_input_unsupported",
+            Self::TimedOut => "media_processing_timeout",
+            Self::Failed => "media_processing_failed",
+        }
     }
+
+    fn detail(self) -> &'static str {
+        match self {
+            Self::InputInvalid => "The uploaded file could not be read or is malformed.",
+            Self::InputUnsupported => "The uploaded file format is not supported.",
+            Self::TimedOut => "Processing took too long.",
+            Self::Failed => "Processing failed.",
+        }
+    }
+}
+
+pub fn app_error_from_failure(failure: DeckProcessFailure) -> AppError {
+    AppError::media_processing(failure.code(), failure.detail())
 }
 
 #[derive(Clone)]
 pub struct LopdfDeckProcessor {
     pub timeout: Duration,
+}
+
+struct CancelBlockingDeckWork(Arc<AtomicBool>);
+
+impl Drop for CancelBlockingDeckWork {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
 }
 
 #[async_trait]
@@ -71,16 +98,30 @@ impl DeckProcessor for LopdfDeckProcessor {
         declared_kind: MediaAssetKind,
         work_parent: &Path,
         remaining_page_budget: usize,
-    ) -> Result<DeckExpandResult, AvProcessFailure> {
+    ) -> Result<DeckExpandResult, DeckProcessFailure> {
         let input = input.to_path_buf();
         let work_parent = work_parent.to_path_buf();
-        let task = tokio::task::spawn_blocking(move || {
-            expand_source_blocking(&input, declared_kind, &work_parent, remaining_page_budget)
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let cancellation_guard = CancelBlockingDeckWork(cancelled.clone());
+        let mut task = tokio::task::spawn_blocking(move || {
+            expand_source_blocking(
+                &input,
+                declared_kind,
+                &work_parent,
+                remaining_page_budget,
+                &cancelled,
+            )
         });
-        tokio::time::timeout(self.timeout, task)
-            .await
-            .map_err(|_| AvProcessFailure::TimedOut)?
-            .map_err(|_| AvProcessFailure::Failed)?
+        let result = match tokio::time::timeout(self.timeout, &mut task).await {
+            Ok(result) => result.map_err(|_| DeckProcessFailure::Failed)?,
+            Err(_) => {
+                cancellation_guard.0.store(true, Ordering::Relaxed);
+                let _ = task.await;
+                return Err(DeckProcessFailure::TimedOut);
+            }
+        };
+        drop(cancellation_guard);
+        result
     }
 }
 
@@ -89,15 +130,17 @@ fn expand_source_blocking(
     declared_kind: MediaAssetKind,
     work_parent: &Path,
     remaining_page_budget: usize,
-) -> Result<DeckExpandResult, AvProcessFailure> {
+    cancelled: &AtomicBool,
+) -> Result<DeckExpandResult, DeckProcessFailure> {
+    check_cancelled(cancelled)?;
     let detected = detect_deck_source_path(input)?;
     if !declared_kind_matches(declared_kind, detected) {
-        return Err(AvProcessFailure::InputUnsupported);
+        return Err(DeckProcessFailure::InputUnsupported);
     }
     match detected {
         DetectedDeckSource::Png | DetectedDeckSource::Jpeg => {
             if remaining_page_budget < 1 {
-                return Err(AvProcessFailure::InputUnsupported);
+                return Err(DeckProcessFailure::InputUnsupported);
             }
             Ok(DeckExpandResult::new(
                 vec![DeckPageOutput {
@@ -110,14 +153,15 @@ fn expand_source_blocking(
         }
         DetectedDeckSource::Svg => {
             if remaining_page_budget < 1 {
-                return Err(AvProcessFailure::InputUnsupported);
+                return Err(DeckProcessFailure::InputUnsupported);
             }
             let text =
-                std::fs::read_to_string(input).map_err(|_| AvProcessFailure::InputInvalid)?;
+                std::fs::read_to_string(input).map_err(|_| DeckProcessFailure::InputInvalid)?;
             let sanitized = sanitize_svg(&text)?;
-            let work = TempWorkDir::new(work_parent).map_err(|_| AvProcessFailure::Failed)?;
+            let work = TempWorkDir::new(work_parent).map_err(|_| DeckProcessFailure::Failed)?;
             let output = work.path().join("page.svg");
-            std::fs::write(&output, sanitized.as_bytes()).map_err(|_| AvProcessFailure::Failed)?;
+            std::fs::write(&output, sanitized.as_bytes())
+                .map_err(|_| DeckProcessFailure::Failed)?;
             Ok(DeckExpandResult::new(
                 vec![DeckPageOutput {
                     path: output,
@@ -127,7 +171,15 @@ fn expand_source_blocking(
                 Some(work),
             ))
         }
-        DetectedDeckSource::Pdf => expand_pdf(input, work_parent, remaining_page_budget),
+        DetectedDeckSource::Pdf => expand_pdf(input, work_parent, remaining_page_budget, cancelled),
+    }
+}
+
+fn check_cancelled(cancelled: &AtomicBool) -> Result<(), DeckProcessFailure> {
+    if cancelled.load(Ordering::Relaxed) {
+        Err(DeckProcessFailure::TimedOut)
+    } else {
+        Ok(())
     }
 }
 
@@ -135,7 +187,8 @@ fn expand_pdf(
     input: &Path,
     work_parent: &Path,
     remaining_page_budget: usize,
-) -> Result<DeckExpandResult, AvProcessFailure> {
+    cancelled: &AtomicBool,
+) -> Result<DeckExpandResult, DeckProcessFailure> {
     let document = Document::load_with_options(
         input,
         LoadOptions {
@@ -143,16 +196,17 @@ fn expand_pdf(
             ..LoadOptions::default()
         },
     )
-    .map_err(|_| AvProcessFailure::InputInvalid)?;
+    .map_err(|_| DeckProcessFailure::InputInvalid)?;
+    check_cancelled(cancelled)?;
     if document.was_encrypted() {
-        return Err(AvProcessFailure::InputInvalid);
+        return Err(DeckProcessFailure::InputInvalid);
     }
     let page_count = document.get_pages().len();
     if page_count == 0 {
-        return Err(AvProcessFailure::InputInvalid);
+        return Err(DeckProcessFailure::InputInvalid);
     }
     if page_count > remaining_page_budget {
-        return Err(AvProcessFailure::InputUnsupported);
+        return Err(DeckProcessFailure::InputUnsupported);
     }
     if page_count == 1 {
         return Ok(DeckExpandResult::new(
@@ -165,10 +219,11 @@ fn expand_pdf(
         ));
     }
 
-    let work = TempWorkDir::new(work_parent).map_err(|_| AvProcessFailure::Failed)?;
+    let work = TempWorkDir::new(work_parent).map_err(|_| DeckProcessFailure::Failed)?;
     let all_pages: Vec<u32> = document.get_pages().keys().copied().collect();
     let mut pages = Vec::with_capacity(page_count);
     for page_number in &all_pages {
+        check_cancelled(cancelled)?;
         let mut page_document = document.clone();
         let pages_to_delete: Vec<u32> = all_pages
             .iter()
@@ -179,12 +234,12 @@ fn expand_pdf(
         page_document.prune_objects();
         page_document.renumber_objects();
         if page_document.get_pages().len() != 1 {
-            return Err(AvProcessFailure::Failed);
+            return Err(DeckProcessFailure::Failed);
         }
         let path = work.path().join(format!("page-{page_number}.pdf"));
         page_document
             .save(&path)
-            .map_err(|_| AvProcessFailure::Failed)?;
+            .map_err(|_| DeckProcessFailure::Failed)?;
         pages.push(DeckPageOutput {
             path,
             content_type: "application/pdf",
@@ -224,10 +279,10 @@ fn declared_kind_matches(declared: MediaAssetKind, detected: DetectedDeckSource)
     )
 }
 
-fn detect_deck_source(bytes: &[u8]) -> Result<DetectedDeckSource, AvProcessFailure> {
+fn detect_deck_source(bytes: &[u8]) -> Result<DetectedDeckSource, DeckProcessFailure> {
     if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]) {
         if png_is_animated(bytes) {
-            return Err(AvProcessFailure::InputUnsupported);
+            return Err(DeckProcessFailure::InputUnsupported);
         }
         return Ok(DetectedDeckSource::Png);
     }
@@ -238,18 +293,18 @@ fn detect_deck_source(bytes: &[u8]) -> Result<DetectedDeckSource, AvProcessFailu
         return Ok(DetectedDeckSource::Pdf);
     }
     if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
-        return Err(AvProcessFailure::InputUnsupported);
+        return Err(DeckProcessFailure::InputUnsupported);
     }
     if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") {
-        return Err(AvProcessFailure::InputUnsupported);
+        return Err(DeckProcessFailure::InputUnsupported);
     }
     if looks_like_svg(bytes) {
         return Ok(DetectedDeckSource::Svg);
     }
-    Err(AvProcessFailure::InputUnsupported)
+    Err(DeckProcessFailure::InputUnsupported)
 }
 
-pub fn detect_deck_source_kind(path: &Path) -> Result<MediaAssetKind, AvProcessFailure> {
+pub fn detect_deck_source_kind(path: &Path) -> Result<MediaAssetKind, DeckProcessFailure> {
     match detect_deck_source_path(path)? {
         DetectedDeckSource::Png | DetectedDeckSource::Jpeg => Ok(MediaAssetKind::Image),
         DetectedDeckSource::Svg => Ok(MediaAssetKind::Svg),
@@ -257,14 +312,14 @@ pub fn detect_deck_source_kind(path: &Path) -> Result<MediaAssetKind, AvProcessF
     }
 }
 
-fn detect_deck_source_path(path: &Path) -> Result<DetectedDeckSource, AvProcessFailure> {
+fn detect_deck_source_path(path: &Path) -> Result<DetectedDeckSource, DeckProcessFailure> {
     const SNIFF_BYTES: usize = 64 * 1024;
-    let mut file = std::fs::File::open(path).map_err(|_| AvProcessFailure::InputInvalid)?;
+    let mut file = std::fs::File::open(path).map_err(|_| DeckProcessFailure::InputInvalid)?;
     let mut bytes = Vec::with_capacity(SNIFF_BYTES);
     file.by_ref()
         .take(SNIFF_BYTES as u64)
         .read_to_end(&mut bytes)
-        .map_err(|_| AvProcessFailure::InputInvalid)?;
+        .map_err(|_| DeckProcessFailure::InputInvalid)?;
     detect_deck_source(&bytes)
 }
 
@@ -292,9 +347,9 @@ fn looks_like_svg(bytes: &[u8]) -> bool {
     lower.starts_with("<?xml") && lower.contains("<svg") || lower.starts_with("<svg")
 }
 
-pub fn sanitize_svg(input: &str) -> Result<String, AvProcessFailure> {
+pub fn sanitize_svg(input: &str) -> Result<String, DeckProcessFailure> {
     if !looks_like_svg(input.as_bytes()) {
-        return Err(AvProcessFailure::InputInvalid);
+        return Err(DeckProcessFailure::InputInvalid);
     }
     let lower = input.to_ascii_lowercase();
     const FORBIDDEN_TAGS: &[&str] = &[
@@ -313,10 +368,10 @@ pub fn sanitize_svg(input: &str) -> Result<String, AvProcessFailure> {
         "<use",
     ];
     if FORBIDDEN_TAGS.iter().any(|tag| lower.contains(tag)) {
-        return Err(AvProcessFailure::InputInvalid);
+        return Err(DeckProcessFailure::InputInvalid);
     }
     if lower.contains("javascript:") || lower.contains("data:text/html") {
-        return Err(AvProcessFailure::InputInvalid);
+        return Err(DeckProcessFailure::InputInvalid);
     }
     let mut sanitized = String::with_capacity(input.len());
     let mut rest = input;
@@ -332,7 +387,7 @@ pub fn sanitize_svg(input: &str) -> Result<String, AvProcessFailure> {
     Ok(sanitized)
 }
 
-fn strip_unsafe_attributes(tag: &str) -> Result<String, AvProcessFailure> {
+fn strip_unsafe_attributes(tag: &str) -> Result<String, DeckProcessFailure> {
     let mut out = String::with_capacity(tag.len());
     let mut chars = tag.chars().peekable();
     while let Some(ch) = chars.next() {
@@ -398,7 +453,7 @@ fn strip_unsafe_attributes(tag: &str) -> Result<String, AvProcessFailure> {
                     || v.starts_with("data:text/html")
                     || v.starts_with("//")
                 {
-                    return Err(AvProcessFailure::InputInvalid);
+                    return Err(DeckProcessFailure::InputInvalid);
                 }
             }
             out.push_str(&name);
@@ -443,14 +498,14 @@ mod tests {
         );
         assert!(matches!(
             detect_deck_source(b"GIF89a"),
-            Err(AvProcessFailure::InputUnsupported)
+            Err(DeckProcessFailure::InputUnsupported)
         ));
         let mut webp = b"RIFF".to_vec();
         webp.extend_from_slice(&[0, 0, 0, 0]);
         webp.extend_from_slice(b"WEBP");
         assert!(matches!(
             detect_deck_source(&webp),
-            Err(AvProcessFailure::InputUnsupported)
+            Err(DeckProcessFailure::InputUnsupported)
         ));
     }
 
@@ -465,7 +520,7 @@ mod tests {
         );
         assert!(matches!(
             detect_deck_source(&apng),
-            Err(AvProcessFailure::InputUnsupported)
+            Err(DeckProcessFailure::InputUnsupported)
         ));
     }
 
@@ -523,10 +578,10 @@ mod tests {
         document.trailer.set("Root", catalog_id);
         document.save(&input).unwrap();
         assert!(matches!(
-            expand_pdf(&input, temp.path(), 2),
-            Err(AvProcessFailure::InputUnsupported)
+            expand_pdf(&input, temp.path(), 2, &AtomicBool::new(false)),
+            Err(DeckProcessFailure::InputUnsupported)
         ));
-        let expanded = expand_pdf(&input, temp.path(), 3).unwrap();
+        let expanded = expand_pdf(&input, temp.path(), 3, &AtomicBool::new(false)).unwrap();
 
         assert_eq!(expanded.pages.len(), 3);
         for page in expanded.pages {

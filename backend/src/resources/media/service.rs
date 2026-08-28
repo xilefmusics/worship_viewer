@@ -100,9 +100,23 @@ impl<R: MediaRepository> MediaService<R> {
     ) -> Result<Media, AppError> {
         let write_teams = ctx.write_teams();
         let existing = self.repo.get(&write_teams, id).await?;
+        self.update_current_for_user(ctx, id, &existing, payload)
+            .await
+    }
+
+    pub async fn update_current_for_user(
+        &self,
+        ctx: &AuthorizationContext,
+        id: &str,
+        existing: &Media,
+        payload: UpdateMedia,
+    ) -> Result<Media, AppError> {
+        let write_teams = ctx.write_teams();
         let owner = resolve_owner_team(&write_teams, payload.owner)?;
         let value = update_write(existing, payload.title, payload.content)?;
-        self.repo.update(&write_teams, id, owner, value).await
+        self.repo
+            .update_if_current(&write_teams, id, existing, owner, value)
+            .await
     }
 
     #[instrument(level = "debug", err, skip(self, ctx, payload))]
@@ -121,13 +135,7 @@ impl<R: MediaRepository> MediaService<R> {
         if thing_record_key(&current) == thing_record_key(&destination) {
             return Ok(media);
         }
-        let moved = self
-            .repo
-            .move_owner(&write_teams, id, destination.clone())
-            .await?;
-        self.asset_svc
-            .update_owner_for_media(id, destination)
-            .await?;
+        let moved = self.repo.move_owner(&write_teams, id, destination).await?;
         Ok(moved)
     }
 
@@ -153,10 +161,17 @@ impl<R: MediaRepository> MediaService<R> {
         let title = checked_title(payload.title.unwrap_or(source_title))?;
         let created = if is_uploaded(&source.content) {
             let media_id = uuid::Uuid::new_v4().to_string();
-            let content = self
+            let content = match self
                 .asset_svc
                 .duplicate_uploaded_content(&source.id, &media_id, &source.content, owner.clone())
-                .await?;
+                .await
+            {
+                Ok(content) => content,
+                Err(error) => {
+                    let _ = self.asset_svc.delete_assets_for_media(&media_id).await;
+                    return Err(error);
+                }
+            };
             match self
                 .repo
                 .create_with_id(
@@ -196,7 +211,19 @@ impl<R: MediaRepository> MediaService<R> {
         ctx: &AuthorizationContext,
         id: &str,
     ) -> Result<Media, AppError> {
-        self.processing.delete_for_user(ctx, id).await
+        let current = self.repo.get(&ctx.write_teams(), id).await?;
+        self.delete_current_for_user(ctx, id, &current).await
+    }
+
+    pub async fn delete_current_for_user(
+        &self,
+        ctx: &AuthorizationContext,
+        id: &str,
+        current: &Media,
+    ) -> Result<Media, AppError> {
+        self.processing
+            .delete_current_for_user(ctx, id, current)
+            .await
     }
 
     pub async fn begin_deck_revision_for_user(
@@ -222,7 +249,7 @@ fn create_write(title: String, content: CreateMediaContent) -> Result<MediaWrite
 }
 
 fn update_write(
-    existing: Media,
+    existing: &Media,
     title: String,
     content: Option<CreateMediaContent>,
 ) -> Result<MediaWrite, AppError> {
@@ -234,8 +261,8 @@ fn update_write(
         }
         Ok(MediaWrite {
             title: checked_title(title)?,
-            content: existing.content,
-            pending_revision: existing.pending_revision,
+            content: existing.content.clone(),
+            pending_revision: existing.pending_revision.clone(),
         })
     } else {
         let content = content.ok_or_else(|| AppError::invalid_request("content is required"))?;
@@ -392,9 +419,12 @@ impl MediaServiceHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::resources::media_asset::{CreateFinalAsset, MediaAssetRepository};
     use crate::test_helpers::{
         TeamFixture, auth_ctx_for_user, media_service, test_db, two_shared_teams_for_user,
     };
+    use shared::MediaAssetKind;
+    use surrealdb::types::RecordId;
 
     #[test]
     fn youtube_normalization_table() {
@@ -633,6 +663,53 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn concurrent_media_update_is_rejected() {
+        let db = test_db().await.unwrap();
+        let fixture = TeamFixture::build(&db).await.unwrap();
+        let writer = auth_ctx_for_user(&db, &fixture.writer).await.unwrap();
+        let service = media_service(&db);
+        let original = service
+            .create_for_user(
+                &writer,
+                youtube(Some(fixture.shared_team_id.clone()), "Original"),
+            )
+            .await
+            .unwrap();
+
+        service
+            .update_current_for_user(
+                &writer,
+                &original.id,
+                &original,
+                UpdateMedia {
+                    title: "First writer".into(),
+                    content: Some(CreateMediaContent::YouTube {
+                        url: "https://youtu.be/dQw4w9WgXcQ".into(),
+                    }),
+                    owner: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let stale = service
+            .update_current_for_user(
+                &writer,
+                &original.id,
+                &original,
+                UpdateMedia {
+                    title: "Stale writer".into(),
+                    content: Some(CreateMediaContent::YouTube {
+                        url: "https://youtu.be/dQw4w9WgXcQ".into(),
+                    }),
+                    owner: None,
+                },
+            )
+            .await;
+        assert!(matches!(stale, Err(AppError::Conflict(_))));
+    }
+
+    #[tokio::test]
     async fn move_requires_write_access_to_both_teams() {
         let db = test_db().await.unwrap();
         let fixture = TeamFixture::build(&db).await.unwrap();
@@ -643,6 +720,22 @@ mod tests {
         let service = media_service(&db);
         let media = service
             .create_for_user(&admin, youtube(Some(source), "Move me"))
+            .await
+            .unwrap();
+        service
+            .asset_svc
+            .repo
+            .create_final(
+                "move-owned-asset",
+                CreateFinalAsset {
+                    owner: parse_owner_record_id(&media.owner).unwrap(),
+                    media_id: RecordId::new("media", media.id.clone()),
+                    kind: MediaAssetKind::Video,
+                    content_type: "video/mp4".into(),
+                    byte_length: 1,
+                    etag: "\"etag\"".into(),
+                },
+            )
             .await
             .unwrap();
         let moved = service
@@ -656,6 +749,14 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(moved.owner, destination);
+        let assets = service
+            .asset_svc
+            .repo
+            .list_assets_for_media(&media.id)
+            .await
+            .unwrap();
+        assert_eq!(assets.len(), 1);
+        assert_eq!(assets[0].owner, moved.owner);
 
         let guest = auth_ctx_for_user(&db, &fixture.guest).await.unwrap();
         assert!(matches!(

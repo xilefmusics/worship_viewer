@@ -109,16 +109,6 @@ impl FsMediaAssetStorage {
             etag,
         })
     }
-
-    pub async fn read_staging_bytes_for_etag(
-        &self,
-        operation_id: &str,
-    ) -> Result<String, AppError> {
-        let bytes = fs::read(self.staging_path(operation_id))
-            .await
-            .map_err(|e| AppError::internal_from_err("media_asset.storage.read_staging", e))?;
-        Ok(etag_from_file_bytes(&bytes))
-    }
 }
 
 impl MediaAssetStorage for FsMediaAssetStorage {

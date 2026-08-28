@@ -21,10 +21,11 @@ pub trait MediaRepository: Send + Sync {
         owner: RecordId,
         value: MediaWrite,
     ) -> Result<Media, AppError>;
-    async fn update(
+    async fn update_if_current(
         &self,
         write_teams: &[RecordId],
         id: &str,
+        current: &Media,
         owner: Option<RecordId>,
         value: MediaWrite,
     ) -> Result<Media, AppError>;
@@ -34,8 +35,10 @@ pub trait MediaRepository: Send + Sync {
         id: &str,
         owner: RecordId,
     ) -> Result<Media, AppError>;
-    async fn delete(&self, write_teams: &[RecordId], id: &str) -> Result<Media, AppError>;
-    /// Internal read without ACL checks (processing jobs and reconciliation).
-    async fn get_unscoped(&self, id: &str) -> Result<Media, AppError>;
-    async fn update_unscoped(&self, id: &str, value: MediaWrite) -> Result<Media, AppError>;
+    async fn delete_if_current(
+        &self,
+        write_teams: &[RecordId],
+        id: &str,
+        current: &Media,
+    ) -> Result<Media, AppError>;
 }

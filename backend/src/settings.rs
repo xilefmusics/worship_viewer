@@ -83,19 +83,9 @@ pub struct Settings {
     /// Default max source image upload size. Default: 25 MiB.
     #[serde(default = "default_media_image_upload_max_bytes")]
     pub media_image_upload_max_bytes: usize,
-    /// When true, FFmpeg-backed uploads are accepted when its tools are available.
-    /// Missing tools produce a startup warning and reject only affected uploads. Default: true.
-    #[serde(default = "default_media_processing_enabled")]
-    pub media_processing_enabled: bool,
-    /// Bounded processing timeout for child processes (seconds). Default: 3600.
-    #[serde(default = "default_media_processing_timeout_seconds")]
-    pub media_processing_timeout_seconds: u64,
-    /// FFmpeg executable path. Default: `ffmpeg`.
-    #[serde(default = "default_ffmpeg_path")]
-    pub ffmpeg_path: String,
-    /// FFprobe executable path. Default: `ffprobe`.
-    #[serde(default = "default_ffprobe_path")]
-    pub ffprobe_path: String,
+    /// Bounded processing timeout for in-process slide-deck expansion (seconds). Default: 3600.
+    #[serde(default = "default_media_deck_processing_timeout_seconds")]
+    pub media_deck_processing_timeout_seconds: u64,
     /// Maximum resulting pages in a slide deck. Default: 500.
     #[serde(default = "default_media_deck_max_pages")]
     pub media_deck_max_pages: u32,
@@ -182,13 +172,10 @@ impl fmt::Debug for Settings {
                 "media_image_upload_max_bytes",
                 &self.media_image_upload_max_bytes,
             )
-            .field("media_processing_enabled", &self.media_processing_enabled)
             .field(
-                "media_processing_timeout_seconds",
-                &self.media_processing_timeout_seconds,
+                "media_deck_processing_timeout_seconds",
+                &self.media_deck_processing_timeout_seconds,
             )
-            .field("ffmpeg_path", &self.ffmpeg_path)
-            .field("ffprobe_path", &self.ffprobe_path)
             .field("media_deck_max_pages", &self.media_deck_max_pages)
             .field(
                 "media_staging_max_age_seconds",
@@ -246,10 +233,7 @@ impl Default for Settings {
             media_audio_upload_max_bytes: default_media_audio_upload_max_bytes(),
             media_pdf_upload_max_bytes: default_media_pdf_upload_max_bytes(),
             media_image_upload_max_bytes: default_media_image_upload_max_bytes(),
-            media_processing_enabled: default_media_processing_enabled(),
-            media_processing_timeout_seconds: default_media_processing_timeout_seconds(),
-            ffmpeg_path: default_ffmpeg_path(),
-            ffprobe_path: default_ffprobe_path(),
+            media_deck_processing_timeout_seconds: default_media_deck_processing_timeout_seconds(),
             media_deck_max_pages: default_media_deck_max_pages(),
             media_staging_max_age_seconds: default_media_staging_max_age_seconds(),
             media_reconciliation_interval_seconds: default_media_reconciliation_interval_seconds(),
@@ -295,20 +279,8 @@ fn default_media_image_upload_max_bytes() -> usize {
     25 * 1024 * 1024
 }
 
-fn default_media_processing_enabled() -> bool {
-    true
-}
-
-fn default_media_processing_timeout_seconds() -> u64 {
+fn default_media_deck_processing_timeout_seconds() -> u64 {
     3600
-}
-
-fn default_ffmpeg_path() -> String {
-    "ffmpeg".into()
-}
-
-fn default_ffprobe_path() -> String {
-    "ffprobe".into()
 }
 
 fn default_media_deck_max_pages() -> u32 {
@@ -382,19 +354,8 @@ impl Settings {
         }
     }
 
-    pub fn max_bytes_for_media_asset_kind(&self, kind: shared::MediaAssetKind) -> usize {
-        let limits = self.media_asset_upload_limits();
-        match kind {
-            shared::MediaAssetKind::Video => limits.video_max_bytes,
-            shared::MediaAssetKind::Audio => limits.audio_max_bytes,
-            shared::MediaAssetKind::Pdf => limits.pdf_max_bytes,
-            shared::MediaAssetKind::Image => limits.image_max_bytes,
-            shared::MediaAssetKind::Svg => limits.svg_max_bytes,
-        }
-    }
-
-    pub fn media_processing_timeout(&self) -> std::time::Duration {
-        std::time::Duration::from_secs(self.media_processing_timeout_seconds)
+    pub fn media_deck_processing_timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(self.media_deck_processing_timeout_seconds)
     }
 
     pub fn from_env() -> Result<Self, envy::Error> {

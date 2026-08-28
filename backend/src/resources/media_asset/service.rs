@@ -38,8 +38,32 @@ pub struct MediaAssetSettings {
     pub image_max_bytes: usize,
     pub svg_max_bytes: usize,
     pub staging_max_age_seconds: u64,
-    pub reconciliation_interval_seconds: u64,
-    pub deck_max_pages: u32,
+}
+
+struct FinalFileCleanup {
+    storage: Arc<FsMediaAssetStorage>,
+    asset_id: Option<String>,
+}
+
+impl FinalFileCleanup {
+    fn new(storage: Arc<FsMediaAssetStorage>, asset_id: &str) -> Self {
+        Self {
+            storage,
+            asset_id: Some(asset_id.to_owned()),
+        }
+    }
+
+    fn disarm(&mut self) {
+        self.asset_id = None;
+    }
+}
+
+impl Drop for FinalFileCleanup {
+    fn drop(&mut self) {
+        if let Some(asset_id) = self.asset_id.take() {
+            self.storage.delete_final_file(&asset_id);
+        }
+    }
 }
 
 impl MediaAssetSettings {
@@ -52,8 +76,6 @@ impl MediaAssetSettings {
             image_max_bytes: limits.image_max_bytes,
             svg_max_bytes: limits.svg_max_bytes,
             staging_max_age_seconds: settings.media_staging_max_age_seconds,
-            reconciliation_interval_seconds: settings.media_reconciliation_interval_seconds,
-            deck_max_pages: settings.media_deck_max_pages,
         }
     }
 
@@ -99,7 +121,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
         self.active_uploads.write().await.remove(operation_id);
     }
 
-    pub async fn active_upload_ids(&self) -> HashSet<String> {
+    async fn active_upload_ids(&self) -> HashSet<String> {
         self.active_uploads.read().await.clone()
     }
 
@@ -216,12 +238,6 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
     }
 
     #[instrument(level = "debug", err, skip(self))]
-    pub async fn rollback_promotion(&self, asset_id: &str) -> Result<(), AppError> {
-        self.storage.delete_final_file(asset_id);
-        self.repo.delete_asset(asset_id).await
-    }
-
-    #[instrument(level = "debug", err, skip(self))]
     pub async fn delete_assets_for_media(&self, media_id: &str) -> Result<(), AppError> {
         let assets = self.repo.delete_assets_for_media(media_id).await?;
         for asset in assets {
@@ -232,14 +248,6 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
             }
         }
         Ok(())
-    }
-
-    pub async fn update_owner_for_media(
-        &self,
-        media_id: &str,
-        owner: RecordId,
-    ) -> Result<(), AppError> {
-        self.repo.update_owner_for_media(media_id, owner).await
     }
 
     pub async fn get_staging_by_operation(
@@ -278,7 +286,9 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
             .storage
             .ingest_final_from_path(source_path, &asset_id)
             .map_err(|e| AppError::Internal(e.to_string()))?;
-        self.repo
+        let mut cleanup = FinalFileCleanup::new(self.storage.clone(), &asset_id);
+        let asset = self
+            .repo
             .create_final(
                 &asset_id,
                 CreateFinalAsset {
@@ -290,7 +300,9 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                     etag,
                 },
             )
-            .await
+            .await?;
+        cleanup.disarm();
+        Ok(asset)
     }
 
     pub async fn duplicate_uploaded_content(
@@ -320,6 +332,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                 self.storage
                     .copy_final_file(blob_id, &new_id)
                     .map_err(|e| AppError::Internal(e.to_string()))?;
+                let mut cleanup = FinalFileCleanup::new(self.storage.clone(), &new_id);
                 let bytes = std::fs::read(self.final_file_path(&new_id))
                     .map_err(|e| AppError::internal_from_err("media.duplicate.read", e))?;
                 let etag = crate::http_range::etag_from_file_bytes(&bytes);
@@ -337,6 +350,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                         },
                     )
                     .await?;
+                cleanup.disarm();
                 Ok(MediaContent::Video {
                     blob_id: new_id,
                     duration_ms: *duration_ms,
@@ -360,6 +374,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                 self.storage
                     .copy_final_file(blob_id, &new_id)
                     .map_err(|e| AppError::Internal(e.to_string()))?;
+                let mut cleanup = FinalFileCleanup::new(self.storage.clone(), &new_id);
                 let bytes = std::fs::read(self.final_file_path(&new_id))
                     .map_err(|e| AppError::internal_from_err("media.duplicate.read", e))?;
                 let etag = crate::http_range::etag_from_file_bytes(&bytes);
@@ -377,6 +392,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                         },
                     )
                     .await?;
+                cleanup.disarm();
                 Ok(MediaContent::Audio {
                     blob_id: new_id,
                     duration_ms: *duration_ms,
@@ -390,6 +406,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                     self.storage
                         .copy_final_file(&page.blob_id, &new_id)
                         .map_err(|e| AppError::Internal(e.to_string()))?;
+                    let mut cleanup = FinalFileCleanup::new(self.storage.clone(), &new_id);
                     let bytes = std::fs::read(self.final_file_path(&new_id))
                         .map_err(|e| AppError::internal_from_err("media.duplicate.read", e))?;
                     let etag = crate::http_range::etag_from_file_bytes(&bytes);
@@ -411,6 +428,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                             },
                         )
                         .await?;
+                    cleanup.disarm();
                     copied.push(shared::media::MediaDeckPage {
                         blob_id: new_id,
                         section_title: page.section_title.clone(),
@@ -496,14 +514,13 @@ mod tests {
             &Settings {
                 media_staging_dir: dir.path().join("staging").to_string_lossy().into(),
                 media_final_dir: dir.path().join("final").to_string_lossy().into(),
-                media_processing_enabled: false,
                 ..Settings::default()
             },
         )
     }
 
     #[tokio::test]
-    async fn promote_and_rollback() {
+    async fn promote_staging_moves_bytes_and_updates_metadata() {
         let db = test_db().await.unwrap();
         let fixture = TeamFixture::build(&db).await.unwrap();
         let media_svc = media_service(&db);
@@ -550,8 +567,8 @@ mod tests {
         assert_eq!(promoted.status, MediaAssetStatus::Final);
         assert!(asset_svc.final_file_path(&staging.id).exists());
 
-        asset_svc.rollback_promotion(&staging.id).await.unwrap();
-        assert!(!asset_svc.final_file_path(&staging.id).exists());
+        asset_svc.delete_final_file(&staging.id);
+        asset_svc.delete_asset_record(&staging.id).await.unwrap();
     }
 
     #[tokio::test]

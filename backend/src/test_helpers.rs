@@ -198,10 +198,7 @@ pub fn media_processing(
 
 /// Media application service (same wiring as HTTP `main`).
 pub fn media_service(db: &Arc<Database>) -> MediaServiceHandle {
-    let settings = Settings {
-        media_processing_enabled: false,
-        ..Settings::default()
-    };
+    let settings = Settings::default();
     let asset = media_asset_service(db, &settings);
     let processing = media_processing(db, &settings, asset.clone());
     MediaServiceHandle::build(db.clone(), asset, processing)

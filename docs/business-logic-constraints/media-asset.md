@@ -19,12 +19,12 @@ See also [media.md](./media.md) for the parent Media resource.
 
 ## Delivery
 
-- **BLC-MAST-007:** `GET` and `HEAD /api/v1/media/{media_id}/assets/{asset_id}/data` serve only `final` assets with private caching (`Cache-Control: private, max-age=3600, immutable`), weak `ETag`, `Content-Type`, `Content-Length`, `Accept-Ranges: bytes`, conditional requests (`If-None-Match`, `If-Range`), single-range **206** responses, and **416** for unsatisfiable ranges.
+- **BLC-MAST-007:** `GET` and `HEAD /api/v1/media/{media_id}/assets/{asset_id}/data` serve only `final` assets with private caching (`Cache-Control: private, max-age=3600, immutable`), weak `ETag`, normalized `Content-Type`, `X-Content-Type-Options: nosniff`, `Content-Length`, `Accept-Ranges: bytes`, conditional requests (`If-None-Match`, `If-Range`), single-range **206** responses, and **416** for unsatisfiable ranges.
 - **BLC-MAST-008:** Staging assets and mismatched `media_id`/`asset_id` pairs return concealed **404**.
 
 ## Processing and finals (E5.4+)
 
-- **BLC-MAST-013:** Audio and video uploads preserve the submitted bytes and `Content-Type` without probing or transcoding. Atomic creation copies the source into a new final asset; replacement promotes the staged source directly. Metadata that would require probing (`duration_ms`, video `width`, and video `height`) is stored as `0`.
+- **BLC-MAST-013:** Audio and video uploads preserve the submitted bytes without probing or transcoding. Their normalized `Content-Type` must match the declared `video/*` or `audio/*` kind, or use the safe `application/octet-stream` fallback when unspecified. Atomic creation copies the source into a new final asset; replacement promotes the staged source directly. Metadata that would require probing (`duration_ms`, video `width`, and video `height`) is stored as `0`.
 - **BLC-MAST-014:** On successful completion, staging bytes and superseded replacement assets are deleted. Failure or cancellation removes new temporary/final data without changing existing Media.
 - **BLC-MAST-015:** Duplicate of uploaded media copies final bytes to new opaque asset ids; staging and deck revisions are not duplicated.
 - **BLC-MAST-017:** Deck expansion ingests each resulting page as a new **final** asset (`image/png`, `image/jpeg`, `image/svg+xml`, or `application/pdf`). Draft page finals are readable through delivery for authenticated preview; they are not listed in Media `content` until commit. Staging sources are deleted after successful expansion.
@@ -32,7 +32,7 @@ See also [media.md](./media.md) for the parent Media resource.
 
 ## Operations and readiness
 
-- **BLC-MAST-009:** Configurable staging/final directories, per-kind limits, and deck-processing timeouts are applied without external media tools. Audio/video uploads do not require FFmpeg or ffprobe. PDF deck uploads are parsed and split synchronously in-process.
+- **BLC-MAST-009:** Configurable staging/final directories, per-kind limits, and deck-processing timeouts are applied without external media tools. PDF deck uploads are parsed and split synchronously in-process.
 - **BLC-MAST-010:** Startup and periodic reconciliation remove abandoned staging files and stale staging metadata older than the configured age when they are not associated with an active upload or in-flight processing operation.
 - **BLC-MAST-011:** Startup and periodic reconciliation also delete asset records and filesystem objects whose owning Media no longer exists.
 

@@ -105,7 +105,6 @@ fn build_app_with_api_limits(
         Settings {
             media_staging_dir,
             media_final_dir,
-            media_processing_enabled: false,
             ..Settings::default()
         }
     });
@@ -3040,7 +3039,6 @@ mod media_asset_http {
                 ))
                 .to_string_lossy()
                 .into_owned(),
-            media_processing_enabled: false,
             ..Settings::default()
         }
     }
@@ -3270,16 +3268,13 @@ mod media_asset_http {
     }
 
     #[actix_web::test]
-    async fn audio_and_video_uploads_preserve_original_bytes_without_ffmpeg() {
+    async fn audio_and_video_uploads_preserve_original_bytes() {
         let db = test_db().await.unwrap();
         let fixture = TeamFixture::build(&db).await.unwrap();
         let token = create_session_token(&db, fixture.writer.clone())
             .await
             .unwrap();
-        let mut settings = media_test_settings();
-        settings.media_processing_enabled = true;
-        settings.ffmpeg_path = "definitely-missing-worshipviewer-ffmpeg".into();
-        settings.ffprobe_path = "definitely-missing-worshipviewer-ffprobe".into();
+        let settings = media_test_settings();
         let app = test::init_service(build_app_with_api_limits(
             db.clone(),
             50,
@@ -3330,7 +3325,20 @@ mod media_asset_http {
         let response = test::call_service(&app, request).await;
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.headers().get(CONTENT_TYPE).unwrap(), "video/webm");
+        assert_eq!(
+            response.headers().get("x-content-type-options").unwrap(),
+            "nosniff"
+        );
         assert_eq!(&test::read_body(response).await[..], original);
+
+        let request = test::TestRequest::put()
+            .uri(&format!("/api/v1/media/{}/uploads?kind=video", media.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .insert_header((CONTENT_TYPE, "text/html"))
+            .set_payload("<script>location='/api/v1/users'</script>")
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
         let replacement = b"raw-quicktime-video";
         let request = test::TestRequest::put()

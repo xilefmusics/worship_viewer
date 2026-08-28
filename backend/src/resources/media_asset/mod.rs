@@ -12,6 +12,6 @@ pub use storage::FsMediaAssetStorage;
 pub use surreal_repo::SurrealMediaAssetRepo;
 
 #[cfg(test)]
-pub use model::CreateStagingAsset;
+pub use model::{CreateFinalAsset, CreateStagingAsset};
 
 pub mod rest;

@@ -16,10 +16,36 @@ use crate::auth::AuthorizationContext;
 use crate::docs::Problem;
 use crate::error::AppError;
 use crate::http_range::file_data_response;
-use crate::process_runner::TempWorkDir;
-use crate::resources::media::av_processor::app_error_from_failure;
-use crate::resources::media::deck_processor::detect_deck_source_kind;
+use crate::resources::media::deck_processor::{app_error_from_failure, detect_deck_source_kind};
 use crate::resources::media::processing::UploadedSource;
+use crate::temp_work_dir::TempWorkDir;
+
+fn normalized_upload_content_type(
+    kind: MediaAssetKind,
+    content_type: Option<&str>,
+) -> Result<String, AppError> {
+    let value = content_type
+        .unwrap_or("application/octet-stream")
+        .split(';')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    match kind {
+        MediaAssetKind::Video if value.starts_with("video/") => Ok(value),
+        MediaAssetKind::Audio if value.starts_with("audio/") => Ok(value),
+        MediaAssetKind::Video | MediaAssetKind::Audio if value == "application/octet-stream" => {
+            Ok(value)
+        }
+        MediaAssetKind::Video | MediaAssetKind::Audio => Err(AppError::invalid_request(
+            "upload Content-Type does not match its declared kind",
+        )),
+        // Deck bytes are sniffed and their final type is assigned by the deck processor.
+        MediaAssetKind::Image | MediaAssetKind::Pdf | MediaAssetKind::Svg => {
+            Ok("application/octet-stream".into())
+        }
+    }
+}
 use crate::settings::MediaAssetUploadLimits;
 
 use super::service::MediaAssetServiceHandle;
@@ -97,10 +123,7 @@ pub async fn create_uploaded_media(
                 })?,
             );
         } else if name == "file" {
-            let content_type = field
-                .content_type()
-                .map(ToString::to_string)
-                .unwrap_or_else(|| "application/octet-stream".into());
+            let submitted_content_type = field.content_type().map(ToString::to_string);
             let index = sources.len();
             let path = work.path().join(format!("source-{index}"));
             let mut output = tokio::fs::File::create(&path)
@@ -139,6 +162,8 @@ pub async fn create_uploaded_media(
                     detect_deck_source_kind(&path).map_err(app_error_from_failure)?
                 }
             };
+            let content_type =
+                normalized_upload_content_type(asset_kind, submitted_content_type.as_deref())?;
             let exact_limit = match asset_kind {
                 MediaAssetKind::Video => limits.video_max_bytes,
                 MediaAssetKind::Audio => limits.audio_max_bytes,
@@ -184,6 +209,7 @@ pub async fn create_uploaded_media(
     responses(
         (status = 200, description = "Upload processed and media updated", body = Media),
         (status = 400, description = "Invalid kind or request", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "Media changed concurrently", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Media not found or write access denied", body = Problem, content_type = "application/problem+json"),
         (status = 413, description = "Payload too large", body = Problem, content_type = "application/problem+json"),
@@ -205,12 +231,12 @@ async fn upload_media_asset(
     let kind = MediaAssetKind::parse(&query.kind)
         .ok_or_else(|| AppError::invalid_request("invalid media asset kind"))?;
     let replace_page = query.replace_page.clone();
-    let content_type = req
+    let submitted_content_type = req
         .headers()
         .get(header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
-        .unwrap_or("application/octet-stream")
-        .to_owned();
+        .map(str::to_owned);
+    let content_type = normalized_upload_content_type(kind, submitted_content_type.as_deref())?;
     let content_length = req
         .headers()
         .get(header::CONTENT_LENGTH)
@@ -311,4 +337,22 @@ pub async fn head_media_asset_data(
         .ok_or_else(|| AppError::Internal("asset missing etag".into()))?;
     let file_path = svc.final_file_path(&asset_id);
     file_data_response(&req, &file_path, &asset.content_type, etag, true).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn upload_content_type_must_match_declared_kind() {
+        assert_eq!(
+            normalized_upload_content_type(MediaAssetKind::Video, Some("video/webm; codecs=vp9"))
+                .unwrap(),
+            "video/webm"
+        );
+        assert!(normalized_upload_content_type(MediaAssetKind::Video, Some("text/html")).is_err());
+        assert!(
+            normalized_upload_content_type(MediaAssetKind::Audio, Some("image/svg+xml")).is_err()
+        );
+    }
 }

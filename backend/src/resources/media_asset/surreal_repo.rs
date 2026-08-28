@@ -195,20 +195,4 @@ impl MediaAssetRepository for SurrealMediaAssetRepo {
             .map(MediaAssetRecord::into_asset)
             .collect()
     }
-
-    async fn update_owner_for_media(
-        &self,
-        media_id: &str,
-        owner: RecordId,
-    ) -> Result<(), AppError> {
-        let (tb, sid) = resource_id("media", media_id)?;
-        self.db
-            .db
-            .query("UPDATE media_asset SET owner = $owner WHERE media_id = type::record($tb, $sid)")
-            .bind(("owner", owner))
-            .bind(("tb", tb))
-            .bind(("sid", sid))
-            .await?;
-        Ok(())
-    }
 }

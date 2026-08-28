@@ -19,11 +19,11 @@ Applies to the team-owned Media library at `/api/v1/media`.
 ## Uploaded audio/video (E5.4)
 
 - **BLC-MEDIA-013:** `POST /api/v1/media/uploads?kind=video|audio|slide_deck` accepts multipart metadata plus files, processes all sources inside the request, and creates the Media only after final content and assets are complete.
-- **BLC-MEDIA-014:** Audio/video creation requires exactly one source. FFprobe and FFmpeg complete before the response; success returns `201 Media`, while failure returns a Problem and leaves no Media or final assets.
+- **BLC-MEDIA-014:** Audio/video creation requires exactly one source. The submitted bytes are stored without probing or conversion; success returns `201 Media`, while failure returns a Problem and leaves no Media or final assets.
 - **BLC-MEDIA-015:** `PUT /api/v1/media/{id}/uploads?kind=video|audio` synchronously replaces matching uploaded content and returns the updated Media. Existing content remains unchanged on every failure.
-- **BLC-MEDIA-016:** Successful replacement atomically swaps the content reference and then deletes the superseded asset. Media mutations for the same id are serialized.
-- **BLC-MEDIA-017:** Processing errors expose stable codes (`media_input_invalid`, `media_input_unsupported`, `media_processing_timeout`, `media_processing_failed`) and short English detail only—never argv, paths, or raw tool output.
-- **BLC-MEDIA-018:** Retry is a new request from byte zero. Request cancellation terminates child processing and cleanup guards remove temporary and partially ingested data; there is no processing-cancel endpoint.
+- **BLC-MEDIA-016:** Successful replacement atomically swaps the content reference and then deletes the superseded asset. Content, deck, and delete mutations use database compare-and-swap checks so concurrent writers on different backend instances cannot silently overwrite one another.
+- **BLC-MEDIA-017:** Deck-processing errors expose stable codes (`media_input_invalid`, `media_input_unsupported`, `media_processing_timeout`, `media_processing_failed`) and short English detail only—never paths or parser internals.
+- **BLC-MEDIA-018:** Retry is a new request from byte zero. Cleanup guards remove temporary and partially ingested data. In-process PDF work is isolated from async request workers; cancellation can allow the current blocking parse to finish before its temporary workspace is removed.
 - **BLC-MEDIA-019:** `UpdateMedia.content` is optional. Uploaded items may update title (and owner via move) without sending URL content. Sending URL content onto an uploaded item is rejected.
 
 ## Slide decks (E5.5)

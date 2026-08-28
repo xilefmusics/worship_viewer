@@ -119,23 +119,51 @@ impl MediaRepository for SurrealMediaRepo {
             .into_media()
     }
 
-    async fn update(
+    async fn update_if_current(
         &self,
         write_teams: &[RecordId],
         id: &str,
+        current: &Media,
         owner: Option<RecordId>,
         value: MediaWrite,
     ) -> Result<Media, AppError> {
         let (tb, sid) = resource_id("media", id)?;
         let record = MediaRecord::from_write(None, owner.clone(), value)?;
-        let mut response = self.db.db.query(
-            "UPDATE type::record($tb, $sid) SET title = $title, content_json = $content_json, pending_revision_json = $pending_revision_json, owner = $owner ?? owner WHERE owner IN $teams RETURN AFTER"
-        ).bind(("tb", tb)).bind(("sid", sid)).bind(("title", record.title)).bind(("content_json", record.content_json)).bind(("pending_revision_json", record.pending_revision_json)).bind(("owner", owner)).bind(("teams", write_teams.to_vec())).await?;
+        let expected_content_json = serde_json::to_string(&current.content)
+            .map_err(|e| AppError::internal_from_err("media.repo.expected_content", e))?;
+        let expected_pending_revision_json = current
+            .pending_revision
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|e| AppError::internal_from_err("media.repo.expected_revision", e))?;
+        let mut response = self
+            .db
+            .db
+            .query(
+                "UPDATE type::record($tb, $sid) SET title = $title, content_json = $content_json, pending_revision_json = $pending_revision_json, owner = $owner ?? owner \
+                 WHERE owner IN $teams AND title = $expected_title AND content_json = $expected_content_json \
+                 AND pending_revision_json = $expected_pending_revision_json RETURN AFTER",
+            )
+            .bind(("tb", tb))
+            .bind(("sid", sid))
+            .bind(("title", record.title))
+            .bind(("content_json", record.content_json))
+            .bind(("pending_revision_json", record.pending_revision_json))
+            .bind(("owner", owner))
+            .bind(("teams", write_teams.to_vec()))
+            .bind(("expected_title", current.title.clone()))
+            .bind(("expected_content_json", expected_content_json))
+            .bind((
+                "expected_pending_revision_json",
+                expected_pending_revision_json,
+            ))
+            .await?;
         response
             .take::<Vec<MediaRecord>>(0)?
             .into_iter()
             .next()
-            .ok_or_else(|| AppError::NotFound("media not found".into()))?
+            .ok_or_else(|| AppError::conflict("media changed during the operation"))?
             .into_media()
     }
 
@@ -155,50 +183,43 @@ impl MediaRepository for SurrealMediaRepo {
             .into_media()
     }
 
-    async fn delete(&self, write_teams: &[RecordId], id: &str) -> Result<Media, AppError> {
+    async fn delete_if_current(
+        &self,
+        write_teams: &[RecordId],
+        id: &str,
+        current: &Media,
+    ) -> Result<Media, AppError> {
         let (tb, sid) = resource_id("media", id)?;
-        let mut response = self
-            .db
-            .db
-            .query("DELETE FROM type::record($tb, $sid) WHERE owner IN $teams RETURN BEFORE")
-            .bind(("tb", tb))
-            .bind(("sid", sid))
-            .bind(("teams", write_teams.to_vec()))
-            .await?;
-        response
-            .take::<Vec<MediaRecord>>(0)?
-            .into_iter()
-            .next()
-            .ok_or_else(|| AppError::NotFound("media not found".into()))?
-            .into_media()
-    }
-
-    async fn get_unscoped(&self, id: &str) -> Result<Media, AppError> {
-        let row: Option<MediaRecord> = self.db.db.select(resource_id("media", id)?).await?;
-        row.ok_or_else(|| AppError::NotFound("media not found".into()))?
-            .into_media()
-    }
-
-    async fn update_unscoped(&self, id: &str, value: MediaWrite) -> Result<Media, AppError> {
-        let (tb, sid) = resource_id("media", id)?;
-        let record = MediaRecord::from_write(None, None, value)?;
+        let expected_content_json = serde_json::to_string(&current.content)
+            .map_err(|e| AppError::internal_from_err("media.repo.expected_content", e))?;
+        let expected_pending_revision_json = current
+            .pending_revision
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|e| AppError::internal_from_err("media.repo.expected_revision", e))?;
         let mut response = self
             .db
             .db
             .query(
-                "UPDATE type::record($tb, $sid) SET title = $title, content_json = $content_json, pending_revision_json = $pending_revision_json RETURN AFTER",
+                "DELETE FROM type::record($tb, $sid) WHERE owner IN $teams AND title = $expected_title \
+                 AND content_json = $expected_content_json AND pending_revision_json = $expected_pending_revision_json RETURN BEFORE",
             )
             .bind(("tb", tb))
             .bind(("sid", sid))
-            .bind(("title", record.title))
-            .bind(("content_json", record.content_json))
-            .bind(("pending_revision_json", record.pending_revision_json))
+            .bind(("teams", write_teams.to_vec()))
+            .bind(("expected_title", current.title.clone()))
+            .bind(("expected_content_json", expected_content_json))
+            .bind((
+                "expected_pending_revision_json",
+                expected_pending_revision_json,
+            ))
             .await?;
         response
             .take::<Vec<MediaRecord>>(0)?
             .into_iter()
             .next()
-            .ok_or_else(|| AppError::NotFound("media not found".into()))?
+            .ok_or_else(|| AppError::conflict("media changed during the operation"))?
             .into_media()
     }
 }

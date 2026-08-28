@@ -121,6 +121,7 @@ pub async fn create_media(
     responses(
         (status = 200, description = "Replace title/content and optionally owner", body = Media),
         (status = 400, description = "Invalid payload or URL", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "Media changed concurrently", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Media or destination absent/concealed", body = Problem, content_type = "application/problem+json"),
         (status = 412, description = "If-Match failed", body = Problem, content_type = "application/problem+json")
     ), tag = "Media", security(("SessionCookie" = []), ("SessionToken" = [])))]
@@ -137,7 +138,10 @@ pub async fn update_media(
     let etag =
         weak_etag_json(&current).map_err(|e| AppError::internal_from_err("media.rest", e))?;
     check_if_match(&req, &etag)?;
-    Ok(HttpResponse::Ok().json(svc.update_for_user(&ctx, &id, payload.into_inner()).await?))
+    Ok(HttpResponse::Ok().json(
+        svc.update_current_for_user(&ctx, &id, &current, payload.into_inner())
+            .await?,
+    ))
 }
 
 #[utoipa::path(post, path = "/api/v1/media/{id}/move", params(("id" = String, Path)), request_body = MoveOwner,
@@ -177,6 +181,7 @@ pub async fn duplicate_media(
 #[utoipa::path(delete, path = "/api/v1/media/{id}", params(("id" = String, Path)),
     responses(
         (status = 204, description = "Delete media regardless of references"),
+        (status = 409, description = "Media changed concurrently", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Media absent or concealed", body = Problem, content_type = "application/problem+json"),
         (status = 412, description = "If-Match failed", body = Problem, content_type = "application/problem+json")
     ), tag = "Media", security(("SessionCookie" = []), ("SessionToken" = [])))]
@@ -192,7 +197,7 @@ pub async fn delete_media(
     let etag =
         weak_etag_json(&current).map_err(|e| AppError::internal_from_err("media.rest", e))?;
     check_if_match(&req, &etag)?;
-    svc.delete_for_user(&ctx, &id).await?;
+    svc.delete_current_for_user(&ctx, &id, &current).await?;
     Ok(HttpResponse::NoContent().finish())
 }
 
@@ -203,6 +208,7 @@ pub async fn delete_media(
     responses(
         (status = 200, description = "Begin or return the current staged slide-deck revision", body = Media),
         (status = 400, description = "Media is not a slide deck", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "Media changed concurrently", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Media absent or concealed", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Media",
@@ -228,6 +234,7 @@ pub async fn begin_deck_revision(
     responses(
         (status = 200, description = "Commit the staged slide-deck revision", body = Media),
         (status = 400, description = "Empty or stale revision", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "Media changed concurrently", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Media absent or concealed", body = Problem, content_type = "application/problem+json")
     ),
     tag = "Media",

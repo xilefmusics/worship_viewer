@@ -5846,6 +5846,16 @@
             },
             "description": "Media absent or concealed"
           },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media changed concurrently"
+          },
           "412": {
             "content": {
               "application/problem+json": {
@@ -5971,6 +5981,16 @@
             },
             "description": "Media or destination absent/concealed"
           },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media changed concurrently"
+          },
           "412": {
             "content": {
               "application/problem+json": {
@@ -6048,6 +6068,16 @@
               }
             },
             "description": "Media absent or concealed"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media changed concurrently"
           }
         },
         "security": [
@@ -6106,6 +6136,16 @@
               }
             },
             "description": "Media absent or concealed"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media changed concurrently"
           }
         },
         "security": [
@@ -6463,6 +6503,16 @@
               }
             },
             "description": "Media not found or write access denied"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media changed concurrently"
           },
           "413": {
             "content": {

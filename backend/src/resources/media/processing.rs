@@ -1,6 +1,6 @@
 //! Request-bound uploaded-media processing.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -10,12 +10,12 @@ use shared::media::{
     MediaStagedDeckPage, UploadedMediaKind,
 };
 use surrealdb::types::RecordId;
-use tokio::sync::{Mutex, RwLock};
 
 use crate::auth::AuthorizationContext;
 use crate::error::AppError;
-use crate::resources::media::av_processor::app_error_from_failure;
-use crate::resources::media::deck_processor::{DeckProcessor, LopdfDeckProcessor};
+use crate::resources::media::deck_processor::{
+    DeckProcessor, LopdfDeckProcessor, app_error_from_failure,
+};
 use crate::resources::media::model::MediaWrite;
 use crate::resources::media::repository::MediaRepository;
 use crate::resources::media::surreal_repo::SurrealMediaRepo;
@@ -122,7 +122,6 @@ pub struct MediaProcessingHandle {
     deck_processor: Arc<dyn DeckProcessor>,
     work_parent: PathBuf,
     deck_max_pages: usize,
-    media_locks: Arc<RwLock<HashMap<String, Arc<Mutex<()>>>>>,
 }
 
 impl MediaProcessingHandle {
@@ -136,7 +135,7 @@ impl MediaProcessingHandle {
             settings,
             asset_svc,
             Arc::new(LopdfDeckProcessor {
-                timeout: settings.media_processing_timeout(),
+                timeout: settings.media_deck_processing_timeout(),
             }),
         )
     }
@@ -153,20 +152,7 @@ impl MediaProcessingHandle {
             deck_processor,
             work_parent: std::env::temp_dir().join("worshipviewer_media_work"),
             deck_max_pages: settings.media_deck_max_pages as usize,
-            media_locks: Arc::new(RwLock::new(HashMap::new())),
         }
-    }
-
-    async fn media_lock(&self, media_id: &str) -> Arc<Mutex<()>> {
-        if let Some(lock) = self.media_locks.read().await.get(media_id).cloned() {
-            return lock;
-        }
-        self.media_locks
-            .write()
-            .await
-            .entry(media_id.to_owned())
-            .or_insert_with(|| Arc::new(Mutex::new(())))
-            .clone()
     }
 
     pub async fn create_uploaded_for_user(
@@ -327,8 +313,6 @@ impl MediaProcessingHandle {
         replace_page_id: Option<&str>,
     ) -> Result<Media, AppError> {
         let mut cleanup = StagingAssetCleanup::new(self.asset_svc.clone(), operation_id);
-        let lock = self.media_lock(media_id).await;
-        let _guard = lock.lock().await;
         let result = self
             .replace_after_upload_locked(ctx, media_id, operation_id, kind, replace_page_id)
             .await;
@@ -385,12 +369,13 @@ impl MediaProcessingHandle {
                 let old_ids = content_blob_ids(&media.content);
                 let updated = self
                     .media_repo
-                    .update(
+                    .update_if_current(
                         &write_teams,
                         media_id,
+                        &media,
                         None,
                         MediaWrite {
-                            title: media.title,
+                            title: media.title.clone(),
                             content,
                             pending_revision: None,
                         },
@@ -489,12 +474,13 @@ impl MediaProcessingHandle {
         }
         let updated = self
             .media_repo
-            .update(
+            .update_if_current(
                 write_teams,
                 &media.id,
+                &media,
                 None,
                 MediaWrite {
-                    title: media.title,
+                    title: media.title.clone(),
                     content: media.content.clone(),
                     pending_revision: Some(pending),
                 },
@@ -514,8 +500,6 @@ impl MediaProcessingHandle {
         ctx: &AuthorizationContext,
         media_id: &str,
     ) -> Result<Media, AppError> {
-        let lock = self.media_lock(media_id).await;
-        let _guard = lock.lock().await;
         let write_teams = ctx.write_teams();
         let media = self.media_repo.get(&write_teams, media_id).await?;
         let owner = parse_owner_record_id(&media.owner)?;
@@ -529,12 +513,13 @@ impl MediaProcessingHandle {
             return Ok(media);
         }
         self.media_repo
-            .update(
+            .update_if_current(
                 &write_teams,
                 media_id,
+                &media,
                 None,
                 MediaWrite {
-                    title: media.title,
+                    title: media.title.clone(),
                     content: media.content.clone(),
                     pending_revision: Some(MediaPendingRevision {
                         revision_id: uuid::Uuid::new_v4().to_string(),
@@ -551,8 +536,6 @@ impl MediaProcessingHandle {
         media_id: &str,
         payload: CommitDeck,
     ) -> Result<Media, AppError> {
-        let lock = self.media_lock(media_id).await;
-        let _guard = lock.lock().await;
         let write_teams = ctx.write_teams();
         let media = self.media_repo.get(&write_teams, media_id).await?;
         let owner = parse_owner_record_id(&media.owner)?;
@@ -611,12 +594,13 @@ impl MediaProcessingHandle {
         drop_ids.retain(|id| !keep.contains(id));
         let updated = self
             .media_repo
-            .update(
+            .update_if_current(
                 &write_teams,
                 media_id,
+                &media,
                 None,
                 MediaWrite {
-                    title: media.title,
+                    title: media.title.clone(),
                     content: MediaContent::SlideDeck { pages: committed },
                     pending_revision: None,
                 },
@@ -627,17 +611,21 @@ impl MediaProcessingHandle {
         Ok(updated)
     }
 
-    pub async fn delete_for_user(
+    pub async fn delete_current_for_user(
         &self,
         ctx: &AuthorizationContext,
         media_id: &str,
+        current: &Media,
     ) -> Result<Media, AppError> {
-        let lock = self.media_lock(media_id).await;
-        let _guard = lock.lock().await;
         let write_teams = ctx.write_teams();
-        self.media_repo.get(&write_teams, media_id).await?;
-        self.asset_svc.delete_assets_for_media(media_id).await?;
-        self.media_repo.delete(&write_teams, media_id).await
+        let deleted = self
+            .media_repo
+            .delete_if_current(&write_teams, media_id, current)
+            .await?;
+        if let Err(error) = self.asset_svc.delete_assets_for_media(media_id).await {
+            tracing::warn!(media_id, error = %error, "deleted media asset cleanup failed");
+        }
+        Ok(deleted)
     }
 
     async fn cleanup_final_assets(&self, asset_ids: &[String]) {

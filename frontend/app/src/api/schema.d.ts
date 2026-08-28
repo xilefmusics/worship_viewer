@@ -4094,6 +4094,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Media changed concurrently */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description If-Match failed */
             412: {
                 headers: {
@@ -4125,6 +4134,15 @@ export interface operations {
             };
             /** @description Media absent or concealed */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Media changed concurrently */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4185,6 +4203,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Media changed concurrently */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     begin_deck_revision: {
@@ -4218,6 +4245,15 @@ export interface operations {
             };
             /** @description Media absent or concealed */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Media changed concurrently */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4463,6 +4499,15 @@ export interface operations {
             };
             /** @description Media not found or write access denied */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Media changed concurrently */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

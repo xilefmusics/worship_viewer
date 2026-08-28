@@ -10,7 +10,6 @@ pub mod rest;
 pub mod service;
 mod surreal_repo;
 
-pub mod av_processor;
 pub mod deck_processor;
 pub mod processing;
 
