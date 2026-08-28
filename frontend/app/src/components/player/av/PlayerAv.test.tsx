@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -19,6 +19,7 @@ const readViewState = vi.fn()
 const writeViewState = vi.fn()
 
 let viewState = { transposeByItem: {}, languageByItem: { 0: 1 } }
+let projectionListener: ((message: unknown) => void) | null = null
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
@@ -42,8 +43,8 @@ vi.mock('@/hooks/usePlayerIndexSearchSync', () => ({
 }))
 
 vi.mock('@/hooks/useSetlistEvictionWatch', () => ({
-  useSetlistEvictionWatch: () => {
-    setEvictionWatch()
+  useSetlistEvictionWatch: (setlistId: string | undefined, enabled: boolean) => {
+    setEvictionWatch(setlistId, enabled)
     return false
   },
 }))
@@ -60,12 +61,21 @@ vi.mock('@/hooks/useAvBilingualPreference', () => ({
 
 vi.mock('@/lib/player/av-projection-sync', () => ({
   AV_PROJECTION_SHARED_SESSION_ID: 'shared',
+  createAvProjectionChannel: (_sessionId: string, listener?: (message: unknown) => void) => {
+    projectionListener = listener ?? null
+    return {
+      send: broadcast,
+      close: closeSync,
+      readLatestCommand: vi.fn(),
+    }
+  },
   createAvProjectionSync: () => ({
     broadcast,
     close: closeSync,
     readLatest: vi.fn(),
   }),
   getAvProjectionSessionId: () => 'shared',
+  newAvOutputWindowName: () => 'wv-av-output-test',
 }))
 
 vi.mock('@/lib/player/av-preferences', () => ({
@@ -92,6 +102,7 @@ vi.mock('@/lib/player/av-preferences', () => ({
       ? Math.min(100, Math.max(0, Math.trunc(value)))
       : fallback,
   buildAvProjectionPayload: (input: unknown) => input,
+  effectiveAvTransition: (transition: unknown) => transition,
   readAvPreferences: () => readPreferences(),
   writeAvPreferences: (...args: unknown[]) => writePreferences(...args),
 }))
@@ -133,22 +144,34 @@ vi.mock('@/components/player/av/AvSectionShortcuts', () => ({
   AvSectionShortcuts: () => null,
 }))
 
+vi.mock('@/components/player/av/AvBackgroundSelector', () => ({
+  AvBackgroundSelector: () => <div data-testid="background-selector" />,
+}))
+
 vi.mock('@/components/player/av/AvSlideView', () => ({
   AvSlideView: ({
     contentText,
     contentLines,
+    deckPage,
+    timedPreview,
   }: {
     contentText?: string
     contentLines?: Array<{ primary: string; secondary?: string }>
+    deckPage?: { mediaId: string; assetId: string }
+    timedPreview?: { kind: string; title: string }
   }) => (
     <div data-testid="preview-text">
-      {contentLines
-        ? contentLines
-            .map((line) =>
-              line.secondary ? `${line.primary}|${line.secondary}` : line.primary,
-            )
-            .join('//')
-        : contentText}
+      {timedPreview
+        ? `media:${timedPreview.kind}:${timedPreview.title}`
+        : deckPage
+          ? `deck:${deckPage.mediaId}:${deckPage.assetId}`
+          : contentLines
+            ? contentLines
+                .map((line) =>
+                  line.secondary ? `${line.primary}|${line.secondary}` : line.primary,
+                )
+                .join('//')
+            : contentText}
     </div>
   ),
 }))
@@ -298,6 +321,7 @@ const twoItemPlayer = {
 
 beforeEach(() => {
   bilingualEnabled = false
+  projectionListener = null
   navigate.mockReset()
   broadcast.mockReset()
   closeSync.mockReset()
@@ -441,11 +465,13 @@ describe('PlayerAv', () => {
     })
 
     const lastPayload = broadcast.mock.calls.at(-1)?.[0] as {
-      contentText?: string
-      contentLines?: Array<{ primary: string; secondary?: string }>
+      content?: { type: string; contentText?: string; contentLines?: Array<{ primary: string; secondary?: string }> }
     }
-    expect(lastPayload.contentText).toBe('Hello')
-    expect(lastPayload.contentLines).toEqual([{ primary: 'Hello', secondary: 'Hallo' }])
+    expect(lastPayload.content).toEqual({
+      type: 'lyrics',
+      contentText: 'Hello',
+      contentLines: [{ primary: 'Hello', secondary: 'Hallo' }],
+    })
   })
 
   it('does not republish an unchanged room projection when the callback changes', async () => {
@@ -498,8 +524,10 @@ describe('PlayerAv', () => {
       expect(broadcast).toHaveBeenCalled()
     })
 
-    const projectedPayload = broadcast.mock.calls.at(-1)?.[0] as { contentText?: string }
-    expect(projectedPayload.contentText).toBe('Tschuess')
+    const projectedPayload = broadcast.mock.calls.at(-1)?.[0] as {
+      content?: { type: string; contentText?: string }
+    }
+    expect(projectedPayload.content?.contentText).toBe('Tschuess')
 
     broadcast.mockClear()
 
@@ -509,8 +537,8 @@ describe('PlayerAv', () => {
     expect(screen.getByTestId('preview-text')).toHaveTextContent('Tschuess')
 
     for (const call of broadcast.mock.calls) {
-      const payload = call[0] as { contentText?: string }
-      expect(payload.contentText).not.toBe('Second song line')
+      const payload = call[0] as { content?: { type: string; contentText?: string } }
+      expect(payload.content?.contentText).not.toBe('Second song line')
     }
 
     await user.click(screen.getByRole('button', { name: 'Select slide 0' }))
@@ -520,8 +548,10 @@ describe('PlayerAv', () => {
     })
 
     expect(screen.getByTestId('preview-text')).toHaveTextContent('Second song line')
-    const nextPayload = broadcast.mock.calls.at(-1)?.[0] as { contentText?: string }
-    expect(nextPayload.contentText).toBe('Second song line')
+    const nextPayload = broadcast.mock.calls.at(-1)?.[0] as {
+      content?: { type: string; contentText?: string }
+    }
+    expect(nextPayload.content?.contentText).toBe('Second song line')
   })
 
   it('lets an AV-only room host navigate slides without changing musical state', async () => {
@@ -569,5 +599,502 @@ describe('PlayerAv', () => {
     expect(screen.getByText('Anker')).toBeInTheDocument()
     expect(screen.queryByText('Second Song')).not.toBeInTheDocument()
     expect(onRoomMusicalStateChange).not.toHaveBeenCalled()
+  })
+
+  const deckPlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Deck', id: 'media-1', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-1',
+        title: 'Deck',
+        content: {
+          type: 'slide_deck',
+          pages: [{ blob_id: 'page-a' }, { blob_id: 'page-b' }],
+        },
+      },
+    ],
+  } as Player
+
+  const mixedPlayer = {
+    index: 0,
+    toc: [
+      { idx: 0, nr: '1', title: 'Anchor', id: 'song-1', liked: false },
+      { idx: 1, nr: '', title: 'Deck', id: 'media-1', liked: false },
+    ],
+    items: [
+      ...player.items,
+      {
+        type: 'media',
+        id: 'media-1',
+        title: 'Deck',
+        content: {
+          type: 'slide_deck',
+          pages: [{ blob_id: 'page-a' }, { blob_id: 'page-b' }],
+        },
+      },
+    ],
+  } as Player
+
+  it('does not watch media setlists for offline mirror eviction', () => {
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-with-media"
+        player={mixedPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+
+    expect(setEvictionWatch).toHaveBeenLastCalledWith(undefined, false)
+  })
+
+  it('I3: warns when a page is projected with no ready output', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={player}
+        allowNetworkFetch={false}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => {
+      expect(screen.getByText('player.av.missingOutput')).toBeInTheDocument()
+    })
+  })
+
+  it('projects a selected deck page as a tagged command and not through Player Rooms', async () => {
+    const user = userEvent.setup()
+    const onRoomProjectionChange = vi.fn()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={deckPlayer}
+        allowNetworkFetch={false}
+        canControlRoomProjection
+        onRoomProjectionChange={onRoomProjectionChange}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const command = broadcast.mock.calls.at(-1)?.[0] as {
+      type?: string
+      content?: { type: string; mediaId?: string; assetId?: string }
+    }
+    expect(command.type).toBe('command')
+    expect(command.content).toEqual({ type: 'deck_page', mediaId: 'media-1', assetId: 'page-b' })
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('deck:media-1:page-b')
+    expect(onRoomProjectionChange).not.toHaveBeenCalled()
+  })
+
+  it('keeps the projected lyric when selecting a mixed-setlist deck TOC row', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={mixedPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const lyricCommand = broadcast.mock.calls.at(-1)?.[0] as {
+      content?: { type: string; contentText?: string }
+    }
+    expect(lyricCommand.content?.contentText).toBe('Tschuess')
+
+    broadcast.mockClear()
+    await user.keyboard('n')
+    expect(screen.getByText('Deck')).toBeInTheDocument()
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('Tschuess')
+    for (const call of broadcast.mock.calls) {
+      const payload = call[0] as { content?: { type: string } }
+      expect(payload.content?.type).not.toBe('deck_page')
+    }
+  })
+
+  const videoPlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Clip', id: 'media-2', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-2',
+        title: 'Clip',
+        content: { type: 'video', blob_id: 'v1', duration_ms: 4000, width: 1920, height: 1080 },
+      },
+    ],
+  } as Player
+
+  const mixedVideoPlayer = {
+    index: 0,
+    toc: [
+      { idx: 0, nr: '1', title: 'Anchor', id: 'song-1', liked: false },
+      { idx: 1, nr: '', title: 'Clip', id: 'media-2', liked: false },
+    ],
+    items: [
+      ...player.items,
+      {
+        type: 'media',
+        id: 'media-2',
+        title: 'Clip',
+        content: { type: 'video', blob_id: 'v1', duration_ms: 4000, width: 1920, height: 1080 },
+      },
+    ],
+  } as Player
+
+  async function helloOutput() {
+    await waitFor(() => expect(projectionListener).toBeTruthy())
+    act(() => {
+      projectionListener?.({ type: 'hello', sessionId: 'shared', outputId: 'out-1', ready: true })
+    })
+  }
+
+  it('I4: keeps the projected lyric when selecting a mixed-setlist video TOC row', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={mixedVideoPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.keyboard('n')
+    expect(screen.getByRole('button', { name: 'player.av.play' })).toBeInTheDocument()
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('Tschuess')
+    expect(screen.queryByTestId('av-projected-video')).not.toBeInTheDocument()
+    for (const call of broadcast.mock.calls) {
+      const payload = call[0] as { content?: { type: string } }
+      expect(payload.content?.type).not.toBe('video')
+    }
+  })
+
+  it('I4: warns on Play with no output and leaves projection unchanged', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={mixedVideoPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.keyboard('n')
+    await user.click(screen.getByRole('button', { name: 'player.av.play' }))
+    expect(screen.getByText('player.av.missingOutputPlay')).toBeInTheDocument()
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('Tschuess')
+    for (const call of broadcast.mock.calls) {
+      const payload = call[0] as { content?: { type: string } }
+      expect(payload.content?.type).not.toBe('video')
+    }
+  })
+
+  it('I4: Play replaces the output with uploaded video and stays silent on the controller', async () => {
+    const user = userEvent.setup()
+    const onRoomProjectionChange = vi.fn()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={videoPlayer}
+        allowNetworkFetch={false}
+        canControlRoomProjection
+        onRoomProjectionChange={onRoomProjectionChange}
+      />,
+    )
+    await helloOutput()
+    await user.click(screen.getByRole('button', { name: 'player.av.play' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const command = broadcast.mock.calls.at(-1)?.[0] as {
+      type?: string
+      content?: { type: string; mediaId?: string; assetId?: string }
+      playback?: { action?: string }
+    }
+    expect(command.type).toBe('command')
+    expect(command.content).toEqual({ type: 'video', mediaId: 'media-2', assetId: 'v1' })
+    expect(command.playback?.action).toBe('play')
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('media:video:Clip')
+    expect(screen.queryByTestId('av-projected-video')).not.toBeInTheDocument()
+    expect(onRoomProjectionChange).not.toHaveBeenCalled()
+  })
+
+  it('I4: pause issues a same-content playback command', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={videoPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+    await helloOutput()
+    await user.click(screen.getByRole('button', { name: 'player.av.play' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.click(screen.getByRole('button', { name: 'player.av.pause' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const command = broadcast.mock.calls.at(-1)?.[0] as {
+      content?: { type: string }
+      playback?: { action?: string }
+    }
+    expect(command.content?.type).toBe('video')
+    expect(command.playback?.action).toBe('pause')
+  })
+
+  it('I4: Blank pauses projected video and Live restores paused rather than playing', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={videoPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+    await helloOutput()
+    await user.click(screen.getByRole('button', { name: 'player.av.play' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.keyboard('r')
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const blankCommand = broadcast.mock.calls.at(-1)?.[0] as {
+      screenState?: string
+      playback?: { action?: string }
+      content?: { type: string }
+    }
+    expect(blankCommand.screenState).toBe('blank')
+    expect(blankCommand.playback?.action).toBe('pause')
+    expect(blankCommand.content?.type).toBe('video')
+    broadcast.mockClear()
+    await user.keyboard('r')
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const liveCommand = broadcast.mock.calls.at(-1)?.[0] as {
+      screenState?: string
+      playback?: { action?: string }
+    }
+    expect(liveCommand.screenState).toBe('live')
+    expect(liveCommand.playback?.action).toBe('pause')
+  })
+
+  const youtubePlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Clip', id: 'media-yt', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-yt',
+        title: 'Clip',
+        content: {
+          type: 'youtube',
+          video_id: 'dQw4w9WgXcQ',
+          canonical_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+      },
+    ],
+  } as Player
+
+  const mixedYoutubePlayer = {
+    index: 0,
+    toc: [
+      { idx: 0, nr: '1', title: 'Anchor', id: 'song-1', liked: false },
+      { idx: 1, nr: '', title: 'Clip', id: 'media-yt', liked: false },
+    ],
+    items: [
+      ...player.items,
+      {
+        type: 'media',
+        id: 'media-yt',
+        title: 'Clip',
+        content: {
+          type: 'youtube',
+          video_id: 'dQw4w9WgXcQ',
+          canonical_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+      },
+    ],
+  } as Player
+
+  const livestreamPlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Stream', id: 'media-live', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-live',
+        title: 'Stream',
+        content: { type: 'livestream', url: 'https://example.com/live.m3u8', stream_type: 'hls' },
+      },
+    ],
+  } as Player
+
+  const spotifyPlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Prelude', id: 'media-spotify', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-spotify',
+        title: 'Prelude',
+        content: {
+          type: 'spotify',
+          resource_type: 'playlist',
+          spotify_id: '37i9dQZF1DXcBWIGoYBM5M',
+          canonical_url: 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M',
+        },
+      },
+    ],
+  } as Player
+
+  const webPlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Bulletin', id: 'media-web', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-web',
+        title: 'Bulletin',
+        content: { type: 'web_page', url: 'https://example.com/bulletin' },
+      },
+    ],
+  } as Player
+
+  it('I5: keeps the projected lyric when selecting YouTube, livestream, or web TOC rows', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={mixedYoutubePlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Select slide 1' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.keyboard('n')
+    expect(screen.getByRole('button', { name: 'player.av.play' })).toBeInTheDocument()
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('Tschuess')
+    for (const call of broadcast.mock.calls) {
+      const payload = call[0] as { content?: { type: string } }
+      expect(payload.content?.type).not.toBe('youtube')
+    }
+  })
+
+  it('I5: Play replaces the output with YouTube content and stays silent on the controller', async () => {
+    const user = userEvent.setup()
+    const onRoomProjectionChange = vi.fn()
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={youtubePlayer}
+        allowNetworkFetch={false}
+        canControlRoomProjection
+        onRoomProjectionChange={onRoomProjectionChange}
+      />,
+    )
+    await helloOutput()
+    await user.click(screen.getByRole('button', { name: 'player.av.play' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    const command = broadcast.mock.calls.at(-1)?.[0] as {
+      content?: { type: string; videoId?: string }
+      playback?: { action?: string }
+    }
+    expect(command.content).toEqual({
+      type: 'youtube',
+      videoId: 'dQw4w9WgXcQ',
+      canonicalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    })
+    expect(command.playback?.action).toBe('play')
+    expect(screen.getByTestId('preview-text')).toHaveTextContent('media:youtube:Clip')
+    expect(screen.queryByTestId('av-projected-youtube')).not.toBeInTheDocument()
+    expect(onRoomProjectionChange).not.toHaveBeenCalled()
+  })
+
+  it('I5: livestream without a DVR range does not expose seek', async () => {
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={livestreamPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'player.av.play' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('player.av.seek')).not.toBeInTheDocument()
+  })
+
+  it('opens Spotify externally without sending playback to an output', () => {
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={spotifyPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+
+    const open = screen.getByRole('link', { name: 'media.actions.openSpotify' })
+    expect(open).toHaveAttribute(
+      'href',
+      'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M',
+    )
+    expect(open).toHaveAttribute('target', '_blank')
+    expect(screen.getByTestId('av-spotify-panel')).toBeInTheDocument()
+    expect(broadcast).not.toHaveBeenCalled()
+  })
+
+  it('I5: web pages require Show and warn when no output is open', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv type="setlist" id="setlist-1" player={webPlayer} allowNetworkFetch={false} />,
+    )
+    expect(screen.getByRole('button', { name: 'player.av.show' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'player.av.play' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'player.av.show' }))
+    expect(screen.getByText('player.av.missingOutputShow')).toBeInTheDocument()
+    expect(broadcast).not.toHaveBeenCalled()
+  })
+
+  it('I5: Show projects a web page and Hide/Reload issue pause/restart', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlayerAv type="setlist" id="setlist-1" player={webPlayer} allowNetworkFetch={false} />,
+    )
+    await helloOutput()
+    await user.click(screen.getByRole('button', { name: 'player.av.show' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    expect(broadcast.mock.calls.at(-1)?.[0]).toMatchObject({
+      content: { type: 'web_page', url: 'https://example.com/bulletin' },
+      playback: { action: 'play' },
+    })
+    broadcast.mockClear()
+    await user.click(screen.getByRole('button', { name: 'player.av.hide' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    expect(broadcast.mock.calls.at(-1)?.[0]).toMatchObject({ playback: { action: 'pause' } })
+    broadcast.mockClear()
+    await user.click(screen.getByRole('button', { name: 'player.av.show' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    broadcast.mockClear()
+    await user.click(screen.getByRole('button', { name: 'player.av.reload' }))
+    await waitFor(() => expect(broadcast).toHaveBeenCalled())
+    expect(broadcast.mock.calls.at(-1)?.[0]).toMatchObject({ playback: { action: 'restart' } })
   })
 })

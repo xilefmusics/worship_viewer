@@ -163,9 +163,10 @@ export async function estimateKvTableBytes(): Promise<number> {
 export async function fetchSetlistPlayerFromNetwork(
   setlistId: string,
   signal?: AbortSignal,
+  view: 'book' | 'av' = 'book',
 ): Promise<{ player: Player } | { error: string; status: number }> {
   const { data, error, response } = await api.GET('/api/v1/setlists/{id}/player', {
-    params: { path: { id: setlistId } },
+    params: { path: { id: setlistId }, query: { view } },
     parseAs: 'json',
     signal,
   })
@@ -182,9 +183,10 @@ export async function fetchPlayerFromNetwork(
   entityType: PlayerEntityType,
   entityId: string,
   signal?: AbortSignal,
+  view: 'book' | 'av' = 'book',
 ): Promise<{ player: Player } | { error: string; status: number }> {
   if (entityType === 'setlist') {
-    return fetchSetlistPlayerFromNetwork(entityId, signal)
+    return fetchSetlistPlayerFromNetwork(entityId, signal, view)
   }
   if (entityType === 'song') {
     const { data, error, response } = await api.GET('/api/v1/songs/{id}/player', {

@@ -31,6 +31,7 @@ Cross-cutting rules used throughout:
 - [J. Settings & preferences](#j-settings--preferences)
 - [K. Sessions](#k-sessions)
 - [L. Hub lists: search, browse, export, duplicate, delete](#l-hub-lists)
+- [M. Media — slide decks](#m-media--slide-decks)
 
 ---
 
@@ -644,16 +645,64 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    av(["/player AV"]) -->|"Open output (O)"| open["window.open('/player/output?s=sessionId', 'wv-av-output')"]
+    av(["/player AV"]) -->|"Open output (O)"| open["window.open('/player/output?s=shared', unique name)"]
     open --> out(["Projection output window"])
-    out --> render["Renders projected slide: Live (bg+text) / Blank (bg only) / Blackout (black)"]
-    av -. "BroadcastChannel + localStorage snapshot" .-> render
+    out --> hello["hello + heartbeat with outputId"]
+    page["Lyric or deck page select"] --> cmd["Tagged command: session/command id, content, screen, background"]
+    cmd --> bc["BroadcastChannel + latest-command snapshot"]
+    bc --> out
+    out --> ack["Ack applied or safe error"]
+    ack --> registry["Controller summarizes Ready / missing / failed"]
+    cmd --> warn{"Zero ready outputs?"}
+    warn -->|yes| missing["Warn: page was not shown on a screen"]
+    out --> render["Live: lyrics, contained deck page, or contained video / audio over background / Blank: hide content / Blackout: black"]
     out --> fs{"Double-click"}
     fs -->|'Allow fullscreen' setting on| full["Enter fullscreen"]
     fs -->|off| nofull["No-op"]
-    out --> missing["No ?s param → 'Missing projection session.'"]
     av -->|AV settings gear| settings["→ /settings?tab=playerRoles (return context)"]
 ```
+
+TOC/item changes stay on the controller. Deck pages use the same replace command as lyrics; Media is not sent through Player Rooms. Missing `?s` defaults to the shared session.
+
+### I4. Uploaded audio/video projection
+
+```mermaid
+flowchart TD
+    toc["TOC select of audio/video"] --> preview["Controller preview and transport only"]
+    preview --> play["Play"]
+    play --> ready{"Ready output?"}
+    ready -->|no| warn["Warn; leave current projection unchanged"]
+    ready -->|yes| cmd["Replace command: video/audio + play"]
+    cmd --> outs["Every open output"]
+    outs --> media["Output-local media element is the clock"]
+    media --> ack["Throttled playback acks"]
+    ack --> ui["Aggregate controller status"]
+    blank["Blank / Blackout"] --> pause["Pause and hide; Live restores paused"]
+    ended["Natural end"] --> clear["Clear media layer; no setlist advance"]
+```
+
+The controller stays silent and never uses a media element or object URL. Each output may emit audio independently. Selecting another TOC item does not start playback; Play both replaces the projection and starts it.
+
+### I5. YouTube, livestream, and web projection
+
+```mermaid
+flowchart TD
+    toc["TOC select of YouTube / livestream / web"] --> preview["Controller preview and transport only"]
+    preview --> start{"Play or Show"}
+    start --> ready{"Ready output?"}
+    ready -->|no| warn["Warn; leave current projection unchanged"]
+    ready -->|yes| cmd["Replace command: youtube / livestream / web_page"]
+    cmd --> outs["Every open output"]
+    outs --> yt["YouTube iframe API"]
+    outs --> live["Native media or hls.js"]
+    outs --> web["Sandboxed HTTPS iframe"]
+    yt --> ack["Throttled safe acks"]
+    live --> ack
+    web --> ack
+    ack --> caps["Controller shows only supported controls"]
+```
+
+Selecting remote Media never changes the live projection. YouTube and livestream require Play; web pages require Show, then Hide and Reload. Seek appears only when an output reports a real DVR/VOD range. The YouTube iframe API and HLS client load only on `/player/output`. Web iframes use `sandbox="allow-scripts"` without same-origin, forms, popups, downloads, or top navigation. Detectable embed failures stay on the background with no proxy fallback.
 
 ---
 
@@ -822,3 +871,79 @@ flowchart LR
 ```
 
 All room surfaces show reconnecting without discarding their last snapshot. Player Room discovery is loaded only after navigating to the Player Rooms hub; unrelated legacy hub pages do not poll or prefetch room data. An ended room is terminal and public failures do not reveal team or source data.
+
+---
+
+## M. Media — slide decks
+
+### M1. Create a slide deck from mixed files
+
+```mermaid
+flowchart TD
+    fab(["Media + Add media"]) --> dlg["Kind = Slide deck · multi-file PNG/JPEG/SVG/PDF"]
+    dlg -->|No files| guard["'Choose a file to upload.'"]
+    dlg -->|Wrong type| type["'Choose PNG, JPEG, SVG, or PDF files.'"]
+    dlg -->|Valid| create["Multipart POST /media/uploads?kind=slide_deck"]
+    create -->|All sources processed| editor["Open completed deck editor"]
+```
+
+### M2. Preview and edit draft pages
+
+```mermaid
+flowchart TD
+    editor(["/media/:id slide deck"]) --> src{Page source}
+    src -->|pending_revision.pages| draft["Draft pages"]
+    src -->|content.pages| live["Live pages (immutable until commit)"]
+    draft --> prev["Preview: img for PNG/JPEG/SVG · pdf.js canvas for PDF"]
+    live --> prev
+    prev --> acts{Action}
+    acts -->|Add| add["Upload more sources · append to revision"]
+    acts -->|Replace| rep["PUT uploads?replace_page=id"]
+    acts -->|Remove| rm["Omit from local order until Save"]
+    acts -->|Request pending| wait["Local progress · Save disabled"]
+    acts -->|Request failed| keep["Error · committed deck remains active"]
+```
+
+### M3. Reorder slide pages
+
+```mermaid
+flowchart TD
+    list(["Page list"]) --> ptr["Pointer / touch drag"]
+    list --> keys["Keyboard: Space, arrows, Space"]
+    ptr --> local["Local order with stable page ids"]
+    keys --> local
+    local --> save["Save sends that order"]
+```
+
+### M4. Commit a slide-deck revision
+
+```mermaid
+flowchart TD
+    save(["Save"]) --> pending{Pending revision?}
+    pending -->|No revision| begin["POST /deck/revisions copies live pages"]
+    pending -->|Yes| commit["POST /deck/commit {revision_id, page_ids}"]
+    begin --> commit
+    commit -->|OK| ready["Replace content.slide_deck · clear revision"]
+    commit -->|Stale / empty| err["Keep current content or draft · surface error"]
+```
+
+### M5. Empty-guard before save
+
+```mermaid
+flowchart TD
+    editor(["Deck editor"]) --> pages{Pages?}
+    pages -->|0| dis["Save disabled"]
+    pages -->|≥1 idle| en["Save enabled"]
+    dis --> hint["'Add at least one page before saving.'"]
+```
+
+### M6. Failed synchronous replacement keeps the committed deck
+
+```mermaid
+flowchart TD
+    ready(["Committed deck"]) --> up["Add / replace source"]
+    up --> process["PUT waits for source validation and expansion"]
+    process -->|Problem response| error["Show local request error"]
+    error --> keep["Live content.pages unchanged"]
+    keep --> retry["Retry from byte zero"]
+```

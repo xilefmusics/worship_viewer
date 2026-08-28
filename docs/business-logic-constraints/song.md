@@ -38,5 +38,5 @@
 
 ## Developer notes (non-normative)
 
-- Stale **song** ids inside collection/setlist **songs** arrays after a delete are a client-visible consistency concern; list and detail behavior for unresolved ids is defined by the implementation (see OpenAPI and tests), not by speculative **500** outcomes.
+- Stale **song** ids inside collection **`songs`** arrays after a delete are a client-visible consistency concern; setlist **song** slots are stripped by a delete event. List and detail behavior for unresolved ids is defined by the implementation (see OpenAPI and tests), not by speculative **500** outcomes.
 - **BLC-SONG-016:** WHEN a **user** account IS deleted THEN songs owned by their **personal** team are removed with that team ([user.md](./user.md)).

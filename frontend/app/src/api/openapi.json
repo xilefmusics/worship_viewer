@@ -101,7 +101,7 @@
             ]
           },
           "duration": {
-            "description": "Duration in milliclicks (1000 per ChordPro click in `{chord:\u2026:N}`).",
+            "description": "Duration in milliclicks (1000 per ChordPro click in `{chord:…:N}`).",
             "format": "int32",
             "minimum": 0,
             "type": [
@@ -180,6 +180,39 @@
           "title",
           "cover",
           "songs"
+        ],
+        "type": "object"
+      },
+      "CommitDeck": {
+        "additionalProperties": false,
+        "description": "Finalize a staged slide-deck revision in the operator-selected order.",
+        "properties": {
+          "page_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "revision_id": {
+            "type": "string"
+          },
+          "section_titles": {
+            "description": "Optional section titles in the same order as `page_ids`.",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "revision_id",
+          "page_ids"
         ],
         "type": "object"
       },
@@ -268,6 +301,70 @@
         ],
         "type": "object"
       },
+      "CreateMedia": {
+        "additionalProperties": false,
+        "description": "Create a synchronously validated URL-backed media resource.",
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/CreateMediaContent"
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "content"
+        ],
+        "type": "object"
+      },
+      "CreateMediaContent": {
+        "description": "URL content accepted by E5.1. Uploaded/deck and legacy URL tags on\n[`MediaContent`] cannot be fabricated through this request.",
+        "oneOf": [
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "youtube"
+                ],
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "spotify"
+                ],
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "type"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "CreatePlayerRoom": {
         "properties": {
           "host_mode": {
@@ -304,18 +401,25 @@
       "CreateSetlist": {
         "additionalProperties": false,
         "example": {
-          "owner": "team_example_id",
-          "songs": [
+          "items": [
             {
               "flow": null,
               "id": "song_example",
               "key": null,
-              "nr": "1"
+              "nr": "1",
+              "type": "song"
             }
           ],
+          "owner": "team_example_id",
           "title": "Easter Sunday"
         },
         "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SetlistItem"
+            },
+            "type": "array"
+          },
           "owner": {
             "description": "Owning team id (same format as `Setlist.owner` in responses). Omit to create under the caller's personal team.",
             "type": [
@@ -323,19 +427,13 @@
               "null"
             ]
           },
-          "songs": {
-            "items": {
-              "$ref": "#/components/schemas/SetlistSongLink"
-            },
-            "type": "array"
-          },
           "title": {
             "type": "string"
           }
         },
         "required": [
           "title",
-          "songs"
+          "items"
         ],
         "type": "object"
       },
@@ -401,6 +499,25 @@
         ],
         "type": "object"
       },
+      "CreateUploadedMedia": {
+        "additionalProperties": false,
+        "description": "Metadata part for synchronous multipart uploaded-media creation.",
+        "properties": {
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
       "CreateUser": {
         "additionalProperties": false,
         "example": {
@@ -437,6 +554,26 @@
           "credentials",
           "invite_secret"
         ],
+        "type": "object"
+      },
+      "DuplicateMedia": {
+        "additionalProperties": false,
+        "properties": {
+          "owner": {
+            "description": "Destination team. Omit to keep the source owner.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "description": "Title for the copy. Omit to reuse the source title.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
         "type": "object"
       },
       "ErrorResponse": {
@@ -649,6 +786,353 @@
         },
         "required": [
           "parts"
+        ],
+        "type": "object"
+      },
+      "LivestreamType": {
+        "enum": [
+          "hls",
+          "direct"
+        ],
+        "type": "string"
+      },
+      "Media": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/MediaContent"
+          },
+          "id": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "pending_revision": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MediaPendingRevision"
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "title",
+          "content"
+        ],
+        "type": "object"
+      },
+      "MediaAsset": {
+        "additionalProperties": false,
+        "description": "Metadata for a media-owned asset (no filesystem paths).",
+        "properties": {
+          "byte_length": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "etag": {
+            "description": "Weak ETag for delivery (`W/\"...\"`); set when promotion completes.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MediaAssetKind"
+          },
+          "media_id": {
+            "type": "string"
+          },
+          "operation_id": {
+            "description": "Present while `status` is `staging`; cleared after promotion.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "owner": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MediaAssetStatus"
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "media_id",
+          "kind",
+          "content_type",
+          "byte_length",
+          "status"
+        ],
+        "type": "object"
+      },
+      "MediaAssetKind": {
+        "description": "Source kind for a media-owned asset; selects upload byte limits and processing paths.",
+        "enum": [
+          "video",
+          "audio",
+          "image",
+          "pdf",
+          "svg"
+        ],
+        "type": "string"
+      },
+      "MediaAssetStatus": {
+        "description": "Lifecycle of bytes on disk for a media-owned asset.",
+        "enum": [
+          "staging",
+          "final"
+        ],
+        "type": "string"
+      },
+      "MediaContent": {
+        "oneOf": [
+          {
+            "properties": {
+              "pages": {
+                "items": {
+                  "$ref": "#/components/schemas/MediaDeckPage"
+                },
+                "type": "array"
+              },
+              "type": {
+                "enum": [
+                  "slide_deck"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "pages",
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "blob_id": {
+                "type": "string"
+              },
+              "duration_ms": {
+                "format": "int64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "height": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": {
+                "enum": [
+                  "video"
+                ],
+                "type": "string"
+              },
+              "width": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "blob_id",
+              "duration_ms",
+              "width",
+              "height",
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "blob_id": {
+                "type": "string"
+              },
+              "duration_ms": {
+                "format": "int64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": {
+                "enum": [
+                  "audio"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "blob_id",
+              "duration_ms",
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "canonical_url": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "youtube"
+                ],
+                "type": "string"
+              },
+              "video_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "video_id",
+              "canonical_url",
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "canonical_url": {
+                "type": "string"
+              },
+              "resource_type": {
+                "$ref": "#/components/schemas/SpotifyResourceType"
+              },
+              "spotify_id": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "spotify"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "resource_type",
+              "spotify_id",
+              "canonical_url",
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "stream_type": {
+                "$ref": "#/components/schemas/LivestreamType"
+              },
+              "type": {
+                "enum": [
+                  "livestream"
+                ],
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "stream_type",
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "web_page"
+                ],
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "type"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "MediaDeckPage": {
+        "additionalProperties": false,
+        "properties": {
+          "blob_id": {
+            "type": "string"
+          },
+          "section_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "blob_id"
+        ],
+        "type": "object"
+      },
+      "MediaPendingRevision": {
+        "additionalProperties": false,
+        "description": "A staged slide-deck revision that has not replaced active content yet.",
+        "properties": {
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/MediaStagedDeckPage"
+            },
+            "type": "array"
+          },
+          "revision_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision_id",
+          "pages"
+        ],
+        "type": "object"
+      },
+      "MediaStagedDeckPage": {
+        "additionalProperties": false,
+        "description": "A page in a staged (not yet committed) slide-deck revision.",
+        "properties": {
+          "blob_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "section_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "blob_id"
         ],
         "type": "object"
       },
@@ -1038,18 +1522,18 @@
         "additionalProperties": false,
         "description": "Partial update for a setlist. Absent fields are left unchanged.",
         "properties": {
-          "owner": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "songs": {
+          "items": {
             "items": {
-              "$ref": "#/components/schemas/SetlistSongLink"
+              "$ref": "#/components/schemas/SetlistItem"
             },
             "type": [
               "array",
+              "null"
+            ]
+          },
+          "owner": {
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -1194,7 +1678,7 @@
       },
       "PatchTeam": {
         "additionalProperties": false,
-        "description": "Partial update for a team. Absent fields are left unchanged.\n\n`members` uses three-state semantics:\n- absent \u2192 members list is not modified\n- `null` \u2192 rejected (a team must always have members)\n- `[\u2026]` \u2192 replaces the entire members list",
+        "description": "Partial update for a team. Absent fields are left unchanged.\n\n`members` uses three-state semantics:\n- absent → members list is not modified\n- `null` → rejected (a team must always have members)\n- `[…]` → replaces the entire members list",
         "properties": {
           "cover": {
             "type": [
@@ -1348,8 +1832,50 @@
                 "type": "object"
               }
             ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlayerMediaItem"
+              },
+              {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "media"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            ]
           }
         ]
+      },
+      "PlayerMediaItem": {
+        "description": "Immutable Media snapshot for online AV (`type`: `\"media\"`).",
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/MediaContent"
+          },
+          "id": {
+            "description": "Media resource id (stable identity for this setlist slot).",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "content"
+        ],
+        "type": "object"
       },
       "PlayerRoomContent": {
         "properties": {
@@ -1843,29 +2369,34 @@
       "Setlist": {
         "example": {
           "id": "set_example",
-          "owner": "usr_example",
-          "songs": [
+          "items": [
             {
               "flow": null,
               "id": "song_example",
               "key": null,
-              "nr": "1"
+              "nr": "1",
+              "type": "song"
+            },
+            {
+              "id": "media_example",
+              "type": "media"
             }
           ],
+          "owner": "usr_example",
           "title": "Easter Sunday"
         },
         "properties": {
           "id": {
             "type": "string"
           },
-          "owner": {
-            "type": "string"
-          },
-          "songs": {
+          "items": {
             "items": {
-              "$ref": "#/components/schemas/SetlistSongLink"
+              "$ref": "#/components/schemas/SetlistItem"
             },
             "type": "array"
+          },
+          "owner": {
+            "type": "string"
           },
           "title": {
             "type": "string"
@@ -1875,11 +2406,80 @@
           "id",
           "owner",
           "title",
-          "songs"
+          "items"
         ],
         "type": "object"
       },
+      "SetlistItem": {
+        "description": "Ordered setlist slot: a song with optional overrides, or a Media id.",
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SetlistSongLink"
+              },
+              {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "song"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SetlistMediaLink"
+              },
+              {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "media"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        ]
+      },
+      "SetlistMediaLink": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Media record id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "SetlistPlayerView": {
+        "description": "Player hydration mode for a setlist snapshot.",
+        "enum": [
+          "book",
+          "av"
+        ],
+        "type": "string"
+      },
       "SetlistSongLink": {
+        "additionalProperties": false,
         "properties": {
           "flow": {
             "description": "Custom section order and repeats for this setlist slot.",
@@ -1902,7 +2502,7 @@
               },
               {
                 "$ref": "#/components/schemas/SimpleChord",
-                "description": "Transposition key for this slot (same `{ \"level\": \u2026 }` object as `Song.data.key`)."
+                "description": "Transposition key for this slot (same `{ \"level\": … }` object as `Song.data.key`)."
               }
             ]
           },
@@ -1939,7 +2539,7 @@
         "description": "Chromatic pitch class (song key, chord root, or slash bass).",
         "properties": {
           "level": {
-            "description": "Pitch class: 0 = C, 1 = C#/Db, \u2026, 11 = B.",
+            "description": "Pitch class: 0 = C, 1 = C#/Db, …, 11 = B.",
             "example": 7,
             "format": "int32",
             "maximum": 11,
@@ -2183,7 +2783,7 @@
               },
               {
                 "$ref": "#/components/schemas/SimpleChord",
-                "description": "Transposition key for this slot (same `{ \"level\": \u2026 }` object as `Song.data.key`)."
+                "description": "Transposition key for this slot (same `{ \"level\": … }` object as `Song.data.key`)."
               }
             ]
           },
@@ -2256,7 +2856,7 @@
             ]
           },
           "sort": {
-            "description": "Sort: comma-separated fields, `-` prefix for descending (e.g. `-id`, `title`, `-id,title`).\nUse `relevance` when searching (`q` non-empty). Legacy tokens (`id_desc`, \u2026) accepted with a warning.",
+            "description": "Sort: comma-separated fields, `-` prefix for descending (e.g. `-id`, `title`, `-id,title`).\nUse `relevance` when searching (`q` non-empty). Legacy tokens (`id_desc`, …) accepted with a warning.",
             "example": "-id",
             "type": [
               "string",
@@ -2289,6 +2889,13 @@
           "liked"
         ],
         "type": "object"
+      },
+      "SpotifyResourceType": {
+        "enum": [
+          "track",
+          "playlist"
+        ],
+        "type": "string"
       },
       "Team": {
         "example": {
@@ -2472,7 +3079,7 @@
       },
       "TransferCollectionSong": {
         "additionalProperties": false,
-        "description": "Move a song link from this collection into another (`POST \u2026/collections/{id}/songs/{song_id}/transfer`).",
+        "description": "Move a song link from this collection into another (`POST …/collections/{id}/songs/{song_id}/transfer`).",
         "example": {
           "key": {
             "level": 3
@@ -2586,10 +3193,44 @@
         ],
         "type": "object"
       },
+      "UpdateMedia": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CreateMediaContent"
+              }
+            ]
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
       "UpdateSetlist": {
         "additionalProperties": false,
         "description": "Full replacement body for `PUT /api/v1/setlists/{id}`.",
         "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SetlistItem"
+            },
+            "type": "array"
+          },
           "owner": {
             "description": "Target team id for the setlist's `owner`; omit or `null` to keep the current owner.",
             "type": [
@@ -2597,19 +3238,13 @@
               "null"
             ]
           },
-          "songs": {
-            "items": {
-              "$ref": "#/components/schemas/SetlistSongLink"
-            },
-            "type": "array"
-          },
           "title": {
             "type": "string"
           }
         },
         "required": [
           "title",
-          "songs"
+          "items"
         ],
         "type": "object"
       },
@@ -2675,6 +3310,15 @@
           "name"
         ],
         "type": "object"
+      },
+      "UploadedMediaKind": {
+        "description": "Uploaded media kind accepted by synchronous multipart creation.",
+        "enum": [
+          "slide_deck",
+          "video",
+          "audio"
+        ],
+        "type": "string"
       },
       "User": {
         "example": {
@@ -2747,7 +3391,7 @@
     }
   },
   "info": {
-    "description": "Versioned REST API under `/api/v1`. Authentication flows live at `/auth/*` (unversioned); clients should treat that split as stable for this major API generation. Public deployment metadata is available at `GET /api/v1/about` (no authentication).\n\n**Breaking 2.0:** See `docs/api-breaking-2-0.md` for migration (`PlayerItem`, `Song.blobs` as link objects, `Session` wire model, `Problem` without `error`, PUT bodies use `Update*` types in the spec).\n\n**Timestamps:** All timestamps are UTC and use RFC 3339 with a `Z` suffix (e.g. `2026-04-18T12:00:00Z`).\n\n**Identifiers:** Resource IDs are opaque printable strings returned by the API; treat them as opaque and do not parse their internal structure.\n\n**References & expand:** Cross-resource links use objects such as `BlobLink` (`{ \"id\": \"\u2026\" }`) instead of bare id strings where noted. Session list/detail responses default to a narrow `user` link (`id` + `email`); pass `expand=user` (comma-separated with other tokens as added) to embed the full `User`. HTTP audit request counts and last-used timestamps for a single user or session are available from `GET .../metrics` routes next to each single-resource user/session endpoint, not on the `User` / `SessionBody` objects themselves.\n\n**JSON naming:** Object keys use `snake_case`. Enum wire values use the casing shown in each schema (broader enum casing standardization is planned).\n\n**Pagination:** List endpoints accept `page` (0-based) and `page_size` (1\u2013500, default 50). Responses include `X-Total-Count` with the total matching rows before pagination and RFC 5988 `Link` headers (relations: first, prev, next, last) where applicable.\n\n**Rate limiting:** Versioned `/api/v1/*` routes use token-bucket limits per client IP (`Retry-After`, `X-RateLimit-*` on **429**; configurable via server settings).\n\n**Errors:** Failed requests return `Content-Type: application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details, formerly RFC 7807) with a `Problem` body (`type`, `title`, `status`, `code`, optional `detail` / `instance`). Use `detail` for human-readable text; stable machine-readable `code` values include: `unauthorized`, `forbidden`, `not_found`, `invalid_request`, `invalid_page_size`, `conflict`, `too_many_requests`, `not_acceptable`, `precondition_failed`, `internal`. Legacy schemas `ErrorResponse` and `ProblemDetails` remain listed for one release but are deprecated in favor of `Problem`.\n\n**CSRF:** Cookie sessions use `SameSite=Lax`; state-changing methods are `POST`/`PUT`/`PATCH`/`DELETE` (not `GET`). Cross-site simple requests cannot mutate state via cookies under typical browser rules. Browser `fetch` from the SPA uses `credentials: 'include'` on same-origin API calls (see `frontend/app/src/api/client.ts`). API clients using bearer tokens should still avoid exposing tokens to third-party origins.\n\n**Examples:** See schema `example` fields on core DTOs in the components section.",
+    "description": "Versioned REST API under `/api/v1`. Authentication flows live at `/auth/*` (unversioned); clients should treat that split as stable for this major API generation. Public deployment metadata is available at `GET /api/v1/about` (no authentication).\n\n**Breaking 2.0:** See `docs/api-breaking-2-0.md` for migration (`PlayerItem`, `Song.blobs` as link objects, `Session` wire model, `Problem` without `error`, PUT bodies use `Update*` types in the spec).\n\n**Timestamps:** All timestamps are UTC and use RFC 3339 with a `Z` suffix (e.g. `2026-04-18T12:00:00Z`).\n\n**Identifiers:** Resource IDs are opaque printable strings returned by the API; treat them as opaque and do not parse their internal structure.\n\n**References & expand:** Cross-resource links use objects such as `BlobLink` (`{ \"id\": \"…\" }`) instead of bare id strings where noted. Session list/detail responses default to a narrow `user` link (`id` + `email`); pass `expand=user` (comma-separated with other tokens as added) to embed the full `User`. HTTP audit request counts and last-used timestamps for a single user or session are available from `GET .../metrics` routes next to each single-resource user/session endpoint, not on the `User` / `SessionBody` objects themselves.\n\n**JSON naming:** Object keys use `snake_case`. Enum wire values use the casing shown in each schema (broader enum casing standardization is planned).\n\n**Pagination:** List endpoints accept `page` (0-based) and `page_size` (1–500, default 50). Responses include `X-Total-Count` with the total matching rows before pagination and RFC 5988 `Link` headers (relations: first, prev, next, last) where applicable.\n\n**Rate limiting:** Versioned `/api/v1/*` routes use token-bucket limits per client IP (`Retry-After`, `X-RateLimit-*` on **429**; configurable via server settings).\n\n**Errors:** Failed requests return `Content-Type: application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details, formerly RFC 7807) with a `Problem` body (`type`, `title`, `status`, `code`, optional `detail` / `instance`). Use `detail` for human-readable text; stable machine-readable `code` values include: `unauthorized`, `forbidden`, `not_found`, `invalid_request`, `invalid_page_size`, `media_invalid_url`, `media_unsupported_url`, `payload_too_large`, `conflict`, `too_many_requests`, `not_acceptable`, `precondition_failed`, `internal`. Legacy schemas `ErrorResponse` and `ProblemDetails` remain listed for one release but are deprecated in favor of `Problem`.\n\n**CSRF:** Cookie sessions use `SameSite=Lax`; state-changing methods are `POST`/`PUT`/`PATCH`/`DELETE` (not `GET`). Cross-site simple requests cannot mutate state via cookies under typical browser rules. Browser `fetch` from the SPA uses `credentials: 'include'` on same-origin API calls (see `frontend/app/src/api/client.ts`). API clients using bearer tokens should still avoid exposing tokens to third-party origins.\n\n**Examples:** See schema `example` fields on core DTOs in the components section.",
     "license": {
       "name": "MIT",
       "url": "https://opensource.org/licenses/MIT"
@@ -2797,7 +3441,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50.",
+            "description": "Items per page. Must be 1–500. Defaults to 50.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -3703,7 +4347,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50.",
+            "description": "Items per page. Must be 1–500. Defaults to 50.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -4658,7 +5302,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50. Omit with `page` for full list.",
+            "description": "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -4875,7 +5519,7 @@
         "operationId": "accept_team_invitation",
         "parameters": [
           {
-            "description": "Invitation identifier (deprecated path \u2014 prefer `/api/v1/teams/{team_id}/invitations/{invitation_id}/accept`)",
+            "description": "Invitation identifier (deprecated path — prefer `/api/v1/teams/{team_id}/invitations/{invitation_id}/accept`)",
             "in": "path",
             "name": "invitation_id",
             "required": true,
@@ -4949,6 +5593,961 @@
         ]
       }
     },
+    "/api/v1/media": {
+      "get": {
+        "operationId": "list_media",
+        "parameters": [
+          {
+            "description": "Zero-based page",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Items per page (1–500, default 50)",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Debounced-search-compatible title query",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Readable owning team id",
+            "in": "query",
+            "name": "team",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Media"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Readable media in stable title/id order; includes X-Total-Count and pagination Link headers"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid query"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication required"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      },
+      "post": {
+        "operationId": "create_media",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMedia"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Create normalized Ready URL media"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid payload or URL (`media_invalid_url` / `media_unsupported_url`)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Target team absent or concealed"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/api/v1/media/uploads": {
+      "post": {
+        "operationId": "create_uploaded_media",
+        "parameters": [
+          {
+            "description": "Uploaded media kind: video, audio, or slide_deck",
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "One JSON metadata part and one or more file parts",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Uploaded media processed and created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid metadata, source, or file count"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A source exceeds its configured limit"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/api/v1/media/{id}": {
+      "delete": {
+        "operationId": "delete_media",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Delete media regardless of references"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media absent or concealed"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media changed concurrently"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "If-Match failed"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      },
+      "get": {
+        "operationId": "get_media",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Readable media with weak ETag"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media absent or concealed"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      },
+      "put": {
+        "operationId": "update_media",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMedia"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Replace title/content and optionally owner"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid payload or URL"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media or destination absent/concealed"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media changed concurrently"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "If-Match failed"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/api/v1/media/{id}/deck/commit": {
+      "post": {
+        "operationId": "commit_deck",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitDeck"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Commit the staged slide-deck revision"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Empty or stale revision"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media absent or concealed"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media changed concurrently"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/api/v1/media/{id}/deck/revisions": {
+      "post": {
+        "operationId": "begin_deck_revision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Begin or return the current staged slide-deck revision"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media is not a slide deck"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media absent or concealed"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media changed concurrently"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/api/v1/media/{id}/duplicate": {
+      "post": {
+        "operationId": "duplicate_media",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DuplicateMedia"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Create an independent copy of URL media"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid payload"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media/destination absent or concealed"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/api/v1/media/{id}/move": {
+      "post": {
+        "operationId": "move_media",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveOwner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Atomically change owner after write checks on both teams"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media/source/destination absent or concealed"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/api/v1/media/{media_id}/assets/{asset_id}/data": {
+      "get": {
+        "operationId": "get_media_asset_data",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Final asset bytes"
+          },
+          "206": {
+            "description": "Partial content"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found or concealed"
+          },
+          "416": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Range not satisfiable"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      },
+      "head": {
+        "operationId": "head_media_asset_data",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Final asset metadata"
+          },
+          "206": {
+            "description": "Partial content metadata"
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found or concealed"
+          },
+          "416": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Range not satisfiable"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
+    "/api/v1/media/{media_id}/uploads": {
+      "put": {
+        "operationId": "upload_media_asset",
+        "parameters": [
+          {
+            "description": "Media identifier",
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Source kind: video, audio, image, pdf, or svg",
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Existing staged/ready deck page id to replace",
+            "in": "query",
+            "name": "replace_page",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "items": {
+                  "format": "int32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "description": "Streaming upload body",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            },
+            "description": "Upload processed and media updated"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid kind or request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media not found or write access denied"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Media changed concurrently"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Upload failed"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Media"
+        ]
+      }
+    },
     "/api/v1/monitoring/http-audit-logs": {
       "get": {
         "operationId": "list_http_audit_logs",
@@ -4968,7 +6567,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50.",
+            "description": "Items per page. Must be 1–500. Defaults to 50.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -5099,7 +6698,7 @@
                 }
               }
             },
-            "description": "Daily cached HTTP audit metrics for UTC calendar days touched by inclusive RFC 3339 timestamps or YYYY-MM-DD dates. Rates are 0.0\u20131.0."
+            "description": "Daily cached HTTP audit metrics for UTC calendar days touched by inclusive RFC 3339 timestamps or YYYY-MM-DD dates. Rates are 0.0–1.0."
           },
           "400": {
             "content": {
@@ -5554,7 +7153,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50.",
+            "description": "Items per page. Must be 1–500. Defaults to 50.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -6249,6 +7848,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Hydration mode. `book` (default) omits Media for Book/sheet/offline/Player Room snapshots. `av` includes Ready readable Media as one tagged item per setlist slot.",
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SetlistPlayerView"
+            }
           }
         ],
         "responses": {
@@ -6364,7 +7972,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50. Omit with `page` for full list.",
+            "description": "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -6477,7 +8085,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50.",
+            "description": "Items per page. Must be 1–500. Defaults to 50.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -6511,7 +8119,7 @@
             }
           },
           {
-            "description": "Sort: JSON:API-style comma-separated keys (`-` = descending), e.g. `-id`, `title`, `relevance` (with `q`). Legacy `id_desc` / \u2026 still accepted.",
+            "description": "Sort: JSON:API-style comma-separated keys (`-` = descending), e.g. `-id`, `title`, `relevance` (with `q`). Legacy `id_desc` / … still accepted.",
             "in": "query",
             "name": "sort",
             "required": false,
@@ -7564,7 +9172,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50 when omitted.",
+            "description": "Items per page. Must be 1–500. Defaults to 50 when omitted.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -8279,7 +9887,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50. Omit with `page` for full list.",
+            "description": "Items per page. Must be 1–500. Defaults to 50. Omit with `page` for full list.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -8764,7 +10372,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50.",
+            "description": "Items per page. Must be 1–500. Defaults to 50.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -9326,7 +10934,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50 when omitted.",
+            "description": "Items per page. Must be 1–500. Defaults to 50 when omitted.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -10040,7 +11648,7 @@
             }
           },
           {
-            "description": "Items per page. Must be 1\u2013500. Defaults to 50 when omitted.",
+            "description": "Items per page. Must be 1–500. Defaults to 50 when omitted.",
             "example": 50,
             "in": "query",
             "name": "page_size",
@@ -10598,7 +12206,7 @@
         "operationId": "login",
         "parameters": [
           {
-            "description": "Optional same-origin path (`/\u2026`) to use after login. Must start with `/` and must not be `//\u2026` or `/http\u2026`; otherwise it is ignored and the default post-login path is used (see `sanitize_redirect`).",
+            "description": "Optional same-origin path (`/…`) to use after login. Must start with `/` and must not be `//…` or `/http…`; otherwise it is ignored and the default post-login path is used (see `sanitize_redirect`).",
             "in": "query",
             "name": "redirect_to",
             "required": false,
@@ -10838,6 +12446,14 @@
       "name": "Collections"
     },
     {
+      "description": "Team-owned URL media library resources and lifecycle state.",
+      "externalDocs": {
+        "description": "Business logic constraints (markdown in repository).",
+        "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/media.md"
+      },
+      "name": "Media"
+    },
+    {
       "description": "Binary image assets: metadata, byte upload/download with cache headers.",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
@@ -10846,7 +12462,7 @@
       "name": "Blobs"
     },
     {
-      "description": "Ordered sets of songs and player payloads for services.",
+      "description": "Ordered songs and Media items, plus player payloads for services.",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
         "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/setlist.md"

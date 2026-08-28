@@ -279,8 +279,8 @@ testcases:
         body: |
           {
             "title": "Unauthorized Setlist",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}" }
             ]
           }
         assertions:
@@ -298,8 +298,8 @@ testcases:
         body: |
           {
             "title": "Invalid Token Setlist",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}" }
             ]
           }
         assertions:
@@ -316,8 +316,8 @@ testcases:
           Content-Type: application/json
         body: |
           {
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}" }
             ]
           }
         assertions:
@@ -335,8 +335,8 @@ testcases:
         body: |
           {
             "title": "",
-            "songs": [
-              { "id": "{{.create-setlist-song-two.songid}}", "nr": "1" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-two.songid}}", "nr": "1" }
             ]
           }
         assertions:
@@ -354,16 +354,16 @@ testcases:
         body: |
           {
             "title": "Sunday Morning Set",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}", "nr": "1" },
-              { "id": "{{.create-setlist-song-two.songid}}", "nr": "2" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}", "nr": "1" },
+              { "type": "song", "id": "{{.create-setlist-song-two.songid}}", "nr": "2" }
             ]
           }
         assertions:
           - result.statuscode ShouldEqual 201
           - result.bodyjson.owner ShouldEqual "{{.get-setlist-owner-personal-team.owner_personal_team_id}}"
           - result.bodyjson.title ShouldEqual "Sunday Morning Set"
-          - result.bodyjson.songs ShouldHaveLength 2
+          - result.bodyjson.items ShouldHaveLength 2
         vars:
           setlistid:
             from: result.bodyjson.id
@@ -380,8 +380,8 @@ testcases:
         body: |
           {
             "title": "Setlist Delete By Write User",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}", "nr": "1" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}", "nr": "1" }
             ]
           }
         assertions:
@@ -603,7 +603,7 @@ testcases:
         assertions:
           - result.statuscode ShouldEqual 200
           - result.bodyjson.id ShouldEqual "{{.post-setlist-success.setlistid}}"
-          - result.bodyjson.songs ShouldHaveLength 2
+          - result.bodyjson.items ShouldHaveLength 2
 
   # BLC: BLC-SETL-011
   - name: get-setlist-read-user
@@ -838,9 +838,9 @@ testcases:
         body: |
           {
             "title": "Updated Sunday Set",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}", "nr": "1" },
-              { "id": "{{.create-setlist-song-two.songid}}", "nr": "2" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}", "nr": "1" },
+              { "type": "song", "id": "{{.create-setlist-song-two.songid}}", "nr": "2" }
             ]
           }
         assertions:
@@ -860,15 +860,15 @@ testcases:
           Content-Type: application/json
         body: |
           {
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}", "nr": "1", "tempo": 140 },
-              { "id": "{{.create-setlist-song-two.songid}}", "nr": "2" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}", "nr": "1", "tempo": 140 },
+              { "type": "song", "id": "{{.create-setlist-song-two.songid}}", "nr": "2" }
             ]
           }
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson.songs ShouldHaveLength 2
-          - result.bodyjson.songs.songs0.tempo ShouldEqual 140
+          - result.bodyjson.items ShouldHaveLength 2
+          - result.bodyjson.items.items0.tempo ShouldEqual 140
 
   - name: get-setlist-player-tempo-override
     steps:
@@ -893,9 +893,9 @@ testcases:
         body: |
           {
             "title": "Write User Updated Set",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}", "nr": "10" },
-              { "id": "{{.create-setlist-song-two.songid}}", "nr": "20" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}", "nr": "10" },
+              { "type": "song", "id": "{{.create-setlist-song-two.songid}}", "nr": "20" }
             ]
           }
         assertions:
@@ -929,8 +929,8 @@ testcases:
         body: |
           {
             "title": "Should Fail",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}" }
             ]
           }
         assertions:
@@ -948,9 +948,9 @@ testcases:
         body: |
           {
             "title": "Read User Put",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}", "nr": "1" },
-              { "id": "{{.create-setlist-song-two.songid}}", "nr": "2" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}", "nr": "1" },
+              { "type": "song", "id": "{{.create-setlist-song-two.songid}}", "nr": "2" }
             ]
           }
         assertions:
@@ -967,8 +967,8 @@ testcases:
         body: |
           {
             "title": "Unauthorized Update",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}" }
             ]
           }
         assertions:
@@ -986,8 +986,8 @@ testcases:
         body: |
           {
             "title": "Invalid Id",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}" }
             ]
           }
         assertions:
@@ -1005,8 +1005,8 @@ testcases:
         body: |
           {
             "title": "Invalid Token Put",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}" }
             ]
           }
         assertions:
@@ -1024,8 +1024,8 @@ testcases:
         body: |
           {
             "title": "Unknown Setlist",
-            "songs": [
-              { "id": "{{.create-setlist-song-one.songid}}" }
+            "items": [
+              { "type": "song", "id": "{{.create-setlist-song-one.songid}}" }
             ]
           }
         assertions:

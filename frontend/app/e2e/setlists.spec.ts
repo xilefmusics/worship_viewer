@@ -83,7 +83,9 @@ test('E5: setlist key picker saves slot key', async ({ page, seed }) => {
     },
   })
   const sl = await seed.createSetlist({ title: `${token}-sl` })
-  await seed.patchSetlist(sl.id, { songs: [{ id: song.id, key: null, nr: '1', tempo: null }] })
+  await seed.patchSetlist(sl.id, {
+    items: [{ type: 'song', id: song.id, key: null, nr: '1', tempo: null }],
+  })
   await gotoEn(page, `/setlists/${sl.id}`)
   await page.getByRole('button', { name: /key.*C/i }).first().click()
   await page.getByRole('button', { name: 'D', exact: true }).click()
@@ -100,7 +102,9 @@ test('E6: reorder / remove / rename / play', async ({ page, seed }) => {
   const coll = await seed.createCollection({ title: `${token}-c` })
   const song = await seed.createSong({ collection: coll.id, title: `${token}-s` })
   const sl = await seed.createSetlist({ title: `${token}-sl` })
-  await seed.patchSetlist(sl.id, { songs: [{ id: song.id, key: null, nr: '1', tempo: null }] })
+  await seed.patchSetlist(sl.id, {
+    items: [{ type: 'song', id: song.id, key: null, nr: '1', tempo: null }],
+  })
   await gotoEn(page, `/setlists/${sl.id}`)
 
   // Rename

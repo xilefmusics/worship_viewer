@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { buildSetlistPatchBody } from '@/lib/setlist-field-diff'
+import { songLinksFromSetlistItems } from '@/lib/setlist-items'
 import { playerQueryKey, setlistDetailKey } from '@/lib/setlist-detail-key'
 import {
   normalizeSongLinkId,
@@ -94,7 +95,7 @@ export function AddSongToSetlistDialog({ open, onOpenChange, song }: AddSongToSe
       if (!detail) {
         throw new Error(t('hub.addToSetlist.failed'))
       }
-      const existing = normalizeSongLinksForEditor(detail.songs)
+      const existing = normalizeSongLinksForEditor(songLinksFromSetlistItems(detail.items))
       if (existing.some((l) => normalizeSongLinkId(l.id) === normalizeSongLinkId(song.id))) {
         return { kind: 'duplicate' as const, title: detail.title }
       }
@@ -108,6 +109,7 @@ export function AddSongToSetlistDialog({ open, onOpenChange, song }: AddSongToSe
         {
           title: detail.title,
           songs: existing,
+          items: detail.items,
           owner: detail.owner,
         },
         { title: detail.title, songs: nextSongs, owner: detail.owner },

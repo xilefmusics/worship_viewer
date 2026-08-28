@@ -146,6 +146,8 @@
     },
     "loadMore": "Mehr laden",
     "meta": {
+      "mediaCount_one": "{{count}} Medium",
+      "mediaCount_other": "{{count}} Medien",
       "songsCount_one": "{{count}} Lied",
       "songsCount_other": "{{count}} Lieder"
     },
@@ -293,6 +295,7 @@
     },
     "editMenuAria": "Auswählen, was bearbeitet werden soll",
     "editSong": "Song bearbeiten",
+    "editSlideDeck": "Foliensatz bearbeiten",
     "editSetlist": "Setliste bearbeiten",
     "editCollection": "Sammlung bearbeiten",
     "openSettings": "Player-Einstellungen",
@@ -319,6 +322,11 @@
       "showAvPanel": "AV-Bereich anzeigen",
       "outputAria": "Projektionsausgabe",
       "outputMissingSession": "Projektionssitzung fehlt.",
+      "missingOutput": "Keine Projektionsausgabe ist geöffnet. Die Seite wurde nicht auf einem Bildschirm angezeigt.",
+      "outputSummary": "{{ready}} bereit",
+      "outputSummaryNone": "Keine Ausgabe",
+      "outputSummaryFailed": "{{ready}} bereit · {{failed}} fehlgeschlagen",
+      "outputPage": "Seite {{n}}",
       "slidesAria": "Folien des aktuellen Elements",
       "outlineAria": "Abschnittsübersicht",
       "backgroundAria": "Folienhintergrund",
@@ -326,7 +334,37 @@
       "backgroundExpand": "Hintergrundauswahl einblenden",
       "backgroundCollapse": "Hintergrundauswahl ausblenden",
       "sectionShortcutsAria": "Zu Abschnitt springen",
-      "sectionJump": "Zu {{section}} springen ({{key}})"
+      "sectionJump": "Zu {{section}} springen ({{key}})",
+      "play": "Wiedergabe",
+      "pause": "Pause",
+      "resume": "Fortsetzen",
+      "show": "Anzeigen",
+      "hide": "Ausblenden",
+      "reload": "Neu laden",
+      "seek": "Position",
+      "volume": "Lautstärke",
+      "mute": "Stummschalten",
+      "unmute": "Ton einschalten",
+      "restart": "Von vorn",
+      "loop": "Wiederholen",
+      "retry": "Erneut versuchen",
+      "mediaPreviewOnly": "Nur Vorschau — Wiedergabe startet die Projektion",
+      "mediaPreviewOnlyShow": "Nur Vorschau — Anzeigen startet die Projektion",
+      "mediaPlaying": "Wird auf der Ausgabe wiedergegeben",
+      "mediaShowing": "Wird auf der Ausgabe angezeigt",
+      "mediaPaused": "Auf der Ausgabe pausiert",
+      "mediaHidden": "Auf der Ausgabe ausgeblendet",
+      "mediaEnded": "Beendet",
+      "mediaLoading": "Wird auf der Ausgabe geladen",
+      "mediaError": "Wiedergabe auf einer Ausgabe fehlgeschlagen",
+      "mediaMixed": "Ausgaben melden unterschiedliche Wiedergabestände",
+      "mediaAutoplayFailed": "Der Browser hat die Wiedergabe blockiert. Der Hintergrund bleibt sichtbar. Versuche es erneut, wenn du bereit bist.",
+      "mediaEmbedFailed": "Diese Seite kann nicht eingebettet werden. Der Hintergrund bleibt sichtbar.",
+      "mediaProviderFailed": "Der Wiedergabeanbieter ist fehlgeschlagen. Der Hintergrund bleibt sichtbar. Versuche es erneut, wenn du bereit bist.",
+      "mediaUnsupportedSource": "Diese Quelle kann in diesem Browser nicht wiedergegeben werden. Der Hintergrund bleibt sichtbar.",
+      "outputFailed": "Ausgabe {{id}}: {{detail}}",
+      "missingOutputPlay": "Keine Projektionsausgabe ist geöffnet. Die Wiedergabe wurde nicht gestartet.",
+      "missingOutputShow": "Keine Projektionsausgabe ist geöffnet. Die Seite wurde nicht angezeigt."
     }
   },
   "about": {
@@ -712,12 +750,29 @@
       "resumePrompt": "Du bist wieder online. Bearbeitung fortsetzen und synchronisieren?",
       "resumeRetry": "Synchronisieren",
       "resumeDiscard": "Verwerfen und vom Server neu laden",
-      "emptyHint": "Noch keine Songs — unten Songs hinzufügen.",
-      "songsSectionLabel": "Songs",
+      "emptyHint": "Noch keine Einträge — unten Song oder Medium hinzufügen.",
+      "songsSectionLabel": "Setlisten-Einträge",
       "addSong": "Songs hinzufügen",
+      "addMedia": "Medium hinzufügen",
       "addSongTitle": "Song hinzufügen",
-      "pickerSearchPlaceholder": "Songs suchen…",
-      "pickerSearchAria": "Songs zum Hinzufügen suchen",
+      "addMediaTitle": "Medium hinzufügen",
+      "createMedia": "Medium erstellen",
+      "manageMedia": "Medien verwalten",
+      "mediaPickerSearchPlaceholder": "Suchen…",
+      "mediaPickerSearchAria": "Suchen",
+      "mediaQuickUploadTitle": "Hier ablegen",
+      "mediaQuickUploadHint": "Bilder, PDFs, Audio oder Video",
+      "mediaQuickUploadAria": "Mediendateien zum Hochladen auswählen",
+      "mediaQuickUploadUnsupported": "Wähle entweder Bilder und PDFs, eine Audiodatei oder eine Videodatei aus.",
+      "mediaPickerEmpty": "Keine Medien gefunden.",
+      "mediaPickerError": "Medien konnten nicht geladen werden.",
+      "mediaUnavailable": "Medium nicht verfügbar",
+      "mediaBrokenHint": "Dieses Medium wurde gelöscht oder ist nicht mehr zugänglich. Du kannst die Zeile entfernen.",
+      "dragMediaHandleAria": "{{title}} zum Sortieren ziehen",
+      "removeMediaAria": "{{title}} aus der Setliste entfernen",
+      "directMediaUnavailable": "Dieses Medium ist nicht verfügbar, nicht bereit oder nicht mehr zugänglich.",
+      "pickerSearchPlaceholder": "Suchen…",
+      "pickerSearchAria": "Suchen",
       "waitForSave": "Bitte bis zum Speichern warten",
       "pickerExcluded": "Dieser Eintrag kann nicht zu Setlisten hinzugefügt werden.",
       "removedSlot": "Zeile entfernt.",
@@ -1140,6 +1195,137 @@
       "text": "Nur Liedtext — Akkordsymbole werden ausgeblendet.",
       "av": "Steuere oder verfolge die Live-Präsentation.",
       "slide": "Sieh nur die projizierten Folien, ohne Steuerung."
+    }
+  },
+  "media": {
+    "name": "Medien",
+    "kinds": {
+      "youtube": "YouTube",
+      "spotify": "Spotify",
+      "livestream": "Livestream",
+      "web_page": "Webseite",
+      "slide_deck": "Foliensatz",
+      "video": "Video",
+      "audio": "Audio",
+      "unknown": "Unbekanntes Medium"
+    },
+    "spotify": {
+      "track": "Titel",
+      "playlist": "Playlist"
+    },
+    "fields": {
+      "title": "Titel",
+      "kind": "Inhaltstyp",
+      "team": "Team",
+      "canonicalUrl": "Gespeicherte URL",
+      "url": {
+        "youtube": "YouTube-URL",
+        "spotify": "Spotify-Titel- oder Playlist-URL",
+        "livestream": "Livestream-URL",
+        "web_page": "Webseiten-URL"
+      },
+      "file": {
+        "video": "Videodatei",
+        "audio": "Audiodatei",
+        "slide_deck": "PNG-, JPEG-, SVG- oder PDF-Dateien"
+      }
+    },
+    "list": {
+      "empty": "Noch keine Medien.",
+      "filteredEmpty": "Keine Medien für dieses Team.",
+      "noResults": "Keine Medien entsprechen deiner Suche.",
+      "loadingAria": "Medien werden geladen",
+      "error": "Beim Laden der Medien ist ein Fehler aufgetreten."
+    },
+    "row": {
+      "openAria": "{{title}} öffnen, {{kind}}",
+      "actionsAria": "Aktionen für {{title}}"
+    },
+    "create": {
+      "title": "Medium hinzufügen",
+      "description": "Füge ein wiederverwendbares YouTube-Video, einen Spotify-Titel oder eine Playlist, einen Foliensatz oder hochgeladenes Audio oder Video hinzu."
+    },
+    "editor": {
+      "backToList": "Zurück zu Medien",
+      "editTitle": "Titel bearbeiten",
+      "saved": "Medium gespeichert.",
+      "loadFailed": "Dieses Medium konnte nicht geladen werden.",
+      "readOnly": "Du kannst dieses Medium ansehen, aber nicht bearbeiten.",
+      "futureKind": "Dieser Medientyp kann hier angesehen werden, der Editor ist aber noch nicht verfügbar.",
+      "metadataVideo": "Dauer {{duration}} · {{width}}×{{height}}",
+      "metadataAudio": "Dauer {{duration}}"
+    },
+    "deck": {
+      "addPages": "Seiten hinzufügen",
+      "addSlides": "Folien hinzufügen",
+      "empty": "Füge mindestens eine Seite hinzu, bevor du speicherst.",
+      "emptyGuard": "Ein Foliensatz braucht mindestens eine Seite.",
+      "listAria": "Folienseiten",
+      "pageLabel": "Seite {{number}}",
+      "reorderHandle": "Seite {{number}} neu anordnen",
+      "sectionDefault": "Abschnitt {{number}}",
+      "sectionTitleAria": "Abschnittstitel für Abschnitt {{number}}",
+      "sectionHandle": "Abschnitt {{number}} verschieben",
+      "collapseSection": "Abschnitt {{number}} einklappen",
+      "expandSection": "Abschnitt {{number}} ausklappen",
+      "startSection": "Abschnitt beginnen",
+      "clearSection": "Abschnitt löschen",
+      "removeSection": "Abschnitt entfernen",
+      "removeSectionTitle": "Abschnitt entfernen",
+      "removeSectionDescription": "Wähle, ob nur die Abschnittsmarkierung oder die Markierung und alle Folien dieses Abschnitts entfernt werden sollen.",
+      "removeSectionMarker": "Nur Markierung entfernen",
+      "removeSectionSlides": "Markierung und Folien entfernen",
+      "replacePage": "Seite ersetzen",
+      "removePage": "Seite entfernen"
+    },
+    "upload": {
+      "progress": "Upload… {{percent}} %",
+      "retry": "Erneut hochladen",
+      "replace": "Datei ersetzen",
+      "errors": {
+        "tooLarge": "Diese Datei ist größer als das erlaubte Limit.",
+        "failed": "Upload fehlgeschlagen. Versuche es erneut."
+      }
+    },
+    "actions": {
+      "create": "Medium hinzufügen",
+      "createAria": "Medium hinzufügen",
+      "save": "Speichern",
+      "play": "Abspielen",
+      "openSpotify": "Spotify öffnen",
+      "spotifyExternalHint": "Die Wiedergabe wird in Spotify geöffnet und nicht an Präsentationsausgaben gesendet.",
+      "edit": "Bearbeiten",
+      "duplicate": "Duplizieren",
+      "move": "Verschieben",
+      "delete": "Löschen",
+      "refresh": "Medien aktualisieren",
+      "duplicated": "„{{title}}“ wurde erstellt.",
+      "duplicateFailed": "Medium konnte nicht dupliziert werden.",
+      "moved": "Medium verschoben.",
+      "moveFailed": "Medium konnte nicht verschoben werden.",
+      "deleted": "Medium gelöscht.",
+      "deleteFailed": "Medium konnte nicht gelöscht werden."
+    },
+    "duplicate": { "title": "{{title}} (Kopie)" },
+    "delete": {
+      "title": "Dieses Medium löschen?",
+      "body": "„{{name}}“ wird aus der Medienbibliothek entfernt."
+    },
+    "move": {
+      "title": "Medium verschieben",
+      "body": "Wähle ein neues besitzendes Team für „{{name}}“.",
+      "teamAria": "Zielteam",
+      "teamPlaceholder": "Team auswählen …",
+      "noTeams": "Es gibt kein anderes Team mit Schreibzugriff für dieses Medium."
+    },
+    "validation": {
+      "titleRequired": "Gib einen Titel ein.",
+      "invalidUrl": "Gib eine unterstützte HTTPS-URL ohne Zugangsdaten ein.",
+      "noWritableTeam": "Du benötigst Bearbeitungsrechte in einem Team, um Medien hinzuzufügen.",
+      "destinationRequired": "Wähle ein Zielteam.",
+      "notEditable": "Dieses Medium kann nicht bearbeitet werden.",
+      "fileRequired": "Wähle eine Datei zum Hochladen.",
+      "deckFileType": "Wähle PNG-, JPEG-, SVG- oder PDF-Dateien."
     }
   },
   "sessions": {

@@ -127,7 +127,7 @@ function displayEntriesForRow(
   const item = items[row.idx]
   const showNumber = mode === 'order' || !multilingualToc
 
-  if (item?.type === 'blob') {
+  if (item?.type !== 'chords') {
     return [displayEntryForRow(row, items, showNumber)]
   }
 

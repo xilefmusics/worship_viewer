@@ -66,7 +66,11 @@ export function PlayerRoomLivePage({ credentials }: { credentials: PlayerRoomCre
   useEffect(() => {
     if (!snapshot) return
     const ids = snapshot.content.items.flatMap((item) =>
-      item.type === 'blob' ? [item.blob_id] : item.song.blobs.map((blob) => blob.id),
+      item.type === 'blob'
+        ? [item.blob_id]
+        : item.type === 'chords'
+          ? item.song.blobs.map((blob) => blob.id)
+          : [],
     )
     return registerPlayerRoomMedia(snapshot.id, credentials.resume_credential, ids)
   }, [credentials.resume_credential, snapshot])

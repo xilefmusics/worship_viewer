@@ -27,6 +27,7 @@ function createWrapper() {
 
 const baseline = {
   title: 'Setlist',
+  items: [] as { type: 'song'; id: string }[],
   songs: [] as {
     id: string
     nr?: string
@@ -52,7 +53,7 @@ describe('useSetlistAutosave', () => {
   it('debounces title PATCH on notifyDraftEdited', async () => {
     patchMock.mockResolvedValue({
       response: { ok: true, status: 200 },
-      data: { id: 'sl-1', title: 'Renamed', songs: [], owner: 'team-1' },
+      data: { id: 'sl-1', title: 'Renamed', items: [], owner: 'team-1' },
       error: undefined,
     })
 
@@ -62,7 +63,7 @@ describe('useSetlistAutosave', () => {
           setlistId: 'sl-1',
           baseline,
           draftTitle: 'Renamed',
-          draftSongs: [],
+          draftItems: [],
           draftOwner: 'team-1',
           canAutosavePatch: true,
         }),
@@ -88,7 +89,7 @@ describe('useSetlistAutosave', () => {
       data: {
         id: 'sl-1',
         title: 'Setlist',
-        songs: [{ id: 'song-1', nr: null, key: null, tempo: 88, language: null, flow: null }],
+        items: [{ type: 'song', id: 'song-1', nr: null, key: null, tempo: 88, language: null, flow: null }],
         owner: 'team-1',
       },
       error: undefined,
@@ -102,10 +103,11 @@ describe('useSetlistAutosave', () => {
           setlistId: 'sl-1',
           baseline: {
             ...baseline,
+            items: [{ type: 'song', id: 'song-1', nr: null, key: null, tempo: null, language: null, flow: null }],
             songs: [{ id: 'song-1', nr: null, key: null, tempo: null, language: null, flow: null }],
           },
           draftTitle: 'Setlist',
-          draftSongs: [{ id: 'song-1', nr: null, key: null, tempo: 88, language: null, flow: null }],
+          draftItems: [{ type: 'song', id: 'song-1', nr: null, key: null, tempo: 88, language: null, flow: null }],
           draftOwner: 'team-1',
           canAutosavePatch: true,
         }),
@@ -121,7 +123,11 @@ describe('useSetlistAutosave', () => {
 
     expect(patchMock).toHaveBeenCalledWith('/api/v1/setlists/{id}', {
       params: { path: { id: 'sl-1' } },
-      body: { songs: [{ id: 'song-1', nr: null, key: null, tempo: 88, language: null, flow: null }] },
+      body: {
+        items: [
+          { type: 'song', id: 'song-1', nr: null, key: null, tempo: 88, language: null, flow: null },
+        ],
+      },
     })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['player', 'setlist', 'sl-1'] })
     unmount()
@@ -140,7 +146,7 @@ describe('useSetlistAutosave', () => {
           setlistId: 'sl-1',
           baseline,
           draftTitle: 'Fail',
-          draftSongs: [],
+          draftItems: [],
           draftOwner: 'team-1',
           canAutosavePatch: true,
         }),

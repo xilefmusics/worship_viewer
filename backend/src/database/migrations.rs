@@ -371,6 +371,13 @@ mod tests {
             "expected at least one applied migration"
         );
 
+        db.db
+            .query("INFO FOR TABLE media;")
+            .await
+            .expect("media table info query")
+            .check()
+            .expect("media table must exist after fresh migration");
+
         db.migrate(path).await.expect("idempotent second migrate");
     }
 
@@ -394,5 +401,125 @@ mod tests {
         let err = run(&db.db, path).await.expect_err("checksum mismatch");
         let msg = err.to_string();
         assert!(msg.contains("checksum mismatch"), "unexpected error: {msg}");
+    }
+
+    #[tokio::test]
+    async fn setlist_items_migration_converts_legacy_songs_and_is_idempotent() {
+        use crate::resources::setlist::SetlistServiceHandle;
+        use crate::test_helpers::{
+            auth_ctx_for_user, create_song_with_title, create_user, personal_team_id, test_db,
+        };
+        use shared::api::ListQuery;
+
+        let db = test_db().await.expect("db");
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/db-migrations");
+        let user = create_user(&db, "setlist-migrate@test.local")
+            .await
+            .expect("user");
+        let song = create_song_with_title(&db, &user, "Migrated")
+            .await
+            .expect("song");
+        let team_id = personal_team_id(&db, &user).await.expect("team");
+
+        db.db
+            .query(
+                "REMOVE FIELD items ON setlist;
+                 DEFINE FIELD OVERWRITE songs ON setlist TYPE array<object> VALUE $value ?? $before ?? [] PERMISSIONS FULL;
+                 DEFINE FIELD OVERWRITE songs.*.id ON setlist TYPE record<song> ASSERT $value != NONE PERMISSIONS FULL;
+                 DEFINE FIELD OVERWRITE songs.*.nr ON setlist TYPE none | string PERMISSIONS FULL;
+                 DEFINE FIELD OVERWRITE songs.*.key ON setlist TYPE none | object PERMISSIONS FULL;
+                 DEFINE FIELD OVERWRITE songs.*.key.level ON setlist TYPE none | int ASSERT $value = NONE OR ($value >= 0 AND $value < 12) PERMISSIONS FULL;
+                 DEFINE FIELD OVERWRITE songs.*.tempo ON setlist TYPE none | int ASSERT $value = NONE OR $value >= 0 PERMISSIONS FULL;
+                 DEFINE FIELD OVERWRITE songs.*.language ON setlist TYPE none | string PERMISSIONS FULL;
+                 DEFINE FIELD OVERWRITE songs.*.flow ON setlist TYPE none | array<object> PERMISSIONS FULL;
+                 DELETE migration_script WHERE script_name = '20260826120000_epic_e5_media_and_setlist_items.surql';",
+            )
+            .await
+            .expect("restore legacy songs schema")
+            .check()
+            .expect("legacy songs schema");
+
+        db.db
+            .query(
+                "CREATE setlist CONTENT {
+                    owner: type::record('team', $team),
+                    title: 'Empty legacy',
+                    songs: []
+                };
+                CREATE setlist CONTENT {
+                    owner: type::record('team', $team),
+                    title: 'One song',
+                    songs: [{ id: type::record('song', $song), nr: '1', key: NONE, tempo: NONE, language: NONE, flow: NONE }]
+                };
+                CREATE setlist CONTENT {
+                    owner: type::record('team', $team),
+                    title: 'Repeated and overrides',
+                    songs: [
+                        {
+                            id: type::record('song', $song),
+                            nr: '1a',
+                            key: { level: 3 },
+                            tempo: 88,
+                            language: 'de',
+                            flow: [{ title: 'Verse', occurrence_index: 0, repeats: 2 }]
+                        },
+                        {
+                            id: type::record('song', $song),
+                            nr: NONE,
+                            key: NONE,
+                            tempo: NONE,
+                            language: NONE,
+                            flow: NONE
+                        }
+                    ]
+                };",
+            )
+            .bind(("team", team_id.clone()))
+            .bind(("song", song.id.clone()))
+            .await
+            .expect("insert legacy setlists")
+            .check()
+            .expect("legacy setlists inserted");
+
+        db.migrate(path)
+            .await
+            .expect("forward setlist items migration");
+
+        let ctx = auth_ctx_for_user(&db, &user).await.expect("auth");
+        let svc = SetlistServiceHandle::build(db.clone());
+        let mut setlists = svc
+            .list_setlists_for_user(&ctx, ListQuery::default())
+            .await
+            .expect("list");
+        setlists.sort_by(|a, b| a.title.cmp(&b.title));
+        assert_eq!(setlists.len(), 3);
+
+        let empty = setlists.iter().find(|s| s.title == "Empty legacy").unwrap();
+        assert!(empty.items.is_empty());
+
+        let one = setlists.iter().find(|s| s.title == "One song").unwrap();
+        assert_eq!(one.items.len(), 1);
+        assert_eq!(one.items[0].as_song().unwrap().id, song.id);
+        assert_eq!(one.items[0].as_song().unwrap().nr.as_deref(), Some("1"));
+
+        let mixed = setlists
+            .iter()
+            .find(|s| s.title == "Repeated and overrides")
+            .unwrap();
+        assert_eq!(mixed.items.len(), 2);
+        let first = mixed.items[0].as_song().unwrap();
+        assert_eq!(first.id, song.id);
+        assert_eq!(first.nr.as_deref(), Some("1a"));
+        assert_eq!(first.tempo, Some(88));
+        assert_eq!(first.language.as_deref(), Some("de"));
+        assert_eq!(first.key, Some(chordlib::types::SimpleChord::new(3)));
+        assert_eq!(first.flow.as_ref().unwrap()[0].title, "Verse");
+        assert_eq!(first.flow.as_ref().unwrap()[0].repeats, 2);
+        assert_eq!(mixed.items[1].as_song().unwrap().id, song.id);
+        assert!(mixed.items[1].as_song().unwrap().flow.is_none());
+
+        db.migrate(path)
+            .await
+            .expect("idempotent second items migrate");
     }
 }

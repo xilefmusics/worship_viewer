@@ -28,15 +28,18 @@ import { Route as HubSetlistsRouteImport } from './routes/_hub/setlists'
 import { Route as HubSessionsRouteImport } from './routes/_hub/sessions'
 import { Route as HubPrivacyRouteImport } from './routes/_hub/privacy'
 import { Route as HubPlayerRoomsRouteImport } from './routes/_hub/player-rooms'
+import { Route as HubMediaRouteImport } from './routes/_hub/media'
 import { Route as HubCollectionsRouteImport } from './routes/_hub/collections'
 import { Route as HubAdminRouteImport } from './routes/_hub/admin'
 import { Route as HubAboutRouteImport } from './routes/_hub/about'
 import { Route as PlayerRoomsInviteIndexRouteImport } from './routes/player-rooms.invite.index'
 import { Route as PlayerRoomRoomIdRouteImport } from './routes/player/room.$roomId'
+import { Route as PlayerMediaMediaIdRouteImport } from './routes/player/media.$mediaId'
 import { Route as PlayerRoomsInviteRoomIdRouteImport } from './routes/player-rooms.invite.$roomId'
 import { Route as HubTeamsTeamIdRouteImport } from './routes/_hub/teams.$teamId'
 import { Route as HubSongsSongIdRouteImport } from './routes/_hub/songs.$songId'
 import { Route as HubSetlistsSetlistIdRouteImport } from './routes/_hub/setlists.$setlistId'
+import { Route as HubMediaMediaIdRouteImport } from './routes/_hub/media.$mediaId'
 import { Route as HubCollectionsCollectionIdRouteImport } from './routes/_hub/collections.$collectionId'
 
 const LogoutRoute = LogoutRouteImport.update({
@@ -133,6 +136,11 @@ const HubPlayerRoomsRoute = HubPlayerRoomsRouteImport.update({
   path: '/player-rooms',
   getParentRoute: () => HubRoute,
 } as any)
+const HubMediaRoute = HubMediaRouteImport.update({
+  id: '/media',
+  path: '/media',
+  getParentRoute: () => HubRoute,
+} as any)
 const HubCollectionsRoute = HubCollectionsRouteImport.update({
   id: '/collections',
   path: '/collections',
@@ -158,6 +166,11 @@ const PlayerRoomRoomIdRoute = PlayerRoomRoomIdRouteImport.update({
   path: '/room/$roomId',
   getParentRoute: () => PlayerRouteRoute,
 } as any)
+const PlayerMediaMediaIdRoute = PlayerMediaMediaIdRouteImport.update({
+  id: '/media/$mediaId',
+  path: '/media/$mediaId',
+  getParentRoute: () => PlayerRouteRoute,
+} as any)
 const PlayerRoomsInviteRoomIdRoute = PlayerRoomsInviteRoomIdRouteImport.update({
   id: '/$roomId',
   path: '/$roomId',
@@ -178,6 +191,11 @@ const HubSetlistsSetlistIdRoute = HubSetlistsSetlistIdRouteImport.update({
   path: '/$setlistId',
   getParentRoute: () => HubSetlistsRoute,
 } as any)
+const HubMediaMediaIdRoute = HubMediaMediaIdRouteImport.update({
+  id: '/$mediaId',
+  path: '/$mediaId',
+  getParentRoute: () => HubMediaRoute,
+} as any)
 const HubCollectionsCollectionIdRoute =
   HubCollectionsCollectionIdRouteImport.update({
     id: '/$collectionId',
@@ -195,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof HubAboutRoute
   '/admin': typeof HubAdminRoute
   '/collections': typeof HubCollectionsRouteWithChildren
+  '/media': typeof HubMediaRouteWithChildren
   '/player-rooms': typeof HubPlayerRoomsRoute
   '/privacy': typeof HubPrivacyRoute
   '/sessions': typeof HubSessionsRoute
@@ -208,10 +227,12 @@ export interface FileRoutesByFullPath {
   '/player/output': typeof PlayerOutputRoute
   '/player/': typeof PlayerIndexRoute
   '/collections/$collectionId': typeof HubCollectionsCollectionIdRoute
+  '/media/$mediaId': typeof HubMediaMediaIdRoute
   '/setlists/$setlistId': typeof HubSetlistsSetlistIdRoute
   '/songs/$songId': typeof HubSongsSongIdRoute
   '/teams/$teamId': typeof HubTeamsTeamIdRoute
   '/player-rooms/invite/$roomId': typeof PlayerRoomsInviteRoomIdRoute
+  '/player/media/$mediaId': typeof PlayerMediaMediaIdRoute
   '/player/room/$roomId': typeof PlayerRoomRoomIdRoute
   '/player-rooms/invite/': typeof PlayerRoomsInviteIndexRoute
 }
@@ -224,6 +245,7 @@ export interface FileRoutesByTo {
   '/about': typeof HubAboutRoute
   '/admin': typeof HubAdminRoute
   '/collections': typeof HubCollectionsRouteWithChildren
+  '/media': typeof HubMediaRouteWithChildren
   '/player-rooms': typeof HubPlayerRoomsRoute
   '/privacy': typeof HubPrivacyRoute
   '/sessions': typeof HubSessionsRoute
@@ -236,10 +258,12 @@ export interface FileRoutesByTo {
   '/player/output': typeof PlayerOutputRoute
   '/player': typeof PlayerIndexRoute
   '/collections/$collectionId': typeof HubCollectionsCollectionIdRoute
+  '/media/$mediaId': typeof HubMediaMediaIdRoute
   '/setlists/$setlistId': typeof HubSetlistsSetlistIdRoute
   '/songs/$songId': typeof HubSongsSongIdRoute
   '/teams/$teamId': typeof HubTeamsTeamIdRoute
   '/player-rooms/invite/$roomId': typeof PlayerRoomsInviteRoomIdRoute
+  '/player/media/$mediaId': typeof PlayerMediaMediaIdRoute
   '/player/room/$roomId': typeof PlayerRoomRoomIdRoute
   '/player-rooms/invite': typeof PlayerRoomsInviteIndexRoute
 }
@@ -255,6 +279,7 @@ export interface FileRoutesById {
   '/_hub/about': typeof HubAboutRoute
   '/_hub/admin': typeof HubAdminRoute
   '/_hub/collections': typeof HubCollectionsRouteWithChildren
+  '/_hub/media': typeof HubMediaRouteWithChildren
   '/_hub/player-rooms': typeof HubPlayerRoomsRoute
   '/_hub/privacy': typeof HubPrivacyRoute
   '/_hub/sessions': typeof HubSessionsRoute
@@ -268,10 +293,12 @@ export interface FileRoutesById {
   '/player/output': typeof PlayerOutputRoute
   '/player/': typeof PlayerIndexRoute
   '/_hub/collections/$collectionId': typeof HubCollectionsCollectionIdRoute
+  '/_hub/media/$mediaId': typeof HubMediaMediaIdRoute
   '/_hub/setlists/$setlistId': typeof HubSetlistsSetlistIdRoute
   '/_hub/songs/$songId': typeof HubSongsSongIdRoute
   '/_hub/teams/$teamId': typeof HubTeamsTeamIdRoute
   '/player-rooms/invite/$roomId': typeof PlayerRoomsInviteRoomIdRoute
+  '/player/media/$mediaId': typeof PlayerMediaMediaIdRoute
   '/player/room/$roomId': typeof PlayerRoomRoomIdRoute
   '/player-rooms/invite/': typeof PlayerRoomsInviteIndexRoute
 }
@@ -287,6 +314,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/collections'
+    | '/media'
     | '/player-rooms'
     | '/privacy'
     | '/sessions'
@@ -300,10 +328,12 @@ export interface FileRouteTypes {
     | '/player/output'
     | '/player/'
     | '/collections/$collectionId'
+    | '/media/$mediaId'
     | '/setlists/$setlistId'
     | '/songs/$songId'
     | '/teams/$teamId'
     | '/player-rooms/invite/$roomId'
+    | '/player/media/$mediaId'
     | '/player/room/$roomId'
     | '/player-rooms/invite/'
   fileRoutesByTo: FileRoutesByTo
@@ -316,6 +346,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/collections'
+    | '/media'
     | '/player-rooms'
     | '/privacy'
     | '/sessions'
@@ -328,10 +359,12 @@ export interface FileRouteTypes {
     | '/player/output'
     | '/player'
     | '/collections/$collectionId'
+    | '/media/$mediaId'
     | '/setlists/$setlistId'
     | '/songs/$songId'
     | '/teams/$teamId'
     | '/player-rooms/invite/$roomId'
+    | '/player/media/$mediaId'
     | '/player/room/$roomId'
     | '/player-rooms/invite'
   id:
@@ -346,6 +379,7 @@ export interface FileRouteTypes {
     | '/_hub/about'
     | '/_hub/admin'
     | '/_hub/collections'
+    | '/_hub/media'
     | '/_hub/player-rooms'
     | '/_hub/privacy'
     | '/_hub/sessions'
@@ -359,10 +393,12 @@ export interface FileRouteTypes {
     | '/player/output'
     | '/player/'
     | '/_hub/collections/$collectionId'
+    | '/_hub/media/$mediaId'
     | '/_hub/setlists/$setlistId'
     | '/_hub/songs/$songId'
     | '/_hub/teams/$teamId'
     | '/player-rooms/invite/$roomId'
+    | '/player/media/$mediaId'
     | '/player/room/$roomId'
     | '/player-rooms/invite/'
   fileRoutesById: FileRoutesById
@@ -513,6 +549,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HubPlayerRoomsRouteImport
       parentRoute: typeof HubRoute
     }
+    '/_hub/media': {
+      id: '/_hub/media'
+      path: '/media'
+      fullPath: '/media'
+      preLoaderRoute: typeof HubMediaRouteImport
+      parentRoute: typeof HubRoute
+    }
     '/_hub/collections': {
       id: '/_hub/collections'
       path: '/collections'
@@ -548,6 +591,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayerRoomRoomIdRouteImport
       parentRoute: typeof PlayerRouteRoute
     }
+    '/player/media/$mediaId': {
+      id: '/player/media/$mediaId'
+      path: '/media/$mediaId'
+      fullPath: '/player/media/$mediaId'
+      preLoaderRoute: typeof PlayerMediaMediaIdRouteImport
+      parentRoute: typeof PlayerRouteRoute
+    }
     '/player-rooms/invite/$roomId': {
       id: '/player-rooms/invite/$roomId'
       path: '/$roomId'
@@ -576,6 +626,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HubSetlistsSetlistIdRouteImport
       parentRoute: typeof HubSetlistsRoute
     }
+    '/_hub/media/$mediaId': {
+      id: '/_hub/media/$mediaId'
+      path: '/$mediaId'
+      fullPath: '/media/$mediaId'
+      preLoaderRoute: typeof HubMediaMediaIdRouteImport
+      parentRoute: typeof HubMediaRoute
+    }
     '/_hub/collections/$collectionId': {
       id: '/_hub/collections/$collectionId'
       path: '/$collectionId'
@@ -589,12 +646,14 @@ declare module '@tanstack/react-router' {
 interface PlayerRouteRouteChildren {
   PlayerOutputRoute: typeof PlayerOutputRoute
   PlayerIndexRoute: typeof PlayerIndexRoute
+  PlayerMediaMediaIdRoute: typeof PlayerMediaMediaIdRoute
   PlayerRoomRoomIdRoute: typeof PlayerRoomRoomIdRoute
 }
 
 const PlayerRouteRouteChildren: PlayerRouteRouteChildren = {
   PlayerOutputRoute: PlayerOutputRoute,
   PlayerIndexRoute: PlayerIndexRoute,
+  PlayerMediaMediaIdRoute: PlayerMediaMediaIdRoute,
   PlayerRoomRoomIdRoute: PlayerRoomRoomIdRoute,
 }
 
@@ -612,6 +671,18 @@ const HubCollectionsRouteChildren: HubCollectionsRouteChildren = {
 
 const HubCollectionsRouteWithChildren = HubCollectionsRoute._addFileChildren(
   HubCollectionsRouteChildren,
+)
+
+interface HubMediaRouteChildren {
+  HubMediaMediaIdRoute: typeof HubMediaMediaIdRoute
+}
+
+const HubMediaRouteChildren: HubMediaRouteChildren = {
+  HubMediaMediaIdRoute: HubMediaMediaIdRoute,
+}
+
+const HubMediaRouteWithChildren = HubMediaRoute._addFileChildren(
+  HubMediaRouteChildren,
 )
 
 interface HubSetlistsRouteChildren {
@@ -654,6 +725,7 @@ interface HubRouteChildren {
   HubAboutRoute: typeof HubAboutRoute
   HubAdminRoute: typeof HubAdminRoute
   HubCollectionsRoute: typeof HubCollectionsRouteWithChildren
+  HubMediaRoute: typeof HubMediaRouteWithChildren
   HubPlayerRoomsRoute: typeof HubPlayerRoomsRoute
   HubPrivacyRoute: typeof HubPrivacyRoute
   HubSessionsRoute: typeof HubSessionsRoute
@@ -669,6 +741,7 @@ const HubRouteChildren: HubRouteChildren = {
   HubAboutRoute: HubAboutRoute,
   HubAdminRoute: HubAdminRoute,
   HubCollectionsRoute: HubCollectionsRouteWithChildren,
+  HubMediaRoute: HubMediaRouteWithChildren,
   HubPlayerRoomsRoute: HubPlayerRoomsRoute,
   HubPrivacyRoute: HubPrivacyRoute,
   HubSessionsRoute: HubSessionsRoute,

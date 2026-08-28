@@ -23,7 +23,7 @@ export function buildDuplicateSetlistBody(
 ): CreateSetlistBody {
   return {
     title: duplicateTitle(source.title, titleSuffix),
-    songs: source.songs,
+    items: source.items,
     owner: source.owner,
   }
 }

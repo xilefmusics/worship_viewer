@@ -4,11 +4,11 @@
 
 - **BLC-SETL-001:** Every setlist belongs to exactly one **owning team** (**`owner`** in responses).
 - **BLC-SETL-002:** Reads (metadata, songs, player) require **read** access to that team’s library; **PUT** and **DELETE** require **library edit** access. Platform **admin** MAY read but MUST NOT mutate setlists solely by admin role.
-- **BLC-SETL-003:** **`PUT`** replaces **title**, ordered **songs**, and related fields; **`PUT`** and **`PATCH`** MAY set **`owner`** when the body includes it and the caller may write both the current and target owning teams (see **BLC-SONG-003** pattern); omitting **`owner`** leaves it unchanged.
+- **BLC-SETL-003:** **`PUT`** replaces **title**, ordered **items**, and related fields; **`PUT`** and **`PATCH`** MAY set **`owner`** when the body includes it and the caller may write both the current and target owning teams (see **BLC-SONG-003** pattern); omitting **`owner`** leaves it unchanged.
 
 ## Create payload validation
 
-- **BLC-SETL-004:** **`POST`** MUST include a non-empty **`title`** and a **`songs`** array; missing **`title`**, empty **`title`**, or missing **`songs`** THEN **400**.
+- **BLC-SETL-004:** **`POST`** MUST include a non-empty **`title`** and an **`items`** array; missing **`title`**, empty **`title`**, or missing **`items`** THEN **400**. The legacy **`songs`** field is rejected.
 
 ## List pagination and search
 
@@ -24,16 +24,18 @@
 - **BLC-SETL-011:** WHEN **GET /setlists/{id}**, **…/songs**, or **…/player** runs THEN visibility matches **GET /setlists/{id}**.
 - **BLC-SETL-012:** WHEN **DELETE** succeeds THEN the setlist no longer appears under the same read rules.
 - **BLC-SETL-018:** WHEN **PATCH /setlists/{id}** runs THEN only fields present in the body are updated; omitted fields are unchanged; unknown fields are rejected (**`deny_unknown_fields`**), matching **BLC-SONG-019**. Optimistic concurrency uses **`If-Match`** with the resource **ETag**.
-- **BLC-SETL-019:** Each setlist **`songs`** entry MAY include **`language`** as a song language tag and an optional custom **`flow`**. Missing, **`null`**, or stale **`language`** tags inherit the song’s default language for player/export rendering. Missing or **`null`** **`flow`** means default song flow; a non-`null` flow is setlist-only and is threaded into Book rendering.
+- **BLC-SETL-019:** Each setlist **song** item MAY include **`language`** as a song language tag and an optional custom **`flow`**. Missing, **`null`**, or stale **`language`** tags inherit the song’s default language for player/export rendering. Missing or **`null`** **`flow`** means default song flow; a non-`null` flow is setlist-only and is threaded into Book rendering.
 - **BLC-SETL-020:** Collection song links keep the existing **`SongLink`** contract and do not persist or expose setlist-only **`flow`** data. Collection APIs remain unchanged.
+- **BLC-SETL-021:** Canonical ordered content is **`items`**: tagged **`type: "song"`** entries (id, optional number/key/tempo/language/flow) and **`type: "media"`** entries (Media id only). Duplicate song or Media ids are independent slots by position and MUST NOT be deduplicated.
+- **BLC-SETL-022:** Deleted, Failed, Processing, unreadable, or cross-team-revoked Media remains a stale **`items`** link on read and write. **`GET …/player?view=book`** (default), **`GET …/songs`**, exports, offline cache, and Player Room snapshots omit Media and rebuild contiguous song indexes. **`GET …/player?view=av`** includes each Ready Media the caller may currently read as one tagged immutable snapshot; stale Media is omitted without leaving gaps. Readable setlist access does not grant Media access.
 
 ## Cascading deletes
 
 - **BLC-SETL-013:** WHEN a **user** account IS deleted THEN setlists owned by their **personal** team are removed with that team ([user.md](./user.md)).
-- **BLC-SETL-014:** WHEN a **song** in **`songs`** IS deleted THEN setlist payloads MAY retain stale ids until **PUT** ([song.md](./song.md)).
+- **BLC-SETL-014:** WHEN a **song** referenced by **`items`** IS deleted THEN that song slot is removed from setlists. Media deletion never rewrites setlist **`items`**.
 
 ## Move (`POST /setlists/{id}/move`)
 
 - **BLC-SETL-015:** **`POST /setlists/{id}/move`** with **`{ "owner": "<team id>" }`** requires **library edit** on **both** the setlist’s current owning team and the target team; otherwise **404** (or **400** for malformed **`owner`**). Platform **admin** MUST NOT bypass library write for move.
 - **BLC-SETL-016:** WHEN the target **`owner`** equals the current owning team THEN **200** with unchanged body (idempotent).
-- **BLC-SETL-017:** Move is **shallow**: **`songs`** links are not rewritten for cross-team consistency.
+- **BLC-SETL-017:** Move is **shallow**: **`items`** links are not rewritten for cross-team consistency.

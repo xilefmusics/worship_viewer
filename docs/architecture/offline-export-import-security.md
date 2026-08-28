@@ -54,7 +54,18 @@ UI should disable or warn when offline (action plan **1.32** — user-facing).
 
 ## HTTP security headers (backend)
 
-Production static + API responses should eventually include CSP, `X-Content-Type-Options`, and `frame-ancestors` (**5.1**). Document any header additions here when implemented.
+Production static + API responses should eventually include a global CSP, `X-Content-Type-Options`, and `frame-ancestors` (**5.1**).
+
+**AV output exception (E5.10):** HTML for `/player/output` sets a route-scoped `Content-Security-Policy` so YouTube iframe API scripts, HTTPS `frame-src`, and HTTPS/`blob:` media can render on the projection window only. Other SPA routes and `/api` / `/auth` responses do not receive those allowances. The PWA navigate fallback denylists `/player/output` so a cached `/` shell cannot serve the output document without that header.
+
+Allowed output hosts/capabilities:
+
+- `script-src`: `'self'`, `'wasm-unsafe-eval'`, `https://www.youtube.com`, `https://www.youtube-nocookie.com`, `https://s.ytimg.com`
+- `frame-src`: YouTube hosts plus `https:` (sandboxed web pages)
+- `media-src` / `connect-src`: `'self'`, `blob:`, `https:` (HLS/direct livestreams)
+- iframe sandbox: `allow-scripts` only — no `allow-same-origin`, forms, popups, downloads, or top navigation
+
+See [`frontend/app/src/lib/player/av-output-csp.ts`](../../frontend/app/src/lib/player/av-output-csp.ts) and [`backend/src/frontend.rs`](../../backend/src/frontend.rs).
 
 ## Related docs
 

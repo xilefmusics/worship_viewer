@@ -2,6 +2,7 @@
 target
 dist
 backend/blobs
+backend/media-assets/
 backend/static/*
 !backend/static/.gitkeep
 .cursor

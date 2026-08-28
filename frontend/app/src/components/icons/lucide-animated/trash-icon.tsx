@@ -73,7 +73,7 @@ export const TrashIcon = forwardRef<TrashIconHandle, TrashIconProps>(
         >
           <motion.path
             animate={controls}
-            transition={{ type: 'spring', stiffness: 420, damping: 24 }}
+            transition={{ type: 'tween', duration: 0.3, ease: 'easeInOut' }}
             variants={{
               normal: { y: 0 },
               animate: { y: [0, -2.25, 0] },

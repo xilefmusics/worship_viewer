@@ -17,6 +17,10 @@ pub enum AppError {
     NotFound(String),
     #[error("invalid request: {0}")]
     InvalidRequest(String),
+    #[error("invalid media URL: {detail}")]
+    MediaUrl { code: &'static str, detail: String },
+    #[error("media processing failed: {detail}")]
+    MediaProcessing { code: &'static str, detail: String },
     #[error("invalid page size: {0}")]
     InvalidPageSize(String),
     #[error("{0}")]
@@ -27,6 +31,8 @@ pub enum AppError {
     NotAcceptable(String),
     #[error("precondition failed")]
     PreconditionFailed,
+    #[error("payload too large")]
+    PayloadTooLarge,
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -77,6 +83,27 @@ impl AppError {
         Self::InvalidPageSize(msg.into())
     }
 
+    pub fn media_invalid_url<T: Into<String>>(detail: T) -> Self {
+        Self::MediaUrl {
+            code: "media_invalid_url",
+            detail: detail.into(),
+        }
+    }
+
+    pub fn media_unsupported_url<T: Into<String>>(detail: T) -> Self {
+        Self::MediaUrl {
+            code: "media_unsupported_url",
+            detail: detail.into(),
+        }
+    }
+
+    pub fn media_processing(code: &'static str, detail: impl Into<String>) -> Self {
+        Self::MediaProcessing {
+            code,
+            detail: detail.into(),
+        }
+    }
+
     pub fn invalid_state() -> Self {
         Self::InvalidRequest("login state missing or expired".into())
     }
@@ -107,6 +134,10 @@ impl AppError {
 
     pub fn precondition_failed() -> Self {
         Self::PreconditionFailed
+    }
+
+    pub fn payload_too_large() -> Self {
+        Self::PayloadTooLarge
     }
 
     /// Log full error chain at an I/O boundary, then return [`Internal`](Self::Internal).
@@ -187,11 +218,14 @@ impl AppError {
             AppError::Forbidden => "forbidden",
             AppError::NotFound(_) => "not_found",
             AppError::InvalidRequest(_) => "invalid_request",
+            AppError::MediaUrl { code, .. } => code,
+            AppError::MediaProcessing { code, .. } => code,
             AppError::InvalidPageSize(_) => "invalid_page_size",
             AppError::Conflict(_) => "conflict",
             AppError::TooManyRequests(_) => "too_many_requests",
             AppError::NotAcceptable(_) => "not_acceptable",
             AppError::PreconditionFailed => "precondition_failed",
+            AppError::PayloadTooLarge => "payload_too_large",
             AppError::Internal(_) => "internal",
         }
     }
@@ -209,6 +243,8 @@ impl AppError {
             AppError::PreconditionFailed => {
                 "If-Match does not match the current resource representation".to_owned()
             }
+            AppError::MediaUrl { detail, .. } => detail.clone(),
+            AppError::MediaProcessing { detail, .. } => detail.clone(),
             _ => self.to_string(),
         }
     }
@@ -224,6 +260,7 @@ fn http_status_title(status: u16) -> &'static str {
         409 => "Conflict",
         429 => "Too Many Requests",
         412 => "Precondition Failed",
+        413 => "Payload Too Large",
         500 => "Internal Server Error",
         _ => "Error",
     }
@@ -235,11 +272,15 @@ impl ResponseError for AppError {
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
             AppError::Forbidden => StatusCode::FORBIDDEN,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
-            AppError::InvalidRequest(_) | AppError::InvalidPageSize(_) => StatusCode::BAD_REQUEST,
+            AppError::InvalidRequest(_)
+            | AppError::MediaUrl { .. }
+            | AppError::MediaProcessing { .. }
+            | AppError::InvalidPageSize(_) => StatusCode::BAD_REQUEST,
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             AppError::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
             AppError::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
+            AppError::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

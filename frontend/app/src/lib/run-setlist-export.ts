@@ -7,6 +7,7 @@ import {
   runOrderedSongsZipExport,
 } from '@/lib/hydrate-hub-song-links'
 import type { FileExportFormat } from '@/lib/song-import-export'
+import { songLinksFromSetlistItems } from '@/lib/setlist-items'
 import { normalizeSongLinksForEditor } from '@/lib/setlist-song-links'
 
 export type SetlistExportKind = FileExportFormat | 'pdf'
@@ -19,7 +20,7 @@ export async function runSetlistExport(
   hideChords?: boolean,
 ): Promise<void> {
   const detail = await fetchSetlistDetail(queryClient, { id: setlistId })
-  const links = normalizeSongLinksForEditor(detail.songs)
+  const links = normalizeSongLinksForEditor(songLinksFromSetlistItems(detail.items))
   if (kind === 'pdf') {
     await runOrderedSongsPdfExport(queryClient, detail.title, links, chordFormat, hideChords)
     return

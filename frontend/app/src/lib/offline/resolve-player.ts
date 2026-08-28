@@ -44,9 +44,10 @@ export async function resolvePlayerForRoute(
   type: PlayerEntityType,
   id: string,
   signal?: AbortSignal,
+  view: 'book' | 'av' = 'book',
 ): Promise<ResolvedPlayerState> {
   if (isOnline()) {
-    const res = await fetchPlayerFromNetwork(type, id, signal)
+    const res = await fetchPlayerFromNetwork(type, id, signal, view)
     if ('error' in res) {
       const reconciled = await reconcilePlayer404(type, id, res.status)
       if (reconciled.kind === 'reconciled') {
@@ -60,7 +61,7 @@ export async function resolvePlayerForRoute(
       return { status: 'error', message: res.error }
     }
     try {
-      await persistPlayerMirror(type, id, res.player)
+      if (view === 'book') await persistPlayerMirror(type, id, res.player)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       return { status: 'error', message: msg }

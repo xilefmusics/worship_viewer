@@ -1,13 +1,13 @@
 # List endpoints: query parameters and pagination
 
-Applies to **GET** list routes that support paging, including **`/users`** (admin), **`/blobs`**, **`/collections`**, **`/setlists`**, **`/songs`**, **`/teams`**, **`/users/me/sessions`**, **`/users/{id}/sessions`** (admin), and **`/teams/{team}/invitations`**.
+Applies to **GET** list routes that support paging, including **`/users`** (admin), **`/blobs`**, **`/collections`**, **`/media`**, **`/setlists`**, **`/songs`**, **`/teams`**, **`/users/me/sessions`**, **`/users/{id}/sessions`** (admin), and **`/teams/{team}/invitations`**.
 
 ## Query parameters
 
 - **BLC-LP-001:** **`page`** — 0-based index of the page.
 - **BLC-LP-002:** **`page_size`** — maximum number of items per page.
-- **BLC-LP-003:** **`q`** — optional search filter: **`/songs`** (full-text on titles, artists, and line lyrics per analyzer rules; titles also match case-insensitive substring), **`/collections`** and **`/setlists`** (full-text on **title** plus case-insensitive title substring), **`/users`** (admin list: **email** or **user id** substring, case-insensitive), **`/teams`** (full-text **name**; case-insensitive substring on **team id**, personal **owner** email, and **member** emails), **`/users/me/sessions`** and **`/users/{id}/sessions`** (substring on **session id**, **user id**, or **user email**), **`/blobs`** (**OCR** substring, case-insensitive). Whitespace-only **`q`** is treated as absent everywhere.
-- **BLC-LP-003a:** **`team`** — optional owning-team filter on top-level library lists **`/songs`**, **`/collections`**, and **`/setlists`**. The value MUST be a plain team id (the same string returned in resource **`owner`** fields), not a `team:...` record string. The filter narrows the caller's existing read scope; it never grants access to a team the caller cannot already read.
+- **BLC-LP-003:** **`q`** — optional search filter: **`/songs`** (full-text on titles, artists, and line lyrics per analyzer rules; titles also match case-insensitive substring), **`/collections`**, **`/media`**, and **`/setlists`** (full-text on **title** plus case-insensitive title substring), **`/users`** (admin list: **email** or **user id** substring, case-insensitive), **`/teams`** (full-text **name**; case-insensitive substring on **team id**, personal **owner** email, and **member** emails), **`/users/me/sessions`** and **`/users/{id}/sessions`** (substring on **session id**, **user id**, or **user email**), **`/blobs`** (**OCR** substring, case-insensitive). Whitespace-only **`q`** is treated as absent everywhere.
+- **BLC-LP-003a:** **`team`** — optional owning-team filter on top-level library lists **`/songs`**, **`/collections`**, **`/media`**, and **`/setlists`**. The value MUST be a plain team id (the same string returned in resource **`owner`** fields), not a `team:...` record string. The filter narrows the caller's existing read scope; it never grants access to a team the caller cannot already read.
 
 ## Validation
 

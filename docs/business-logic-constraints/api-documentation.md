@@ -9,3 +9,4 @@ This route is **outside** the **`/api/v1`** authenticated surface; see [authenti
 - **BLC-DOCS-002:** The published OpenAPI document defines a **`Problem`** schema ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details) and documents **`application/problem+json`** as the content type for **4xx** and **5xx** response bodies where an error payload is returned.
 - **BLC-DOCS-003:** Auth-related routes that use query parameters (for example **`GET /auth/login`**, **`GET /auth/callback`**) declare those parameters as **`in: query`** in OpenAPI.
 - **BLC-DOCS-004:** Component schema **property** names in the OpenAPI JSON use **snake_case** (ASCII letters, digits, underscores), consistent with Rust serde defaults.
+- **BLC-DOCS-005:** The Media tag links to `media.md`, and the canonical OpenAPI contains Media lifecycle/content schemas and all E5.1 URL-media operations.

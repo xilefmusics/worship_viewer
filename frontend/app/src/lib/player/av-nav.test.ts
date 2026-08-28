@@ -6,6 +6,7 @@ import {
   avSlidesForItem,
   avSlidesForPlayerItem,
   buildAvFlatSlides,
+  buildAvDeckPageEntries,
   resolveAvItemLanguageIndex,
 } from '@/lib/player/av-nav'
 import {
@@ -89,6 +90,52 @@ describe('avSlidesForItem', () => {
     expect(german.sourceSlides).toEqual(german.slides)
     expect(avItemTitle([item], 0, 'Setlist title', () => 0)).toBe('Anchor')
     expect(avItemTitle([item], 0, 'Setlist title', () => 1)).toBe('Anker')
+  })
+
+  it('builds a deck outline from stored media section titles', () => {
+    const item: PlayerItem = {
+      type: 'media',
+      id: 'media-1',
+      title: 'Slides',
+      content: {
+        type: 'slide_deck',
+        pages: [
+          { blob_id: 'p1', section_title: 'Welcome' },
+          { blob_id: 'p2' },
+          { blob_id: 'p3', section_title: 'Teaching' },
+        ],
+      },
+    }
+
+    const result = avSlidesForItem(item, 0, split)
+
+    expect(result.outline.map(({ title, len }) => ({ title, len }))).toEqual([
+      { title: 'Welcome', len: 2 },
+      { title: 'Teaching', len: 1 },
+    ])
+    expect(buildAvOutlineRows(result.outline, 1).map((row) => ({
+      label: row.label,
+      slideIndex: row.slideIndex,
+      selected: row.selected,
+    }))).toEqual([
+      { label: 'Welcome', slideIndex: 0, selected: false },
+      { label: 'Welcome (2)', slideIndex: 1, selected: true },
+      { label: 'Teaching', slideIndex: 2, selected: false },
+    ])
+  })
+
+  it('uses song-style section labels for every deck page card', () => {
+    const pages = [
+      { blobId: 'p1', sectionTitle: undefined },
+      { blobId: 'p2', sectionTitle: '1. Das Herz' },
+      { blobId: 'p3', sectionTitle: undefined },
+    ]
+
+    expect(
+      buildAvDeckPageEntries('media-1', pages, (index) => `Page ${index + 1}`, 'Seminar Anbetung').map(
+        (entry) => entry.label,
+      ),
+    ).toEqual(['Seminar Anbetung', '1. Das Herz', '1. Das Herz (2)'])
   })
 })
 
@@ -197,5 +244,126 @@ describe('avSlidesForItem custom flow', () => {
 
     expect(result.slides).toEqual(['Sing', 'First'])
     expect(result.outline.map((row) => row.title)).toEqual(['Chorus', 'Verse 1'])
+  })
+})
+
+describe('avSlidesForItem media decks', () => {
+  it('expands Ready slide-deck pages in order and keeps other media as a title placeholder', () => {
+    const deck = {
+      type: 'media',
+      id: 'media-1',
+      title: 'Welcome',
+      content: {
+        type: 'slide_deck',
+        pages: [{ blob_id: 'a' }, { blob_id: 'b' }, { blob_id: 'c' }],
+      },
+    } as PlayerItem
+    const video = {
+      type: 'media',
+      id: 'media-2',
+      title: 'Clip',
+      content: { type: 'video', blob_id: 'v1', duration_ms: 1000, width: 1920, height: 1080 },
+    } as PlayerItem
+
+    const deckSlides = avSlidesForItem(deck, 0, split)
+    expect(deckSlides.kind).toBe('deck')
+    expect(deckSlides.mediaId).toBe('media-1')
+    expect(deckSlides.pages?.map((page) => page.blobId)).toEqual(['a', 'b', 'c'])
+    expect(deckSlides.slides).toHaveLength(3)
+
+    const videoSlides = avSlidesForItem(video, 1, split)
+    expect(videoSlides.kind).toBe('video')
+    expect(videoSlides.mediaId).toBe('media-2')
+    expect(videoSlides.assetId).toBe('v1')
+    expect(videoSlides.slides).toEqual(['Clip'])
+
+    const audio = {
+      type: 'media',
+      id: 'media-3',
+      title: 'Track',
+      content: { type: 'audio', blob_id: 'a1', duration_ms: 8000 },
+    } as PlayerItem
+    const audioSlides = avSlidesForItem(audio, 2, split)
+    expect(audioSlides.kind).toBe('audio')
+    expect(audioSlides.assetId).toBe('a1')
+  })
+
+  it('I5: maps YouTube, livestream, and web-page media to timed kinds', () => {
+    const youtube = avSlidesForItem(
+      {
+        type: 'media',
+        id: 'media-yt',
+        title: 'Clip',
+        content: {
+          type: 'youtube',
+          video_id: 'dQw4w9WgXcQ',
+          canonical_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+      } as PlayerItem,
+      0,
+      split,
+    )
+    expect(youtube).toMatchObject({
+      kind: 'youtube',
+      videoId: 'dQw4w9WgXcQ',
+      canonicalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    })
+
+    const live = avSlidesForItem(
+      {
+        type: 'media',
+        id: 'media-live',
+        title: 'Stream',
+        content: { type: 'livestream', url: 'https://example.com/live.m3u8', stream_type: 'hls' },
+      } as PlayerItem,
+      1,
+      split,
+    )
+    expect(live).toMatchObject({
+      kind: 'livestream',
+      url: 'https://example.com/live.m3u8',
+      streamType: 'hls',
+    })
+
+    const page = avSlidesForItem(
+      {
+        type: 'media',
+        id: 'media-web',
+        title: 'Bulletin',
+        content: { type: 'web_page', url: 'https://example.com/bulletin' },
+      } as PlayerItem,
+      2,
+      split,
+    )
+    expect(page).toMatchObject({
+      kind: 'web_page',
+      url: 'https://example.com/bulletin',
+    })
+  })
+
+  it('maps Spotify media to controller-local external playback details', () => {
+    const spotify = avSlidesForItem(
+      {
+        type: 'media',
+        id: 'media-spotify',
+        title: 'Prelude',
+        content: {
+          type: 'spotify',
+          resource_type: 'playlist',
+          spotify_id: '37i9dQZF1DXcBWIGoYBM5M',
+          canonical_url: 'javascript:alert(1)',
+        },
+      },
+      0,
+      split,
+    )
+
+    expect(spotify).toMatchObject({
+      kind: 'spotify',
+      mediaId: 'media-spotify',
+      spotifyId: '37i9dQZF1DXcBWIGoYBM5M',
+      spotifyResourceType: 'playlist',
+      canonicalUrl: 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M',
+    })
   })
 })

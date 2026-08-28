@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { fetchSongForHubSlot } from '@/api/setlists-detail'
+import { fetchMedia, mediaDetailKey, type Media } from '@/api/media'
 import { fetchTeamDetail, fetchTeamsPage } from '@/api/teams-sessions-fetch'
 import type { Team } from '@/api/teams-sessions-fetch'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ import { PopoverContent, PopoverRoot, PopoverTrigger } from '@/components/ui/pop
 import { TrashIcon } from '@/components/icons/lucide-animated/trash-icon'
 import { SetlistFlowEditorSheet } from '@/components/setlists/SetlistFlowEditorSheet'
 import { SetlistSongPickerSheet } from '@/components/setlists/SetlistSongPickerSheet'
+import { SetlistMediaPickerSheet } from '@/components/setlists/SetlistMediaPickerSheet'
 import { useCanEditSetlist } from '@/hooks/useCanEditSetlist'
 import { useSession } from '@/hooks/useSession'
 import { useRegisterSetlistPaletteBridge } from '@/context/SetlistPaletteBridgeContext'
@@ -41,13 +43,21 @@ import { useSetlistAutosave } from '@/hooks/useSetlistAutosave'
 import { useSetlistDetailQuery } from '@/hooks/useSetlistDetailQuery'
 import { brokenSlotGate, type SongHydrationOutcome } from '@/lib/setlist-broken-rows'
 import { MUSICAL_KEYS } from '@/lib/setlist-editor-constants'
-import { makeSlotRow, slotsFromSongLinks, type SlotRow } from '@/lib/setlist-editor-slots'
+import {
+  makeMediaSlotRow,
+  makeSlotRow,
+  setlistItemsFromSlots,
+  slotsFromSetlistItems,
+  songLinksFromSlots,
+  type MediaSlotRow,
+  type SetlistSlotRow,
+  type SongSlotRow,
+} from '@/lib/setlist-editor-slots'
 import type { SetlistPaletteBridge } from '@/lib/setlist-palette-bridge'
 import {
   coerceMusicalKeyString,
   defaultSongLinkLanguage,
   normalizeSongLinkLanguage,
-  normalizeSongLinksForEditor,
   removeAt,
   resolveSongDataKey,
   songLanguageOptions,
@@ -62,6 +72,7 @@ import { canEditTeamLibrary } from '@/lib/team-permissions'
 import { getNextPageIndex } from '@/lib/list-pagination'
 import { teamDetailKey, teamsListRootKey } from '@/lib/teams-sessions-keys'
 import { cn } from '@/lib/utils'
+import { mediaDisplayKind } from '@/lib/media-display'
 
 export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
   const { t } = useTranslation()
@@ -69,12 +80,13 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
   const queryClient = useQueryClient()
   const online = useOnline()
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
   const [flowEditorSlotId, setFlowEditorSlotId] = useState<string | null>(null)
 
   const { data: detail, isPending, error, refetch } = useSetlistDetailQuery(setlistId)
   const { canEdit, team: owningTeamDetail } = useCanEditSetlist(detail?.owner)
 
-  const [slotRows, setSlotRows] = useState<SlotRow[]>([])
+  const [slotRows, setSlotRows] = useState<SetlistSlotRow[]>([])
   const [titleDraft, setTitleDraft] = useState('')
   const [ownerDraft, setOwnerDraft] = useState('')
   const lastLoadedSetlistRef = useRef<string>('')
@@ -101,17 +113,18 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
     lastLoadedSetlistRef.current = setlistId
     setTitleDraft(detail.title)
     setOwnerDraft(detail.owner)
-    setSlotRows(slotsFromSongLinks(normalizeSongLinksForEditor(detail.songs)))
+    setSlotRows(slotsFromSetlistItems(detail.items))
   }, [detail, setlistId])
 
-  const draftLinks = useMemo(() => slotRows.map((s) => s.link), [slotRows])
+  const draftLinks = useMemo(() => songLinksFromSlots(slotRows), [slotRows])
+  const draftItems = useMemo(() => setlistItemsFromSlots(slotRows), [slotRows])
 
   const baseline = useMemo(
     () =>
       detail
         ? {
             title: detail.title,
-            songs: normalizeSongLinksForEditor(detail.songs),
+            items: detail.items,
             owner: detail.owner,
           }
         : null,
@@ -163,32 +176,43 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
   const hydrationQueries = useQueries({
     queries: slotRows.map((row) => ({
       queryKey: songDetailQueryKey(row.link.id),
-      enabled: Boolean(detail && row.link.id),
+      enabled: Boolean(detail && row.type === 'song' && row.link.id),
       staleTime: 5 * 60_000,
       queryFn: ({ signal }: { signal?: AbortSignal }) =>
         fetchSongForHubSlot(queryClient, { id: row.link.id, signal }),
     })),
   })
 
+  const mediaHydrationQueries = useQueries({
+    queries: slotRows.map((row) => ({
+      queryKey: mediaDetailKey(row.link.id),
+      enabled: Boolean(detail && row.type === 'media' && row.link.id),
+      staleTime: 5 * 60_000,
+      retry: false,
+      queryFn: ({ signal }: { signal?: AbortSignal }) => fetchMedia(queryClient, row.link.id, signal),
+    })),
+  })
+
   const hydrationOutcomes: SongHydrationOutcome[] = useMemo(
     () =>
-      hydrationQueries.map((q) => {
+      hydrationQueries.map((q, index) => {
+        if (slotRows[index]?.type === 'media') return { kind: 'ok' as const, notASong: false }
         if (q.isPending) return { kind: 'loading' as const }
         if (q.isError) return { kind: 'broken' as const }
         if (q.data === null) return { kind: 'broken' as const }
         return { kind: 'ok' as const, notASong: q.data.not_a_song }
       }),
-    [hydrationQueries],
+    [hydrationQueries, slotRows],
   )
 
   const flowEditorRow = useMemo(
     () => slotRows.find((row) => row.slotId === flowEditorSlotId) ?? null,
     [flowEditorSlotId, slotRows],
   )
-  const flowEditorSongIndex = flowEditorRow
+  const flowEditorSongIndex = flowEditorRow?.type === 'song'
     ? slotRows.findIndex((row) => row.slotId === flowEditorRow.slotId)
     : -1
-  const flowEditorSong =
+  const flowEditorSong = flowEditorRow?.type === 'song' &&
     flowEditorSongIndex >= 0 ? hydrationQueries[flowEditorSongIndex]?.data ?? null : null
 
   useEffect(() => {
@@ -199,11 +223,12 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
 
   const songOwnerIds = useMemo(() => {
     const ids = new Set<string>()
-    for (const q of hydrationQueries) {
+    for (const [index, q] of hydrationQueries.entries()) {
+      if (slotRows[index]?.type !== 'song') continue
       if (q.data?.owner) ids.add(q.data.owner)
     }
     return [...ids]
-  }, [hydrationQueries])
+  }, [hydrationQueries, slotRows])
 
   const ownerTeamQueries = useQueries({
     queries: songOwnerIds.map((ownerId) => ({
@@ -230,7 +255,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
     setlistId,
     baseline,
     draftTitle: titleDraft,
-    draftSongs: draftLinks,
+    draftItems,
     draftOwner: ownerDraft,
     canAutosavePatch,
   })
@@ -243,14 +268,15 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
     await flushNow()
   }
 
-  const openPickerSafe = async () => {
+  const openPickerSafe = async (kind: 'song' | 'media') => {
     if (!canEdit || blockingAll) return
     await flushBeforePicker()
-    setPickerOpen(true)
+    if (kind === 'song') setPickerOpen(true)
+    else setMediaPickerOpen(true)
   }
 
   const duplicateCountFor = useCallback(
-    (songId: string) => slotRows.reduce((acc, row) => acc + (row.link.id === songId ? 1 : 0), 0),
+    (songId: string) => slotRows.reduce((acc, row) => acc + (row.type === 'song' && row.link.id === songId ? 1 : 0), 0),
     [slotRows],
   )
 
@@ -264,6 +290,12 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
       language: language ?? defaultSongLinkLanguage(song.data as Record<string, unknown>),
     }
     setSlotRows((prev) => [...prev, makeSlotRow(link)])
+    queueMicrotask(() => notifyDraftEdited())
+  }
+
+  const insertMediaFromPicker = (media: Media) => {
+    setSlotRows((prev) => [...prev, makeMediaSlotRow(media.id)])
+    queryClient.setQueryData(mediaDetailKey(media.id), media)
     queueMicrotask(() => notifyDraftEdited())
   }
 
@@ -328,7 +360,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
     if (el) el.textContent = msg
   }
 
-  const undoRef = useRef<{ rows: SlotRow[]; title: string } | null>(null)
+  const undoRef = useRef<{ rows: SetlistSlotRow[]; title: string } | null>(null)
 
   function removeAtIndex(index: number) {
     const removed = slotRows[index]
@@ -356,7 +388,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
     if (!detail) return
     setTitleDraft(detail.title)
     setOwnerDraft(detail.owner)
-    setSlotRows(slotsFromSongLinks(normalizeSongLinksForEditor(detail.songs)))
+    setSlotRows(slotsFromSetlistItems(detail.items))
     notifyDraftEdited()
   }
 
@@ -368,7 +400,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
     if (r.data) {
       setTitleDraft(r.data.title)
       setOwnerDraft(r.data.owner)
-      setSlotRows(slotsFromSongLinks(normalizeSongLinksForEditor(r.data.songs)))
+      setSlotRows(slotsFromSetlistItems(r.data.items))
     }
   }
 
@@ -435,7 +467,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
                 if (rolled) {
                   setTitleDraft(rolled.title)
                   setOwnerDraft(rolled.owner)
-                  setSlotRows(slotsFromSongLinks(rolled.songs))
+                  setSlotRows(slotsFromSetlistItems(rolled.items))
                 }
               }}
             >
@@ -555,6 +587,23 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
           <SortableContext items={slotRows.map((s) => s.slotId)} strategy={verticalListSortingStrategy}>
             <ul className="flex flex-col gap-1" aria-labelledby={`setlist-editor-songs-${setlistId}`}>
             {slotRows.map((row, idx) => {
+              if (row.type === 'media') {
+                const mediaQuery = mediaHydrationQueries[idx]
+                const media = mediaQuery?.data
+                return (
+                  <SortableMediaRow
+                    key={row.slotId}
+                    row={row}
+                    media={media}
+                    hydrationPending={mediaQuery?.isPending ?? false}
+                    brokenHydration={mediaQuery?.isError === true || (!mediaQuery?.isPending && !media)}
+                    duplicateCount={slotRows.filter((candidate) => candidate.type === 'media' && candidate.link.id === row.link.id).length}
+                    canEditUi={canEdit && !blockingAll && !offlineFrozen && !resumePrompt}
+                    blockingAll={blockingAll || !canEdit}
+                    onRemove={() => removeAtIndex(idx)}
+                  />
+                )
+              }
               const hydrated = hydrationQueries[idx]?.data
               const hydrationPendingRow = hydrationQueries[idx]?.isPending ?? false
               const brokenHydration =
@@ -590,7 +639,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
                     setSlotRows((prev) => {
                       const next = [...prev]
                       const cur = next[idx]
-                      if (!cur) return prev
+                      if (!cur || cur.type !== 'song') return prev
                       next[idx] = { ...cur, link: { ...cur.link, key } }
                       return next
                     })
@@ -600,7 +649,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
                     setSlotRows((prev) => {
                       const next = [...prev]
                       const cur = next[idx]
-                      if (!cur) return prev
+                      if (!cur || cur.type !== 'song') return prev
                       next[idx] = { ...cur, link: { ...cur.link, tempo } }
                       return next
                     })
@@ -610,7 +659,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
                     setSlotRows((prev) => {
                       const next = [...prev]
                       const cur = next[idx]
-                      if (!cur) return prev
+                      if (!cur || cur.type !== 'song') return prev
                       next[idx] = { ...cur, link: { ...cur.link, language } }
                       return next
                     })
@@ -627,9 +676,14 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
       </div>
 
       {!canEdit || resumePrompt ? null : (
-        <Button className="w-full shrink-0" type="button" disabled={offlineFrozen || patchInFlight || !!saveFailure} onClick={() => void openPickerSafe()}>
-          {t('setlists.editor.addSong')}
-        </Button>
+        <div className="grid grid-cols-2 gap-2">
+          <Button className="w-full shrink-0" type="button" disabled={offlineFrozen || patchInFlight || !!saveFailure} onClick={() => void openPickerSafe('song')}>
+            {t('setlists.editor.addSong')}
+          </Button>
+          <Button className="w-full shrink-0" variant="outline" type="button" disabled={offlineFrozen || patchInFlight || !!saveFailure} onClick={() => void openPickerSafe('media')}>
+            {t('setlists.editor.addMedia')}
+          </Button>
+        </div>
       )}
 
       <SetlistSongPickerSheet
@@ -640,20 +694,29 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
         onPickSong={(s, language) => void insertSongFromPicker(s, language)}
       />
 
+      <SetlistMediaPickerSheet
+        open={mediaPickerOpen}
+        onOpenChange={setMediaPickerOpen}
+        duplicateCountFor={(mediaId) => slotRows.filter((row) => row.type === 'media' && row.link.id === mediaId).length}
+        blockedAdd={blockingAll}
+        defaultOwner={ownerDraft}
+        onPickMedia={insertMediaFromPicker}
+      />
+
       <SetlistFlowEditorSheet
         open={flowEditorSlotId != null}
         onOpenChange={(open) => {
           if (!open) setFlowEditorSlotId(null)
         }}
         song={flowEditorSong}
-        flow={flowEditorRow?.link.flow ?? null}
+        flow={flowEditorRow?.type === 'song' ? flowEditorRow.link.flow ?? null : null}
         canEdit={canEdit}
         blockingAll={blockingAll}
         onSave={(flow) => {
           if (!flowEditorSlotId) return
           setSlotRows((prev) =>
             prev.map((row) =>
-              row.slotId === flowEditorSlotId
+              row.type === 'song' && row.slotId === flowEditorSlotId
                 ? { ...row, link: { ...row.link, flow: flow.length > 0 ? flow : null } }
                 : row,
             ),
@@ -665,7 +728,7 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
           if (!flowEditorSlotId) return
           setSlotRows((prev) =>
             prev.map((row) =>
-              row.slotId === flowEditorSlotId ? { ...row, link: { ...row.link, flow: null } } : row,
+              row.type === 'song' && row.slotId === flowEditorSlotId ? { ...row, link: { ...row.link, flow: null } } : row,
             ),
           )
           queueMicrotask(() => notifyDraftEdited())
@@ -676,8 +739,69 @@ export function SetlistEditorScreen({ setlistId }: { setlistId: string }) {
   )
 }
 
+type MediaSortProps = {
+  row: MediaSlotRow
+  media?: Media
+  hydrationPending: boolean
+  brokenHydration: boolean
+  duplicateCount: number
+  canEditUi: boolean
+  blockingAll: boolean
+  onRemove: () => void
+}
+
+const SortableMediaRow = memo(function SortableMediaRow({
+  row,
+  media,
+  hydrationPending,
+  brokenHydration,
+  duplicateCount,
+  canEditUi,
+  blockingAll,
+  onRemove,
+}: MediaSortProps) {
+  const { t } = useTranslation()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: row.slotId,
+    disabled: blockingAll || !canEditUi,
+  })
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.85 : undefined,
+    zIndex: isDragging ? 20 : undefined,
+  }
+  const kind = media ? mediaDisplayKind(media) : 'unknown'
+
+  return (
+    <li ref={setNodeRef} style={style} className={cn('relative flex rounded-lg border bg-[var(--color-surface)]', brokenHydration ? 'border-[var(--color-danger)]/60' : 'border-[var(--color-border)]')}>
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className={cn('flex w-10 shrink-0 cursor-grab touch-none items-center justify-center self-stretch rounded-l-lg border-0 border-r border-[var(--color-border)] bg-transparent text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]/40 active:cursor-grabbing', (blockingAll || !canEditUi) && 'pointer-events-none opacity-35')}
+        aria-label={t('setlists.editor.dragMediaHandleAria', { title: media?.title ?? t('setlists.editor.mediaUnavailable') })}
+      >
+        ::
+      </button>
+      <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3">
+        <div className="min-w-0 flex-1">
+          {hydrationPending ? <div className="h-4 w-2/3 animate-pulse rounded bg-[var(--color-muted)]" /> : (
+            <>
+              <p className={cn('truncate font-medium', brokenHydration && 'text-[var(--color-danger)]')}>{brokenHydration ? t('setlists.editor.mediaUnavailable') : media?.title ?? '—'}</p>
+              <p className="text-xs text-[var(--color-muted-foreground)]">{brokenHydration ? t('setlists.editor.mediaBrokenHint') : t(`media.kinds.${kind}`)}</p>
+            </>
+          )}
+          {duplicateCount > 1 ? <p className="mt-1 text-[0.65rem] uppercase text-[var(--color-muted-foreground)]">{t('common.duplicateBadge', { container: t('common.containerSetlist'), count: duplicateCount })}</p> : null}
+        </div>
+        {canEditUi && !blockingAll ? <Button type="button" variant="ghost" size="icon" aria-label={t('setlists.editor.removeMediaAria', { title: media?.title ?? t('setlists.editor.mediaUnavailable') })} onClick={onRemove}><TrashIcon size={18} /></Button> : null}
+      </div>
+    </li>
+  )
+})
+
 type SortProps = {
-  row: SlotRow
+  row: SongSlotRow
   index: number
   draftLinks: EditorSongLink[]
   hydratedSong?: import('@/api/setlists-detail').Song

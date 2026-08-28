@@ -347,6 +347,7 @@ impl PlayerRoomService {
                 PlayerItem::Chords(chords) => {
                     ids.extend(chords.song.blobs.iter().map(|blob| blob.id.clone()));
                 }
+                PlayerItem::Media(_) => {}
             }
         }
         ids

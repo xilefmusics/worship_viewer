@@ -146,6 +146,8 @@
     },
     "loadMore": "Load more",
     "meta": {
+      "mediaCount_one": "{{count}} media item",
+      "mediaCount_other": "{{count}} media items",
       "songsCount_one": "{{count}} song",
       "songsCount_other": "{{count}} songs"
     },
@@ -293,6 +295,7 @@
     },
     "editMenuAria": "Choose what to edit",
     "editSong": "Edit song",
+    "editSlideDeck": "Edit slide deck",
     "editSetlist": "Edit setlist",
     "editCollection": "Edit collection",
     "openSettings": "Player settings",
@@ -319,6 +322,11 @@
       "showAvPanel": "Show AV panel",
       "outputAria": "Projection output",
       "outputMissingSession": "Missing projection session.",
+      "missingOutput": "No projection output is open. The page was not shown on a screen.",
+      "outputSummary": "{{ready}} ready",
+      "outputSummaryNone": "No output",
+      "outputSummaryFailed": "{{ready}} ready · {{failed}} failed",
+      "outputPage": "Page {{n}}",
       "slidesAria": "Slides for current item",
       "outlineAria": "Section outline",
       "backgroundAria": "Slide background",
@@ -326,7 +334,37 @@
       "backgroundExpand": "Expand background selector",
       "backgroundCollapse": "Collapse background selector",
       "sectionShortcutsAria": "Jump to section",
-      "sectionJump": "Jump to {{section}} ({{key}})"
+      "sectionJump": "Jump to {{section}} ({{key}})",
+      "play": "Play",
+      "pause": "Pause",
+      "resume": "Resume",
+      "show": "Show",
+      "hide": "Hide",
+      "reload": "Reload",
+      "seek": "Seek",
+      "volume": "Volume",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "restart": "Restart",
+      "loop": "Loop",
+      "retry": "Retry",
+      "mediaPreviewOnly": "Preview only — press Play to project",
+      "mediaPreviewOnlyShow": "Preview only — press Show to project",
+      "mediaPlaying": "Playing on output",
+      "mediaShowing": "Showing on output",
+      "mediaPaused": "Paused on output",
+      "mediaHidden": "Hidden on output",
+      "mediaEnded": "Ended",
+      "mediaLoading": "Loading on output",
+      "mediaError": "Playback failed on an output",
+      "mediaMixed": "Outputs report different playback states",
+      "mediaAutoplayFailed": "The browser blocked playback. The background is still showing. Retry when you are ready.",
+      "mediaEmbedFailed": "This page cannot be embedded. The background is still showing.",
+      "mediaProviderFailed": "The playback provider failed. The background is still showing. Retry when you are ready.",
+      "mediaUnsupportedSource": "This source cannot be played in this browser. The background is still showing.",
+      "outputFailed": "Output {{id}}: {{detail}}",
+      "missingOutputPlay": "No projection output is open. Playback was not started.",
+      "missingOutputShow": "No projection output is open. The page was not shown."
     }
   },
   "about": {
@@ -712,12 +750,29 @@
       "resumePrompt": "You’re back online. Resume syncing your edits?",
       "resumeRetry": "Retry sync",
       "resumeDiscard": "Discard and reload from server",
-      "emptyHint": "No songs yet — use Add songs below.",
-      "songsSectionLabel": "Songs",
+      "emptyHint": "No items yet — add a song or media below.",
+      "songsSectionLabel": "Setlist items",
       "addSong": "Add songs",
+      "addMedia": "Add media",
       "addSongTitle": "Add a song",
-      "pickerSearchPlaceholder": "Search songs…",
-      "pickerSearchAria": "Search songs to add",
+      "addMediaTitle": "Add media",
+      "createMedia": "Create media",
+      "manageMedia": "Manage media",
+      "mediaPickerSearchPlaceholder": "Search…",
+      "mediaPickerSearchAria": "Search",
+      "mediaQuickUploadTitle": "Drop here",
+      "mediaQuickUploadHint": "Images, PDFs, audio, or video",
+      "mediaQuickUploadAria": "Choose media files to upload",
+      "mediaQuickUploadUnsupported": "Choose either images and PDFs, one audio file, or one video file.",
+      "mediaPickerEmpty": "No media found.",
+      "mediaPickerError": "Could not load media.",
+      "mediaUnavailable": "Unavailable media",
+      "mediaBrokenHint": "This media was deleted or is no longer accessible. You can remove this row.",
+      "dragMediaHandleAria": "Drag {{title}} to reorder",
+      "removeMediaAria": "Remove {{title}} from setlist",
+      "directMediaUnavailable": "This media is unavailable, not Ready, or you no longer have access.",
+      "pickerSearchPlaceholder": "Search…",
+      "pickerSearchAria": "Search",
       "waitForSave": "Wait for save to finish",
       "pickerExcluded": "This item can’t be added to setlists.",
       "removedSlot": "Slot removed.",
@@ -1140,6 +1195,137 @@
       "text": "Lyrics only — chord symbols are hidden.",
       "av": "Control or follow the live presentation output.",
       "slide": "View the projected slides only, without controls."
+    }
+  },
+  "media": {
+    "name": "Media",
+    "kinds": {
+      "youtube": "YouTube",
+      "spotify": "Spotify",
+      "livestream": "Livestream",
+      "web_page": "Web page",
+      "slide_deck": "Slide deck",
+      "video": "Video",
+      "audio": "Audio",
+      "unknown": "Unknown media"
+    },
+    "spotify": {
+      "track": "Track",
+      "playlist": "Playlist"
+    },
+    "fields": {
+      "title": "Title",
+      "kind": "Content type",
+      "team": "Team",
+      "canonicalUrl": "Saved URL",
+      "url": {
+        "youtube": "YouTube URL",
+        "spotify": "Spotify track or playlist URL",
+        "livestream": "Livestream URL",
+        "web_page": "Web-page URL"
+      },
+      "file": {
+        "video": "Video file",
+        "audio": "Audio file",
+        "slide_deck": "PNG, JPEG, SVG, or PDF files"
+      }
+    },
+    "list": {
+      "empty": "No media yet.",
+      "filteredEmpty": "No media for this team.",
+      "noResults": "No media match your search.",
+      "loadingAria": "Loading media",
+      "error": "Something went wrong while loading media."
+    },
+    "row": {
+      "openAria": "Open {{title}}, {{kind}}",
+      "actionsAria": "Actions for {{title}}"
+    },
+    "create": {
+      "title": "Add media",
+      "description": "Add a reusable YouTube video, Spotify track or playlist, slide deck, or upload audio or video."
+    },
+    "editor": {
+      "backToList": "Back to media",
+      "editTitle": "Edit title",
+      "saved": "Media saved.",
+      "loadFailed": "Could not load this media item.",
+      "readOnly": "You can view this item, but you do not have permission to change it.",
+      "futureKind": "This media type can be viewed here, but its editor is not available yet.",
+      "metadataVideo": "Duration {{duration}} · {{width}}×{{height}}",
+      "metadataAudio": "Duration {{duration}}"
+    },
+    "deck": {
+      "addPages": "Add pages",
+      "addSlides": "Add slides",
+      "empty": "Add at least one page before saving.",
+      "emptyGuard": "A slide deck needs at least one page.",
+      "listAria": "Slide pages",
+      "pageLabel": "Page {{number}}",
+      "reorderHandle": "Reorder page {{number}}",
+      "sectionDefault": "Section {{number}}",
+      "sectionTitleAria": "Section title for section {{number}}",
+      "sectionHandle": "Move section {{number}}",
+      "collapseSection": "Collapse section {{number}}",
+      "expandSection": "Expand section {{number}}",
+      "startSection": "Start section",
+      "clearSection": "Clear section",
+      "removeSection": "Remove section",
+      "removeSectionTitle": "Remove section",
+      "removeSectionDescription": "Choose whether to remove only the section marker or the marker and all slides in this section.",
+      "removeSectionMarker": "Remove",
+      "removeSectionSlides": "Remove section with slides",
+      "replacePage": "Replace page",
+      "removePage": "Remove page"
+    },
+    "upload": {
+      "progress": "Uploading… {{percent}}%",
+      "retry": "Upload again",
+      "replace": "Replace file",
+      "errors": {
+        "tooLarge": "This file is larger than the allowed limit.",
+        "failed": "Upload failed. Try again."
+      }
+    },
+    "actions": {
+      "create": "Add media",
+      "createAria": "Add media",
+      "save": "Save",
+      "play": "Play",
+      "openSpotify": "Open Spotify",
+      "spotifyExternalHint": "Playback opens in Spotify and is not sent to presentation outputs.",
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "move": "Move",
+      "delete": "Delete",
+      "refresh": "Refresh media",
+      "duplicated": "Created “{{title}}”.",
+      "duplicateFailed": "Could not duplicate media.",
+      "moved": "Media moved.",
+      "moveFailed": "Could not move media.",
+      "deleted": "Media deleted.",
+      "deleteFailed": "Could not delete media."
+    },
+    "duplicate": { "title": "{{title}} (copy)" },
+    "delete": {
+      "title": "Delete this media?",
+      "body": "“{{name}}” will be removed from the media library."
+    },
+    "move": {
+      "title": "Move media",
+      "body": "Choose a new owning team for “{{name}}”.",
+      "teamAria": "Destination team",
+      "teamPlaceholder": "Choose a team…",
+      "noTeams": "There is no other writable team to move this item to."
+    },
+    "validation": {
+      "titleRequired": "Enter a title.",
+      "invalidUrl": "Enter a supported credential-free HTTPS URL.",
+      "noWritableTeam": "You need edit access to a team before you can add media.",
+      "destinationRequired": "Choose a destination team.",
+      "notEditable": "This media item cannot be edited.",
+      "fileRequired": "Choose a file to upload.",
+      "deckFileType": "Choose PNG, JPEG, SVG, or PDF files."
     }
   },
   "sessions": {

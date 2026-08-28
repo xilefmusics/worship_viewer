@@ -7,6 +7,7 @@ default-run = "backend"
 
 [dependencies]
 actix-web = { version = "4", default-features = true }
+actix-multipart = "0.7"
 anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = [
     "clock",
@@ -27,7 +28,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 time = "0.3"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "fs", "io-util"] }
 tracing = "0.1"
 tracing-actix-web = "0.7"
 tracing-log = "0.2"
@@ -57,6 +58,8 @@ shared = { path = "../shared", features = ["backend"] }
 chordlib = { version = "0.15.0", features = ["html"] }
 zip = "8.6.0"
 imagesize = "0.14"
+async-stream = "0.3"
+lopdf = { version = "0.44", default-features = false }
 
 [[bin]]
 name = "venom-test"

@@ -1,39 +1,56 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use shared::MoveOwner;
 use shared::api::ListQuery;
-use shared::player::Player;
-use shared::setlist::{CreateSetlist, PatchSetlist, Setlist, SongLink as SetlistSongLink};
+use shared::player::{Player, PlayerMediaItem};
+use shared::setlist::{
+    CreateSetlist, PatchSetlist, Setlist, SetlistItem, SetlistPlayerView,
+    SongLink as SetlistSongLink,
+};
 use shared::song::Song;
 use tracing::instrument;
 
 use crate::auth::AuthorizationContext;
 use crate::error::AppError;
-use crate::resources::common::{read_teams_for_query, resolve_owner_team};
+use crate::resources::common::{player_from_song_links, read_teams_for_query, resolve_owner_team};
 use crate::resources::song::LikedSongIds;
 use crate::resources::team::{parse_owner_record_id, thing_record_key};
 
 use super::repository::SetlistRepository;
 use super::surreal_repo::SurrealSetlistRepo;
-use crate::resources::common::player_from_song_links;
 
-fn validate_setlist_song_links(links: &[SetlistSongLink]) -> Result<(), AppError> {
-    for link in links {
-        if let Some(flow) = &link.flow {
-            if flow.is_empty() {
+fn validate_song_flow(link: &SetlistSongLink) -> Result<(), AppError> {
+    if let Some(flow) = &link.flow {
+        if flow.is_empty() {
+            return Err(AppError::invalid_request(
+                "setlist song flow must not be empty",
+            ));
+        }
+        for item in flow {
+            if item.title.trim().is_empty() {
                 return Err(AppError::invalid_request(
-                    "setlist song flow must not be empty",
+                    "setlist song flow item title must not be empty",
                 ));
             }
-            for item in flow {
-                if item.title.trim().is_empty() {
+            if item.repeats < 1 {
+                return Err(AppError::invalid_request(
+                    "setlist song flow item repeats must be at least 1",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_setlist_items(items: &[SetlistItem]) -> Result<(), AppError> {
+    for item in items {
+        match item {
+            SetlistItem::Song(link) => validate_song_flow(link)?,
+            SetlistItem::Media(link) => {
+                if link.id.trim().is_empty() {
                     return Err(AppError::invalid_request(
-                        "setlist song flow item title must not be empty",
-                    ));
-                }
-                if item.repeats < 1 {
-                    return Err(AppError::invalid_request(
-                        "setlist song flow item repeats must be at least 1",
+                        "setlist media id must not be empty",
                     ));
                 }
             }
@@ -93,11 +110,74 @@ impl<R: SetlistRepository, L: LikedSongIds> SetlistService<R, L> {
         ctx: &AuthorizationContext,
         id: &str,
     ) -> Result<Player, AppError> {
+        self.setlist_player_view_for_user(ctx, id, SetlistPlayerView::Book)
+            .await
+    }
+
+    #[instrument(level = "debug", err, skip(self, ctx))]
+    pub async fn setlist_player_view_for_user(
+        &self,
+        ctx: &AuthorizationContext,
+        id: &str,
+        view: SetlistPlayerView,
+    ) -> Result<Player, AppError> {
         let user_id = ctx.user.id.clone();
         let liked_set = self.likes.liked_song_ids(&user_id).await?;
         let read_teams = ctx.read_teams();
-        let links = self.repo.get_setlist_songs(&read_teams, id).await?;
-        player_from_song_links(liked_set, links)
+        let song_owned = self.repo.get_setlist_songs(&read_teams, id).await?;
+        if !view.includes_media() {
+            return player_from_song_links(liked_set, song_owned);
+        }
+
+        let setlist = self.repo.get_setlist(&read_teams, id).await?;
+        let media_ids: Vec<String> = setlist
+            .items
+            .iter()
+            .filter_map(|item| item.as_media_id().map(str::to_owned))
+            .collect();
+        let media_rows = self.repo.load_media_unscoped(&media_ids).await?;
+        let mut media_by_id = HashMap::with_capacity(media_rows.len());
+        for media in media_rows {
+            media_by_id.insert(media.id.clone(), media);
+        }
+
+        let mut song_iter = song_owned.into_iter();
+        let mut song_idx = 0usize;
+        let mut acc = Player::default();
+        for item in &setlist.items {
+            match item {
+                SetlistItem::Song(_) => {
+                    let mut link = song_iter.next().ok_or_else(|| {
+                        AppError::database("setlist song slot missing hydrated song")
+                    })?;
+                    link.liked = liked_set.contains(&link.song.id);
+                    if link.nr.is_none() {
+                        link.nr = Some((song_idx + 1).to_string());
+                    }
+                    song_idx += 1;
+                    acc = acc + Player::from(link);
+                }
+                SetlistItem::Media(link) => {
+                    let Some(media) = media_by_id.get(&link.id) else {
+                        continue;
+                    };
+                    let Ok(owner) = parse_owner_record_id(&media.owner) else {
+                        continue;
+                    };
+                    if !read_teams
+                        .iter()
+                        .any(|team| thing_record_key(team) == thing_record_key(&owner))
+                    {
+                        continue;
+                    }
+                    let Some(snapshot) = PlayerMediaItem::from_ready_media(media) else {
+                        continue;
+                    };
+                    acc = acc + Player::from(snapshot);
+                }
+            }
+        }
+        Ok(acc)
     }
 
     #[instrument(level = "debug", err, skip(self, ctx))]
@@ -132,7 +212,7 @@ impl<R: SetlistRepository, L: LikedSongIds> SetlistService<R, L> {
         ctx: &AuthorizationContext,
         mut setlist: CreateSetlist,
     ) -> Result<Setlist, AppError> {
-        validate_setlist_song_links(&setlist.songs)?;
+        validate_setlist_items(&setlist.items)?;
         let owner = match setlist.owner.take() {
             None => ctx.personal_team()?,
             Some(ref s) => {
@@ -152,7 +232,7 @@ impl<R: SetlistRepository, L: LikedSongIds> SetlistService<R, L> {
         setlist: CreateSetlist,
         owner: Option<String>,
     ) -> Result<Setlist, AppError> {
-        validate_setlist_song_links(&setlist.songs)?;
+        validate_setlist_items(&setlist.items)?;
         let write_teams = ctx.write_teams();
         let owner = resolve_owner_team(&write_teams, owner)?;
         self.repo
@@ -172,9 +252,9 @@ impl<R: SetlistRepository, L: LikedSongIds> SetlistService<R, L> {
         let merged = CreateSetlist {
             owner: None,
             title: patch.title.unwrap_or(current.title),
-            songs: patch.songs.unwrap_or(current.songs),
+            items: patch.items.unwrap_or(current.items),
         };
-        validate_setlist_song_links(&merged.songs)?;
+        validate_setlist_items(&merged.items)?;
         self.update_setlist_for_user(ctx, id, merged, owner).await
     }
 
@@ -227,7 +307,7 @@ mod tests {
     use surrealdb::types::RecordId;
 
     use shared::api::ListQuery;
-    use shared::setlist::{CreateSetlist, Setlist, SongLink as SetlistSongLink};
+    use shared::setlist::{CreateSetlist, Setlist, SetlistItem, SongLink as SetlistSongLink};
     use shared::song::LinkOwned as SongLinkOwned;
     use shared::team::TeamRole;
 
@@ -322,6 +402,13 @@ mod tests {
             Ok(vec![])
         }
 
+        async fn load_media_unscoped(
+            &self,
+            _ids: &[String],
+        ) -> Result<Vec<shared::media::Media>, AppError> {
+            Ok(vec![])
+        }
+
         async fn create_setlist(
             &self,
             _owner: RecordId,
@@ -342,7 +429,7 @@ mod tests {
                     id: "x".into(),
                     owner: "t".into(),
                     title: "ok".into(),
-                    songs: vec![],
+                    items: vec![],
                 })
             } else {
                 Err(AppError::NotFound("setlist not found".into()))
@@ -403,32 +490,32 @@ mod tests {
     }
 
     #[test]
-    fn validate_setlist_song_links_rejects_empty_flow() {
-        let links = vec![SetlistSongLink {
+    fn validate_setlist_items_rejects_empty_flow() {
+        let items = vec![SetlistItem::Song(SetlistSongLink {
             id: "song-1".into(),
             nr: None,
             key: None,
             tempo: None,
             language: None,
             flow: Some(vec![]),
-        }];
+        })];
 
-        let err = super::validate_setlist_song_links(&links).unwrap_err();
+        let err = super::validate_setlist_items(&items).unwrap_err();
         assert!(matches!(err, AppError::InvalidRequest(_)));
     }
 
     #[test]
-    fn validate_setlist_song_links_accepts_non_empty_flow() {
-        let links = vec![SetlistSongLink {
+    fn validate_setlist_items_accepts_non_empty_flow() {
+        let items = vec![SetlistItem::Song(SetlistSongLink {
             id: "song-1".into(),
             nr: None,
             key: None,
             tempo: None,
             language: None,
             flow: Some(vec![flow_item("Verse", 0, 1)]),
-        }];
+        })];
 
-        assert!(super::validate_setlist_song_links(&links).is_ok());
+        assert!(super::validate_setlist_items(&items).is_ok());
     }
 
     /// Shared integration fixture: owner, reader (Guest), writer (ContentMaintainer), and a
@@ -504,7 +591,7 @@ mod tests {
                 CreateSetlist {
                     owner: None,
                     title: "t".into(),
-                    songs: vec![],
+                    items: vec![],
                 },
                 None,
             )
@@ -534,7 +621,7 @@ mod tests {
                 CreateSetlist {
                     owner: None,
                     title: "t".into(),
-                    songs: vec![],
+                    items: vec![],
                 },
                 None,
             )
@@ -605,7 +692,7 @@ mod tests {
 
         assert_eq!(created.owner, team_id);
         assert_eq!(created.title, "Sunday Morning Set");
-        assert_eq!(created.songs.len(), 2);
+        assert_eq!(created.items.len(), 2);
     }
 
     /// BLC-SETL-009b: list returns correct counts for owner, reader, and noperm user;
@@ -799,7 +886,7 @@ mod tests {
             .get_setlist_for_user(&owner_p, &created.id)
             .await
             .expect("get owner");
-        assert_eq!(g.songs.len(), 2);
+        assert_eq!(g.items.len(), 2);
 
         sl.get_setlist_for_user(&read_p, &created.id)
             .await
@@ -1051,7 +1138,7 @@ mod tests {
                 &created.id,
                 PatchSetlist {
                     title: Some("New Title".into()),
-                    songs: None,
+                    items: None,
                     owner: None,
                 },
             )
@@ -1060,8 +1147,8 @@ mod tests {
 
         assert_eq!(patched.title, "New Title");
         assert_eq!(
-            patched.songs.len(),
-            created.songs.len(),
+            patched.items.len(),
+            created.items.len(),
             "songs must be unchanged"
         );
     }
@@ -1079,7 +1166,7 @@ mod tests {
                 "never-existed-setlist",
                 PatchSetlist {
                     title: Some("x".into()),
-                    songs: None,
+                    items: None,
                     owner: None,
                 },
             )
@@ -1111,7 +1198,7 @@ mod tests {
                 &created.id,
                 PatchSetlist {
                     title: Some("Hacked".into()),
-                    songs: None,
+                    items: None,
                     owner: None,
                 },
             )
@@ -1143,7 +1230,7 @@ mod tests {
                 .expect("create");
 
             let include_title = (mask & 0b01) != 0;
-            let include_songs = (mask & 0b10) != 0;
+            let include_items = (mask & 0b10) != 0;
 
             let patched = sl
                 .patch_setlist_for_user(
@@ -1151,14 +1238,14 @@ mod tests {
                     &created.id,
                     PatchSetlist {
                         title: include_title.then_some("PatchedTitle".into()),
-                        songs: include_songs.then_some(vec![SetlistSongLink {
+                        items: include_items.then_some(vec![SetlistItem::Song(SetlistSongLink {
                             id: s2.id.clone(),
                             nr: Some("9".into()),
                             key: None,
                             tempo: None,
                             language: None,
                             flow: None,
-                        }]),
+                        })]),
                         owner: None,
                     },
                 )
@@ -1174,16 +1261,18 @@ mod tests {
                 patched.title, expected_title,
                 "mask={mask:02b}: title mismatch"
             );
-            if include_songs {
-                assert_eq!(patched.songs.len(), 1, "mask={mask:02b}: expected 1 song");
+            if include_items {
+                assert_eq!(patched.items.len(), 1, "mask={mask:02b}: expected 1 item");
                 assert_eq!(
-                    patched.songs[0].id, s2.id,
-                    "mask={mask:02b}: songs replacement mismatch"
+                    patched.items[0].as_song().unwrap().id,
+                    s2.id,
+                    "mask={mask:02b}: items replacement mismatch"
                 );
             } else {
                 assert_eq!(
-                    patched.songs[0].id, s1.id,
-                    "mask={mask:02b}: songs should remain unchanged"
+                    patched.items[0].as_song().unwrap().id,
+                    s1.id,
+                    "mask={mask:02b}: items should remain unchanged"
                 );
             }
         }
@@ -1256,7 +1345,7 @@ mod tests {
                 CreateSetlist {
                     owner: Some(team_a.clone()),
                     title: "OnA".into(),
-                    songs: vec![],
+                    items: vec![],
                 },
             )
             .await

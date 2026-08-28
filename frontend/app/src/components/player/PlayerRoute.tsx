@@ -68,8 +68,8 @@ export function PlayerRouteInner({ type, id, initialIndex, mode }: PlayerRouteIn
   const { t } = useTranslation()
   const online = useOnline()
   const { data, isPending, isError, error, refetch } = useQuery({
-    queryKey: playerQueryKey(type, id),
-    queryFn: ({ signal }) => resolvePlayerForRoute(type, id, signal),
+    queryKey: playerQueryKey(type, id, mode === 'av' ? 'av' : 'book'),
+    queryFn: ({ signal }) => resolvePlayerForRoute(type, id, signal, mode === 'av' ? 'av' : 'book'),
     refetchOnMount: 'always',
     networkMode: 'always',
   })

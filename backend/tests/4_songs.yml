@@ -1691,8 +1691,8 @@ testcases:
         body: |
           {
             "title": "Cascade Setlist",
-            "songs": [
-              { "id": "{{.put-song-cascade-target.songid}}", "nr": "1" }
+            "items": [
+              { "type": "song", "id": "{{.put-song-cascade-target.songid}}", "nr": "1" }
             ]
           }
         assertions:
@@ -1755,7 +1755,7 @@ testcases:
           Authorization: "Bearer {{.create-song-owner-session.sessionid}}"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson.songs ShouldHaveLength 0
+          - result.bodyjson.items ShouldHaveLength 0
 
   # BLC: BLC-SONG-015, BLC-SETL-014, BLC-COLL-019
   - name: get-collection-after-song-delete

@@ -5,4 +5,8 @@
 ignore = [
     # rsa via openidconnect + surrealdb/jsonwebtoken — no patched release (RUSTSEC-2023-0071)
     "RUSTSEC-2023-0071",
+    # h2 0.3 via actix-http — Actix does not yet support the patched h2 0.4 line
+    "RUSTSEC-2026-0258",
+    # rkyv 0.7 via rust_decimal/surrealdb — upstream still requires the affected major line
+    "RUSTSEC-2026-0235",
 ]

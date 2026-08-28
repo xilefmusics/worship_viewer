@@ -419,7 +419,7 @@ pub enum SetlistsCommand {
     Create {
         #[arg(
             long,
-            help = "JSON CreateSetlist body; slots support key, tempo, and language overrides"
+            help = "JSON CreateSetlist body; ordered tagged items (song slots with key/tempo/language/flow, or media ids)"
         )]
         json: String,
     },

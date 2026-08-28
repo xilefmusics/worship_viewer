@@ -12,12 +12,16 @@ use crate::database::Database;
 use crate::resources::User;
 use crate::resources::blob::service::BlobServiceHandle;
 use crate::resources::collection::service::CollectionServiceHandle;
+use crate::resources::media::processing::MediaProcessingHandle;
+use crate::resources::media::service::MediaServiceHandle;
+use crate::resources::media_asset::service::MediaAssetServiceHandle;
 use crate::resources::setlist::{SetlistService, SetlistServiceHandle, SurrealSetlistRepo};
 use crate::resources::song::service::SongServiceHandle;
 use crate::resources::team::TeamServiceHandle;
 use crate::resources::team::invitation::InvitationServiceHandle;
 use crate::resources::user::service::UserServiceHandle;
 use crate::resources::user::session::service::SessionServiceHandle;
+use crate::settings::Settings;
 use shared::collection::CreateCollection;
 use shared::setlist::CreateSetlist;
 use shared::setlist::SongLink as SetlistSongLink;
@@ -180,6 +184,31 @@ pub fn collection_service(db: &Arc<Database>) -> CollectionServiceHandle {
     CollectionServiceHandle::build(db.clone())
 }
 
+pub fn media_processing(
+    db: &Arc<Database>,
+    settings: &Settings,
+    asset_svc: MediaAssetServiceHandle,
+) -> Arc<MediaProcessingHandle> {
+    Arc::new(MediaProcessingHandle::build(
+        db.clone(),
+        settings,
+        asset_svc,
+    ))
+}
+
+/// Media application service (same wiring as HTTP `main`).
+pub fn media_service(db: &Arc<Database>) -> MediaServiceHandle {
+    let settings = Settings::default();
+    let asset = media_asset_service(db, &settings);
+    let processing = media_processing(db, &settings, asset.clone());
+    MediaServiceHandle::build(db.clone(), asset, processing)
+}
+
+/// Media asset application service (same wiring as HTTP `main`).
+pub fn media_asset_service(db: &Arc<Database>, settings: &Settings) -> MediaAssetServiceHandle {
+    MediaAssetServiceHandle::build(db.clone(), settings)
+}
+
 /// Song application service (same wiring as HTTP `main`).
 pub fn song_service(db: &Arc<Database>) -> SongServiceHandle {
     SongServiceHandle::build(db.clone())
@@ -318,15 +347,17 @@ pub fn setlist_with_songs(title: &str, song_ids: &[(&str, Option<&str>)]) -> Cre
     CreateSetlist {
         owner: None,
         title: title.into(),
-        songs: song_ids
+        items: song_ids
             .iter()
-            .map(|(id, nr)| SetlistSongLink {
-                id: (*id).into(),
-                nr: nr.map(|s| s.into()),
-                key: None,
-                tempo: None,
-                language: None,
-                flow: None,
+            .map(|(id, nr)| {
+                shared::setlist::SetlistItem::Song(SetlistSongLink {
+                    id: (*id).into(),
+                    nr: nr.map(|s| s.into()),
+                    key: None,
+                    tempo: None,
+                    language: None,
+                    flow: None,
+                })
             })
             .collect(),
     }

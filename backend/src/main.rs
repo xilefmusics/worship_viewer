@@ -18,6 +18,8 @@ use backend::resources;
 use backend::resources::Session;
 use backend::resources::blob::service::BlobServiceHandle;
 use backend::resources::collection::service::CollectionServiceHandle;
+use backend::resources::media::service::MediaServiceHandle;
+use backend::resources::media_asset::service::MediaAssetServiceHandle;
 use backend::resources::player_room::PlayerRoomService;
 use backend::resources::setlist::{SetlistService, SurrealSetlistRepo};
 use backend::resources::song::service::SongServiceHandle;
@@ -161,6 +163,51 @@ async fn main() -> AnyResult<()> {
 
     let blob_service = BlobServiceHandle::build(db.clone(), settings.blob_dir.clone());
     let collection_service = CollectionServiceHandle::build(db.clone());
+    let media_asset_service = MediaAssetServiceHandle::build(db.clone(), &settings);
+    media_asset_service
+        .ensure_directories()
+        .await
+        .context("failed to initialize media asset storage directories")?;
+    let media_processing = Arc::new(
+        backend::resources::media::processing::MediaProcessingHandle::build(
+            db.clone(),
+            &settings,
+            media_asset_service.clone(),
+        ),
+    );
+    let media_service = MediaServiceHandle::build(
+        db.clone(),
+        media_asset_service.clone(),
+        media_processing.clone(),
+    );
+    let reconciliation_asset = media_asset_service.clone();
+    let reconciliation_interval = settings.media_reconciliation_interval_seconds;
+    tokio::spawn(async move {
+        let interval = std::time::Duration::from_secs(reconciliation_interval.max(60));
+        loop {
+            let extra = std::collections::HashSet::new();
+            if let Err(err) = reconciliation_asset
+                .reconcile_abandoned_staging(&extra)
+                .await
+            {
+                tracing::warn!(error = %err, "media staging reconciliation failed");
+            }
+            if let Err(err) = reconciliation_asset.reconcile_orphan_assets().await {
+                tracing::warn!(error = %err, "orphaned media asset reconciliation failed");
+            }
+            tokio::time::sleep(interval).await;
+        }
+    });
+    let extra = std::collections::HashSet::new();
+    if let Err(err) = media_asset_service
+        .reconcile_abandoned_staging(&extra)
+        .await
+    {
+        tracing::warn!(error = %err, "initial media staging reconciliation failed");
+    }
+    if let Err(err) = media_asset_service.reconcile_orphan_assets().await {
+        tracing::warn!(error = %err, "initial orphaned media asset reconciliation failed");
+    }
     let song_service = SongServiceHandle::build(db.clone());
     let setlist_service = SetlistService::new(SurrealSetlistRepo::new(db.clone()), db.clone());
     let team_service = TeamServiceHandle::build(db.clone());
@@ -171,6 +218,7 @@ async fn main() -> AnyResult<()> {
     let docs_settings = settings.clone();
     let profile_picture_limits = Data::new(settings.profile_picture_limits());
     let cover_upload_limits = Data::new(settings.cover_upload_limits());
+    let media_asset_upload_limits = settings.media_asset_upload_limits();
 
     HttpServer::new(move || {
         App::new()
@@ -186,6 +234,9 @@ async fn main() -> AnyResult<()> {
             .app_data(profile_picture_limits.clone())
             .app_data(cover_upload_limits.clone())
             .app_data(Data::new(collection_service.clone()))
+            .app_data(Data::new(media_service.clone()))
+            .app_data(Data::new(media_asset_service.clone()))
+            .app_data(Data::new(media_processing.clone()))
             .app_data(Data::new(song_service.clone()))
             .app_data(Data::new(setlist_service.clone()))
             .app_data(Data::new(team_service.clone()))
@@ -204,6 +255,7 @@ async fn main() -> AnyResult<()> {
             .service(resources::rest::scope(
                 settings.blob_upload_max_bytes,
                 settings.avatar_upload_max_bytes,
+                media_asset_upload_limits,
                 settings.api_rate_limit_rps,
                 settings.api_rate_limit_burst,
             ))

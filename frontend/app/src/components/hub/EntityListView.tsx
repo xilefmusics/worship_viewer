@@ -20,6 +20,7 @@ import { ListMusicIcon } from '@/components/icons/lucide-animated/list-music-ico
 import { PlayIcon } from '@/components/icons/play-icon'
 import { TrashIcon } from '@/components/icons/lucide-animated/trash-icon'
 import { AddSongToSetlistDialog } from '@/components/hub/AddSongToSetlistDialog'
+import { SetlistItemCounts } from '@/components/hub/SetlistItemCounts'
 import {
   HUB_LIST_AVATAR_CLASS,
   HUB_LIST_META_CLASS,
@@ -1164,7 +1165,7 @@ const SetlistRow = memo(function SetlistRow({
           <p className={HUB_LIST_TITLE_CLASS}>{setlist.title}</p>
           <div className="flex min-w-0 items-baseline gap-2">
             <p className={cn(HUB_LIST_SUBTITLE_CLASS, 'min-w-0 flex-1 truncate')}>
-              {t('hub.meta.songsCount', { count: setlist.songs.length })}
+              <SetlistItemCounts items={setlist.items} />
             </p>
             {ownerLabel ? (
               <p
