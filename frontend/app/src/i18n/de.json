@@ -1201,12 +1201,17 @@
     "name": "Medien",
     "kinds": {
       "youtube": "YouTube",
+      "spotify": "Spotify",
       "livestream": "Livestream",
       "web_page": "Webseite",
       "slide_deck": "Foliensatz",
       "video": "Video",
       "audio": "Audio",
       "unknown": "Unbekanntes Medium"
+    },
+    "spotify": {
+      "track": "Titel",
+      "playlist": "Playlist"
     },
     "fields": {
       "title": "Titel",
@@ -1215,6 +1220,7 @@
       "canonicalUrl": "Gespeicherte URL",
       "url": {
         "youtube": "YouTube-URL",
+        "spotify": "Spotify-Titel- oder Playlist-URL",
         "livestream": "Livestream-URL",
         "web_page": "Webseiten-URL"
       },
@@ -1237,7 +1243,7 @@
     },
     "create": {
       "title": "Medium hinzufügen",
-      "description": "Füge ein wiederverwendbares YouTube-Video, einen Livestream, eine Webseite, einen Foliensatz oder hochgeladenes Audio oder Video hinzu."
+      "description": "Füge ein wiederverwendbares YouTube-Video, einen Spotify-Titel oder eine Playlist, einen Foliensatz oder hochgeladenes Audio oder Video hinzu."
     },
     "editor": {
       "backToList": "Zurück zu Medien",
@@ -1260,6 +1266,8 @@
       "sectionDefault": "Abschnitt {{number}}",
       "sectionTitleAria": "Abschnittstitel für Abschnitt {{number}}",
       "sectionHandle": "Abschnitt {{number}} verschieben",
+      "collapseSection": "Abschnitt {{number}} einklappen",
+      "expandSection": "Abschnitt {{number}} ausklappen",
       "startSection": "Abschnitt beginnen",
       "clearSection": "Abschnitt löschen",
       "removeSection": "Abschnitt entfernen",
@@ -1284,6 +1292,8 @@
       "createAria": "Medium hinzufügen",
       "save": "Speichern",
       "play": "Abspielen",
+      "openSpotify": "Spotify öffnen",
+      "spotifyExternalHint": "Die Wiedergabe wird in Spotify geöffnet und nicht an Präsentationsausgaben gesendet.",
       "edit": "Bearbeiten",
       "duplicate": "Duplizieren",
       "move": "Verschieben",

@@ -340,4 +340,30 @@ describe('avSlidesForItem media decks', () => {
       url: 'https://example.com/bulletin',
     })
   })
+
+  it('maps Spotify media to controller-local external playback details', () => {
+    const spotify = avSlidesForItem(
+      {
+        type: 'media',
+        id: 'media-spotify',
+        title: 'Prelude',
+        content: {
+          type: 'spotify',
+          resource_type: 'playlist',
+          spotify_id: '37i9dQZF1DXcBWIGoYBM5M',
+          canonical_url: 'javascript:alert(1)',
+        },
+      },
+      0,
+      split,
+    )
+
+    expect(spotify).toMatchObject({
+      kind: 'spotify',
+      mediaId: 'media-spotify',
+      spotifyId: '37i9dQZF1DXcBWIGoYBM5M',
+      spotifyResourceType: 'playlist',
+      canonicalUrl: 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M',
+    })
+  })
 })

@@ -4,7 +4,7 @@ use reqwest::Url;
 use shared::MoveOwner;
 use shared::api::ListQuery;
 use shared::media::{
-    CreateMedia, CreateMediaContent, DuplicateMedia, LivestreamType, Media, MediaContent,
+    CreateMedia, CreateMediaContent, DuplicateMedia, Media, MediaContent, SpotifyResourceType,
     UpdateMedia,
 };
 use tracing::instrument;
@@ -22,6 +22,7 @@ use super::repository::MediaRepository;
 use super::surreal_repo::SurrealMediaRepo;
 
 const YOUTUBE_ID_LENGTH: usize = 11;
+const SPOTIFY_ID_LENGTH: usize = 22;
 
 #[derive(Clone)]
 pub struct MediaService<R> {
@@ -268,24 +269,7 @@ fn checked_title(title: String) -> Result<String, AppError> {
 pub(crate) fn normalize_content(value: CreateMediaContent) -> Result<MediaContent, AppError> {
     match value {
         CreateMediaContent::YouTube { url } => normalize_youtube(&url),
-        CreateMediaContent::Livestream { url } => {
-            let url = normalize_https_url(&url)?;
-            let stream_type = if url.path().to_ascii_lowercase().ends_with(".m3u8") {
-                LivestreamType::Hls
-            } else {
-                LivestreamType::Direct
-            };
-            Ok(MediaContent::Livestream {
-                url: url.to_string(),
-                stream_type,
-            })
-        }
-        CreateMediaContent::WebPage { url } => {
-            let url = normalize_https_url(&url)?;
-            Ok(MediaContent::WebPage {
-                url: url.to_string(),
-            })
-        }
+        CreateMediaContent::Spotify { url } => normalize_spotify(&url),
     }
 }
 
@@ -309,12 +293,6 @@ fn ensure_safe_common(url: &Url) -> Result<(), AppError> {
         return Err(AppError::media_invalid_url("URL fragments are not allowed"));
     }
     Ok(())
-}
-
-fn normalize_https_url(raw: &str) -> Result<Url, AppError> {
-    let url = parsed_url(raw)?;
-    ensure_safe_common(&url)?;
-    Ok(url)
 }
 
 fn normalize_youtube(raw: &str) -> Result<MediaContent, AppError> {
@@ -354,6 +332,48 @@ fn normalize_youtube(raw: &str) -> Result<MediaContent, AppError> {
     Ok(MediaContent::YouTube {
         canonical_url: format!("https://www.youtube.com/watch?v={video_id}"),
         video_id,
+    })
+}
+
+fn normalize_spotify(raw: &str) -> Result<MediaContent, AppError> {
+    let url = parsed_url(raw)?;
+    ensure_safe_common(&url)?;
+    let host = url.host_str().unwrap().to_ascii_lowercase();
+    if host != "open.spotify.com" && host != "www.open.spotify.com" {
+        return Err(AppError::media_unsupported_url("unsupported Spotify host"));
+    }
+    let segments: Vec<_> = url
+        .path_segments()
+        .map(|value| value.filter(|segment| !segment.is_empty()).collect())
+        .unwrap_or_default();
+    let resource_type = match segments.first().copied() {
+        Some("track") => SpotifyResourceType::Track,
+        Some("playlist") => SpotifyResourceType::Playlist,
+        _ => {
+            return Err(AppError::media_invalid_url(
+                "Spotify URL must identify a track or playlist",
+            ));
+        }
+    };
+    if segments.len() != 2 {
+        return Err(AppError::media_invalid_url(
+            "Spotify URL must identify a track or playlist",
+        ));
+    }
+    let spotify_id = segments[1];
+    if spotify_id.len() != SPOTIFY_ID_LENGTH
+        || !spotify_id.bytes().all(|byte| byte.is_ascii_alphanumeric())
+    {
+        return Err(AppError::media_invalid_url("Spotify id is invalid"));
+    }
+    let resource_path = match resource_type {
+        SpotifyResourceType::Track => "track",
+        SpotifyResourceType::Playlist => "playlist",
+    };
+    Ok(MediaContent::Spotify {
+        resource_type,
+        spotify_id: spotify_id.to_owned(),
+        canonical_url: format!("https://open.spotify.com/{resource_path}/{spotify_id}"),
     })
 }
 
@@ -410,35 +430,41 @@ mod tests {
     }
 
     #[test]
-    fn https_media_normalizes_and_classifies() {
+    fn spotify_normalizes_tracks_and_playlists() {
         assert_eq!(
-            normalize_content(CreateMediaContent::Livestream {
-                url: "https://example.com/live.M3U8?token=x".into()
-            })
+            normalize_spotify(
+                "https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh?si=share-token"
+            )
             .unwrap(),
-            MediaContent::Livestream {
-                url: "https://example.com/live.M3U8?token=x".into(),
-                stream_type: LivestreamType::Hls,
+            MediaContent::Spotify {
+                resource_type: SpotifyResourceType::Track,
+                spotify_id: "4iV5W9uYEdYUVa79Axb7Rh".into(),
+                canonical_url: "https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh".into(),
             }
         );
-        assert!(
-            normalize_content(CreateMediaContent::WebPage {
-                url: "javascript:alert(1)".into()
-            })
-            .is_err()
+        assert_eq!(
+            normalize_spotify("https://www.open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M/")
+                .unwrap(),
+            MediaContent::Spotify {
+                resource_type: SpotifyResourceType::Playlist,
+                spotify_id: "37i9dQZF1DXcBWIGoYBM5M".into(),
+                canonical_url: "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M".into(),
+            }
         );
-        assert!(
-            normalize_content(CreateMediaContent::WebPage {
-                url: "https://user:pass@example.com/".into()
-            })
-            .is_err()
-        );
-        assert!(
-            normalize_content(CreateMediaContent::Livestream {
-                url: "https://example.com/live#x".into()
-            })
-            .is_err()
-        );
+    }
+
+    #[test]
+    fn spotify_rejects_unsafe_or_unsupported_urls() {
+        for raw in [
+            "http://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh",
+            "https://open.spotify.com.evil.test/track/4iV5W9uYEdYUVa79Axb7Rh",
+            "https://user@open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh",
+            "https://open.spotify.com/album/4iV5W9uYEdYUVa79Axb7Rh",
+            "https://open.spotify.com/track/short",
+            "https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh#fragment",
+        ] {
+            assert!(normalize_spotify(raw).is_err(), "{raw}");
+        }
     }
 
     fn youtube(owner: Option<String>, title: &str) -> CreateMedia {
@@ -476,8 +502,8 @@ mod tests {
                 CreateMedia {
                     owner: Some(fixture.shared_team_id.clone()),
                     title: "Beta stream".into(),
-                    content: CreateMediaContent::Livestream {
-                        url: "https://media.example/live.m3u8".into(),
+                    content: CreateMediaContent::YouTube {
+                        url: "https://youtu.be/dQw4w9WgXcQ".into(),
                     },
                 },
             )
@@ -489,8 +515,8 @@ mod tests {
                 CreateMedia {
                     owner: Some(fixture.shared_team_id.clone()),
                     title: "Gamma page".into(),
-                    content: CreateMediaContent::WebPage {
-                        url: "https://example.com/info".into(),
+                    content: CreateMediaContent::YouTube {
+                        url: "https://youtu.be/dQw4w9WgXcQ".into(),
                     },
                 },
             )
@@ -525,8 +551,8 @@ mod tests {
                     &first.id,
                     UpdateMedia {
                         title: "Denied".into(),
-                        content: Some(CreateMediaContent::WebPage {
-                            url: "https://example.com/".into()
+                        content: Some(CreateMediaContent::YouTube {
+                            url: "https://youtu.be/dQw4w9WgXcQ".into()
                         }),
                         owner: None,
                     }
@@ -591,8 +617,8 @@ mod tests {
                 &first.id,
                 UpdateMedia {
                     title: "Changed original".into(),
-                    content: Some(CreateMediaContent::WebPage {
-                        url: "https://example.org/".into(),
+                    content: Some(CreateMediaContent::YouTube {
+                        url: "https://youtu.be/9bZkp7q19f0".into(),
                     }),
                     owner: None,
                 },

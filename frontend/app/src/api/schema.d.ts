@@ -1194,8 +1194,8 @@ export interface components {
             title: string;
         };
         /**
-         * @description URL content accepted by E5.1. Uploaded/deck tags are reserved on
-         *     [`MediaContent`] but cannot be fabricated through this request.
+         * @description URL content accepted by E5.1. Uploaded/deck and legacy URL tags on
+         *     [`MediaContent`] cannot be fabricated through this request.
          */
         CreateMediaContent: {
             /** @enum {string} */
@@ -1203,11 +1203,7 @@ export interface components {
             url: string;
         } | {
             /** @enum {string} */
-            type: "livestream";
-            url: string;
-        } | {
-            /** @enum {string} */
-            type: "web_page";
+            type: "spotify";
             url: string;
         };
         CreatePlayerRoom: {
@@ -1430,6 +1426,12 @@ export interface components {
             /** @enum {string} */
             type: "youtube";
             video_id: string;
+        } | {
+            canonical_url: string;
+            resource_type: components["schemas"]["SpotifyResourceType"];
+            spotify_id: string;
+            /** @enum {string} */
+            type: "spotify";
         } | {
             stream_type: components["schemas"]["LivestreamType"];
             /** @enum {string} */
@@ -2068,6 +2070,8 @@ export interface components {
         SongUserSpecificAddons: {
             liked: boolean;
         };
+        /** @enum {string} */
+        SpotifyResourceType: "track" | "playlist";
         /**
          * @example {
          *       "cover": "",
@@ -4439,7 +4443,7 @@ export interface operations {
                     "application/json": components["schemas"]["Media"];
                 };
             };
-            /** @description Invalid kind or request, or required processing tooling is unavailable */
+            /** @description Invalid kind or request */
             400: {
                 headers: {
                     [name: string]: unknown;

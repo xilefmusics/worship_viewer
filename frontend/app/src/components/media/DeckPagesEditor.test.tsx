@@ -141,6 +141,41 @@ describe('DeckPagesEditor', () => {
     ])
   })
 
+  it('collapses and expands the slides in a section', async () => {
+    const user = userEvent.setup()
+    render(
+      <DeckPagesEditor
+        mediaId="media:1"
+        pages={[
+          { id: 'p1', blob_id: 'b1', section_title: 'Section 1' },
+          { id: 'p2', blob_id: 'b2' },
+          { id: 'p3', blob_id: 'b3', section_title: 'Section 2' },
+          { id: 'p4', blob_id: 'b4' },
+        ]}
+        onReorder={vi.fn()}
+        onRemove={vi.fn()}
+        onReplace={vi.fn()}
+        onAdd={vi.fn()}
+        onSectionTitleChange={vi.fn()}
+        onRemoveSection={vi.fn()}
+      />,
+    )
+
+    const collapse = screen.getByRole('button', { name: 'media.deck.collapseSection:1' })
+    expect(collapse).toHaveAttribute('aria-expanded', 'true')
+    await user.click(collapse)
+
+    expect(screen.queryByRole('button', { name: 'media.deck.reorderHandle:1' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'media.deck.reorderHandle:2' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'media.deck.reorderHandle:3' })).toBeInTheDocument()
+    const expand = screen.getByRole('button', { name: 'media.deck.expandSection:1' })
+    expect(expand).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(expand)
+    expect(screen.getByRole('button', { name: 'media.deck.reorderHandle:1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'media.deck.reorderHandle:2' })).toBeInTheDocument()
+  })
+
   it('keeps spaces while editing a section title', async () => {
     const user = userEvent.setup()
     const onSectionTitleChange = vi.fn()

@@ -325,7 +325,7 @@
         "type": "object"
       },
       "CreateMediaContent": {
-        "description": "URL content accepted by E5.1. Uploaded/deck tags are reserved on\n[`MediaContent`] but cannot be fabricated through this request.",
+        "description": "URL content accepted by E5.1. Uploaded/deck and legacy URL tags on\n[`MediaContent`] cannot be fabricated through this request.",
         "oneOf": [
           {
             "properties": {
@@ -349,25 +349,7 @@
             "properties": {
               "type": {
                 "enum": [
-                  "livestream"
-                ],
-                "type": "string"
-              },
-              "url": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "url",
-              "type"
-            ],
-            "type": "object"
-          },
-          {
-            "properties": {
-              "type": {
-                "enum": [
-                  "web_page"
+                  "spotify"
                 ],
                 "type": "string"
               },
@@ -1020,6 +1002,32 @@
             },
             "required": [
               "video_id",
+              "canonical_url",
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "canonical_url": {
+                "type": "string"
+              },
+              "resource_type": {
+                "$ref": "#/components/schemas/SpotifyResourceType"
+              },
+              "spotify_id": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "spotify"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "resource_type",
+              "spotify_id",
               "canonical_url",
               "type"
             ],
@@ -2881,6 +2889,13 @@
           "liked"
         ],
         "type": "object"
+      },
+      "SpotifyResourceType": {
+        "enum": [
+          "track",
+          "playlist"
+        ],
+        "type": "string"
       },
       "Team": {
         "example": {
@@ -6427,7 +6442,7 @@
                 }
               }
             },
-            "description": "Invalid kind or request, or required processing tooling is unavailable"
+            "description": "Invalid kind or request"
           },
           "401": {
             "content": {

@@ -10,7 +10,6 @@ use tracing::instrument;
 use crate::auth::AuthorizationContext;
 use crate::database::Database;
 use crate::error::AppError;
-use crate::process_runner::check_tool_version;
 use crate::resources::media::{MediaRepository, SurrealMediaRepo};
 use crate::resources::team::parse_owner_record_id;
 use crate::settings::Settings;
@@ -40,9 +39,6 @@ pub struct MediaAssetSettings {
     pub svg_max_bytes: usize,
     pub staging_max_age_seconds: u64,
     pub reconciliation_interval_seconds: u64,
-    pub processing_enabled: bool,
-    pub ffmpeg_path: String,
-    pub ffprobe_path: String,
     pub deck_max_pages: u32,
 }
 
@@ -57,9 +53,6 @@ impl MediaAssetSettings {
             svg_max_bytes: limits.svg_max_bytes,
             staging_max_age_seconds: settings.media_staging_max_age_seconds,
             reconciliation_interval_seconds: settings.media_reconciliation_interval_seconds,
-            processing_enabled: settings.media_processing_enabled,
-            ffmpeg_path: settings.ffmpeg_path.clone(),
-            ffprobe_path: settings.ffprobe_path.clone(),
             deck_max_pages: settings.media_deck_max_pages,
         }
     }
@@ -95,64 +88,6 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
         self.storage.ensure_directories().await
     }
 
-    pub async fn verify_processing_readiness(&self) -> Result<(), AppError> {
-        if !self.settings.processing_enabled {
-            return Ok(());
-        }
-        for (label, path) in [
-            ("ffmpeg", self.settings.ffmpeg_path.as_str()),
-            ("ffprobe", self.settings.ffprobe_path.as_str()),
-        ] {
-            check_tool_version(&[path, "--version"])
-                .await
-                .map_err(|_| {
-                    AppError::Internal(format!(
-                        "media processing readiness failed: required tool `{label}` is missing or not executable; configure tool paths or disable media processing"
-                    ))
-                })?;
-        }
-        Ok(())
-    }
-
-    pub async fn require_processing_tools_for_upload(
-        &self,
-        kind: MediaAssetKind,
-    ) -> Result<(), AppError> {
-        let (label, tools): (&str, &[(&str, &str)]) = match kind {
-            MediaAssetKind::Video | MediaAssetKind::Audio => (
-                "audio/video",
-                &[
-                    ("ffmpeg", self.settings.ffmpeg_path.as_str()),
-                    ("ffprobe", self.settings.ffprobe_path.as_str()),
-                ],
-            ),
-            MediaAssetKind::Image | MediaAssetKind::Pdf | MediaAssetKind::Svg => return Ok(()),
-        };
-
-        if !self.settings.processing_enabled {
-            return Err(AppError::media_processing(
-                "media_processing_unavailable",
-                format!("{label} uploads are unavailable because media processing is disabled."),
-            ));
-        }
-
-        for (tool, path) in tools {
-            if check_tool_version(&[path, "--version"]).await.is_err() {
-                tracing::warn!(
-                    tool,
-                    "rejecting upload because a required media processing tool is unavailable"
-                );
-                return Err(AppError::media_processing(
-                    "media_processing_unavailable",
-                    format!(
-                        "{label} uploads are unavailable because a required media processing tool is not installed."
-                    ),
-                ));
-            }
-        }
-        Ok(())
-    }
-
     async fn register_active_upload(&self, operation_id: &str) {
         self.active_uploads
             .write()
@@ -181,12 +116,6 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
         let media = self.media_repo.get(&ctx.read_teams(), media_id).await?;
         let owner = parse_owner_record_id(&media.owner)?;
         ctx.require_write_access_to_owner(&owner)?;
-
-        let requires_external_processing =
-            matches!(kind, MediaAssetKind::Video | MediaAssetKind::Audio);
-        if requires_external_processing {
-            self.require_processing_tools_for_upload(kind).await?;
-        }
 
         let max_bytes = self.settings.max_bytes_for_kind(kind);
         if let Some(len) = content_length
@@ -336,7 +265,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
         self.repo.delete_asset(asset_id).await
     }
 
-    pub async fn ingest_processed_file(
+    pub async fn ingest_final_file(
         &self,
         owner: RecordId,
         media_id: RecordId,
@@ -379,6 +308,14 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                 width,
                 height,
             } => {
+                let content_type = self
+                    .repo
+                    .list_assets_for_media(source_media_id)
+                    .await?
+                    .into_iter()
+                    .find(|asset| asset.id == *blob_id)
+                    .map(|asset| asset.content_type)
+                    .unwrap_or_else(|| "application/octet-stream".into());
                 let new_id = uuid::Uuid::new_v4().to_string();
                 self.storage
                     .copy_final_file(blob_id, &new_id)
@@ -394,7 +331,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                             owner,
                             media_id: media_rid,
                             kind: MediaAssetKind::Video,
-                            content_type: "video/mp4".into(),
+                            content_type,
                             byte_length: bytes.len() as u64,
                             etag,
                         },
@@ -411,6 +348,14 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                 blob_id,
                 duration_ms,
             } => {
+                let content_type = self
+                    .repo
+                    .list_assets_for_media(source_media_id)
+                    .await?
+                    .into_iter()
+                    .find(|asset| asset.id == *blob_id)
+                    .map(|asset| asset.content_type)
+                    .unwrap_or_else(|| "application/octet-stream".into());
                 let new_id = uuid::Uuid::new_v4().to_string();
                 self.storage
                     .copy_final_file(blob_id, &new_id)
@@ -426,7 +371,7 @@ impl<R: MediaAssetRepository, M: MediaRepository> MediaAssetService<R, M> {
                             owner,
                             media_id: media_rid,
                             kind: MediaAssetKind::Audio,
-                            content_type: "audio/mp4".into(),
+                            content_type,
                             byte_length: bytes.len() as u64,
                             etag,
                         },
@@ -623,8 +568,8 @@ mod tests {
                 CreateMedia {
                     title: "Orphan owner".into(),
                     owner: Some(fixture.shared_team_id.clone()),
-                    content: CreateMediaContent::WebPage {
-                        url: "https://example.com/orphan".into(),
+                    content: CreateMediaContent::YouTube {
+                        url: "https://youtu.be/dQw4w9WgXcQ".into(),
                     },
                 },
             )
@@ -633,7 +578,7 @@ mod tests {
         let source = tempfile::NamedTempFile::new().unwrap();
         std::fs::write(source.path(), b"asset bytes").unwrap();
         let asset = asset_svc
-            .ingest_processed_file(
+            .ingest_final_file(
                 parse_owner_record_id(&fixture.shared_team_id).unwrap(),
                 RecordId::new("media", media.id.clone()),
                 MediaAssetKind::Image,

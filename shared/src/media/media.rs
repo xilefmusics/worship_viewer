@@ -31,6 +31,14 @@ pub enum LivestreamType {
     Direct,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "backend", derive(ToSchema))]
+pub enum SpotifyResourceType {
+    Track,
+    Playlist,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
@@ -51,6 +59,11 @@ pub enum MediaContent {
     #[serde(rename = "youtube")]
     YouTube {
         video_id: String,
+        canonical_url: String,
+    },
+    Spotify {
+        resource_type: SpotifyResourceType,
+        spotify_id: String,
         canonical_url: String,
     },
     Livestream {
@@ -125,8 +138,8 @@ pub struct CreateMedia {
     pub content: CreateMediaContent,
 }
 
-/// URL content accepted by E5.1. Uploaded/deck tags are reserved on
-/// [`MediaContent`] but cannot be fabricated through this request.
+/// URL content accepted by E5.1. Uploaded/deck and legacy URL tags on
+/// [`MediaContent`] cannot be fabricated through this request.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
@@ -135,10 +148,7 @@ pub enum CreateMediaContent {
     YouTube {
         url: String,
     },
-    Livestream {
-        url: String,
-    },
-    WebPage {
+    Spotify {
         url: String,
     },
 }
@@ -189,6 +199,7 @@ mod tests {
             serde_json::json!({"type":"video","blob_id":"b1","duration_ms":1,"width":2,"height":3}),
             serde_json::json!({"type":"audio","blob_id":"b1","duration_ms":1}),
             serde_json::json!({"type":"youtube","video_id":"dQw4w9WgXcQ","canonical_url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}),
+            serde_json::json!({"type":"spotify","resource_type":"track","spotify_id":"4iV5W9uYEdYUVa79Axb7Rh","canonical_url":"https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh"}),
             serde_json::json!({"type":"livestream","url":"https://example.com/live.m3u8","stream_type":"hls"}),
             serde_json::json!({"type":"web_page","url":"https://example.com/"}),
         ];

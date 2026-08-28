@@ -59,7 +59,6 @@ struct CreateUploadQuery {
 )]
 #[post("/uploads")]
 pub async fn create_uploaded_media(
-    svc: Data<MediaAssetServiceHandle>,
     processing: Data<Arc<crate::resources::media::processing::MediaProcessingHandle>>,
     limits: Data<MediaAssetUploadLimits>,
     ctx: ReqData<AuthorizationContext>,
@@ -68,14 +67,6 @@ pub async fn create_uploaded_media(
 ) -> Result<HttpResponse, AppError> {
     let kind = UploadedMediaKind::parse(&query.kind)
         .ok_or_else(|| AppError::invalid_request("invalid uploaded media kind"))?;
-    if matches!(kind, UploadedMediaKind::Video | UploadedMediaKind::Audio) {
-        let asset_kind = if kind == UploadedMediaKind::Video {
-            MediaAssetKind::Video
-        } else {
-            MediaAssetKind::Audio
-        };
-        svc.require_processing_tools_for_upload(asset_kind).await?;
-    }
     let work = TempWorkDir::new(std::env::temp_dir().join("worshipviewer_media_uploads"))
         .map_err(|e| AppError::internal_from_err("media.multipart.temp", e))?;
     let mut metadata = None;
@@ -106,6 +97,10 @@ pub async fn create_uploaded_media(
                 })?,
             );
         } else if name == "file" {
+            let content_type = field
+                .content_type()
+                .map(ToString::to_string)
+                .unwrap_or_else(|| "application/octet-stream".into());
             let index = sources.len();
             let path = work.path().join(format!("source-{index}"));
             let mut output = tokio::fs::File::create(&path)
@@ -157,6 +152,7 @@ pub async fn create_uploaded_media(
             sources.push(UploadedSource {
                 path,
                 kind: asset_kind,
+                content_type,
             });
         } else {
             return Err(AppError::invalid_request(
@@ -187,7 +183,7 @@ pub async fn create_uploaded_media(
     ),
     responses(
         (status = 200, description = "Upload processed and media updated", body = Media),
-        (status = 400, description = "Invalid kind or request, or required processing tooling is unavailable", body = Problem, content_type = "application/problem+json"),
+        (status = 400, description = "Invalid kind or request", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Authentication required", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "Media not found or write access denied", body = Problem, content_type = "application/problem+json"),
         (status = 413, description = "Payload too large", body = Problem, content_type = "application/problem+json"),

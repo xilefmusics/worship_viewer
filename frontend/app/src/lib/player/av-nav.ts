@@ -34,11 +34,13 @@ export type AvItemSlides = {
   structuredSlides?: AvLyricLine[][]
   structuredSourceSlides?: AvLyricLine[][]
   outline: AvSectionOutline[]
-  kind: 'lyrics' | 'blob' | 'deck' | 'video' | 'audio' | 'youtube' | 'livestream' | 'web_page'
+  kind: 'lyrics' | 'blob' | 'deck' | 'video' | 'audio' | 'youtube' | 'spotify' | 'livestream' | 'web_page'
   mediaId?: string
   assetId?: string
   videoId?: string
   canonicalUrl?: string
+  spotifyId?: string
+  spotifyResourceType?: 'track' | 'playlist'
   url?: string
   streamType?: 'hls' | 'direct'
   pages?: AvDeckPage[]
@@ -141,6 +143,32 @@ export function avSlidesForItem(
       mediaId: item.id,
       videoId: item.content.video_id,
       canonicalUrl: item.content.canonical_url,
+    }
+  }
+  if (item.type === 'media' && item.content?.type === 'spotify') {
+    const spotifyId = item.content.spotify_id.trim()
+    const spotifyResourceType = item.content.resource_type
+    if (
+      !/^[A-Za-z0-9]{22}$/.test(spotifyId) ||
+      (spotifyResourceType !== 'track' && spotifyResourceType !== 'playlist')
+    ) {
+      return {
+        slides: [item.title.trim() || fallbackTitle?.trim() || 'Untitled'],
+        sourceSlides: [item.title.trim() || fallbackTitle?.trim() || 'Untitled'],
+        outline: [],
+        kind: 'blob',
+      }
+    }
+    const title = item.title.trim() || fallbackTitle?.trim() || 'Untitled'
+    return {
+      slides: [title],
+      sourceSlides: [title],
+      outline: [],
+      kind: 'spotify',
+      mediaId: item.id,
+      spotifyId,
+      spotifyResourceType,
+      canonicalUrl: `https://open.spotify.com/${spotifyResourceType}/${spotifyId}`,
     }
   }
   if (item.type === 'media' && item.content?.type === 'livestream') {

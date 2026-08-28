@@ -14,12 +14,8 @@ use tokio::sync::{Mutex, RwLock};
 
 use crate::auth::AuthorizationContext;
 use crate::error::AppError;
-use crate::resources::media::av_processor::{
-    AvProcessor, FfmpegAvProcessor, app_error_from_failure,
-};
-use crate::resources::media::deck_processor::{
-    DeckProcessor, LopdfDeckProcessor, UnsupportedDeckProcessor,
-};
+use crate::resources::media::av_processor::app_error_from_failure;
+use crate::resources::media::deck_processor::{DeckProcessor, LopdfDeckProcessor};
 use crate::resources::media::model::MediaWrite;
 use crate::resources::media::repository::MediaRepository;
 use crate::resources::media::surreal_repo::SurrealMediaRepo;
@@ -30,6 +26,7 @@ use crate::settings::Settings;
 pub struct UploadedSource {
     pub path: PathBuf,
     pub kind: MediaAssetKind,
+    pub content_type: String,
 }
 
 struct FinalAssetCleanup {
@@ -122,7 +119,6 @@ impl Drop for StagingAssetCleanup {
 pub struct MediaProcessingHandle {
     media_repo: SurrealMediaRepo,
     asset_svc: crate::resources::media_asset::service::MediaAssetServiceHandle,
-    processor: Arc<dyn AvProcessor>,
     deck_processor: Arc<dyn DeckProcessor>,
     work_parent: PathBuf,
     deck_max_pages: usize,
@@ -135,34 +131,13 @@ impl MediaProcessingHandle {
         settings: &Settings,
         asset_svc: crate::resources::media_asset::service::MediaAssetServiceHandle,
     ) -> Self {
-        let processor: Arc<dyn AvProcessor> = Arc::new(FfmpegAvProcessor {
-            ffmpeg_path: settings.ffmpeg_path.clone(),
-            ffprobe_path: settings.ffprobe_path.clone(),
-            timeout: settings.media_processing_timeout(),
-        });
         Self::build_with_processors(
             db,
             settings,
             asset_svc,
-            processor,
             Arc::new(LopdfDeckProcessor {
                 timeout: settings.media_processing_timeout(),
             }),
-        )
-    }
-
-    pub fn build_with_processor(
-        db: Arc<crate::database::Database>,
-        settings: &Settings,
-        asset_svc: crate::resources::media_asset::service::MediaAssetServiceHandle,
-        processor: Arc<dyn AvProcessor>,
-    ) -> Self {
-        Self::build_with_processors(
-            db,
-            settings,
-            asset_svc,
-            processor,
-            Arc::new(UnsupportedDeckProcessor),
         )
     }
 
@@ -170,13 +145,11 @@ impl MediaProcessingHandle {
         db: Arc<crate::database::Database>,
         settings: &Settings,
         asset_svc: crate::resources::media_asset::service::MediaAssetServiceHandle,
-        processor: Arc<dyn AvProcessor>,
         deck_processor: Arc<dyn DeckProcessor>,
     ) -> Self {
         Self {
             media_repo: SurrealMediaRepo::new(db),
             asset_svc,
-            processor,
             deck_processor,
             work_parent: std::env::temp_dir().join("worshipviewer_media_work"),
             deck_max_pages: settings.media_deck_max_pages as usize,
@@ -254,8 +227,15 @@ impl MediaProcessingHandle {
                         "upload kind does not match the source",
                     ));
                 }
-                self.process_av_source(media_id, owner, expected, &sources[0].path, cleanup)
-                    .await
+                self.store_av_source(
+                    media_id,
+                    owner,
+                    expected,
+                    &sources[0].content_type,
+                    &sources[0].path,
+                    cleanup,
+                )
+                .await
             }
             UploadedMediaKind::SlideDeck => {
                 let mut pages = Vec::new();
@@ -273,7 +253,7 @@ impl MediaProcessingHandle {
                     for page in &expanded.pages {
                         let asset = self
                             .asset_svc
-                            .ingest_processed_file(
+                            .ingest_final_file(
                                 owner.clone(),
                                 RecordId::new("media", media_id.to_owned()),
                                 page.kind,
@@ -298,55 +278,42 @@ impl MediaProcessingHandle {
         }
     }
 
-    async fn process_av_source(
+    async fn store_av_source(
         &self,
         media_id: &str,
         owner: RecordId,
         kind: MediaAssetKind,
+        content_type: &str,
         source: &Path,
         cleanup: &mut FinalAssetCleanup,
     ) -> Result<MediaContent, AppError> {
-        self.processor
-            .probe_input(source, kind)
-            .await
-            .map_err(app_error_from_failure)?;
-        let output = self
-            .processor
-            .transcode(source, kind, &self.work_parent)
-            .await
-            .map_err(app_error_from_failure)?;
-        let content_type = match kind {
-            MediaAssetKind::Video => "video/mp4",
-            MediaAssetKind::Audio => "audio/mp4",
-            _ => {
-                return Err(AppError::invalid_request(
-                    "unsupported audio/video upload kind",
-                ));
-            }
-        };
         let asset = self
             .asset_svc
-            .ingest_processed_file(
+            .ingest_final_file(
                 owner,
                 RecordId::new("media", media_id.to_owned()),
                 kind,
                 content_type.into(),
-                &output.output_path,
+                source,
             )
             .await?;
         cleanup.track(asset.id.clone());
         let content = match kind {
             MediaAssetKind::Video => MediaContent::Video {
                 blob_id: asset.id.clone(),
-                duration_ms: output.duration_ms,
-                width: output.width.unwrap_or(0),
-                height: output.height.unwrap_or(0),
+                duration_ms: 0,
+                width: 0,
+                height: 0,
             },
             MediaAssetKind::Audio => MediaContent::Audio {
                 blob_id: asset.id.clone(),
-                duration_ms: output.duration_ms,
+                duration_ms: 0,
             },
-            _ => unreachable!(),
+            _ => {
+                return Err(AppError::invalid_request(
+                    "unsupported audio/video upload kind",
+                ));
+            }
         };
         Ok(content)
     }
@@ -400,9 +367,21 @@ impl MediaProcessingHandle {
                     ));
                 }
                 let mut cleanup = FinalAssetCleanup::new(self.asset_svc.clone());
-                let content = self
-                    .process_av_source(media_id, owner, kind, &staging_path, &mut cleanup)
-                    .await?;
+                let asset = self.asset_svc.promote_staging(operation_id).await?;
+                cleanup.track(asset.id.clone());
+                let content = match kind {
+                    MediaAssetKind::Video => MediaContent::Video {
+                        blob_id: asset.id,
+                        duration_ms: 0,
+                        width: 0,
+                        height: 0,
+                    },
+                    MediaAssetKind::Audio => MediaContent::Audio {
+                        blob_id: asset.id,
+                        duration_ms: 0,
+                    },
+                    _ => unreachable!(),
+                };
                 let old_ids = content_blob_ids(&media.content);
                 let updated = self
                     .media_repo
@@ -484,7 +463,7 @@ impl MediaProcessingHandle {
         for page in &expanded.pages {
             let asset = self
                 .asset_svc
-                .ingest_processed_file(
+                .ingest_final_file(
                     owner.clone(),
                     RecordId::new("media", media.id.clone()),
                     page.kind,

@@ -1,12 +1,12 @@
 import type { CreateMediaContent, Media } from '@/api/media'
 
-export type UrlMediaKind = 'youtube' | 'livestream' | 'web_page'
+export type UrlMediaKind = 'youtube' | 'spotify'
 export type UploadMediaKind = 'video' | 'audio' | 'slide_deck'
 export type CreateMediaKind = UrlMediaKind | UploadMediaKind
-export type MediaDisplayKind = CreateMediaKind | 'unknown'
+export type MediaDisplayKind = CreateMediaKind | 'livestream' | 'web_page' | 'unknown'
 export type AssetUploadKind = 'video' | 'audio' | 'image' | 'pdf' | 'svg'
 
-const URL_KINDS = new Set<UrlMediaKind>(['youtube', 'livestream', 'web_page'])
+const URL_KINDS = new Set<UrlMediaKind>(['youtube', 'spotify'])
 const UPLOAD_KINDS = new Set<UploadMediaKind>(['video', 'audio', 'slide_deck'])
 
 export function isUrlMediaKind(value: string): value is UrlMediaKind {
@@ -25,6 +25,7 @@ export function mediaDisplayKind(media: Media): MediaDisplayKind {
   const type = media.content.type
   switch (type) {
     case 'youtube':
+    case 'spotify':
     case 'livestream':
     case 'web_page':
     case 'slide_deck':
@@ -44,6 +45,7 @@ export function mediaCanonicalUrl(media: Media): string | null {
   const content = media.content
   switch (content.type) {
     case 'youtube':
+    case 'spotify':
       return content.canonical_url
     case 'livestream':
     case 'web_page':
@@ -62,8 +64,8 @@ export function isValidUrlMediaInput(kind: UrlMediaKind, rawUrl: string): boolea
     const url = new URL(rawUrl.trim())
     if (url.protocol !== 'https:' || url.username || url.password) return false
     if (!url.hostname) return false
-    if (kind !== 'youtube') return true
     const host = url.hostname.toLowerCase().replace(/^www\./, '')
+    if (kind === 'spotify') return host === 'open.spotify.com'
     return host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtu.be'
   } catch {
     return false

@@ -1201,12 +1201,17 @@
     "name": "Media",
     "kinds": {
       "youtube": "YouTube",
+      "spotify": "Spotify",
       "livestream": "Livestream",
       "web_page": "Web page",
       "slide_deck": "Slide deck",
       "video": "Video",
       "audio": "Audio",
       "unknown": "Unknown media"
+    },
+    "spotify": {
+      "track": "Track",
+      "playlist": "Playlist"
     },
     "fields": {
       "title": "Title",
@@ -1215,6 +1220,7 @@
       "canonicalUrl": "Saved URL",
       "url": {
         "youtube": "YouTube URL",
+        "spotify": "Spotify track or playlist URL",
         "livestream": "Livestream URL",
         "web_page": "Web-page URL"
       },
@@ -1237,7 +1243,7 @@
     },
     "create": {
       "title": "Add media",
-      "description": "Add a reusable YouTube video, livestream, web page, slide deck, or upload audio or video."
+      "description": "Add a reusable YouTube video, Spotify track or playlist, slide deck, or upload audio or video."
     },
     "editor": {
       "backToList": "Back to media",
@@ -1260,13 +1266,15 @@
       "sectionDefault": "Section {{number}}",
       "sectionTitleAria": "Section title for section {{number}}",
       "sectionHandle": "Move section {{number}}",
+      "collapseSection": "Collapse section {{number}}",
+      "expandSection": "Expand section {{number}}",
       "startSection": "Start section",
       "clearSection": "Clear section",
       "removeSection": "Remove section",
       "removeSectionTitle": "Remove section",
       "removeSectionDescription": "Choose whether to remove only the section marker or the marker and all slides in this section.",
-      "removeSectionMarker": "Remove marker only",
-      "removeSectionSlides": "Remove marker and slides",
+      "removeSectionMarker": "Remove",
+      "removeSectionSlides": "Remove section with slides",
       "replacePage": "Replace page",
       "removePage": "Remove page"
     },
@@ -1284,6 +1292,8 @@
       "createAria": "Add media",
       "save": "Save",
       "play": "Play",
+      "openSpotify": "Open Spotify",
+      "spotifyExternalHint": "Playback opens in Spotify and is not sent to presentation outputs.",
       "edit": "Edit",
       "duplicate": "Duplicate",
       "move": "Move",

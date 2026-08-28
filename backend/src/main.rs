@@ -168,12 +168,6 @@ async fn main() -> AnyResult<()> {
         .ensure_directories()
         .await
         .context("failed to initialize media asset storage directories")?;
-    if let Err(err) = media_asset_service.verify_processing_readiness().await {
-        tracing::warn!(
-            error = %err,
-            "media processing tools are unavailable; backend startup will continue and uploads requiring those tools will be rejected"
-        );
-    }
     let media_processing = Arc::new(
         backend::resources::media::processing::MediaProcessingHandle::build(
             db.clone(),

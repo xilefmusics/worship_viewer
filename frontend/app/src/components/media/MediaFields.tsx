@@ -54,8 +54,7 @@ export function MediaFields({
           <SelectTrigger id="media-kind"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="youtube">{t('media.kinds.youtube')}</SelectItem>
-            <SelectItem value="livestream">{t('media.kinds.livestream')}</SelectItem>
-            <SelectItem value="web_page">{t('media.kinds.web_page')}</SelectItem>
+            <SelectItem value="spotify">{t('media.kinds.spotify')}</SelectItem>
             <SelectItem value="slide_deck">{t('media.kinds.slide_deck')}</SelectItem>
             <SelectItem value="video">{t('media.kinds.video')}</SelectItem>
             <SelectItem value="audio">{t('media.kinds.audio')}</SelectItem>

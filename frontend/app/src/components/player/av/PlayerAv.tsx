@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useTranslation } from 'react-i18next'
 
 import { AvMediaTransportPanel } from '@/components/player/av/AvMediaTransportPanel'
+import { AvSpotifyPanel } from '@/components/player/av/AvSpotifyPanel'
 import { AvOutlinePanel } from '@/components/player/av/AvOutlinePanel'
 import { AvSectionShortcuts } from '@/components/player/av/AvSectionShortcuts'
 import { AvSlideView } from '@/components/player/av/AvSlideView'
@@ -1112,7 +1113,19 @@ export function PlayerAv({
 
           {/* Flow: I4, I5 */}
           <div className="player-av__slides min-h-0 flex-1 overflow-hidden">
-            {isTimedAvKind(currentItem.kind) ? (
+            {currentItem.kind === 'spotify' &&
+            currentItem.spotifyResourceType &&
+            currentItem.canonicalUrl ? (
+              <AvSpotifyPanel
+                title={title || t('player.untitled')}
+                resourceType={currentItem.spotifyResourceType}
+                canonicalUrl={currentItem.canonicalUrl}
+                backgroundLayer={prefs.backgroundLayer}
+                backgroundPreviewText={currentText}
+                contentLayer={prefs.contentLayer}
+                onSelectBackgroundPreset={setBackgroundPreset}
+              />
+            ) : isTimedAvKind(currentItem.kind) ? (
               <AvMediaTransportPanel
                 kind={currentItem.kind}
                 title={title || t('player.untitled')}

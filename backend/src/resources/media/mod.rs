@@ -1,7 +1,7 @@
 pub use shared::media::{
     CommitDeck, CreateMedia, CreateMediaContent, CreateUploadedMedia, DuplicateMedia,
     LivestreamType, Media, MediaContent, MediaDeckPage, MediaPendingRevision, MediaStagedDeckPage,
-    UpdateMedia, UploadedMediaKind,
+    SpotifyResourceType, UpdateMedia, UploadedMediaKind,
 };
 
 mod model;

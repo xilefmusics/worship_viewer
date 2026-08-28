@@ -11,7 +11,7 @@ use crate::resources::collection::PatchCollection;
 use crate::resources::media::{
     CommitDeck, CreateMedia, CreateMediaContent, CreateUploadedMedia, DuplicateMedia,
     LivestreamType, Media, MediaContent, MediaDeckPage, MediaPendingRevision, MediaStagedDeckPage,
-    UpdateMedia, UploadedMediaKind,
+    SpotifyResourceType, UpdateMedia, UploadedMediaKind,
 };
 use crate::resources::media_asset::{MediaAsset, MediaAssetKind, MediaAssetStatus};
 use crate::resources::monitoring::{
@@ -281,6 +281,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             MediaPendingRevision,
             UploadedMediaKind,
             LivestreamType,
+            SpotifyResourceType,
             CreateMedia,
             CreateUploadedMedia,
             CreateMediaContent,
@@ -435,6 +436,7 @@ mod tests {
             "video",
             "audio",
             "youtube",
+            "spotify",
             "livestream",
             "web_page",
         ] {

@@ -5,14 +5,15 @@ Applies to the team-owned Media library at `/api/v1/media`.
 ## Resource and lifecycle
 
 - **BLC-MEDIA-001:** Every stored Media has an opaque `id`, one team `owner`, a non-empty `title`, and required tagged `content`. There is no persisted lifecycle status or incomplete upload shell. Slide decks may additionally have a status-free `pending_revision` while being edited.
-- **BLC-MEDIA-002:** Content tags are `slide_deck`, `video`, `audio`, `youtube`, `livestream`, and `web_page`. JSON create accepts only URL-backed tags; uploaded content is created by the multipart upload endpoint and cannot be fabricated by clients.
+- **BLC-MEDIA-002:** Creatable content tags are `slide_deck`, `video`, `audio`, `youtube`, and `spotify`. JSON create accepts `youtube` and `spotify`; uploaded content is created by the multipart upload endpoint and cannot be fabricated by clients. Legacy stored `livestream` and `web_page` records remain readable but cannot be created or changed through the API.
 - **BLC-MEDIA-003:** Deletion is permitted without reference checks, is serialized against replacement/deck mutations, and removes every owned final or staging asset.
 
 ## URL safety and normalization
 
 - **BLC-MEDIA-004:** YouTube accepts credential-free, fragment-free HTTPS URLs on exact supported YouTube hosts in watch, shortened, embed, shorts, and live forms. The server validates the 11-character video id and stores `https://www.youtube.com/watch?v={video_id}` plus the extracted id.
-- **BLC-MEDIA-005:** Livestream and web-page URLs must be absolute, credential-free, fragment-free HTTPS URLs with a host. They are validated syntactically only; the backend does not fetch, proxy, or test embeddability.
-- **BLC-MEDIA-006:** Livestreams whose case-insensitive URL path ends in `.m3u8` are tagged `hls`; all other accepted livestream URLs are tagged `direct`.
+- **BLC-MEDIA-004a:** Spotify accepts credential-free, fragment-free HTTPS URLs on `open.spotify.com` that identify a track or playlist. The server validates the 22-character base-62 id, removes query parameters and trailing slashes, and stores the resource type, id, and canonical `https://open.spotify.com/{track|playlist}/{id}` URL. Spotify content is opened externally from the controller and is never sent to projection outputs for playback.
+- **BLC-MEDIA-005:** Legacy livestream and web-page content remains readable, but new create and update requests using either tag are rejected during request deserialization.
+- **BLC-MEDIA-006:** Existing livestream records retain their stored `hls` or `direct` classification for backward-compatible playback.
 - **BLC-MEDIA-007:** URL failures use stable Problem codes: `media_invalid_url` for malformed/disallowed URL structure or identifiers and `media_unsupported_url` for unsupported schemes/hosts. Parser internals are never returned.
 
 ## Uploaded audio/video (E5.4)

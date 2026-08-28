@@ -25,7 +25,7 @@ describe('Media API mapping', () => {
     vi.mocked(api.POST).mockResolvedValue({ data: media, response: response(201) } as never)
     vi.mocked(api.PUT).mockResolvedValue({ data: media, response: response() } as never)
     vi.mocked(api.DELETE).mockResolvedValue({ response: response(204) } as never)
-    const content = { type: 'livestream' as const, url: 'https://example.com/live.m3u8' }
+    const content = { type: 'youtube' as const, url: 'https://youtu.be/dQw4w9WgXcQ' }
     await createMedia(queryClient, { title: 'Stream', owner: 'team:1', content })
     await updateMedia(queryClient, media.id, { title: 'Stream', owner: 'team:1', content })
     await duplicateMedia(queryClient, media.id, 'Stream (copy)')
@@ -48,6 +48,6 @@ describe('Media API mapping', () => {
 
   it('surfaces validation problem detail', async () => {
     vi.mocked(api.POST).mockResolvedValue({ error: { title: 'Bad URL', detail: 'Only HTTPS URLs are supported.' }, response: response(400) } as never)
-    await expect(createMedia(queryClient, { title: 'Bad', owner: 'team:1', content: { type: 'web_page', url: 'http://example.com' } })).rejects.toThrow('Only HTTPS URLs are supported.')
+    await expect(createMedia(queryClient, { title: 'Bad', owner: 'team:1', content: { type: 'youtube', url: 'http://youtu.be/dQw4w9WgXcQ' } })).rejects.toThrow('Only HTTPS URLs are supported.')
   })
 })

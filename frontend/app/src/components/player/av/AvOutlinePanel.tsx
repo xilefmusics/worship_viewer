@@ -61,9 +61,6 @@ export function AvOutlinePanel({ rows, onSelectSlide }: AvOutlinePanelProps) {
                   }
                 }}
               >
-                <span aria-hidden className="mr-2 inline-block w-3 text-xs">
-                  {children.length > 0 ? (collapsed ? '▸' : '▾') : null}
-                </span>
                 {header.label}
               </button>
               {!collapsed

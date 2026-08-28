@@ -5,6 +5,7 @@ import {
   TouchSensor,
   closestCenter,
   useDraggable,
+  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -90,6 +91,7 @@ export function DeckPagesEditor({
   const replaceId = useRef<string | null>(null)
   const [hoveredSectionBreak, setHoveredSectionBreak] = useState<number | null>(null)
   const [openAddMenu, setOpenAddMenu] = useState<string | null>(null)
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => new Set())
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } }),
@@ -116,12 +118,17 @@ export function DeckPagesEditor({
       while (targetStart > 0 && normalizeSectionTitle(pages[targetStart]?.section_title ?? '') === null) {
         targetStart -= 1
       }
-      const adjustedTargetIndex = remaining.findIndex((page) => page.id === pages[targetStart]?.id)
-      if (adjustedTargetIndex < 0) return
+      let insertionIndex = targetStart
+      if (sourceIndex < targetStart) {
+        const targetEnd = pages.findIndex(
+          (page, index) => index > targetStart && normalizeSectionTitle(page.section_title ?? '') !== null,
+        )
+        insertionIndex = (targetEnd < 0 ? pages.length : targetEnd) - sourcePages.length
+      }
       onReorder([
-        ...remaining.slice(0, adjustedTargetIndex),
+        ...remaining.slice(0, insertionIndex),
         ...sourcePages,
-        ...remaining.slice(adjustedTargetIndex),
+        ...remaining.slice(insertionIndex),
       ])
       return
     }
@@ -164,75 +171,98 @@ export function DeckPagesEditor({
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={pages.map((page) => page.id)} strategy={rectSortingStrategy}>
             <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label={t('media.deck.listAria')}>
-              {pages.map((page, index) => (
-                <Fragment key={page.id}>
-                  {normalizeSectionTitle(page.section_title ?? '') ? (
-                    <SectionHeader
-                      page={page}
-                      number={sectionNumberForPage(pages, index)}
-                      disabled={disabled}
-                      onTitleChange={(sectionTitle) => onSectionTitleChange(page.id, sectionTitle)}
-                      onRemove={() => onRemoveSection(page.id)}
-                      onRemoveSlides={() => {
-                        const sectionEnd = pages.findIndex(
-                          (candidate, candidateIndex) =>
-                            candidateIndex > index && normalizeSectionTitle(candidate.section_title ?? '') !== null,
-                        )
-                        const end = sectionEnd < 0 ? pages.length : sectionEnd
-                        onReorder(pages.filter((_, pageIndex) => pageIndex < index || pageIndex >= end))
-                      }}
-                    />
-                  ) : null}
-                  <DeckPageGroup
-                    mediaId={mediaId}
-                    page={page}
-                    index={index}
-                    disabled={disabled}
-                    onRemove={() => onRemove(page.id)}
-                    onReplace={() => {
-                      replaceId.current = page.id
-                      replaceRef.current?.click()
-                    }}
-                    onSectionTitleChange={onSectionTitleChange}
-                    sectionBreakHovered={hoveredSectionBreak === index + 1}
-                    sectionBreakBeforeHovered={hoveredSectionBreak === index}
-                    onSectionBreakEnter={() => setHoveredSectionBreak(index + 1)}
-                    onBeforeSectionBreakEnter={() => setHoveredSectionBreak(index)}
-                    onSectionBreakLeave={() => {
-                      setHoveredSectionBreak(null)
-                    }}
-                    onBeforeSectionBreakLeave={() => setHoveredSectionBreak(null)}
-                    addMenuOpen={openAddMenu === `after:${index}`}
-                    beforeAddMenuOpen={openAddMenu === `before:${index}`}
-                    onToggleAddMenu={() =>
-                      setOpenAddMenu((current) => (current === `after:${index}` ? null : `after:${index}`))
-                    }
-                    onToggleBeforeAddMenu={() => {
-                      const boundaryKey = `before:${index}`
-                      setOpenAddMenu((current) => (current === boundaryKey ? null : boundaryKey))
-                    }}
-                    onAddSlides={(insertionIndex) => {
-                      setOpenAddMenu(null)
-                      addAtIndex.current = insertionIndex
-                      addRef.current?.click()
-                    }}
-                    nextPage={pages[index + 1]}
-                    onStartSection={() => {
-                      setOpenAddMenu(null)
-                      if (pages[index + 1]) {
-                        onSectionTitleChange(
-                          pages[index + 1].id,
-                          `Section ${sectionNumberForPage(pages, index + 1)}`,
-                        )
-                      }
-                    }}
-                    onStartBeforeSection={() => {
-                      setOpenAddMenu(null)
-                      onSectionTitleChange(page.id, `Section ${sectionNumberForPage(pages, index)}`)
-                    }}
-                  />
-                </Fragment>
-              ))}
+              {pages.map((page, index) => {
+                let sectionStartIndex = index
+                while (
+                  sectionStartIndex > 0 &&
+                  normalizeSectionTitle(pages[sectionStartIndex]?.section_title ?? '') === null
+                ) {
+                  sectionStartIndex -= 1
+                }
+                const sectionStart = pages[sectionStartIndex]
+                const hasSectionMarker = normalizeSectionTitle(sectionStart?.section_title ?? '') !== null
+                const sectionCollapsed = hasSectionMarker && collapsedSections.has(sectionStart?.id ?? '')
+                return (
+                  <Fragment key={page.id}>
+                    {normalizeSectionTitle(page.section_title ?? '') ? (
+                      <SectionHeader
+                        page={page}
+                        number={sectionNumberForPage(pages, index)}
+                        disabled={disabled}
+                        collapsed={sectionCollapsed}
+                        onToggleCollapsed={() => {
+                          setCollapsedSections((current) => {
+                            const next = new Set(current)
+                            if (next.has(page.id)) next.delete(page.id)
+                            else next.add(page.id)
+                            return next
+                          })
+                        }}
+                        onTitleChange={(sectionTitle) => onSectionTitleChange(page.id, sectionTitle)}
+                        onRemove={() => onRemoveSection(page.id)}
+                        onRemoveSlides={() => {
+                          const sectionEnd = pages.findIndex(
+                            (candidate, candidateIndex) =>
+                              candidateIndex > index && normalizeSectionTitle(candidate.section_title ?? '') !== null,
+                          )
+                          const end = sectionEnd < 0 ? pages.length : sectionEnd
+                          onReorder(pages.filter((_, pageIndex) => pageIndex < index || pageIndex >= end))
+                        }}
+                      />
+                    ) : null}
+                    {!sectionCollapsed ? (
+                      <DeckPageGroup
+                        mediaId={mediaId}
+                        page={page}
+                        index={index}
+                        disabled={disabled}
+                        onRemove={() => onRemove(page.id)}
+                        onReplace={() => {
+                          replaceId.current = page.id
+                          replaceRef.current?.click()
+                        }}
+                        onSectionTitleChange={onSectionTitleChange}
+                        sectionBreakHovered={hoveredSectionBreak === index + 1}
+                        sectionBreakBeforeHovered={hoveredSectionBreak === index}
+                        onSectionBreakEnter={() => setHoveredSectionBreak(index + 1)}
+                        onBeforeSectionBreakEnter={() => setHoveredSectionBreak(index)}
+                        onSectionBreakLeave={() => {
+                          setHoveredSectionBreak(null)
+                        }}
+                        onBeforeSectionBreakLeave={() => setHoveredSectionBreak(null)}
+                        addMenuOpen={openAddMenu === `after:${index}`}
+                        beforeAddMenuOpen={openAddMenu === `before:${index}`}
+                        onToggleAddMenu={() =>
+                          setOpenAddMenu((current) => (current === `after:${index}` ? null : `after:${index}`))
+                        }
+                        onToggleBeforeAddMenu={() => {
+                          const boundaryKey = `before:${index}`
+                          setOpenAddMenu((current) => (current === boundaryKey ? null : boundaryKey))
+                        }}
+                        onAddSlides={(insertionIndex) => {
+                          setOpenAddMenu(null)
+                          addAtIndex.current = insertionIndex
+                          addRef.current?.click()
+                        }}
+                        nextPage={pages[index + 1]}
+                        onStartSection={() => {
+                          setOpenAddMenu(null)
+                          if (pages[index + 1]) {
+                            onSectionTitleChange(
+                              pages[index + 1].id,
+                              `Section ${sectionNumberForPage(pages, index + 1)}`,
+                            )
+                          }
+                        }}
+                        onStartBeforeSection={() => {
+                          setOpenAddMenu(null)
+                          onSectionTitleChange(page.id, `Section ${sectionNumberForPage(pages, index)}`)
+                        }}
+                      />
+                    ) : null}
+                  </Fragment>
+                )
+              })}
             </ol>
           </SortableContext>
         </DndContext>
@@ -245,6 +275,8 @@ function SectionHeader({
   page,
   number,
   disabled,
+  collapsed,
+  onToggleCollapsed,
   onTitleChange,
   onRemove,
   onRemoveSlides,
@@ -252,6 +284,8 @@ function SectionHeader({
   page: DeckEditorPage
   number: number
   disabled?: boolean
+  collapsed: boolean
+  onToggleCollapsed: () => void
   onTitleChange: (sectionTitle: string | null) => void
   onRemove: () => void
   onRemoveSlides: () => void
@@ -263,8 +297,12 @@ function SectionHeader({
     data: { type: 'section', pageId: page.id },
     disabled,
   })
+  const { setNodeRef: setDropNodeRef } = useDroppable({
+    id: `section:${page.id}`,
+    disabled,
+  })
   return (
-    <li className="col-span-full flex min-w-0 items-center gap-2">
+    <li ref={setDropNodeRef} className="col-span-full flex min-w-0 items-center gap-2">
       <button
         ref={setNodeRef}
         type="button"
@@ -276,6 +314,18 @@ function SectionHeader({
       >
         <span aria-hidden>⋮⋮</span>
       </button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-8 shrink-0 text-[var(--color-muted-foreground)]"
+        aria-label={t(collapsed ? 'media.deck.expandSection' : 'media.deck.collapseSection', { number })}
+        aria-expanded={!collapsed}
+        disabled={disabled}
+        onClick={onToggleCollapsed}
+      >
+        <span aria-hidden>{collapsed ? '▸' : '▾'}</span>
+      </Button>
       <Input
         value={page.section_title ?? ''}
         onChange={(event) => onTitleChange(event.target.value || null)}

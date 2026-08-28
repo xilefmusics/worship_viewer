@@ -944,6 +944,24 @@ describe('PlayerAv', () => {
     ],
   } as Player
 
+  const spotifyPlayer = {
+    index: 0,
+    toc: [{ idx: 0, nr: '', title: 'Prelude', id: 'media-spotify', liked: false }],
+    items: [
+      {
+        type: 'media',
+        id: 'media-spotify',
+        title: 'Prelude',
+        content: {
+          type: 'spotify',
+          resource_type: 'playlist',
+          spotify_id: '37i9dQZF1DXcBWIGoYBM5M',
+          canonical_url: 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M',
+        },
+      },
+    ],
+  } as Player
+
   const webPlayer = {
     index: 0,
     toc: [{ idx: 0, nr: '', title: 'Bulletin', id: 'media-web', liked: false }],
@@ -1021,6 +1039,26 @@ describe('PlayerAv', () => {
     )
     expect(screen.getByRole('button', { name: 'player.av.play' })).toBeInTheDocument()
     expect(screen.queryByLabelText('player.av.seek')).not.toBeInTheDocument()
+  })
+
+  it('opens Spotify externally without sending playback to an output', () => {
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={spotifyPlayer}
+        allowNetworkFetch={false}
+      />,
+    )
+
+    const open = screen.getByRole('link', { name: 'media.actions.openSpotify' })
+    expect(open).toHaveAttribute(
+      'href',
+      'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M',
+    )
+    expect(open).toHaveAttribute('target', '_blank')
+    expect(screen.getByTestId('av-spotify-panel')).toBeInTheDocument()
+    expect(broadcast).not.toHaveBeenCalled()
   })
 
   it('I5: web pages require Show and warn when no output is open', async () => {
