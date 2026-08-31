@@ -5,9 +5,18 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { listenToMediaQuery } from '@/lib/browser-apis'
-import { isIosOrIpadosDevice, isMacDesktopSafari } from '@/lib/platform'
-import { PwaInstallContext } from '@/pwa/pwa-install-context'
+import {
+  isAndroidChrome,
+  isAndroidFirefox,
+  isIosOrIpadosDevice,
+  isMacDesktopSafari,
+} from '@/lib/platform'
 import { cn } from '@/lib/utils'
+import {
+  resolvePwaInstallAction,
+  type PwaInstallHelpKind,
+} from '@/pwa/pwa-install-action'
+import { PwaInstallContext } from '@/pwa/pwa-install-context'
 
 function getIsStandalone(): boolean {
   if (typeof globalThis.matchMedia === 'function') {
@@ -67,7 +76,7 @@ export function PwaInstallProvider({ children }: { children: React.ReactNode }) 
   const { t } = useTranslation()
   const shouldReduceMotion = useReducedMotion()
   const [helpOpen, setHelpOpen] = useState(false)
-  const [helpKind, setHelpKind] = useState<'ios' | 'safariMac' | 'generic'>('generic')
+  const [helpKind, setHelpKind] = useState<PwaInstallHelpKind>('generic')
   const [dragOffset, setDragOffset] = useState(0)
   const [sheetDragging, setSheetDragging] = useState(false)
   const pointerStartY = useRef<number | null>(null)
@@ -79,6 +88,8 @@ export function PwaInstallProvider({ children }: { children: React.ReactNode }) 
 
   const isIos = useMemo(() => isIosOrIpadosDevice(), [])
   const isMacSafari = useMemo(() => isMacDesktopSafari(), [])
+  const androidChrome = useMemo(() => isAndroidChrome(), [])
+  const androidFirefox = useMemo(() => isAndroidFirefox(), [])
 
   useEffect(() => {
     const onBip = (e: Event) => {
@@ -128,27 +139,29 @@ export function PwaInstallProvider({ children }: { children: React.ReactNode }) 
   )
 
   const openInstall = useCallback(async () => {
-    if (isIos) {
-      setHelpKind('ios')
-      setHelpOpen(true)
-      return
-    }
-    if (isMacSafari) {
-      setHelpKind('safariMac')
-      setHelpOpen(true)
-      return
-    }
-    const p = deferredPromptRef.current
-    if (p) {
+    const action = resolvePwaInstallAction({
+      isIos,
+      isMacSafari,
+      isAndroidChrome: androidChrome,
+      isAndroidFirefox: androidFirefox,
+      hasNativePrompt: Boolean(deferredPromptRef.current),
+    })
+    if (action.type === 'native-prompt') {
+      const p = deferredPromptRef.current
+      if (!p) {
+        setHelpKind(androidChrome ? 'androidChrome' : 'generic')
+        setHelpOpen(true)
+        return
+      }
       void p.prompt()
       void p.userChoice.finally(() => {
         deferredPromptRef.current = null
       })
       return
     }
-    setHelpKind('generic')
+    setHelpKind(action.kind)
     setHelpOpen(true)
-  }, [isIos, isMacSafari])
+  }, [androidChrome, androidFirefox, isIos, isMacSafari])
 
   const value = useMemo(
     () => ({ canShowInstall, openInstall }),
@@ -233,36 +246,7 @@ export function PwaInstallProvider({ children }: { children: React.ReactNode }) 
                         setDragOffset(0)
                       }}
                     />
-                    {helpKind === 'ios' ? (
-                      <>
-                        <Dialog.Title className="text-base font-semibold text-[var(--color-foreground)]">
-                          {t('pwa.install.iosTitle')}
-                        </Dialog.Title>
-                        <ol className="list-decimal space-y-2 pl-5 text-sm text-[var(--color-foreground)]">
-                          <li>{t('pwa.install.iosStep1')}</li>
-                          <li>{t('pwa.install.iosStep2')}</li>
-                          <li>{t('pwa.install.iosStep3')}</li>
-                        </ol>
-                      </>
-                    ) : helpKind === 'safariMac' ? (
-                      <>
-                        <Dialog.Title className="text-base font-semibold text-[var(--color-foreground)]">
-                          {t('pwa.install.safariMacTitle')}
-                        </Dialog.Title>
-                        <p className="text-sm text-[var(--color-muted-foreground)]">
-                          {t('pwa.install.safariMacBody')}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <Dialog.Title className="text-base font-semibold text-[var(--color-foreground)]">
-                          {t('pwa.install.genericTitle')}
-                        </Dialog.Title>
-                        <p className="text-sm text-[var(--color-muted-foreground)]">
-                          {t('pwa.install.genericBody')}
-                        </p>
-                      </>
-                    )}
+                    <InstallHelpCopy kind={helpKind} />
                     <div className="flex justify-end">
                       <Dialog.Close asChild>
                         <Button type="button" variant="outline">
@@ -278,5 +262,62 @@ export function PwaInstallProvider({ children }: { children: React.ReactNode }) 
         </Dialog.Portal>
       </Dialog.Root>
     </PwaInstallContext.Provider>
+  )
+}
+function InstallHelpCopy({ kind }: { kind: PwaInstallHelpKind }) {
+  const { t } = useTranslation()
+  const titleClass = 'text-base font-semibold text-[var(--color-foreground)]'
+  const stepsClass = 'list-decimal space-y-2 pl-5 text-sm text-[var(--color-foreground)]'
+  const bodyClass = 'text-sm text-[var(--color-muted-foreground)]'
+
+  if (kind === 'ios') {
+    return (
+      <>
+        <Dialog.Title className={titleClass}>{t('pwa.install.iosTitle')}</Dialog.Title>
+        <ol className={stepsClass}>
+          <li>{t('pwa.install.iosStep1')}</li>
+          <li>{t('pwa.install.iosStep2')}</li>
+          <li>{t('pwa.install.iosStep3')}</li>
+        </ol>
+      </>
+    )
+  }
+  if (kind === 'androidChrome') {
+    return (
+      <>
+        <Dialog.Title className={titleClass}>{t('pwa.install.androidChromeTitle')}</Dialog.Title>
+        <ol className={stepsClass}>
+          <li>{t('pwa.install.androidChromeStep1')}</li>
+          <li>{t('pwa.install.androidChromeStep2')}</li>
+          <li>{t('pwa.install.androidChromeStep3')}</li>
+        </ol>
+      </>
+    )
+  }
+  if (kind === 'androidFirefox') {
+    return (
+      <>
+        <Dialog.Title className={titleClass}>{t('pwa.install.androidFirefoxTitle')}</Dialog.Title>
+        <ol className={stepsClass}>
+          <li>{t('pwa.install.androidFirefoxStep1')}</li>
+          <li>{t('pwa.install.androidFirefoxStep2')}</li>
+          <li>{t('pwa.install.androidFirefoxStep3')}</li>
+        </ol>
+      </>
+    )
+  }
+  if (kind === 'safariMac') {
+    return (
+      <>
+        <Dialog.Title className={titleClass}>{t('pwa.install.safariMacTitle')}</Dialog.Title>
+        <p className={bodyClass}>{t('pwa.install.safariMacBody')}</p>
+      </>
+    )
+  }
+  return (
+    <>
+      <Dialog.Title className={titleClass}>{t('pwa.install.genericTitle')}</Dialog.Title>
+      <p className={bodyClass}>{t('pwa.install.genericBody')}</p>
+    </>
   )
 }
