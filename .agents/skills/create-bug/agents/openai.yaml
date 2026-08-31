@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Bug"
+  short_description: "Create and index an assessed bug document"
+  default_prompt: "Use $create-bug to turn this report into an assessed bug document and index it."
