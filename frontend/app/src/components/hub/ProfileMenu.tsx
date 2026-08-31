@@ -9,6 +9,7 @@ import {
   IconInstall,
   IconLogout,
   IconSettings,
+  IconTutorials,
   IconUsers,
 } from '@/components/icons/profile-menu-icons'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,8 @@ import { usePwaInstall } from '@/pwa/pwa-install-context'
 import { Route as RootRoute } from '@/routes/__root'
 import { cn } from '@/lib/utils'
 
+const TUTORIALS_URL = 'https://www.worshipviewer.com/tutorials'
+
 type ProfileMenuProps = {
   user: User
   /** When true, show a red ring on the avatar and an Offline line at the top of the menu. */
@@ -41,7 +44,7 @@ export function ProfileMenu({ user, offline = false }: ProfileMenuProps) {
   const songEditorNavigationBridge = useSongEditorNavigationBridge()
   const { imageSrc, onImageError, initials } = useUserAvatarDisplay(user)
   const [hoveredRow, setHoveredRow] = useState<
-    'rooms' | 'settings' | 'admin' | 'about' | 'install' | 'logout' | null
+    'rooms' | 'settings' | 'admin' | 'about' | 'tutorials' | 'install' | 'logout' | null
   >(null)
 
   async function leaveSongEditorIfNeeded(): Promise<boolean> {
@@ -146,6 +149,16 @@ export function ProfileMenu({ user, offline = false }: ProfileMenuProps) {
         >
           <IconAbout isHovered={hoveredRow === 'about'} />
           {t('hub.profile.about')}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          asChild
+          onMouseEnter={() => setHoveredRow('tutorials')}
+          onMouseLeave={() => setHoveredRow(null)}
+        >
+          <a href={TUTORIALS_URL} target="_blank" rel="noopener noreferrer">
+            <IconTutorials isHovered={hoveredRow === 'tutorials'} />
+            {t('hub.profile.tutorials')}
+          </a>
         </DropdownMenuItem>
         {canShowInstall ? (
           <DropdownMenuItem
