@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   detectKeyboardShortcutPlatform,
+  isAndroidChrome,
+  isAndroidDevice,
+  isAndroidFirefox,
   isIosOrIpadosDevice,
   isMacDesktopSafari,
   needsSafariPdfPrintHint,
@@ -66,7 +69,62 @@ describe('platform detection', () => {
     })
     expect(isIosOrIpadosDevice()).toBe(false)
     expect(isMacDesktopSafari()).toBe(false)
+    expect(isAndroidChrome()).toBe(false)
     expect(needsSafariPdfPrintHint()).toBe(false)
+    vi.unstubAllGlobals()
+  })
+
+  it('detects Chrome on Android and not Edge or Samsung Internet', () => {
+    vi.stubGlobal('navigator', {
+      userAgent:
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36',
+      platform: 'Linux armv8l',
+      maxTouchPoints: 5,
+    })
+    expect(isAndroidDevice()).toBe(true)
+    expect(isAndroidChrome()).toBe(true)
+    expect(isAndroidFirefox()).toBe(false)
+    vi.unstubAllGlobals()
+
+    vi.stubGlobal('navigator', {
+      userAgent:
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 EdgA/120.0.0.0',
+      platform: 'Linux armv8l',
+      maxTouchPoints: 5,
+    })
+    expect(isAndroidChrome()).toBe(false)
+    vi.unstubAllGlobals()
+
+    vi.stubGlobal('navigator', {
+      userAgent:
+        'Mozilla/5.0 (Linux; Android 14; SAMSUNG SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/23.0 Chrome/110.0.5481.154 Mobile Safari/537.36',
+      platform: 'Linux armv8l',
+      maxTouchPoints: 5,
+    })
+    expect(isAndroidChrome()).toBe(false)
+    vi.unstubAllGlobals()
+  })
+
+  it('detects Firefox on Android and not Chrome on iOS', () => {
+    vi.stubGlobal('navigator', {
+      userAgent: 'Mozilla/5.0 (Android 14; Mobile; rv:123.0) Gecko/123.0 Firefox/123.0',
+      platform: 'Linux armv8l',
+      maxTouchPoints: 5,
+    })
+    expect(isAndroidDevice()).toBe(true)
+    expect(isAndroidFirefox()).toBe(true)
+    expect(isAndroidChrome()).toBe(false)
+    vi.unstubAllGlobals()
+
+    vi.stubGlobal('navigator', {
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.6099.119 Mobile/15E148 Safari/604.1',
+      platform: 'iPhone',
+      maxTouchPoints: 5,
+    })
+    expect(isAndroidDevice()).toBe(false)
+    expect(isAndroidChrome()).toBe(false)
+    expect(isIosOrIpadosDevice()).toBe(true)
     vi.unstubAllGlobals()
   })
 })

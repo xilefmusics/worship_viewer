@@ -67,6 +67,58 @@ export function isMacDesktopSafari(): boolean {
   return true
 }
 
+function getNavigatorUserAgent(): string | null {
+  if (typeof globalThis.navigator === 'undefined') {
+    return null
+  }
+  return globalThis.navigator.userAgent
+}
+
+/** Android phones and tablets, excluding iOS browsers that may mention Android. */
+export function isAndroidDevice(): boolean {
+  if (isIosOrIpadosDevice()) {
+    return false
+  }
+  const ua = getNavigatorUserAgent()
+  if (ua === null) {
+    return false
+  }
+  return /Android/i.test(ua)
+}
+
+/** Firefox (and Focus) on Android — no `beforeinstallprompt`. */
+export function isAndroidFirefox(): boolean {
+  if (!isAndroidDevice()) {
+    return false
+  }
+  const ua = getNavigatorUserAgent()
+  if (ua === null) {
+    return false
+  }
+  return /(?:Firefox|Fennec|Focus)\//.test(ua)
+}
+
+/**
+ * Chrome on Android, not other Chromium browsers (Edge, Samsung Internet, Opera).
+ * Those keep the native prompt or generic help until we write dedicated copy.
+ */
+export function isAndroidChrome(): boolean {
+  if (!isAndroidDevice() || isAndroidFirefox()) {
+    return false
+  }
+  const ua = getNavigatorUserAgent()
+  if (ua === null) {
+    return false
+  }
+  if (!/(?:Chrome|Chromium)\//.test(ua)) {
+    return false
+  }
+  if (/(?:EdgA|Edg|OPR|OPT|SamsungBrowser|Brave)\//.test(ua)) {
+    return false
+  }
+  return true
+}
+
 /** iOS/iPadOS or Safari on Mac — browsers that show print header/footer chrome. */
 export function needsSafariPdfPrintHint(): boolean {
   return isIosOrIpadosDevice() || isMacDesktopSafari()
