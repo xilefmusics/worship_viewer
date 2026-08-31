@@ -99,13 +99,16 @@ type TocItem = Player['toc'][number]
 
 function initialLikedBySongId(player: Player): Record<string, boolean> {
   const liked: Record<string, boolean> = {}
-  for (const row of player.toc) {
-    if (row.id) liked[row.id] = row.liked
-  }
   for (const item of player.items) {
     if (item.type === 'chords') {
       liked[item.song.id] = item.song.user_specific_addons.liked
     }
+  }
+  // The TOC is assembled with the current user's like set. Some player item
+  // payloads still carry a stale/default user-specific addon, so TOC values
+  // must win when both representations contain the same song.
+  for (const row of player.toc) {
+    if (row.id) liked[row.id] = row.liked
   }
   return liked
 }
@@ -225,6 +228,7 @@ const PLAYER_CHROME_EASE = [0.25, 0.1, 0.25, 1] as const
 const VIEWPORT_DOUBLE_TAP_MS = 300
 const VIEWPORT_TAP_MOVE_SLOP_PX = 10
 const VIEWPORT_SWIPE_MIN_PX = 48
+const TOUCH_CLICK_SUPPRESSION_MS = 750
 
 const playerChromeHeaderClass =
   'pointer-events-auto flex shrink-0 items-center gap-2 overflow-hidden border-b border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-2 sm:px-3 sm:py-3'
@@ -281,29 +285,30 @@ export function PlayerBook({
 
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const touchMovedRef = useRef(false)
-  const suppressClickRef = useRef(false)
-  const chromeToggleHandledRef = useRef(false)
+  const suppressClicksUntilRef = useRef(0)
   const lastMiddleViewportTapTimeRef = useRef<number | null>(null)
   const pendingChromeOpenRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [likeBurstKey, setLikeBurstKey] = useState(0)
   const [likeBurstActive, setLikeBurstActive] = useState(false)
+  const [likeBurstLiked, setLikeBurstLiked] = useState(true)
   const tocMultilingualEnabled = useTocMultilingualPreference()
 
   const [viewState, setViewState] = useState<PlayerViewState>(() => readPlayerViewState(type, id))
   const serverLikes = useMemo(() => initialLikedBySongId(player), [player])
+  const likeScope = `${type}:${id}`
   const [likeState, setLikeState] = useState<{
-    player: Player
+    scope: string
     delta: Record<string, boolean>
   }>(() => ({
-    player,
+    scope: likeScope,
     delta: {},
   }))
   const likedBySongId = useMemo(
     () => ({
       ...serverLikes,
-      ...(likeState.player === player ? likeState.delta : {}),
+      ...(likeState.scope === likeScope ? likeState.delta : {}),
     }),
-    [likeState, player, serverLikes],
+    [likeScope, likeState, serverLikes],
   )
 
   useEffect(() => {
@@ -393,8 +398,9 @@ export function PlayerBook({
 
   usePlayerIndexSearchSync(type, id, nav.index, mode)
 
-  const triggerLikeBurst = useCallback(() => {
+  const triggerLikeBurst = useCallback((liked: boolean) => {
     setLikeBurstKey((key) => key + 1)
+    setLikeBurstLiked(liked)
     setLikeBurstActive(true)
   }, [])
 
@@ -404,24 +410,33 @@ export function PlayerBook({
     const previousLiked = likedBySongId[songId] ?? currentItem.song.user_specific_addons.liked
     const nextLiked = !previousLiked
     setLikeState((state) => ({
-      player,
+      scope: likeScope,
       delta: {
-        ...(state.player === player ? state.delta : {}),
+        ...(state.scope === likeScope ? state.delta : {}),
         [songId]: nextLiked,
       },
     }))
-    if (nextLiked) triggerLikeBurst()
-    void setSongLikeStatus(queryClient, { id: songId, liked: nextLiked }).catch(() => {
-      setLikeState((state) => ({
-        player,
-        delta: {
-          ...(state.player === player ? state.delta : {}),
-          [songId]: previousLiked,
-        },
-      }))
-      toast.error(t('player.loadFailed'))
-    })
-  }, [allowLibraryActions, allowNetworkFetch, currentItem, likedBySongId, online, player, queryClient, t, triggerLikeBurst])
+    triggerLikeBurst(nextLiked)
+    void setSongLikeStatus(queryClient, { id: songId, liked: nextLiked })
+      .then(() => {
+        setLikeState((state) => {
+          if (state.scope !== likeScope || state.delta[songId] !== nextLiked) return state
+          const delta = { ...state.delta }
+          delete delta[songId]
+          return { ...state, delta }
+        })
+      })
+      .catch(() => {
+        setLikeState((state) => {
+          if (state.scope !== likeScope || state.delta[songId] !== nextLiked) return state
+          return {
+            ...state,
+            delta: { ...state.delta, [songId]: previousLiked },
+          }
+        })
+        toast.error(t('player.loadFailed'))
+      })
+  }, [allowLibraryActions, allowNetworkFetch, currentItem, likedBySongId, likeScope, online, queryClient, t, triggerLikeBurst])
 
   const cancelPendingChromeOpen = useCallback(() => {
     if (pendingChromeOpenRef.current != null) {
@@ -926,7 +941,7 @@ export function PlayerBook({
 
     if (isSwipe) {
       touchMovedRef.current = false
-      suppressClickRef.current = true
+      suppressClicksUntilRef.current = performance.now() + TOUCH_CLICK_SUPPRESSION_MS
       if (navBlocked || chromeVisible) return
       if (dx > 0) dispatch({ type: 'prev' })
       else dispatch({ type: 'next' })
@@ -935,29 +950,35 @@ export function PlayerBook({
 
     if (touchMovedRef.current) {
       touchMovedRef.current = false
-      suppressClickRef.current = true
+      suppressClicksUntilRef.current = performance.now() + TOUCH_CLICK_SUPPRESSION_MS
       return
     }
 
     const rect = e.currentTarget.getBoundingClientRect()
     if (handleViewportPointer(touch.clientX, e.target, rect)) {
-      chromeToggleHandledRef.current = true
+      suppressClicksUntilRef.current = performance.now() + TOUCH_CLICK_SUPPRESSION_MS
     }
   }
 
   function onMainClick(e: React.MouseEvent<HTMLElement>) {
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false
+    if (performance.now() < suppressClicksUntilRef.current) {
       return
     }
-
-    if (chromeToggleHandledRef.current) {
-      chromeToggleHandledRef.current = false
-      return
-    }
+    suppressClicksUntilRef.current = 0
+    if (e.detail > 1) return
 
     const rect = e.currentTarget.getBoundingClientRect()
     handleViewportPointer(e.clientX, e.target, rect)
+  }
+
+  function onMainDoubleClick(e: React.MouseEvent<HTMLElement>) {
+    if (isInteractiveTarget(e.target)) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    if (viewportPointerZone(e.clientX, rect) !== 'middle') return
+    e.preventDefault()
+    cancelPendingChromeOpen()
+    lastMiddleViewportTapTimeRef.current = performance.now()
+    toggleCurrentSongLike()
   }
 
   if (itemsLen === 0 || !currentItem) {
@@ -1160,6 +1181,7 @@ export function PlayerBook({
             }}
             transition={chromeTransition}
             onClick={onMainClick}
+            onDoubleClick={onMainDoubleClick}
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
@@ -1168,6 +1190,7 @@ export function PlayerBook({
             {likeBurstActive ? (
               <PlayerLikeHeartBurst
                 key={likeBurstKey}
+                liked={likeBurstLiked}
                 onFinished={() => setLikeBurstActive(false)}
               />
             ) : null}

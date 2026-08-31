@@ -4,10 +4,11 @@ import { useEffect } from 'react'
 const INSTAGRAM_HEART = '#ed4956'
 
 type PlayerLikeHeartBurstProps = {
+  liked: boolean
   onFinished?: () => void
 }
 
-export function PlayerLikeHeartBurst({ onFinished }: PlayerLikeHeartBurstProps) {
+export function PlayerLikeHeartBurst({ liked, onFinished }: PlayerLikeHeartBurstProps) {
   const reduceMotion = useReducedMotion()
 
   useEffect(() => {
@@ -19,6 +20,7 @@ export function PlayerLikeHeartBurst({ onFinished }: PlayerLikeHeartBurstProps) 
   return (
     <div
       className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
+      data-like-feedback={liked ? 'like' : 'unlike'}
       aria-hidden
     >
       <motion.svg
@@ -26,12 +28,19 @@ export function PlayerLikeHeartBurst({ onFinished }: PlayerLikeHeartBurstProps) 
         height={96}
         viewBox="0 0 24 24"
         className="drop-shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: [0, 1.28, 1], opacity: [0, 1, 0] }}
+        initial={liked ? { scale: 0, opacity: 0 } : { scale: 1, opacity: 1 }}
+        animate={
+          liked
+            ? {
+                scale: [0, 0.58, 1.38, 1.2, 1.2],
+                opacity: [0, 0.7, 1, 1, 0],
+              }
+            : { scale: [1, 0.72, 0], opacity: [1, 0.7, 0] }
+        }
         transition={{
-          duration: 0.9,
-          times: [0, 0.22, 1],
-          ease: [0.175, 0.885, 0.32, 1.275],
+          duration: liked ? 1 : 0.75,
+          times: liked ? [0, 0.1, 0.32, 0.48, 1] : [0, 0.35, 1],
+          ease: liked ? [0.175, 0.885, 0.32, 1.275] : [0.4, 0, 1, 1],
         }}
         onAnimationComplete={onFinished}
       >

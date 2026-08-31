@@ -28,6 +28,7 @@ All notable changes to Worship Viewer are documented here. The format follows [K
 ### Fixed
 
 - Dark and light AV lyrics remain visible over checkerboard slide-selector previews.
+- Unliked songs disappear immediately from the sheet player's Liked table of contents and show inverse heart feedback.
 
 ## Release process
 
