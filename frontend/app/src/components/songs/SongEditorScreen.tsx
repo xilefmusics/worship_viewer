@@ -34,7 +34,7 @@ import { getChordEngine } from '@/lib/chord-engine'
 import { MUSICAL_KEYS } from '@/lib/setlist-editor-constants'
 import { songDetailQueryKey } from '@/lib/setlist-detail-key'
 import {
-  applyKeyChangeToSource,
+  applyKeyChangeToSongData,
   applyMetadataStripToSource,
   formatSourceFromSongData,
   createSongLanguageEntry,
@@ -439,20 +439,21 @@ export function SongEditorScreen({ songId }: { songId: string }) {
       if (!engine || sourceBlocked) return
       const base = composeSongDataRef.current ?? (parseResult?.ok ? parseResult.data : null)
       if (!base) return
-      const nextSource = applyKeyChangeToSource(
-        engine,
+      const changed = applyKeyChangeToSongData(
         base,
         strip,
         mode,
         previousKey,
-        chordFormat,
       )
-      setSourceText(nextSource)
-      const reparsed = parseSourceWithEngine(engine, nextSource)
-      if (reparsed.ok) {
-        setMetadataStrip(metadataStripFromSongData(reparsed.data))
-        setParseError(null)
-      }
+      composeSongDataRef.current = changed
+      skipComposeResyncRef.current = true
+      setComposeSections(
+        composeSectionsFromSongData(changed, engine, strip.key || null, chordFormat),
+      )
+      setComposeDraftRevision((revision) => revision + 1)
+      setSourceText(formatSourceFromSongData(engine, changed, chordFormat))
+      setMetadataStrip(metadataStripFromSongData(changed))
+      setParseError(null)
     },
     [chordFormat, engine, parseResult, sourceBlocked],
   )

@@ -412,6 +412,17 @@ export function applyKeyChangeToSource(
   previousKey: string,
   chordFormat: ChordFormatPreference = 'letters',
 ): string {
+  const changed = applyKeyChangeToSongData(parsed, strip, mode, previousKey)
+  return engine.formatChordPro(changed, songEditorFormatOptions(chordFormat, changed))
+}
+
+/** Apply a key change to canonical song data so the chosen chord behavior survives saving. */
+export function applyKeyChangeToSongData(
+  parsed: ChordSongData,
+  strip: SongMetadataStrip,
+  mode: KeyChangeChordMode,
+  previousKey: string,
+): ChordSongData {
   let merged = mergeSongDataWithMetadataStrip(parsed, strip)
 
   if (
@@ -422,7 +433,7 @@ export function applyKeyChangeToSource(
     merged = remapSongChordLevelsForAbsolutePitch(merged, previousKey.trim(), strip.key.trim())
   }
 
-  return engine.formatChordPro(merged, songEditorFormatOptions(chordFormat, merged))
+  return merged
 }
 
 export function applyMetadataStripToSource(

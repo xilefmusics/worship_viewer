@@ -13,6 +13,7 @@ import { ChordEngineError } from '@/ports/chord-engine'
 
 import {
   applyKeyChangeToSource,
+  applyKeyChangeToSongData,
   beatsPerMeasureFromTimeSignature,
   createSongLanguageEntry,
   metadataStripFromSongData,
@@ -393,6 +394,20 @@ describe('applyKeyChangeToSource', () => {
 
     applyKeyChangeToSource(engine, songInC, stripD, 'keep', 'C')
     expect(formatted?.sections?.[0]?.lines?.[0]?.parts?.[0]?.chord?.main?.level).toBe(5)
+  })
+
+  it.each([
+    ['transpose', 7],
+    ['keep', 5],
+  ] as const)('returns canonical %s data for autosave', (mode, expectedLevel) => {
+    const changed = applyKeyChangeToSongData(songInC, stripD, mode, 'C') as SongWire
+
+    expect(changed.key).toEqual({ level: 5 })
+    expect(changed.sections?.[0]?.lines?.[0]?.parts?.[0]?.chord?.main?.level).toBe(
+      expectedLevel,
+    )
+    expect(patchSongDataFromParsed(changed, metadataStripFromSongData(changed)).sections)
+      .toEqual(changed.sections)
   })
 })
 
