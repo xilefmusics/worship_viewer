@@ -1,0 +1,240 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { components } from '@/api/schema'
+import { PlayerBook } from '@/components/player/PlayerBook'
+
+const mocks = vi.hoisted(() => ({
+  setSongLikeStatus: vi.fn(),
+  toastError: vi.fn(),
+}))
+
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children }: { children: React.ReactNode }) => <a href="/">{children}</a>,
+  useNavigate: () => vi.fn(),
+}))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}))
+
+vi.mock('sonner', () => ({
+  toast: { error: mocks.toastError, info: vi.fn() },
+}))
+
+vi.mock('@/api/songs-like', () => ({
+  setSongLikeStatus: mocks.setSongLikeStatus,
+}))
+
+vi.mock('@/components/player/BlobSlide', () => ({ BlobSlide: () => null }))
+vi.mock('@/components/player/ChordsSlide', () => ({ ChordsSlide: () => <div>song</div> }))
+vi.mock('@/components/player/ChordsThreeColumnSlide', () => ({
+  ChordsThreeColumnSlide: () => <div>song</div>,
+}))
+vi.mock('@/components/player/PlayerBookSpread', () => ({
+  PlayerBookSpread: ({ left }: { left: React.ReactNode }) => <>{left}</>,
+}))
+vi.mock('@/components/player/PlayerEditMenu', () => ({ PlayerEditMenu: () => null }))
+vi.mock('@/components/player/PlayerLikeHeartBurst', () => ({
+  PlayerLikeHeartBurst: ({ liked }: { liked: boolean }) => (
+    <div data-testid="like-feedback" data-liked={liked} />
+  ),
+}))
+vi.mock('@/components/player-room/StartPlayerRoomButton', () => ({
+  StartPlayerRoomButton: () => null,
+}))
+vi.mock('@/components/player/PlayerTocSidebar', () => ({
+  PlayerTocSidebar: ({ toc }: { toc: components['schemas']['TocItem'][] }) => (
+    <div data-testid="liked-toc">
+      {toc
+        .filter((row) => row.liked)
+        .map((row) => <div key={`${row.idx}:${row.title}`}>{row.title}</div>)}
+    </div>
+  ),
+}))
+
+vi.mock('@/hooks/useChordFormatPreference', () => ({
+  useChordFormatPreference: () => 'letters',
+}))
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsPhoneWidth: () => false,
+  useMediaQuery: () => false,
+}))
+vi.mock('@/hooks/use-online', () => ({ useOnline: () => true }))
+vi.mock('@/hooks/usePlayerIndexSearchSync', () => ({
+  usePlayerIndexSearchSync: () => undefined,
+}))
+vi.mock('@/hooks/usePlayerScrollPreference', () => ({
+  usePlayerLayoutPreference: () => ({
+    linkedOrientations: true,
+    portrait: {
+      mode: 'page',
+      pageCount: 1,
+      columnCount: 1,
+      nextSongPreview: false,
+      overflowStyle: 'scroll',
+      expandSections: false,
+    },
+    landscape: {
+      mode: 'page',
+      pageCount: 1,
+      columnCount: 1,
+      nextSongPreview: false,
+      overflowStyle: 'scroll',
+      expandSections: false,
+    },
+  }),
+}))
+vi.mock('@/hooks/useSetlistEvictionWatch', () => ({
+  useSetlistEvictionWatch: () => false,
+}))
+vi.mock('@/hooks/useTocMultilingualPreference', () => ({
+  useTocMultilingualPreference: () => false,
+}))
+vi.mock('@/lib/chord-engine', () => ({
+  getChordEngine: async () => ({ renderA4Html: vi.fn(), renderA4SectionHtmls: vi.fn() }),
+}))
+vi.mock('@/lib/player/apply-song-flow', () => ({
+  useResolvedSongWithFlow: (song: components['schemas']['Song']) => song,
+}))
+
+type Player = components['schemas']['Player']
+type Song = components['schemas']['Song']
+
+function song(id: string, liked: boolean): Song {
+  return {
+    id,
+    blobs: [],
+    not_a_song: false,
+    owner: 'team-1',
+    user_specific_addons: { liked },
+    data: { titles: [id], sections: [] },
+  } as Song
+}
+
+function player(): Player {
+  return {
+    index: 0,
+    between_items: false,
+    orientation: 'portrait',
+    scroll_type: 'one_page',
+    scroll_type_cache_other_orientation: 'book',
+    toc: [
+      { idx: 0, nr: '1', title: 'Current', id: 'song-1', liked: true },
+      { idx: 1, nr: '2', title: 'Current duplicate', id: 'song-1', liked: true },
+      { idx: 2, nr: '3', title: 'Other', id: 'song-2', liked: true },
+    ],
+    items: [
+      { type: 'chords', song: song('song-1', false), language: null, flow: null },
+      { type: 'chords', song: song('song-1', false), language: null, flow: null },
+      { type: 'chords', song: song('song-2', false), language: null, flow: null },
+    ],
+  }
+}
+
+function renderPlayer(value: Player) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <PlayerBook
+        type="setlist"
+        id="setlist-1"
+        player={value}
+        allowNetworkFetch
+        roomSidebar={<div>room</div>}
+      />
+    </QueryClientProvider>,
+  )
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
+
+describe('PlayerBook likes', () => {
+  it('unlikes exactly once for a native mouse double-click', async () => {
+    mocks.setSongLikeStatus.mockImplementation(() => new Promise<void>(() => undefined))
+    renderPlayer(player())
+    const main = screen.getByRole('main')
+    vi.spyOn(main, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: -50, width: 100, height: 100 }),
+    )
+
+    await userEvent.dblClick(main)
+
+    expect(mocks.setSongLikeStatus).toHaveBeenCalledTimes(1)
+    expect(mocks.setSongLikeStatus).toHaveBeenCalledWith(expect.anything(), {
+      id: 'song-1',
+      liked: false,
+    })
+    expect(screen.getByTestId('like-feedback')).toHaveAttribute('data-liked', 'false')
+  })
+
+  it('ignores both delayed synthetic clicks after a touch double-tap unlike', () => {
+    mocks.setSongLikeStatus.mockImplementation(() => new Promise<void>(() => undefined))
+    renderPlayer(player())
+    const main = screen.getByRole('main')
+    const touch = { clientX: 50, clientY: 50 }
+
+    fireEvent.touchStart(main, { touches: [touch] })
+    fireEvent.touchEnd(main, { changedTouches: [touch] })
+    fireEvent.touchStart(main, { touches: [touch] })
+    fireEvent.touchEnd(main, { changedTouches: [touch] })
+    fireEvent.click(main, { clientX: 50, clientY: 50 })
+    fireEvent.click(main, { clientX: 50, clientY: 50 })
+
+    expect(mocks.setSongLikeStatus).toHaveBeenCalledTimes(1)
+    expect(mocks.setSongLikeStatus).toHaveBeenCalledWith(expect.anything(), {
+      id: 'song-1',
+      liked: false,
+    })
+  })
+
+  it('keeps every duplicate row removed across a fresh player object while unlike is pending', async () => {
+    mocks.setSongLikeStatus.mockImplementation(() => new Promise<void>(() => undefined))
+    const original = player()
+    const view = renderPlayer(original)
+
+    fireEvent.keyDown(window, { key: 'l' })
+
+    const likedToc = within(screen.getByTestId('liked-toc'))
+    expect(likedToc.queryByText('Current')).not.toBeInTheDocument()
+    expect(likedToc.queryByText('Current duplicate')).not.toBeInTheDocument()
+    expect(likedToc.getByText('Other')).toBeInTheDocument()
+
+    view.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <PlayerBook
+          type="setlist"
+          id="setlist-1"
+          player={structuredClone(original)}
+          allowNetworkFetch
+          roomSidebar={<div>room</div>}
+        />
+      </QueryClientProvider>,
+    )
+
+    expect(likedToc.queryByText('Current')).not.toBeInTheDocument()
+    expect(likedToc.queryByText('Current duplicate')).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(mocks.setSongLikeStatus).toHaveBeenCalledWith(expect.anything(), {
+        id: 'song-1',
+        liked: false,
+      }),
+    )
+  })
+
+  it('restores every duplicate row when the unlike request fails', async () => {
+    mocks.setSongLikeStatus.mockRejectedValue(new Error('failed'))
+    renderPlayer(player())
+
+    fireEvent.keyDown(window, { key: 'l' })
+
+    const likedToc = within(screen.getByTestId('liked-toc'))
+    await waitFor(() => expect(likedToc.getByText('Current')).toBeInTheDocument())
+    expect(likedToc.getByText('Current duplicate')).toBeInTheDocument()
+    expect(mocks.toastError).toHaveBeenCalledWith('player.loadFailed')
+  })
+})
