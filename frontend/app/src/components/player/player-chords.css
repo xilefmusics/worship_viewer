@@ -1,3 +1,7 @@
+.player-chord-song-surface {
+  touch-action: pan-x pan-y;
+}
+
 .player-chords-viewport--ready {
   align-items: center;
   justify-content: center;

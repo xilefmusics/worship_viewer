@@ -20,6 +20,7 @@ import { SettingsIcon } from '@/components/icons/lucide-animated/settings-icon'
 import { Button } from '@/components/ui/button'
 import { PopoverContent, PopoverRoot, PopoverTrigger } from '@/components/ui/popover'
 import { useChordFormatPreference } from '@/hooks/useChordFormatPreference'
+import { useChordSongFontScale } from '@/hooks/useChordSongFontScale'
 import { useIsPhoneWidth, useMediaQuery } from '@/hooks/useMediaQuery'
 import { usePlayerLayoutPreference } from '@/hooks/usePlayerScrollPreference'
 import { useOnline } from '@/hooks/use-online'
@@ -84,6 +85,7 @@ import type { PlayerEntityType } from '@/lib/player-route'
 import { buildSongEditorReturnSearch } from '@/lib/player/player-editor-return'
 import { resolveSongLanguageIndex, songLanguageOptions } from '@/lib/player/song-language'
 import { buildSettingsSearch } from '@/lib/settings-route'
+import { writeChordSongFontScale } from '@/lib/player/chord-song-font-scale-preference'
 import { MUSICAL_KEYS } from '@/lib/setlist-editor-constants'
 import { languageIndexForSongLink, resolveSongDataKey } from '@/lib/setlist-song-links'
 import { cn } from '@/lib/utils'
@@ -158,6 +160,17 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
   )
 }
 
+function isChordSurfaceTarget(target: EventTarget | null): boolean {
+  return Boolean(target instanceof Element && target.closest('[data-player-chord-surface]'))
+}
+
+function touchDistance(touches: React.TouchList): number | null {
+  const first = touches[0]
+  const second = touches[1]
+  if (!first || !second) return null
+  return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY)
+}
+
 type ResolvedBookChordsProps = {
   song: Song
   flow: SongFlowItem[] | null | undefined
@@ -173,6 +186,7 @@ type ResolvedBookChordsProps = {
   freeColumnCount: 1 | 2 | 3 | null
   overflowStyle?: PlayerOverflowStyle
   expandSections?: boolean
+  fontScale?: number
 }
 
 export function ResolvedBookChords({
@@ -190,6 +204,7 @@ export function ResolvedBookChords({
   freeColumnCount,
   overflowStyle,
   expandSections,
+  fontScale = 1,
 }: ResolvedBookChordsProps) {
   const resolvedSong = useResolvedSongWithFlow(song, flow)
   const resolvedNextSong = useResolvedSongWithFlow(nextSong ?? song, nextFlow)
@@ -208,6 +223,7 @@ export function ResolvedBookChords({
         overflowStyle={overflowStyle}
         expandSections={expandSections}
         fillParent={fillParent}
+        fontScale={fontScale}
       />
     )
   }
@@ -220,6 +236,8 @@ export function ResolvedBookChords({
       chordFormat={chordFormat}
       orientation={sheetOrientation}
       fillParent={fillParent}
+      fontScale={fontScale}
+      overflowStyle={overflowStyle}
     />
   )
 }
@@ -271,6 +289,7 @@ export function PlayerBook({
   const queryClient = useQueryClient()
   const online = useOnline()
   const chordFormat = useChordFormatPreference()
+  const chordSongFontScale = useChordSongFontScale()
   const layoutPreferences = usePlayerLayoutPreference()
   const isPhoneViewport = useIsPhoneWidth()
   const isLandscapeViewport = useMediaQuery('(orientation: landscape)')
@@ -284,6 +303,7 @@ export function PlayerBook({
   const [chromeVisible, setChromeVisible] = useState(() => roomSidebar != null)
 
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+  const pinchStartRef = useRef<{ distance: number; fontScale: number } | null>(null)
   const touchMovedRef = useRef(false)
   const suppressClicksUntilRef = useRef(0)
   const lastMiddleViewportTapTimeRef = useRef<number | null>(null)
@@ -835,11 +855,27 @@ export function PlayerBook({
         freeColumnCount={freeColumnCount}
         overflowStyle={layoutPreference.overflowStyle}
         expandSections={layoutPreference.expandSections}
+        fontScale={chordSongFontScale}
       />
     )
   }
 
   function onTouchStart(e: React.TouchEvent) {
+    if (e.touches.length >= 2) {
+      touchStartRef.current = null
+      touchMovedRef.current = true
+      cancelPendingChromeOpen()
+      if (!isChordSurfaceTarget(e.target)) {
+        pinchStartRef.current = null
+        return
+      }
+      const distance = touchDistance(e.touches)
+      if (distance == null || distance <= 0) return
+      e.preventDefault()
+      pinchStartRef.current = { distance, fontScale: chordSongFontScale }
+      return
+    }
+
     const touch = e.touches[0]
     if (!touch) return
     touchStartRef.current = { x: touch.clientX, y: touch.clientY }
@@ -847,6 +883,15 @@ export function PlayerBook({
   }
 
   function onTouchMove(e: React.TouchEvent) {
+    const pinchStart = pinchStartRef.current
+    if (pinchStart) {
+      const distance = touchDistance(e.touches)
+      if (distance == null) return
+      e.preventDefault()
+      writeChordSongFontScale(pinchStart.fontScale * (distance / pinchStart.distance))
+      return
+    }
+
     const start = touchStartRef.current
     const touch = e.touches[0]
     if (!start || !touch || touchMovedRef.current) return
@@ -863,6 +908,7 @@ export function PlayerBook({
 
   function onTouchCancel() {
     touchStartRef.current = null
+    pinchStartRef.current = null
     touchMovedRef.current = false
   }
 
@@ -929,6 +975,15 @@ export function PlayerBook({
   )
 
   function onTouchEnd(e: React.TouchEvent) {
+    if (pinchStartRef.current) {
+      pinchStartRef.current = null
+      touchStartRef.current = null
+      touchMovedRef.current = false
+      suppressClicksUntilRef.current = performance.now() + TOUCH_CLICK_SUPPRESSION_MS
+      e.preventDefault()
+      return
+    }
+
     const start = touchStartRef.current
     touchStartRef.current = null
     const touch = e.changedTouches[0]

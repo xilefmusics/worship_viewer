@@ -15,6 +15,7 @@ import {
   fontScaleForMultiColumnPlayer,
   MULTI_COLUMN_PLAYER_FONT_SCALE_FACTOR,
   scaledColumnTypography,
+  scaledPlayerPageTypography,
   viewportScaleForA4,
 } from '@/lib/chord-a4-scale'
 
@@ -121,5 +122,16 @@ describe('column typography scaling', () => {
       fontSizePx: A4_COLUMN_FONT_SIZE_PX * MULTI_COLUMN_PLAYER_FONT_SCALE_FACTOR,
       lineHeightPx: A4_COLUMN_LINE_HEIGHT_PX * MULTI_COLUMN_PLAYER_FONT_SCALE_FACTOR,
     })
+  })
+
+  it('multiplies free-layout typography by the device font scale', () => {
+    expect(scaledColumnTypography(0.5, 2)).toEqual({
+      fontSizePx: A4_COLUMN_FONT_SIZE_PX,
+      lineHeightPx: A4_COLUMN_LINE_HEIGHT_PX,
+    })
+  })
+
+  it('multiplies page typography independently of viewport fit', () => {
+    expect(scaledPlayerPageTypography(A4_COLUMN_FONT_SIZE_PX, 2)).toBe(26)
   })
 })

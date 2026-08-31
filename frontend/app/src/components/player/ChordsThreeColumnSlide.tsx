@@ -1,5 +1,5 @@
 import type { components } from '@/api/schema'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -60,6 +60,7 @@ type ChordsThreeColumnSlideProps = {
   overflowStyle?: PlayerOverflowStyle
   expandSections?: boolean
   fillParent?: boolean
+  fontScale?: number
 }
 
 const COLUMN_GAP_PX = 24 // 1.5rem — keep in sync with player-chords-three-column.css
@@ -299,6 +300,7 @@ export function ChordsThreeColumnSlide({
   overflowStyle = 'scroll',
   expandSections = false,
   fillParent = false,
+  fontScale = 1,
 }: ChordsThreeColumnSlideProps) {
   const { t } = useTranslation()
   const hideChords = useHideChordsPreference()
@@ -383,7 +385,7 @@ export function ChordsThreeColumnSlide({
 
   const layoutKey =
     renderState.status === 'ready' && renderState.sections.length > 0
-      ? `${columnCount}:${renderState.sections.length}`
+      ? `${columnCount}:${renderState.sections.length}:${fontScale}`
       : null
   const columnLayout =
     layoutKey && columnLayoutCache?.key === layoutKey ? columnLayoutCache.layout : null
@@ -423,7 +425,7 @@ export function ChordsThreeColumnSlide({
       const scale = fontScaleForMultiColumnPlayer(columnWidth)
       if (scale == null) return
 
-      const typography = scaledColumnTypography(scale)
+      const typography = scaledColumnTypography(scale, fontScale)
       setColumnLayoutCache((prev) => {
         if (
           prev?.key === layoutKey &&
@@ -449,7 +451,7 @@ export function ChordsThreeColumnSlide({
     const cleanups = [observeElementResize(columnAreaEl, updateLayout)]
     if (viewportRef.current) cleanups.push(observeElementResize(viewportRef.current, updateLayout))
     return () => cleanups.forEach((cleanup) => cleanup())
-  }, [layoutKey, columnCount, renderState.status, columnSections?.length, overflowStyle])
+  }, [layoutKey, columnCount, renderState.status, columnSections?.length, overflowStyle, fontScale])
 
   useLayoutEffect(() => {
     if (!packingContextKey || !columnLayout || !columnSections) return
@@ -554,13 +556,15 @@ export function ChordsThreeColumnSlide({
 
   return (
     <div
+      data-player-chord-surface
       className={cn(
-        'player-chords-three-column',
+        'player-chord-song-surface player-chords-three-column',
         overflowStyle === 'scroll' && 'player-chords-three-column--scroll',
         overflowStyle === 'scroll' && layoutReady && !needsVerticalScroll && 'player-chords-three-column--fits',
         'h-full min-h-0 w-full',
         fillParent && 'flex-1',
       )}
+      style={{ '--player-chord-song-font-scale': fontScale } as CSSProperties}
     >
       {renderState.status === 'loading' ? (
         <p className="py-12 text-center text-sm text-[var(--color-muted-foreground)]">{t('common.load')}</p>

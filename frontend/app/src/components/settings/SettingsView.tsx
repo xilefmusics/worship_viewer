@@ -55,6 +55,12 @@ import {
   type AvVerticalAlign,
 } from '@/lib/player/av-preferences'
 import { readPlayerDefaultMode, writePlayerDefaultMode } from '@/lib/player/player-mode-preference'
+import {
+  CHORD_SONG_FONT_SCALE_MAX,
+  CHORD_SONG_FONT_SCALE_MIN,
+  readChordSongFontScale,
+  writeChordSongFontScale,
+} from '@/lib/player/chord-song-font-scale-preference'
 import type { PlayerMode } from '@/lib/player/player-mode'
 import {
   readSheetBackgroundPreference,
@@ -383,6 +389,7 @@ export function SettingsView({
   const [appearancePreference, setAppearancePreference] = useState(readAppearancePreference)
   const [chordFormatPreference, setChordFormatPreference] = useState(readChordFormatPreference)
   const [hideChords, setHideChordsState] = useState(readHideChordsPreference)
+  const [chordSongFontScale, setChordSongFontScaleState] = useState(readChordSongFontScale)
   const [tocMultilingual, setTocMultilingualState] = useState(readTocMultilingualPreference)
   const [avBilingual, setAvBilingualState] = useState(readAvBilingualPreference)
   const [sheetBackgroundPreference, setSheetBackgroundPreference] = useState(readSheetBackgroundPreference)
@@ -626,6 +633,10 @@ export function SettingsView({
   function setHideChords(enabled: boolean) {
     setHideChordsState(enabled)
     writeHideChordsPreference(enabled)
+  }
+
+  function setChordSongFontScale(value: number) {
+    setChordSongFontScaleState(writeChordSongFontScale(value))
   }
 
   function setTocMultilingual(enabled: boolean) {
@@ -921,6 +932,42 @@ export function SettingsView({
             value={chordFormatPreference}
             onChange={setChordFormat}
           />
+
+          <Card>
+            <CardHeader className="p-4 pb-3">
+              <CardTitle className="text-base">
+                {t('settings.chordSongFontScale.title')}
+              </CardTitle>
+              <CardDescription>{t('settings.chordSongFontScale.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <label className="flex flex-col gap-2 text-sm">
+                <span className="flex items-center justify-between gap-3">
+                  <span>{t('settings.chordSongFontScale.label')}</span>
+                  <output className="tabular-nums text-[var(--color-muted-foreground)]">
+                    {chordSongFontScale}×
+                  </output>
+                </span>
+                <input
+                  type="range"
+                  min={CHORD_SONG_FONT_SCALE_MIN}
+                  max={CHORD_SONG_FONT_SCALE_MAX}
+                  step={0.05}
+                  value={chordSongFontScale}
+                  aria-label={t('settings.chordSongFontScale.label')}
+                  onChange={(event) => setChordSongFontScale(Number(event.target.value))}
+                  className="w-full accent-[var(--color-primary)]"
+                />
+                <span
+                  className="flex justify-between text-xs text-[var(--color-muted-foreground)]"
+                  aria-hidden
+                >
+                  <span>{CHORD_SONG_FONT_SCALE_MIN}×</span>
+                  <span>{CHORD_SONG_FONT_SCALE_MAX}×</span>
+                </span>
+              </label>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardContent className="p-4">
