@@ -19,14 +19,14 @@
 
 .player-chords-three-column__title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: calc(1.25rem * var(--player-chord-song-font-scale, 1));
   font-weight: 600;
   line-height: 1.3;
 }
 
 .player-chords-three-column__subtitle {
   margin: 0.125rem 0 0;
-  font-size: 0.8125rem;
+  font-size: calc(0.8125rem * var(--player-chord-song-font-scale, 1));
   color: var(--color-muted-foreground);
 }
 
@@ -38,7 +38,7 @@
   align-items: flex-end;
   gap: 0.125rem;
   text-align: right;
-  font-size: 0.8125rem;
+  font-size: calc(0.8125rem * var(--player-chord-song-font-scale, 1));
   color: var(--color-muted-foreground);
 }
 

@@ -585,6 +585,11 @@
       "nashville": "Nashville",
       "nashvilleDescription": "Zeigt Nashville-Ziffern wie 1, 4 und 6m."
     },
+    "chordSongFontScale": {
+      "title": "Schriftgröße für Akkordlieder",
+      "description": "Skaliert die Schrift von Akkordliedern im normalen Player auf diesem Gerät.",
+      "label": "Schriftskalierung"
+    },
     "tocMultilingual": {
       "label": "Mehrsprachige Liedtitel im Inhaltsverzeichnis erweitern",
       "description": "Zeigt im Inhaltsverzeichnis bei aktivem Sprachfilter den passenden übersetzten Titel. Die Erweiterung für A–Z und Favoriten folgt später."

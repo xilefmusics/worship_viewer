@@ -59,14 +59,19 @@ export function cappedColumnFontScale(
   return Math.min(widthScale, a4Cap)
 }
 
-export function scaledColumnTypography(scale: number): {
+export function scaledColumnTypography(scale: number, userFontScale = 1): {
   fontSizePx: number
   lineHeightPx: number
 } {
   return {
-    fontSizePx: A4_COLUMN_FONT_SIZE_PX * scale,
-    lineHeightPx: A4_COLUMN_LINE_HEIGHT_PX * scale,
+    fontSizePx: A4_COLUMN_FONT_SIZE_PX * scale * userFontScale,
+    lineHeightPx: A4_COLUMN_LINE_HEIGHT_PX * scale * userFontScale,
   }
+}
+
+/** Multiply a page-layout font size without changing the A4 viewport-fit transform. */
+export function scaledPlayerPageTypography(fontSizePx: number, userFontScale: number): number {
+  return fontSizePx * userFontScale
 }
 
 /** Scale chordlib A4 HTML to fit a viewport; uses the tighter of height and width when both are known. */

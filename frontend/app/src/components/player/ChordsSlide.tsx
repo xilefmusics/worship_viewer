@@ -7,10 +7,15 @@ import { useHideChordsPreference } from '@/hooks/useHideChordsPreference'
 import { observeElementResize } from '@/lib/browser-apis'
 import { scopeChordlibPageCss } from '@/lib/chord-page-css'
 import { getChordEngine } from '@/lib/chord-engine'
-import { cssScaleToFitViewport } from '@/lib/chord-a4-scale'
+import {
+  A4_REFERENCE_HEIGHT_PX,
+  cssScaleToFitViewport,
+  scaledPlayerPageTypography,
+} from '@/lib/chord-a4-scale'
 import { chordFormatToRepresentation, type ChordFormatPreference } from '@/lib/chord-format'
 import { stripChordsFromChordlibHtml } from '@/lib/strip-chords-from-html'
 import type { ChordSongData } from '@/ports/chord-engine'
+import type { PlayerOverflowStyle } from '@/lib/player/effective-scroll-type'
 import { cn } from '@/lib/utils'
 
 import './player-chords.css'
@@ -31,6 +36,8 @@ type ChordsSlideProps = {
   orientation: Orientation
   /** Fill a fixed-size book spread slot instead of growing with content. */
   fillParent?: boolean
+  fontScale?: number
+  overflowStyle?: PlayerOverflowStyle
 }
 
 export function ChordsSlide({
@@ -40,6 +47,8 @@ export function ChordsSlide({
   chordFormat,
   orientation,
   fillParent = false,
+  fontScale = 1,
+  overflowStyle = 'scroll',
 }: ChordsSlideProps) {
   const { t } = useTranslation()
   const hideChords = useHideChordsPreference()
@@ -76,10 +85,37 @@ export function ChordsSlide({
         viewportSize.width,
         viewportSize.height,
         contentSize.width,
-        contentSize.height,
+        Math.min(contentSize.height, A4_REFERENCE_HEIGHT_PX),
       ),
     [contentSize.height, contentSize.width, viewportSize.height, viewportSize.width],
   )
+
+  const fontScaleCss = useMemo(() => {
+    const titleFontSize = scaledPlayerPageTypography(26, fontScale)
+    const bodyFontSize = scaledPlayerPageTypography(13, fontScale)
+    const bodyLineHeight = scaledPlayerPageTypography(17, fontScale)
+    return `
+.player-chords-page .title { font-size: ${titleFontSize}px; }
+.player-chords-page .subtitle,
+.player-chords-page .meta,
+.player-chords-page .copyright { font-size: ${bodyFontSize}px; }
+.player-chords-page .columns {
+  font-size: ${bodyFontSize}px;
+  line-height: ${bodyLineHeight}px;
+}
+${
+  overflowStyle === 'scroll' && fontScale > 1
+    ? `.player-chords-page .page {
+  height: auto;
+  min-height: ${A4_REFERENCE_HEIGHT_PX}px;
+  overflow: visible;
+}
+.player-chords-page .columns {
+  height: auto;
+}`
+    : ''
+}`
+  }, [fontScale, overflowStyle])
 
   useEffect(() => {
     const el = viewportRef.current
@@ -127,8 +163,13 @@ export function ChordsSlide({
     if (!el) return
 
     const measure = () => {
-      const width = el.scrollWidth
-      const height = el.scrollHeight
+      const page = el.firstElementChild as HTMLElement | null
+      const width = page?.offsetWidth ?? el.scrollWidth
+      const height = page
+        ? overflowStyle === 'scroll'
+          ? page.scrollHeight
+          : page.offsetHeight
+        : el.scrollHeight
       if (width > 0 && height > 0) {
         setContentSizeCache({ key: renderKey, size: { width, height } })
       }
@@ -136,7 +177,7 @@ export function ChordsSlide({
 
     measure()
     return observeElementResize(el, measure)
-  }, [renderKey, renderState])
+  }, [fontScale, overflowStyle, renderKey, renderState])
 
   const scaledReady = renderState.status === 'ready' && cssScale != null
   const measuring = renderState.status === 'ready' && cssScale == null
@@ -148,9 +189,11 @@ export function ChordsSlide({
   return (
     <div
       ref={viewportRef}
+      data-player-chord-surface
       className={cn(
-        'player-chords-viewport flex min-h-0 flex-1 flex-col',
-        fillParent ? 'h-full w-full overflow-hidden' : 'overflow-auto',
+        'player-chord-song-surface player-chords-viewport flex min-h-0 flex-1 flex-col',
+        fillParent && 'h-full w-full',
+        overflowStyle === 'scroll' ? 'overflow-auto' : 'overflow-hidden',
         scaledReady && 'player-chords-viewport--ready',
         orientation === 'landscape' && 'player-chords-viewport--landscape',
       )}
@@ -173,7 +216,11 @@ export function ChordsSlide({
 
       {renderState.status === 'ready' ? (
         <>
-          <style dangerouslySetInnerHTML={{ __html: scopeChordlibPageCss(renderState.css) }} />
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `${scopeChordlibPageCss(renderState.css)}\n${fontScaleCss}`,
+            }}
+          />
           <div
             className={cn(
               'mx-auto shrink-0 overflow-hidden',

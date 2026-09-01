@@ -85,6 +85,23 @@ afterEach(() => {
 })
 
 describe('SettingsView', () => {
+  it('defaults, stores, and restores the chord-song font scale in the Player tab', () => {
+    const first = render(<SettingsView activeTab="player" />)
+    const slider = screen.getByRole('slider', {
+      name: 'settings.chordSongFontScale.label',
+    })
+
+    expect(slider).toHaveValue('1')
+    fireEvent.change(slider, { target: { value: '2' } })
+    expect(window.localStorage.getItem('wv_chord_song_font_scale')).toBe('2')
+
+    first.unmount()
+    render(<SettingsView activeTab="player" />)
+    expect(
+      screen.getByRole('slider', { name: 'settings.chordSongFontScale.label' }),
+    ).toHaveValue('2')
+  })
+
   it('renders the TOC multilingual control in the Player tab and restores it from storage', async () => {
     const user = userEvent.setup()
 
