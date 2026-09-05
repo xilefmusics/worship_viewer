@@ -3,7 +3,7 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "engines": {
-    "node": ">=20 <21"
+    "node": ">=24 <25"
   },
   "scripts": {
     "dev": "node ./scripts/with-env.mjs pnpm --filter app dev",
@@ -19,7 +19,7 @@
   "devDependencies": {
     "prettier": "^3.9.6"
   },
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@10.34.5",
   "pnpm": {
     "overrides": {
       "esbuild": "0.28.1",

@@ -6,12 +6,12 @@ license = "AGPL-3.0-or-later"
 
 [dependencies]
 chordlib = { version = "0.15.0", features = ["html"] }
-chrono = { version = "0.4.44", default-features = false, features = [
+chrono = { version = "0.4.45", default-features = false, features = [
     "clock",
     "serde",
 ] }
-serde = { version = "1.0.228", features = ["derive"] }
-uuid = { version = "1.23.1", features = ["v4"], optional = true }
+serde = { version = "1.0.229", features = ["derive"] }
+uuid = { version = "1.26.0", features = ["v4"], optional = true }
 tracing = { version = "0.1", optional = true }
 utoipa = { version = "5", optional = true, features = ["chrono"] }
 thiserror = "2.0"
