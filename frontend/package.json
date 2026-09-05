@@ -6,7 +6,8 @@
     "node": ">=20 <21"
   },
   "scripts": {
-    "dev": "pnpm build:wasm && node ./scripts/with-env.mjs pnpm --filter app dev",
+    "dev": "node ./scripts/with-env.mjs pnpm --filter app dev",
+    "postinstall": "pnpm run build:wasm",
     "build:wasm": "wasm-pack build crates/chordlib-wasm --target web --out-dir ../../packages/chordlib-wasm/pkg --release",
     "build": "pnpm build:wasm && pnpm --filter app build",
     "lint": "pnpm --filter app lint",
@@ -16,7 +17,7 @@
     "test:e2e": "pnpm --filter app test:e2e"
   },
   "devDependencies": {
-    "prettier": "^3.8.4"
+    "prettier": "^3.9.6"
   },
   "packageManager": "pnpm@10.33.0",
   "pnpm": {
