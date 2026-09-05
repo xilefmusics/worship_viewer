@@ -8,9 +8,9 @@ Thank you for helping improve Worship Viewer. This document covers the workflows
 
 | Stack | Version / tool |
 |-------|----------------|
-| Rust | **1.96.0** (`rust-toolchain.toml`) |
-| Node.js | **20** |
-| pnpm | **10.33.0** (via Corepack) |
+| Rust | **1.98.1** (`rust-toolchain.toml`) |
+| Node.js | **24** |
+| pnpm | **10.34.5** (via Corepack) |
 | wasm-pack | For chordlib WASM builds |
 
 There is **no root `Cargo.toml`**. Rust crates are standalone:
@@ -29,7 +29,7 @@ cd backend && cp .env.example .env   # optional; edit as needed
 cargo run
 
 # Terminal 2 — frontend dev server (proxies /api to :8080)
-corepack enable && corepack prepare pnpm@10.33.0 --activate
+corepack enable && corepack prepare pnpm@10.34.5 --activate
 pnpm -C frontend install
 pnpm -C frontend dev
 ```

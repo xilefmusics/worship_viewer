@@ -7,7 +7,7 @@ default-run = "backend"
 
 [dependencies]
 actix-web = { version = "4", default-features = true }
-actix-multipart = "0.7"
+actix-multipart = "0.8"
 anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = [
     "clock",
@@ -40,25 +40,25 @@ dotenvy = "0.15"
 futures-util = "0.3"
 utoipa = { version = "5", features = ["chrono"] }
 utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
-surrealdb = { version = "3.1", default-features = false, features = [
+surrealdb = { version = "3.2", default-features = false, features = [
     "kv-mem",
     "protocol-http",
     "protocol-ws",
     "rustls",
 ] }
-surrealdb-core = { version = "3.1", default-features = false }
-surrealdb-types = "3.1"
-async-trait = "0.1.89"
-lettre = { version = "0.11.22", features = ["tokio1-native-tls"] }
+surrealdb-core = { version = "3.2", default-features = false }
+surrealdb-types = "3.2"
+async-trait = "0.1.92"
+lettre = { version = "0.11.23", features = ["tokio1-native-tls"] }
 ring = "0.17.14"
 hex = "0.4.3"
-actix-files = "0.6.10"
-actix-ws = "0.3"
+actix-files = "0.7.0"
+actix-ws = "0.4"
 actix-governor = "0.10"
 shared = { path = "../shared", features = ["backend"] }
 chordlib = { version = "0.15.0", features = ["html"] }
 zip = "8.6.0"
-imagesize = "0.14"
+imagesize = "0.15"
 async-stream = "0.3"
 lopdf = { version = "0.44", default-features = false }
 

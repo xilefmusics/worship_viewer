@@ -25,7 +25,7 @@ Rust crates are **standalone** (there is no root `Cargo.toml`):
 | Frontend | [`frontend/`](frontend/) | pnpm monorepo; Vite SPA in `frontend/app/` |
 | Chordlib WASM | [`frontend/crates/chordlib-wasm/`](frontend/crates/chordlib-wasm/) | WASM wrapper around the external **chordlib** crate |
 
-Toolchain: **Rust 1.96.0** ([`rust-toolchain.toml`](rust-toolchain.toml)), **Node 20**, **pnpm 10.33.0**.
+Toolchain: **Rust 1.98.1** ([`rust-toolchain.toml`](rust-toolchain.toml)), **Node 24**, **pnpm 10.34.5**.
 
 ## Main Principles
 
@@ -57,11 +57,11 @@ For local dev, run the **Vite dev server** and let it **proxy** API traffic to y
 
 ### Install prerequisites
 
-**Frontend** (Node.js 20 + pnpm 10):
+**Frontend** (Node.js 24 + pnpm 10):
 
 ```bash
 corepack enable
-corepack prepare pnpm@10.33.0 --activate
+corepack prepare pnpm@10.34.5 --activate
 ```
 
 **Chordlib WASM** (built automatically by `pnpm install`; required for song editor and player preview):
@@ -81,7 +81,7 @@ rustup update stable
 # Linux / Windows: https://rustup.rs/
 ```
 
-The Docker image is built with **Rust 1.96.0**, **Node.js 20**, **pnpm 10.33.0**, and **wasm-pack** (see the root [`Dockerfile`](Dockerfile)).
+The Docker image is built with **Rust 1.98.1**, **Node.js 24**, **pnpm 10.34.5**, and **wasm-pack** (see the root [`Dockerfile`](Dockerfile)).
 
 ### Backend startup options
 
@@ -189,7 +189,7 @@ The SPA in `frontend/app/` has two automated UI layers:
 - **Vitest** — fast unit tests (`environment: node`) and component tests (`jsdom` + Testing Library).
 - **Playwright** — browser end-to-end tests against a locally started **`vite preview`** server (production build).
 
-Both run from the frontend workspace. Install prerequisites above (Node 20, pnpm, wasm-pack) and dependencies once:
+Both run from the frontend workspace. Install prerequisites above (Node 24, pnpm, wasm-pack) and dependencies once:
 
 ```bash
 pnpm -C frontend install
