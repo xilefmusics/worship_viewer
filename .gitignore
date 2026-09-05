@@ -8,10 +8,11 @@ backend/static/*
 .cursor
 venom*.log
 0000_migration_test
+.env
+.env*.local
 
 # Frontend (pnpm monorepo in frontend/)
 node_modules/
 .pnpm-store/
-.env*.local
 coverage/
 /.issues

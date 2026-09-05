@@ -29,7 +29,6 @@ echo "== frontend =="
 cd frontend
 pnpm install --frozen-lockfile
 pnpm audit --audit-level=high
-pnpm build:wasm
 pnpm test
 pnpm typecheck
 pnpm lint

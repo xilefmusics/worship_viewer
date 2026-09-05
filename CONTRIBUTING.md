@@ -31,7 +31,6 @@ cargo run
 # Terminal 2 — frontend dev server (proxies /api to :8080)
 corepack enable && corepack prepare pnpm@10.33.0 --activate
 pnpm -C frontend install
-pnpm -C frontend build:wasm
 pnpm -C frontend dev
 ```
 
@@ -100,7 +99,6 @@ in the same PR and add/update HTTP/API tests for the public contract.
 
 ```bash
 pnpm -C frontend install
-pnpm -C frontend build:wasm
 
 # 1. Format (auto-fix ESLint issues where possible)
 pnpm --filter app exec eslint . --fix

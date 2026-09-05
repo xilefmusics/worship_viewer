@@ -64,7 +64,7 @@ corepack enable
 corepack prepare pnpm@10.33.0 --activate
 ```
 
-**Chordlib WASM** (built automatically by `pnpm build`; required for song editor and player preview):
+**Chordlib WASM** (built automatically by `pnpm install`; required for song editor and player preview):
 
 ```bash
 rustup target add wasm32-unknown-unknown
@@ -193,7 +193,6 @@ Both run from the frontend workspace. Install prerequisites above (Node 20, pnpm
 
 ```bash
 pnpm -C frontend install
-pnpm -C frontend build:wasm
 ```
 
 #### Unit and component tests (Vitest)

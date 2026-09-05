@@ -36,8 +36,8 @@ Also run `cargo clippy` in `cli/` or `shared/` if you edited those crates.
 **Frontend** (when you changed frontend code):
 
 ```bash
-pnpm -C frontend install          # if dependencies changed
-pnpm -C frontend build:wasm       # when chordlib-wasm or WASM consumers changed
+pnpm -C frontend install          # if dependencies changed (also builds WASM)
+pnpm -C frontend build:wasm       # when chordlib-wasm changed without reinstall
 pnpm -C frontend lint
 pnpm -C frontend typecheck
 pnpm --filter app lint:flows      # when routes or user flows changed
