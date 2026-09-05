@@ -1,4 +1,5 @@
 use std::fmt;
+use std::path::Path;
 
 use serde::Deserialize;
 
@@ -319,6 +320,24 @@ pub struct MediaAssetUploadLimits {
     pub payload_ceiling_bytes: usize,
 }
 
+/// Load `.env.local` then `.env` without overriding variables already in the process.
+///
+/// Higher-priority files are applied first so later loads cannot clobber them.
+/// Missing files are ignored. Looks in the current directory (and parents for `.env`)
+/// and next to the crate via `CARGO_MANIFEST_DIR` so `cargo run` from the repo root
+/// still picks up `backend/.env`.
+fn load_dotenv_files() {
+    let _ = dotenvy::from_filename(".env.local");
+    let crate_dir = option_env!("CARGO_MANIFEST_DIR").map(Path::new);
+    if let Some(dir) = crate_dir {
+        let _ = dotenvy::from_path(dir.join(".env.local"));
+    }
+    let _ = dotenvy::dotenv();
+    if let Some(dir) = crate_dir {
+        let _ = dotenvy::from_path(dir.join(".env"));
+    }
+}
+
 impl Settings {
     pub fn profile_picture_limits(&self) -> ProfilePictureLimits {
         ProfilePictureLimits {
@@ -359,6 +378,7 @@ impl Settings {
     }
 
     pub fn from_env() -> Result<Self, envy::Error> {
+        load_dotenv_files();
         let mut s = envy::from_env::<Self>()?;
         if let Ok(v) = std::env::var("WORSHIP_OTP_ALLOW_SELF_SIGNUP") {
             s.otp_allow_self_signup =

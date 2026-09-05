@@ -6,7 +6,7 @@
     "node": ">=20 <21"
   },
   "scripts": {
-    "dev": "pnpm --filter app dev",
+    "dev": "pnpm build:wasm && node ./scripts/with-env.mjs pnpm --filter app dev",
     "build:wasm": "wasm-pack build crates/chordlib-wasm --target web --out-dir ../../packages/chordlib-wasm/pkg --release",
     "build": "pnpm build:wasm && pnpm --filter app build",
     "lint": "pnpm --filter app lint",

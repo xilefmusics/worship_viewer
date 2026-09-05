@@ -49,8 +49,15 @@ function avOutputCspPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+  // frontend/.env then app/.env; process.env wins via loadEnv.
+  const configDir = import.meta.dirname
+  const env = {
+    ...loadEnv(mode, path.resolve(configDir, '..'), ''),
+    ...loadEnv(mode, configDir, ''),
+  }
   const proxyTarget = env.VITE_DEV_PROXY_TARGET || 'http://127.0.0.1:8080'
+  const port = Number(env.PORT)
+  const host = env.HOST || undefined
 
   return {
     plugins: [
@@ -98,7 +105,7 @@ export default defineConfig(({ mode }) => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, 'src'),
+        '@': path.resolve(configDir, 'src'),
       },
     },
     optimizeDeps: {
@@ -109,6 +116,8 @@ export default defineConfig(({ mode }) => {
       __APP_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     },
     server: {
+      ...(host ? { host } : {}),
+      ...(Number.isFinite(port) && port > 0 ? { port } : {}),
       proxy: {
         '/api': { target: proxyTarget, changeOrigin: true, ws: true },
         '/auth': { target: proxyTarget, changeOrigin: true },

@@ -36,9 +36,9 @@ async fn main() -> AnyResult<()> {
         .install_default()
         .map_err(|e| anyhow::anyhow!("failed to install rustls ring crypto provider: {e:?}"))?;
 
-    backend::observability::init()?;
-
     let settings = Settings::from_env()?;
+
+    backend::observability::init()?;
 
     let production = backend::observability::is_production();
     if production && settings.initial_admin_user_test_session {

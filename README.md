@@ -235,7 +235,7 @@ The hello-world e2e specs **stub `GET /api/v1/users/me` in the browser** (401 = 
 
 ## Backend configuration
 
-Configuration is driven by environment variables (uppercase names matching the `Settings` struct in [`backend/src/settings.rs`](backend/src/settings.rs), loaded with [`envy`](https://crates.io/crates/envy)). Highlights:
+Configuration is driven by environment variables (uppercase names matching the `Settings` struct in [`backend/src/settings.rs`](backend/src/settings.rs), loaded with [`envy`](https://crates.io/crates/envy)). On startup, `Settings::from_env` also loads [`backend/.env`](backend/.env.example) and `.env.local` if they exist (process environment still wins). Copy `.env.example` to `.env` and run `cargo run` from `backend/` — no extra exports required. Highlights:
 
 - **HTTP:** `HOST`, `PORT` (defaults: `127.0.0.1`, `8080`).
 - **Cookies / session:** `POST_LOGIN_PATH`, `COOKIE_NAME`, `COOKIE_SECURE`, `SESSION_TTL_SECONDS`.

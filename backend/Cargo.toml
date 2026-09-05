@@ -36,6 +36,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"]
 uuid = { version = "1", features = ["v4"] }
 rand = { version = "0.10", features = ["std"] }
 envy = "0.4.2"
+dotenvy = "0.15"
 futures-util = "0.3"
 utoipa = { version = "5", features = ["chrono"] }
 utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
