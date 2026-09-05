@@ -25,9 +25,8 @@ There is **no root `Cargo.toml`**. Rust crates are standalone:
 ```bash
 # Terminal 1 — backend
 cd backend && cp .env.example .env   # optional; edit as needed
-INITIAL_ADMIN_USER_EMAIL="admin@example.com" \
-  INITIAL_ADMIN_USER_TEST_SESSION=true \
-  cargo run
+# Uncomment INITIAL_ADMIN_USER_* in `.env` for a local test admin session.
+cargo run
 
 # Terminal 2 — frontend dev server (proxies /api to :8080)
 corepack enable && corepack prepare pnpm@10.33.0 --activate

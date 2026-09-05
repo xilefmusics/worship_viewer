@@ -6,7 +6,7 @@
     "node": ">=20 <21"
   },
   "scripts": {
-    "dev": "pnpm --filter app dev",
+    "dev": "pnpm build:wasm && node ./scripts/with-env.mjs pnpm --filter app dev",
     "build:wasm": "wasm-pack build crates/chordlib-wasm --target web --out-dir ../../packages/chordlib-wasm/pkg --release",
     "build": "pnpm build:wasm && pnpm --filter app build",
     "lint": "pnpm --filter app lint",
@@ -25,7 +25,8 @@
       "undici": "7.29.0",
       "serialize-javascript": ">=7.0.5",
       "js-yaml@>=4.0.0 <4.3.1": "4.3.1",
-      "fast-uri@>=3.0.0 <3.1.5": "3.1.5",
+      "fast-uri@>=3.0.0 <3.1.6": "3.1.6",
+      "browserslist@<=4.28.6": "4.28.7",
       "postcss@<=8.5.22": "8.5.23",
       "brace-expansion@>=2.0.0 <2.1.4": "2.1.4",
       "brace-expansion@>=3.0.0 <5.0.9": "5.0.9",
