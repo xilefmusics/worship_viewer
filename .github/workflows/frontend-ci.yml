@@ -17,6 +17,9 @@ on:
 jobs:
   frontend:
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
     defaults:
       run:
         working-directory: frontend
@@ -33,9 +36,15 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@v1
         with:
+          toolchain: 1.98.1
           targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: frontend/crates/chordlib-wasm
+          shared-key: wv-frontend-wasm
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -61,7 +70,8 @@ jobs:
         run: pnpm lint
 
       - name: Build
-        run: pnpm build
+        # postinstall already built WASM during dependency installation.
+        run: pnpm --filter app build
 
       - name: pnpm audit
         run: pnpm audit --audit-level=high

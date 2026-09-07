@@ -146,7 +146,36 @@ CI fails if the three copies diverge or if `openapi_snapshot_matches_committed_f
 |----------|------|------|
 | [Backend CI](.github/workflows/backend-ci.yml) | PRs to `main`; pushes to non-`main` branches | `cargo test`, clippy, fmt, Spectral, OpenAPI tri-copy, `cargo audit` (backend, cli, shared, `chordlib-wasm`) |
 | [Frontend CI](.github/workflows/frontend-ci.yml) | PRs / pushes touching `frontend/` | Vitest, lint, typecheck, OpenAPI `schema.d.ts` drift, build, `pnpm audit` |
-| Docker publish | Push to `main` or tags when `backend/**`, `frontend/**`, or image build inputs change | Build image (backend + frontend); **Venom** integration tests run in the `tester` stage |
+| GHCR publish | Push to `main` matching build paths; all tag pushes | Build and publish `ghcr.io/xilefmusics/worshipviewer` (backend + frontend); **Venom** integration tests run in the `tester` stage |
+
+Validation jobs cancel superseded runs for the same PR/ref. Publishing is excluded
+from cancellation. Frontend CI caches Rust/WASM build artifacts and builds WASM
+once during dependency installation. Docker builds the backend and frontend in
+independent stages, with cached frontend dependency installation and a separate
+cached WASM stage. The backend stage copies only build/test inputs so local runtime
+data cannot invalidate compilation; the final image still
+depends on the Venom tester stage. Docker's GitHub Actions layer cache uses scope
+`worshipviewer-amd64` with `mode=max`. The scratch tester and runtime include a
+writable `/tmp` directory for temporary files, including amd64 emulation.
+
+### GHCR publishing setup
+
+The publishing job authenticates to `ghcr.io` with `GITHUB_TOKEN` and job-scoped
+`packages: write`; Docker Hub credentials are no longer used. Existing Docker Hub
+images and secrets can remain in place. The image remains `linux/amd64`:
+
+- Default-branch builds publish `ghcr.io/xilefmusics/worshipviewer:main`.
+- Tag builds publish the Git tag and update `:latest`, as before.
+- The OCI source label associates the image with this repository.
+
+New GHCR packages are private by default. After the first publish, a package admin
+must open the `worshipviewer` package settings and change its visibility to
+**Public**. If the package already exists, ensure this repository has Actions write
+access. See [GitHub's container registry documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
+Verify the published tags and an unauthenticated pull after changing visibility.
+The workflow does not change package visibility automatically.
+
+### Integration checks
 
 **Playwright e2e** (`pnpm test:e2e` in `frontend/`) is **local-only** — intentionally not in CI (see action plan §2.1 deferral). Run against real backend on port 8788 before release.
 

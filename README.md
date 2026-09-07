@@ -40,13 +40,13 @@ Create your free account at [app.worshipviewer.com](https://app.worshipviewer.co
 Or run the published image locally (see [Local development](#local-development) to build from source):
 
 ```bash
-docker run --rm -p 8080:8080 xilefmusics/worshipviewer:latest
+docker run --rm -p 8080:8080 ghcr.io/xilefmusics/worshipviewer:latest
 ```
 
-**Platform:** The image on Docker Hub is **linux/amd64**. On Apple Silicon or other **arm64** hosts, Docker may report *no matching manifest*; use emulation when needed:
+**Platform:** The image on GHCR is **linux/amd64**. On Apple Silicon or other **arm64** hosts, Docker may report *no matching manifest*; use emulation when needed:
 
 ```bash
-docker run --rm -p 8080:8080 --platform linux/amd64 xilefmusics/worshipviewer:latest
+docker run --rm -p 8080:8080 --platform linux/amd64 ghcr.io/xilefmusics/worshipviewer:latest
 ```
 
 ## Local development
