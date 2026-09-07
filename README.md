@@ -5,9 +5,11 @@ Its main job is to manage and display digital sheet music; planned work and idea
 
 ## Table of contents
 
-- [Main Principles](#main-principles)
+- [Repository layout](#repository-layout)
+- [Main principles](#main-principles)
 - [Try it out](#try-it-out)
 - [Local development](#local-development)
+- [Frontend tests](#frontend-tests)
 - [Backend configuration](#backend-configuration)
 - [Command-line interface (CLI)](#command-line-interface-cli)
 - [Contribute](#contribute)
@@ -17,17 +19,17 @@ Its main job is to manage and display digital sheet music; planned work and idea
 
 Rust crates are **standalone** (there is no root `Cargo.toml`):
 
-| Crate | Path | Role |
-|-------|------|------|
-| Backend API | [`backend/`](backend/) | Actix HTTP server, SurrealDB, static SPA |
-| CLI | [`cli/`](cli/) | `worshipviewer` terminal client |
-| Shared DTOs | [`shared/`](shared/) | Types used by backend, CLI, and WASM |
-| Frontend | [`frontend/`](frontend/) | pnpm monorepo; Vite SPA in `frontend/app/` |
+| Crate         | Path                                                               | Role                                                |
+| ------------- | ------------------------------------------------------------------ | --------------------------------------------------- |
+| Backend API   | [`backend/`](backend/)                                             | Actix HTTP server, SurrealDB, static SPA            |
+| CLI           | [`cli/`](cli/)                                                     | `worshipviewer` terminal client                     |
+| Shared DTOs   | [`shared/`](shared/)                                               | Types used by backend, CLI, and WASM                |
+| Frontend      | [`frontend/`](frontend/)                                           | pnpm monorepo; Vite SPA in `frontend/app/`          |
 | Chordlib WASM | [`frontend/crates/chordlib-wasm/`](frontend/crates/chordlib-wasm/) | WASM wrapper around the external **chordlib** crate |
 
 Toolchain: **Rust 1.98.1** ([`rust-toolchain.toml`](rust-toolchain.toml)), **Node 24**, **pnpm 10.34.5**.
 
-## Main Principles
+## Main principles
 
 1. **Single source of truth**: You have one source (your song definition) to render sheets, display slides, sample click and cue tracks, and more. Each member of your worship team sees the same song entities; once the song exists, everyone gets the same material in the format they need.
 2. **Be prepared but stay flexible**: Plan a set down to the beat, but break out whenever the Holy Spirit leads — or run a fully spontaneous session.
@@ -43,7 +45,7 @@ Or run the published image locally (see [Local development](#local-development) 
 docker run --rm -p 8080:8080 ghcr.io/xilefmusics/worshipviewer:latest
 ```
 
-**Platform:** The image on GHCR is **linux/amd64**. On Apple Silicon or other **arm64** hosts, Docker may report *no matching manifest*; use emulation when needed:
+**Platform:** The image on GHCR is **linux/amd64**. On Apple Silicon or other **arm64** hosts, Docker may report _no matching manifest_; use emulation when needed:
 
 ```bash
 docker run --rm -p 8080:8080 --platform linux/amd64 ghcr.io/xilefmusics/worshipviewer:latest
@@ -62,6 +64,7 @@ For local dev, run the **Vite dev server** and let it **proxy** API traffic to y
 ```bash
 corepack enable
 corepack prepare pnpm@10.34.5 --activate
+pnpm -C frontend install
 ```
 
 **Chordlib WASM** (built automatically by `pnpm install`; required for song editor and player preview):
@@ -73,13 +76,8 @@ curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
 **Backend** (optional for frontend-only UI work against production):
 
-```bash
-# macOS
-brew install rustup
-rustup update stable
-
-# Linux / Windows: https://rustup.rs/
-```
+Install Rust with [rustup](https://rustup.rs/). The repository's
+[`rust-toolchain.toml`](rust-toolchain.toml) selects the required Rust version.
 
 The Docker image is built with **Rust 1.98.1**, **Node.js 24**, **pnpm 10.34.5**, and **wasm-pack** (see the root [`Dockerfile`](Dockerfile)).
 
@@ -234,7 +232,7 @@ The hello-world e2e specs **stub `GET /api/v1/users/me` in the browser** (401 = 
 
 ## Backend configuration
 
-Configuration is driven by environment variables (uppercase names matching the `Settings` struct in [`backend/src/settings.rs`](backend/src/settings.rs), loaded with [`envy`](https://crates.io/crates/envy)). On startup, `Settings::from_env` also loads [`backend/.env`](backend/.env.example) and `.env.local` if they exist (process environment still wins). Copy `.env.example` to `.env` and run `cargo run` from `backend/` — no extra exports required. Highlights:
+Configuration is driven by environment variables (uppercase names matching the `Settings` struct in [`backend/src/settings.rs`](backend/src/settings.rs), loaded with [`envy`](https://crates.io/crates/envy)). On startup, `Settings::from_env` also loads `backend/.env` and `.env.local` if they exist (process environment still wins). Copy [`backend/.env.example`](backend/.env.example) to `backend/.env` and run `cargo run` from `backend/` — no extra exports required. Highlights:
 
 - **HTTP:** `HOST`, `PORT` (defaults: `127.0.0.1`, `8080`).
 - **Cookies / session:** `POST_LOGIN_PATH`, `COOKIE_NAME`, `COOKIE_SECURE`, `SESSION_TTL_SECONDS`, `IMPERSONATION_ENABLED` (opt-in; defaults to `false`). When enabled, the admin users page can start audited browser support sessions; disabling it at startup invalidates existing records.
@@ -245,6 +243,7 @@ Configuration is driven by environment variables (uppercase names matching the `
 - **Demodata:** Set `DEMODATA=generic` for a deterministic local fixture with synthetic users, teams, 100 songs, collections, setlists, media, and likes. The scenario is seeded once per database; it is rejected in production.
 
 The generic fixture uses these synthetic accounts for ACL testing: `platform-admin@worshipviewer.test`, `team-admin@worshipviewer.test`, `maintainer@worshipviewer.test`, `guest@worshipviewer.test`, and `outsider@worshipviewer.test`. They remain separate from `INITIAL_ADMIN_USER_EMAIL`.
+
 - **Static assets and uploads:** `STATIC_DIR`, `BLOB_DIR`, `BLOB_UPLOAD_MAX_BYTES`, `MEDIA_STAGING_DIR`, and persistent `MEDIA_FINAL_DIR`.
 - **Rate limits:** `AUTH_RATE_LIMIT_RPS`, `AUTH_RATE_LIMIT_BURST`, `API_RATE_LIMIT_RPS`, `API_RATE_LIMIT_BURST`.
 - **OpenAPI metadata:** `OPENAPI_CONTACT_EMAIL`, `OPENAPI_IMPRINT_URL`.
@@ -270,10 +269,10 @@ This installs a `worshipviewer` binary on your `$PATH`.
 
 The CLI can use flags, environment variables, or a config file. Precedence:
 
-1. CLI flags  
-2. Environment variables  
-3. Config file  
-4. Built-in defaults  
+1. CLI flags
+2. Environment variables
+3. Config file
+4. Built-in defaults
 
 - **Config file (optional)** — `~/.worshipviewer/config.toml`. On first use the CLI may **create** this file with defaults.
   ```toml
@@ -339,7 +338,7 @@ worshipviewer songs update \
 
 ### Auth quickstart for local development
 
-When you start the backend [as shown above](#start-the-frontend-against-the-local-dev-backend-recommended), you get an initial admin session with id `admin` and the `sso_session` cookie.
+When you start the backend as shown in [Backend startup options](#backend-startup-options), you get an initial admin session with id `admin` and the `sso_session` cookie.
 
 Example `~/.worshipviewer/config.toml`:
 
