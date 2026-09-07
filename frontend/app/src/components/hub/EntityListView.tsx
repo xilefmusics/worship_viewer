@@ -13,7 +13,6 @@ import {
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { CopyIcon } from '@/components/icons/lucide-animated/copy-icon'
 import { DownloadIcon } from '@/components/icons/lucide-animated/download-icon'
 import { FileStackIcon } from '@/components/icons/lucide-animated/file-stack-icon'
 import { FileTextIcon } from '@/components/icons/lucide-animated/file-text-icon'
@@ -25,6 +24,7 @@ import { PrinterIcon } from '@/components/icons/lucide-animated/printer-icon'
 import { ProjectorIcon } from '@/components/icons/lucide-animated/projector-icon'
 import { RoomIcon } from '@/components/icons/lucide-animated/room-icon'
 import { TrashIcon } from '@/components/icons/lucide-animated/trash-icon'
+import { TocSortLikedIcon } from '@/components/icons/toc-sort-icons'
 import { AddSongToSetlistDialog } from '@/components/hub/AddSongToSetlistDialog'
 import {
   HUB_ACTION_ICON_CLASS,
@@ -45,6 +45,7 @@ import {
 } from '@/components/hub/hub-list-styles'
 
 import type { Collection, Setlist, Song } from '@/api/list-fetch'
+import { setSongLikeStatus } from '@/api/songs-like'
 import { useHubScrollContainerRef } from '@/context/HubScrollContainerContext'
 import {
   AlertDialog,
@@ -71,10 +72,9 @@ import { exportPdfHintTitle } from '@/lib/export-pdf-hint'
 import { runCollectionExport } from '@/lib/run-collection-export'
 import { runSetlistExport } from '@/lib/run-setlist-export'
 import { runSongExport, type SongExportKind } from '@/lib/run-song-export'
-import { duplicateCollection, duplicateSetlist } from '@/lib/duplicate-hub-entity'
 import type { HubEntity } from '@/lib/hub-entity'
 import { hubEntityEditSplat } from '@/lib/hub-entity-edit'
-import { hubListKey, hubListRootKey } from '@/lib/hub-list-keys'
+import { hubListKey } from '@/lib/hub-list-keys'
 import { useHubListsUpdatedAt } from '@/hooks/useHubListsUpdatedAt'
 import { hubEntityToPlayerType, buildPlayerSearch } from '@/lib/player-route'
 import { readPlayerDefaultMode } from '@/lib/player/player-mode-preference'
@@ -544,7 +544,7 @@ type HubActionHot =
   | 'createRoom'
   | 'saveOffline'
   | 'removeOffline'
-  | 'duplicate'
+  | 'like'
   | 'addToSetlist'
   | 'exportChordpro'
   | 'exportWorshipPro'
@@ -582,6 +582,8 @@ function HubItemActionsMenu({
   const hideChords = useHideChordsPreference()
   const [itemHot, setItemHot] = useState<HubActionHot | null>(null)
   const [addToSetlistOpen, setAddToSetlistOpen] = useState(false)
+  const [likeOverride, setLikeOverride] = useState<{ songId: string; liked: boolean } | null>(null)
+  const [likePending, setLikePending] = useState(false)
   const hover = (key: HubActionHot) => (hot: boolean) => setItemHot(hot ? key : null)
 
   const playType = hubEntityToPlayerType(entity)
@@ -600,10 +602,11 @@ function HubItemActionsMenu({
   const showAddToSetlist = Boolean(
     entity === 'songs' && hubSong && !hubSong.not_a_song,
   )
+  const showLike = showAddToSetlist
+  const serverSongLiked = hubSong?.user_specific_addons.liked ?? false
+  const songLiked = likeOverride?.songId === itemId ? likeOverride.liked : serverSongLiked
   const showSongExport = Boolean(entity === 'songs' && hubSong)
   const showOrderedExport = entity === 'setlists' || entity === 'collections'
-  const showDuplicate = showOrderedExport
-  const titleSuffix = t('collections.hub.duplicateTitleSuffix')
   const hubExportPdfHint = useMemo(
     () =>
       exportPdfHintTitle(
@@ -613,39 +616,19 @@ function HubItemActionsMenu({
     [t],
   )
 
-  const onDuplicate = useCallback(async () => {
-    const toastId = toast.loading(t('hub.actions.duplicate'))
-    try {
-      const created =
-        entity === 'setlists'
-          ? await duplicateSetlist(queryClient, itemId, titleSuffix)
-          : await duplicateCollection(queryClient, itemId, titleSuffix)
-      toast.dismiss(toastId)
-      toast.success(t('hub.actions.duplicateSuccess', { title: created.title }))
-      void queryClient.invalidateQueries({ queryKey: hubListRootKey })
-      if (entity === 'setlists') {
-        void navigate({
-          to: '/setlists/$setlistId',
-          params: { setlistId: created.id },
-          search: emptyEditorReturnSearch(),
-        })
-      } else {
-        void navigate({
-          to: '/collections/$collectionId',
-          params: { collectionId: created.id },
-          search: emptyEditorReturnSearch(),
-        })
-      }
-    } catch (e) {
-      toast.dismiss(toastId)
-      const detail = e instanceof Error ? e.message : String(e)
-      const failedKey = 'common.duplicateFailed'
-      toast.error(t(failedKey, {
-        entity: t(entity === 'collections' ? 'common.entityCollection' : 'common.entitySetlist'),
-      }), { description: detail })
-      console.error(`${entity} duplicate failed`, e)
-    }
-  }, [entity, itemId, navigate, queryClient, t, titleSuffix])
+  const onLikeToggle = useCallback(() => {
+    if (!hubSong || !showLike || !networkOnline || likePending) return
+    const nextLiked = !songLiked
+    setLikeOverride({ songId: itemId, liked: nextLiked })
+    setLikePending(true)
+    void setSongLikeStatus(queryClient, { id: itemId, liked: nextLiked })
+      .catch((error: unknown) => {
+        setLikeOverride({ songId: itemId, liked: songLiked })
+        const detail = error instanceof Error ? error.message : String(error)
+        toast.error(t('hub.actions.likeFailed'), { description: detail })
+      })
+      .finally(() => setLikePending(false))
+  }, [hubSong, itemId, likePending, networkOnline, queryClient, showLike, songLiked, t])
 
   const onOrderedExport = useCallback(
     async (kind: SongExportKind) => {
@@ -822,18 +805,19 @@ function HubItemActionsMenu({
                 {t('hub.actions.saveOffline')}
               </HubActionItem>
             )}
-            {showDuplicate ? (
+            {showLike ? (
               <HubActionItem
-                disabled={!networkOnline}
-                title={!networkOnline ? t('hub.actions.deleteOfflineHint') : undefined}
-                onSelect={() => {
-                  if (!networkOnline) return
-                  void onDuplicate()
-                }}
-                onHoverChange={hover('duplicate')}
+                disabled={!networkOnline || likePending}
+                title={!networkOnline ? t('hub.createOfflineHint') : undefined}
+                onSelect={() => onLikeToggle()}
+                onHoverChange={hover('like')}
               >
-                <CopyIcon isHovered={itemHot === 'duplicate'} size={16} className={HUB_ACTION_ICON_CLASS} />
-                {t('hub.actions.duplicate')}
+                <TocSortLikedIcon
+                  isHovered={itemHot === 'like'}
+                  size={16}
+                  className={cn(HUB_ACTION_ICON_CLASS, songLiked && 'text-[var(--color-danger)]')}
+                />
+                {t(songLiked ? 'hub.actions.unlike' : 'hub.actions.like')}
               </HubActionItem>
             ) : null}
             {showAddToSetlist ? (

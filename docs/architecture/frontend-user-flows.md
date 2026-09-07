@@ -350,6 +350,8 @@ flowchart TD
     choose --> exists{Song already in setlist?}
     exists -->|Yes| info["Toast: already in that setlist (stays open)"]
     exists -->|No| add["PATCH append → toast “Added to ‘title’.” → close"]
+    menu --> fav["“Like” / “Unlike” (songs only; disabled offline)"]
+    fav --> like["PUT or DELETE /api/v1/songs/{id}/like → update menu label"]
     dlg -->|Cancel| row
 ```
 
@@ -810,18 +812,6 @@ flowchart TD
     ctx --> add["Add to setlist (songs, not not_a_song; online)"]
     ctx --> exp["Export ▸ ChordPro / Worship Pro / PDF (print)"]
     ctx --> del["Delete (online)"]
-```
-
-### L3. Duplicate a collection / setlist
-
-```mermaid
-flowchart TD
-    ctx(["Context menu → Duplicate"]) --> on{Online?}
-    on -->|No| dis["Disabled"]
-    on -->|Yes| run["Toast 'Preparing export…' → build copy"]
-    run --> ok{Success?}
-    ok -->|Yes| made["Toast 'Created “X (copy)”.' → invalidate → open new editor"]
-    ok -->|No| err["'Could not duplicate this …'"]
 ```
 
 ### L4. Export a song / collection / setlist
