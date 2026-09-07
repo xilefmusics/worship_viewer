@@ -96,11 +96,27 @@ test('D5: import songs (files)', async ({ page, seed, context }) => {
 test('D6: add a song to a setlist (actions menu)', async ({ page, seed, context }) => {
   const token = uniqueToken('d6')
   const coll = await seed.createCollection({ title: `${token}-c` })
-  await seed.createSong({ collection: coll.id, title: `${token}-song` })
+  const song = await seed.createSong({ collection: coll.id, title: `${token}-song` })
   const setlist = await seed.createSetlist({ title: `${token}-sl` })
   const hub = new HubPage(page)
   await hub.goto('/songs')
   await hub.search(`${token}-song`)
+  await openContextMenu(page, `${token}-song`)
+  await expect(hub.menuItem('Like')).toBeVisible()
+  const likeResponse = page.waitForResponse(
+    (response) => response.url().endsWith(`/api/v1/songs/${song.id}/like`) && response.request().method() === 'PUT',
+  )
+  await hub.menuItem('Like').click()
+  await likeResponse
+
+  await openContextMenu(page, `${token}-song`)
+  await expect(hub.menuItem('Unlike')).toBeVisible()
+  const unlikeResponse = page.waitForResponse(
+    (response) => response.url().endsWith(`/api/v1/songs/${song.id}/like`) && response.request().method() === 'DELETE',
+  )
+  await hub.menuItem('Unlike').click()
+  await unlikeResponse
+
   await openContextMenu(page, `${token}-song`)
   await hub.menuItem('Add to setlist').click()
   const dialog = page.getByRole('dialog')

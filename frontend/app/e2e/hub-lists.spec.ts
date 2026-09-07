@@ -55,32 +55,13 @@ test('L2: open row / open actions menu', async ({ page, seed }) => {
   await expect(hub.menuItem('Edit')).toBeVisible()
   await expect(hub.menuItem('Show Sheets')).toBeVisible()
   await expect(hub.menuItem('Control AV Slides')).toBeVisible()
-  await expect(hub.menuItem('Duplicate')).toBeVisible()
+  await expect(hub.menuItem('Duplicate')).toHaveCount(0)
   await expect(page.getByText('Export', { exact: true })).toBeVisible()
   await expect(hub.menuItem('ChordPro')).toBeVisible()
   await expect(hub.menuItem('Worship Pro')).toBeVisible()
   await expect(hub.menuItem('PDF (print)')).toBeVisible()
   await expect(hub.menuItem(/^Export/)).toHaveCount(0)
   await expect(hub.menuItem('Delete')).toBeVisible()
-})
-
-// Flow: L3
-test('L3: duplicate a collection / setlist', async ({ page, seed, context }) => {
-  const token = uniqueToken('l3')
-  await seed.createCollection({ title: `${token}-dup` })
-  const hub = new HubPage(page)
-  await hub.goto('/collections')
-  await hub.search(`${token}-dup`)
-  await openContextMenu(page, `${token}-dup`)
-  await hub.menuItem('Duplicate').click()
-  await waitForToast(page, /Created/i)
-
-  await setOffline(context, true)
-  await hub.goto('/collections')
-  await hub.search(`${token}-dup`)
-  await openContextMenu(page, `${token}-dup`)
-  await expect(hub.menuItem('Duplicate')).toBeDisabled()
-  await setOffline(context, false)
 })
 
 // Flow: L4
