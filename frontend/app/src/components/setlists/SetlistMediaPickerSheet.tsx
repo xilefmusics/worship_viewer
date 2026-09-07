@@ -15,6 +15,7 @@ import {
 } from '@/api/media'
 import { PlusIcon } from '@/components/icons/lucide-animated/plus-icon'
 import { SettingsIcon } from '@/components/icons/lucide-animated/settings-icon'
+import { MediaUploadDropZone } from '@/components/media/MediaUploadDropZone'
 import { CreateMediaDialog } from '@/components/media/CreateMediaDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,7 +46,6 @@ export function SetlistMediaPickerSheet({
   const [q, setQ] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [quickUploadProgress, setQuickUploadProgress] = useState<number | null>(null)
-  const [isDropActive, setIsDropActive] = useState(false)
   const [dragOffset, setDragOffset] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const pointerStartY = useRef<number | null>(null)
@@ -208,59 +208,12 @@ export function SetlistMediaPickerSheet({
                 )
               })}
               <li className="flex items-stretch gap-2 py-1">
-                <label
-                  className={cn(
-                    'flex min-h-16 min-w-0 flex-1 cursor-pointer items-center rounded-lg border border-dashed border-[var(--color-border)] px-4 py-3 transition-colors hover:bg-[var(--color-muted)]',
-                    isDropActive && 'border-[var(--color-primary)] bg-[var(--color-primary)]/5',
-                    (blockedAdd || waitingForCreatedMedia || !defaultOwner) &&
-                      'cursor-not-allowed opacity-55',
-                  )}
-                  onDragEnter={(event) => {
-                    event.preventDefault()
-                    if (!blockedAdd && !waitingForCreatedMedia && defaultOwner) setIsDropActive(true)
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault()
-                    event.dataTransfer.dropEffect = 'copy'
-                  }}
-                  onDragLeave={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                      setIsDropActive(false)
-                    }
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    setIsDropActive(false)
-                    if (blockedAdd || waitingForCreatedMedia || !defaultOwner) return
-                    quickUpload.mutate([...event.dataTransfer.files])
-                  }}
-                >
-                  <input
-                    type="file"
-                    className="sr-only"
-                    multiple
-                    accept="image/png,image/jpeg,image/svg+xml,application/pdf,video/*,audio/*,.png,.jpg,.jpeg,.svg,.pdf"
-                    disabled={blockedAdd || waitingForCreatedMedia || !defaultOwner}
-                    aria-label={t('setlists.editor.mediaQuickUploadAria')}
-                    onChange={(event) => {
-                      const files = [...(event.target.files ?? [])]
-                      if (files.length > 0) quickUpload.mutate(files)
-                      event.target.value = ''
-                    }}
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium">
-                      {quickUpload.isPending
-                        ? t('media.upload.progress', {
-                            percent: Math.round((quickUploadProgress ?? 0) * 100),
-                          })
-                        : t('setlists.editor.mediaQuickUploadTitle')}
-                    </span>
-                    <span className="mt-0.5 block truncate text-xs text-[var(--color-muted-foreground)]">
-                      {t('setlists.editor.mediaQuickUploadHint')}
-                    </span>
-                  </span>
-                </label>
+                <MediaUploadDropZone
+                  disabled={blockedAdd || waitingForCreatedMedia || !defaultOwner}
+                  pending={quickUpload.isPending}
+                  progress={quickUploadProgress}
+                  onFiles={(files) => quickUpload.mutate(files)}
+                />
                 <Button
                   type="button"
                   variant="outline"

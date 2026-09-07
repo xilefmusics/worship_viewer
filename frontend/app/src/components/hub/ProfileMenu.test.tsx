@@ -73,6 +73,17 @@ async function renderMenu({
   return { interaction, flushBeforeLeave }
 }
 
+describe('ProfileMenu drawer', () => {
+  it('opens profile actions in the shared right drawer', async () => {
+    await renderMenu()
+
+    const drawer = screen.getByRole('dialog')
+    expect(drawer).toHaveClass('right-0')
+    expect(drawer).toHaveTextContent('default@example.com')
+    expect(within(drawer).getByRole('menu')).toBeInTheDocument()
+  })
+})
+
 describe('ProfileMenu tutorials link', () => {
   it.each(['default', 'admin'] as const)(
     'places Tutorials after About and before Install app for the %s role',
@@ -159,5 +170,27 @@ describe('ProfileMenu Teams destination', () => {
     teams.focus()
     await interaction.keyboard('{Enter}')
     expect(navigate).toHaveBeenCalledWith({ to: '/teams' })
+  })
+})
+
+describe('ProfileMenu media destination', () => {
+  it.each(['default', 'admin'] as const)('opens media for the %s role', async (role) => {
+    const { interaction, flushBeforeLeave } = await renderMenu({ role })
+    await interaction.click(screen.getByRole('menuitem', { name: 'AV media' }))
+    expect(flushBeforeLeave).toHaveBeenCalledOnce()
+    expect(navigate).toHaveBeenCalledWith({ to: '/media' })
+  })
+
+  it('supports keyboard activation with the German label', async () => {
+    const { interaction } = await renderMenu({ language: 'de' })
+    screen.getByRole('menuitem', { name: 'AV-Medien' }).focus()
+    await interaction.keyboard('{Enter}')
+    expect(navigate).toHaveBeenCalledWith({ to: '/media' })
+  })
+
+  it('stays in the editor when leaving is blocked', async () => {
+    const { interaction } = await renderMenu({ flushBeforeLeave: vi.fn(async () => false) })
+    await interaction.click(screen.getByRole('menuitem', { name: 'AV media' }))
+    expect(navigate).not.toHaveBeenCalled()
   })
 })

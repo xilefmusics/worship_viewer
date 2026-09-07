@@ -16,7 +16,7 @@ Cross-cutting rules used throughout:
 - **Command palette** (⌘K/Ctrl+K) only exists on `pointer:fine` (desktop) devices.
 - **Editors autosave** (no Save button): songs 3000 ms debounce, collections/setlists 750 ms.
 - **Owner picker** in create-collection/setlist dialogs appears only when the user can edit **2+** teams; with 0–1 writable teams `owner` is omitted and the server uses the personal team.
-- **Primary hub tabs** are ordered Collections, Songs, Setlists, and Rooms; Teams is available from the profile menu and command palette.
+- **Primary hub tabs** are ordered Collections, Songs, Setlists, and Rooms; Teams is available from the profile menu and command palette. The profile menu also opens Media items (`/media`), after flushing pending song editor changes; a blocked flush keeps the editor open.
 
 ## Index
 
@@ -880,6 +880,8 @@ Room creation is online-only. The Rooms hub can create an independent room, whil
 ## M. Media — slide decks
 
 ### M1. Create a slide deck from mixed files
+
+The media library Add action opens a bottom drawer. Its upload area matches the setlist media picker: drop or choose images/PDFs for a slide deck, or one audio/video file, to create media immediately. Quick uploads use the selected team and entered title, falling back to the filename. Title and Content type appear before the input area. The drawer defaults to Slide deck and updates the type to match dropped files. Upload types show only the drop area; YouTube and Spotify show only their URL input.
 
 ```mermaid
 flowchart TD
