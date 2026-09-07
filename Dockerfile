@@ -27,6 +27,8 @@ RUN if [ -n "${GIT_COMMIT_SHA:-}" ]; then export GIT_COMMIT_SHA; else unset GIT_
 WORKDIR /wrk
 COPY ./frontend ./frontend
 WORKDIR /wrk/frontend
+ARG VITE_ROOMS_V2_ENABLED=false
+ENV VITE_ROOMS_V2_ENABLED=$VITE_ROOMS_V2_ENABLED
 RUN pnpm install --frozen-lockfile && pnpm build
 
 FROM scratch AS tester

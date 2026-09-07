@@ -84,6 +84,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useWritableTeams } from '@/hooks/useWritableTeams'
 import { resolveCollectionsLayoutMode } from '@/lib/hub-view-mode'
 import { getTeamDisplayName } from '@/lib/team-display-name'
+import { isRoomsV2Enabled } from '@/lib/feature-flags'
 import { roomSourceType } from '@/lib/room-source'
 import { cn } from '@/lib/utils'
 
@@ -122,7 +123,8 @@ export function EntityListView({ entity }: EntityListViewProps) {
   const pullDyRef = useRef(0)
 
   const { viewMode: collectionsViewPreference } = useHubViewMode('collections')
-  const { teams: writableRoomTeams, user: roomUser } = useWritableTeams('roomCreate')
+  const roomsV2Enabled = isRoomsV2Enabled()
+  const { teams: writableRoomTeams, user: roomUser } = useWritableTeams('roomCreate', roomsV2Enabled)
   const isLandscape = useMediaQuery('(orientation: landscape)')
   const viewMode =
     entity === 'collections'
@@ -484,19 +486,21 @@ export function EntityListView({ entity }: EntityListViewProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <CreateRoomDialog
-        key={roomSource ? `${roomSource.type}:${roomSource.id}` : 'independent'}
-        open={roomSource != null}
-        onOpenChange={(open) => {
-          if (!open) setRoomSource(null)
-        }}
-        teams={writableRoomTeams}
-        userId={roomUser?.id}
-        source={roomSource}
-        onCreated={(roomId) => {
-          window.location.assign(`/rooms/${encodeURIComponent(roomId)}`)
-        }}
-      />
+      {roomsV2Enabled ? (
+        <CreateRoomDialog
+          key={roomSource ? `${roomSource.type}:${roomSource.id}` : 'independent'}
+          open={roomSource != null}
+          onOpenChange={(open) => {
+            if (!open) setRoomSource(null)
+          }}
+          teams={writableRoomTeams}
+          userId={roomUser?.id}
+          source={roomSource}
+          onCreated={(roomId) => {
+            window.location.assign(`/rooms/${encodeURIComponent(roomId)}`)
+          }}
+        />
+      ) : null}
     </>
   )
 }
@@ -784,22 +788,24 @@ function HubItemActionsMenu({
               <OutputIcon isHovered={itemHot === 'controlAvSlides'} size={16} className={HUB_ACTION_ICON_CLASS} />
               {t('hub.actions.controlAvSlides')}
             </HubActionItem>
-            <HubActionItem
-              disabled={!networkOnline}
-              title={!networkOnline ? t('hub.createOfflineHint') : undefined}
-              onSelect={() => {
-                if (!networkOnline) return
-                onCreateRoomRequest({
-                  type: roomSourceType(entity),
-                  id: itemId,
-                  title: itemLabel,
-                })
-              }}
-              onHoverChange={hover('createRoom')}
-            >
-              <RoomIcon isHovered={itemHot === 'createRoom'} size={16} className={actionIconClass} />
-              {t('rooms.createTitle')}
-            </HubActionItem>
+            {isRoomsV2Enabled() ? (
+              <HubActionItem
+                disabled={!networkOnline}
+                title={!networkOnline ? t('hub.createOfflineHint') : undefined}
+                onSelect={() => {
+                  if (!networkOnline) return
+                  onCreateRoomRequest({
+                    type: roomSourceType(entity),
+                    id: itemId,
+                    title: itemLabel,
+                  })
+                }}
+                onHoverChange={hover('createRoom')}
+              >
+                <RoomIcon isHovered={itemHot === 'createRoom'} size={16} className={actionIconClass} />
+                {t('rooms.createTitle')}
+              </HubActionItem>
+            ) : null}
             {playerCached ? (
               <HubActionItem onSelect={() => void onRemoveOffline()} onHoverChange={hover('removeOffline')}>
                 <FolderXIcon isHovered={itemHot === 'removeOffline'} size={16} className={HUB_ACTION_ICON_CLASS} />

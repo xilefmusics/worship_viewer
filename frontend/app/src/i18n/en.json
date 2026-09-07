@@ -1196,6 +1196,7 @@
   },
   "rooms": {
     "title": "Rooms",
+    "comingSoon": "Coming soon",
     "start": "Start Room",
     "createAria": "Create Room",
     "createTitle": "Create Room",
