@@ -15,18 +15,11 @@ export type RoomProjection = {
   item_title: string
   next_preview: string | null
 }
-export type RoomQueueItem = {
-  id: string
-  song_id: string
-  title: string
-  song: Extract<components['schemas']['PlayerItem'], { type: 'chords' }>
-  added_by: string
-  upvotes: number
-  played?: boolean
-}
+export type RoomChordItem = components['schemas']['PlayerChordsItem']
+export type RoomQueueItem = components['schemas']['RoomQueueItem']
 export type RoomParticipant = { id: string; mode: RoomMode; hide_chords?: boolean; display_name: string; avatar_url: string | null; anonymous: boolean; connected: boolean; is_host: boolean; is_av_host: boolean }
-export type RoomSummary = { id: string; name: string; team_id: string; source_type: RoomSourceType | null; source_id: string | null; source_title: string | null; open?: boolean; host_email: string; can_close?: boolean; participant_count: number; av_occupied: boolean; created_at: string }
-export type RoomSnapshot = RoomSummary & { locked?: boolean; content: { items: components['schemas']['Player']['items']; toc: components['schemas']['Player']['toc'] }; queue: RoomQueueItem[]; voted_queue_ids: string[]; musical_state: RoomMusicalState; projection: RoomProjection | null; participants: RoomParticipant[]; revision: number; host_lease_expires_at: string; guests_allowed?: boolean }
+export type RoomSummary = { id: string; name: string; team_id: string; open?: boolean; host_email: string; can_close?: boolean; participant_count: number; av_occupied: boolean; created_at: string }
+export type RoomSnapshot = RoomSummary & { locked?: boolean; content: { items: RoomChordItem[]; toc: components['schemas']['Player']['toc'] }; queue: RoomQueueItem[]; voted_queue_ids: string[]; musical_state: RoomMusicalState; projection: RoomProjection | null; participants: RoomParticipant[]; revision: number; host_lease_expires_at: string; guests_allowed?: boolean }
 export type RoomCredentials = { room_id: string; participant_id: string; mode: RoomMode; resume_credential: string; connection_ticket: string }
 export type CreatedRoom = { room: RoomSummary; credentials: RoomCredentials; invite_secret: string }
 export type RoomServerMessage =
@@ -376,7 +369,17 @@ export function useRoom(credentials: RoomCredentials | null): RoomConnection {
   return { snapshot, status, sendMusicalState, sendProjection, sendGuestsAllowed, sendRoomLocked, sendQueueVote, leave }
 }
 
-export function playerFromRoom(snapshot: RoomSnapshot): components['schemas']['Player'] { return { items: snapshot.content.items, toc: snapshot.content.toc, scroll_type: 'one_page', scroll_type_cache_other_orientation: 'book', orientation: 'portrait', between_items: false, index: snapshot.musical_state.item_index } }
+export function playerFromRoom(snapshot: RoomSnapshot): components['schemas']['Player'] {
+  return {
+    items: snapshot.content.items.map((item) => ({ type: 'chords' as const, ...item })),
+    toc: snapshot.content.toc,
+    scroll_type: 'one_page',
+    scroll_type_cache_other_orientation: 'book',
+    orientation: 'portrait',
+    between_items: false,
+    index: snapshot.musical_state.item_index,
+  }
+}
 
 export function participantModeLabel(
   participant: Pick<RoomParticipant, 'mode' | 'hide_chords'>,
@@ -413,13 +416,6 @@ export function useRoomElapsedSeconds(since: string): number {
   }, [since])
 
   return elapsed
-}
-
-export function roomSourceTypeLabel(
-  sourceType: RoomSourceType | null,
-  t: (key: string) => string,
-): string {
-  return sourceType ? t(`rooms.sourceType.${sourceType}`) : t('rooms.emptyRoom')
 }
 
 export function roomShortName(room: Pick<RoomSummary, 'name'>): string {

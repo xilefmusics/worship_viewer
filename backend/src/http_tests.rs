@@ -60,25 +60,28 @@ pub(crate) fn build_app(
 mod room_http {
     use actix_web::{http::StatusCode, test};
     use serde::Deserialize;
+    use shared::blob::BlobLink;
     use shared::room::{
         AddRoomQueueItem, CreateRoom, CreatedRoom, InspectRoomInvite, JoinRoom, JoinRoomInvite,
         RoomInviteInfo, RoomMode, RoomQueueLikes, RoomQueueRevision, RoomSnapshot, RoomSourceType,
         UpdateRoomQueueAccess,
     };
     use shared::setlist::{CreateSetlist, SetlistItem, SongLink};
-    use surrealdb::types::SurrealValue;
+    use shared::song::CreateSong;
+    use surrealdb::types::{RecordId, SurrealValue};
 
+    use crate::database::record_id_string;
     use crate::http_tests::{build_app, create_session_token};
     use crate::test_helpers::{
         TeamFixture, auth_ctx_for_user, create_song_with_title, ensure_test_collection,
-        setlist_service, test_db,
+        minimal_song_data, setlist_service, song_service, test_db,
     };
 
     #[actix_web::test]
     async fn admin_and_content_maintainer_create_source_free_team_rooms() {
         #[derive(Deserialize, SurrealValue)]
         struct PersistedHost {
-            host_user_id: Option<String>,
+            host_user_id: Option<RecordId>,
         }
 
         let db = test_db().await.unwrap();
@@ -113,9 +116,6 @@ mod room_http {
         let created: CreatedRoom = test::read_body_json(response).await;
         assert_eq!(created.room.team_id, fixture.shared_team_id);
         assert_eq!(created.room.name, "Sunday Worship");
-        assert_eq!(created.room.source_type, None);
-        assert_eq!(created.room.source_id, None);
-        assert_eq!(created.room.source_title, None);
         assert!(!created.room.name.trim().is_empty());
         assert_eq!(created.credentials.mode, RoomMode::Sheet);
 
@@ -137,8 +137,8 @@ mod room_http {
             .unwrap();
         let persisted = persisted.take::<Option<PersistedHost>>(0).unwrap().unwrap();
         assert_eq!(
-            persisted.host_user_id.as_deref(),
-            Some(fixture.writer.id.as_str())
+            persisted.host_user_id.as_ref().map(record_id_string),
+            Some(fixture.writer.id.clone())
         );
 
         let request = test::TestRequest::post()
@@ -169,16 +169,37 @@ mod room_http {
             .unwrap();
         let collection_id = ensure_test_collection(&db, &fixture.writer).await.unwrap();
         let source_ctx = auth_ctx_for_user(&db, &fixture.writer).await.unwrap();
+        let blob_only_song = song_service(&db)
+            .create_song_for_user(
+                &source_ctx,
+                CreateSong {
+                    collection: collection_id.clone(),
+                    not_a_song: false,
+                    blobs: vec![BlobLink {
+                        id: "blob-only-image".into(),
+                    }],
+                    data: minimal_song_data(),
+                },
+            )
+            .await
+            .unwrap();
         let setlist = setlist_service(&db)
             .create_setlist_for_user(
                 &source_ctx,
                 CreateSetlist {
                     owner: None,
                     title: "Room source setlist".into(),
-                    items: vec![SetlistItem::Song(SongLink {
-                        id: song.id.clone(),
-                        ..Default::default()
-                    })],
+                    items: vec![
+                        SetlistItem::Song(SongLink {
+                            id: song.id.clone(),
+                            ..Default::default()
+                        }),
+                        SetlistItem::Song(SongLink {
+                            id: blob_only_song.id.clone(),
+                            ..Default::default()
+                        }),
+                        SetlistItem::media("missing-media"),
+                    ],
                 },
             )
             .await
@@ -204,9 +225,19 @@ mod room_http {
                 .to_request();
             let created: CreatedRoom = test::call_and_read_body_json(&app, request).await;
             assert_eq!(created.room.team_id, fixture.shared_team_id);
-            assert_eq!(created.room.source_type, Some(source_type));
-            assert_eq!(created.room.source_title.as_deref(), Some(source_title));
             assert_eq!(created.credentials.mode, RoomMode::Sheet);
+
+            let mut persisted = db
+                .db
+                .query("SELECT * FROM ONLY type::record('player_room', $id)")
+                .bind(("id", created.room.id.clone()))
+                .await
+                .unwrap();
+            let persisted: Option<serde_json::Value> = persisted.take(0).unwrap();
+            let persisted = persisted.unwrap();
+            assert!(persisted.get("source_type").is_none());
+            assert!(persisted.get("source_id").is_none());
+            assert!(persisted.get("source_title").is_none());
 
             let request = test::TestRequest::get()
                 .uri(&format!("/api/v1/rooms/{}", created.room.id))
@@ -216,9 +247,15 @@ mod room_http {
             assert!(!snapshot.content.items.is_empty());
             assert_eq!(snapshot.musical_state.item_index, 0);
             if source_type == RoomSourceType::Setlist {
+                assert_eq!(snapshot.content.items.len(), 1);
+                assert_eq!(snapshot.content.items[0].song.id, song.id);
+                assert_eq!(snapshot.content.items[0].song.blobs, Vec::<BlobLink>::new());
+                assert_eq!(snapshot.content.toc.len(), 1);
+                assert_eq!(snapshot.content.toc[0].idx, 0);
                 assert_eq!(snapshot.queue.len(), 1);
                 assert_eq!(snapshot.queue[0].song_id, song.id);
                 assert_eq!(snapshot.queue[0].title, "Room source song");
+                assert!(snapshot.queue[0].song.song.blobs.is_empty());
             } else {
                 assert!(snapshot.queue.is_empty());
             }

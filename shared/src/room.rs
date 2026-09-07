@@ -26,27 +26,49 @@ pub enum RoomMode {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "backend", derive(ToSchema))]
 pub struct RoomContent {
-    pub items: Vec<PlayerItem>,
+    pub items: Vec<PlayerChordsItem>,
     pub toc: Vec<TocItem>,
+}
+
+impl RoomContent {
+    /// Remove player-only blob slots and blob references from a chord song before it enters a room.
+    pub fn normalize_song(mut song: PlayerChordsItem) -> PlayerChordsItem {
+        song.song.blobs.clear();
+        song.song.user_specific_addons.liked = false;
+        song
+    }
 }
 
 impl From<&Player> for RoomContent {
     fn from(player: &Player) -> Self {
-        let mut items = player.items().to_vec();
-        for item in &mut items {
-            if let PlayerItem::Chords(chords) = item {
-                chords.song.user_specific_addons.liked = false;
-            }
+        let mut items = Vec::new();
+        let mut chord_item_indices = vec![None; player.items().len()];
+        for (index, item) in player.items().iter().enumerate() {
+            let PlayerItem::Chords(chords) = item else {
+                continue;
+            };
+            chord_item_indices[index] = Some(items.len());
+            items.push(Self::normalize_song((**chords).clone()));
         }
-        let toc = player
-            .toc()
-            .iter()
-            .cloned()
-            .map(|mut row| {
-                row.liked = false;
-                row
-            })
-            .collect();
+
+        let mut toc = Vec::new();
+        for (toc_index, row) in player.toc().iter().enumerate() {
+            let start = row.idx.min(player.items().len());
+            let end = player
+                .toc()
+                .get(toc_index + 1)
+                .map_or(player.items().len(), |next| next.idx)
+                .min(player.items().len());
+            let Some(new_index) =
+                (start..end).find_map(|item_index| chord_item_indices[item_index])
+            else {
+                continue;
+            };
+            let mut row = row.clone();
+            row.idx = new_index;
+            row.liked = false;
+            toc.push(row);
+        }
         Self { items, toc }
     }
 }
@@ -120,9 +142,6 @@ pub struct RoomSummary {
     pub id: String,
     pub name: String,
     pub team_id: String,
-    pub source_type: Option<RoomSourceType>,
-    pub source_id: Option<String>,
-    pub source_title: Option<String>,
     #[serde(default = "default_room_open")]
     pub open: bool,
     pub host_email: String,
@@ -262,7 +281,9 @@ pub struct CreatedRoom {
 mod tests {
     use super::*;
     use crate::{
-        player::{Player, PlayerChordsItem, PlayerItem},
+        blob::BlobLink,
+        media::MediaContent,
+        player::{Player, PlayerChordsItem, PlayerItem, PlayerMediaItem},
         song::{Song, SongUserSpecificAddons},
     };
 
@@ -290,17 +311,68 @@ mod tests {
         );
         let content = RoomContent::from(&player);
         assert!(!content.toc[0].liked);
-        let PlayerItem::Chords(item) = &content.items[0] else {
-            panic!("expected chords")
+        assert!(!content.items[0].song.user_specific_addons.liked);
+    }
+
+    #[test]
+    fn room_content_keeps_only_chord_songs_and_compacts_toc() {
+        let mut blob_only = Song {
+            id: "blob-song".into(),
+            blobs: vec![BlobLink {
+                id: "blob-1".into(),
+            }],
+            ..Default::default()
         };
-        assert!(!item.song.user_specific_addons.liked);
+        blob_only.data.titles = vec!["Blob song".into()];
+        let mut chord_song = Song {
+            id: "chord-song".into(),
+            blobs: vec![BlobLink {
+                id: "blob-2".into(),
+            }],
+            user_specific_addons: SongUserSpecificAddons { liked: true },
+            ..Default::default()
+        };
+        chord_song.data.titles = vec!["Chord song".into()];
+        chord_song.data.sections = vec![chordlib::types::Section::new("Verse".into(), vec![])];
+        let player = Player::from(crate::song::LinkOwned {
+            song: blob_only,
+            nr: Some("1".into()),
+            key: None,
+            tempo: None,
+            language: None,
+            flow: None,
+            liked: false,
+        }) + Player::from(crate::song::LinkOwned {
+            song: chord_song,
+            nr: Some("2".into()),
+            key: None,
+            tempo: None,
+            language: None,
+            flow: None,
+            liked: true,
+        }) + Player::from(PlayerMediaItem {
+            id: "media-1".into(),
+            title: "Announcement".into(),
+            content: MediaContent::WebPage {
+                url: "https://example.com".into(),
+            },
+        });
+
+        let content = RoomContent::from(&player);
+
+        assert_eq!(content.items.len(), 1);
+        assert_eq!(content.items[0].song.id, "chord-song");
+        assert!(content.items[0].song.blobs.is_empty());
+        assert_eq!(content.toc.len(), 1);
+        assert_eq!(content.toc[0].idx, 0);
+        assert_eq!(content.toc[0].id.as_deref(), Some("chord-song"));
+        assert_eq!(content.toc[0].nr, "2");
     }
 
     #[test]
     fn older_room_summaries_default_to_open_queue_access() {
         let json = r#"{
             "id":"room-1","name":"Room","team_id":"team-1",
-            "source_type":null,"source_id":null,"source_title":null,
             "host_email":"host@example.com","can_close":false,
             "participant_count":0,"av_occupied":false,
             "created_at":"2026-01-01T00:00:00Z"

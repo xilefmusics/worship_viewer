@@ -18,9 +18,8 @@ use crate::{
     docs::Problem,
     error::AppError,
     resources::{
-        blob::service::BlobServiceHandle, collection::service::CollectionServiceHandle,
-        setlist::service::SetlistServiceHandle, song::service::SongServiceHandle,
-        team::parse_owner_record_id,
+        collection::service::CollectionServiceHandle, setlist::service::SetlistServiceHandle,
+        song::service::SongServiceHandle, team::parse_owner_record_id,
     },
 };
 
@@ -31,7 +30,6 @@ pub fn scope() -> Scope {
         .service(inspect_invite)
         .service(join_invite)
         .service(reconnect_room)
-        .service(room_media)
         .service(room_websocket)
         .service(
             web::scope("")
@@ -140,8 +138,7 @@ fn queue_from_player(player: &shared::player::Player, added_by: &str) -> Vec<Roo
                 .find(|toc| toc.idx == index)
                 .map(|toc| toc.title.clone())
                 .unwrap_or_else(|| song.song.data.title().to_string());
-            let mut song = song.clone();
-            song.song.user_specific_addons.liked = false;
+            let song = Box::new(RoomContent::normalize_song((**song).clone()));
             Some(RoomQueueItem {
                 id: format!("source-{index}-{song_id}"),
                 song_id,
@@ -209,72 +206,46 @@ pub async fn create_room(
     let owner_record = parse_owner_record_id(&request.team_id)?;
     ctx.require_write_access_to_owner(&owner_record)?;
 
-    let (source_type, source_id, source_title, content, initial_queue) =
-        match (request.source_type, request.source_id) {
-            (None, None) => (
-                None,
-                None,
-                None,
-                RoomContent {
-                    items: Vec::new(),
-                    toc: Vec::new(),
-                },
-                Vec::new(),
-            ),
-            (Some(source_type), Some(source_id)) => match source_type {
-                RoomSourceType::Song => {
-                    let source = song_svc.get_song_for_user(&ctx, &source_id).await?;
-                    let player = song_svc.song_player_for_user(&ctx, &source_id).await?;
-                    let title = source
-                        .data
-                        .titles
-                        .first()
-                        .filter(|title| !title.trim().is_empty())
-                        .cloned()
-                        .unwrap_or_else(|| "Untitled".into());
-                    (
-                        Some(RoomSourceType::Song),
-                        Some(source_id),
-                        Some(title),
-                        RoomContent::from(&player),
-                        Vec::new(),
-                    )
-                }
-                RoomSourceType::Collection => {
-                    let source = collection_svc
-                        .get_collection_for_user(&ctx, &source_id)
-                        .await?;
-                    let player = collection_svc
-                        .collection_player_for_user(&ctx, &source_id)
-                        .await?;
-                    (
-                        Some(RoomSourceType::Collection),
-                        Some(source_id),
-                        Some(source.title),
-                        RoomContent::from(&player),
-                        Vec::new(),
-                    )
-                }
-                RoomSourceType::Setlist => {
-                    let source = setlist_svc.get_setlist_for_user(&ctx, &source_id).await?;
-                    let player = setlist_svc
-                        .setlist_player_for_user(&ctx, &source_id)
-                        .await?;
-                    (
-                        Some(RoomSourceType::Setlist),
-                        Some(source_id),
-                        Some(source.title),
-                        RoomContent::from(&player),
-                        queue_from_player(&player, &ctx.user.email),
-                    )
-                }
+    let (content, initial_queue) = match (request.source_type, request.source_id) {
+        (None, None) => (
+            RoomContent {
+                items: Vec::new(),
+                toc: Vec::new(),
             },
-            _ => {
-                return Err(AppError::invalid_request(
-                    "source_type and source_id must be provided together",
-                ));
+            Vec::new(),
+        ),
+        (Some(source_type), Some(source_id)) => match source_type {
+            RoomSourceType::Song => {
+                song_svc.get_song_for_user(&ctx, &source_id).await?;
+                let player = song_svc.song_player_for_user(&ctx, &source_id).await?;
+                (RoomContent::from(&player), Vec::new())
             }
-        };
+            RoomSourceType::Collection => {
+                collection_svc
+                    .get_collection_for_user(&ctx, &source_id)
+                    .await?;
+                let player = collection_svc
+                    .collection_player_for_user(&ctx, &source_id)
+                    .await?;
+                (RoomContent::from(&player), Vec::new())
+            }
+            RoomSourceType::Setlist => {
+                setlist_svc.get_setlist_for_user(&ctx, &source_id).await?;
+                let player = setlist_svc
+                    .setlist_player_for_user(&ctx, &source_id)
+                    .await?;
+                (
+                    RoomContent::from(&player),
+                    queue_from_player(&player, &ctx.user.email),
+                )
+            }
+        },
+        _ => {
+            return Err(AppError::invalid_request(
+                "source_type and source_id must be provided together",
+            ));
+        }
+    };
 
     let created = svc
         .create(CreateRoomInput {
@@ -283,9 +254,6 @@ pub async fn create_room(
             host_user_id: ctx.user.id.clone(),
             host_email: ctx.user.email.clone(),
             host_avatar_url: ctx.user.oauth_picture_url.clone(),
-            source_type,
-            source_id,
-            source_title,
             content,
             initial_queue,
             host_mode: RoomMode::Sheet,
@@ -355,7 +323,7 @@ pub async fn add_queue_item(
         .song_player_for_user(&ctx, &request.song_id)
         .await?;
     let content = RoomContent::from(&player);
-    let Some(PlayerItem::Chords(song)) = content.items.into_iter().next() else {
+    let Some(song) = content.items.into_iter().next() else {
         return Err(AppError::invalid_request(
             "only songs can be added to a room queue",
         ));
@@ -376,7 +344,7 @@ pub async fn add_queue_item(
                 id: uuid::Uuid::new_v4().to_string(),
                 song_id,
                 title,
-                song,
+                song: Box::new(song),
                 added_by: ctx.user.email.clone(),
                 upvotes: 0,
                 played: false,
@@ -506,27 +474,6 @@ pub async fn reconnect_room(
         .as_deref()
         .ok_or_else(AppError::unauthorized)?;
     Ok(HttpResponse::Ok().json(svc.reconnect(&id, credential).await?))
-}
-
-#[utoipa::path(get, path = "/api/v1/rooms/{room_id}/media/{blob_id}", params(("room_id" = String, Path), ("blob_id" = String, Path), ("Authorization" = String, Header)), responses((status = 200, content_type = "application/octet-stream")), tag = "Rooms")]
-#[get("/{room_id}/media/{blob_id}")]
-pub async fn room_media(
-    req: HttpRequest,
-    svc: Data<RoomService>,
-    blobs: Data<BlobServiceHandle>,
-    path: Path<(String, String)>,
-) -> Result<HttpResponse, AppError> {
-    let (room_id, blob_id) = path.into_inner();
-    let auth = req
-        .headers()
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Room "))
-        .ok_or_else(AppError::unauthorized)?;
-    let team_id = svc.authorize_media(&room_id, auth, &blob_id).await?;
-    let team = parse_owner_record_id(&team_id)?;
-    let file = blobs.open_blob_data_file_for_room(team, &blob_id).await?;
-    Ok(file.into_response(&req))
 }
 
 #[get("/ws")]

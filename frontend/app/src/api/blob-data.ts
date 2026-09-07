@@ -58,9 +58,7 @@ export async function fetchBlobBinaryWithMime(
 ): Promise<{ buffer: ArrayBuffer; mime: string | null } | null> {
   const url = blobDataUrl(blobId)
   try {
-    const { fetchRoomMedia } = await import('@/lib/room-media')
-    const roomResponse = await fetchRoomMedia(blobId, signal)
-    const res = roomResponse ?? await fetch(url, {
+    const res = await fetch(url, {
       method: 'GET',
       credentials: 'include',
       signal,

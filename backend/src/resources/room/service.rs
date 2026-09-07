@@ -14,7 +14,7 @@ use surrealdb::types::{Datetime, RecordId, SurrealValue};
 use tokio::sync::{RwLock, broadcast};
 use uuid::Uuid;
 
-use shared::player::{PlayerItem, TocItem};
+use shared::player::TocItem;
 use shared::room::*;
 
 use crate::{
@@ -68,13 +68,10 @@ pub struct RoomService {
 struct RoomRecord {
     id: RecordId,
     owner: RecordId,
-    source_type: Option<String>,
-    source_id: Option<String>,
-    source_title: Option<String>,
     #[serde(default = "default_room_open")]
     open: bool,
     name: String,
-    host_user_id: Option<String>,
+    host_user_id: Option<RecordId>,
     host_email: String,
     musical_state_json: String,
     #[serde(default = "default_queue_json")]
@@ -84,9 +81,8 @@ struct RoomRecord {
     projection_json: Option<String>,
     revision: i64,
     invite_hash: String,
-    host_participant_id: String,
-    av_participant_id: Option<String>,
-    media_ids: Vec<String>,
+    host_participant_id: RecordId,
+    av_participant_id: Option<RecordId>,
     created_at: Datetime,
     host_lease_expires_at: Datetime,
     closed_at: Option<Datetime>,
@@ -100,25 +96,18 @@ struct RoomRecord {
 struct RoomSummaryRecord {
     id: RecordId,
     owner: RecordId,
-    source_type: Option<String>,
-    source_id: Option<String>,
-    source_title: Option<String>,
     #[serde(default = "default_room_open")]
     open: bool,
     name: String,
-    host_user_id: Option<String>,
+    host_user_id: Option<RecordId>,
     host_email: String,
-    av_participant_id: Option<String>,
+    av_participant_id: Option<RecordId>,
     created_at: Datetime,
 }
 
 #[derive(Debug, Clone, Deserialize, SurrealValue)]
-struct BlobOwnerRecord {
-    owner: RecordId,
-}
-
-#[derive(Debug, Clone, Deserialize, SurrealValue)]
 struct ParticipantRecord {
+    id: RecordId,
     participant_id: String,
     user_id: Option<String>,
     display_name: String,
@@ -161,7 +150,6 @@ struct RoomAggregate {
     queue_votes: HashMap<String, Vec<String>>,
     musical_state: RoomMusicalState,
     projection: Option<RoomProjectionPayload>,
-    open: bool,
     participants: Vec<ParticipantRecord>,
 }
 
@@ -263,9 +251,6 @@ pub struct CreateRoomInput {
     pub host_user_id: String,
     pub host_email: String,
     pub host_avatar_url: Option<String>,
-    pub source_type: Option<RoomSourceType>,
-    pub source_id: Option<String>,
-    pub source_title: Option<String>,
     pub content: RoomContent,
     pub initial_queue: Vec<RoomQueueItem>,
     pub host_mode: RoomMode,
@@ -316,22 +301,15 @@ impl RoomService {
         hex::encode(digest::digest(&digest::SHA256, secret.as_bytes()))
     }
 
-    fn source_type_to_db(source_type: RoomSourceType) -> &'static str {
-        match source_type {
-            RoomSourceType::Song => "song",
-            RoomSourceType::Collection => "collection",
-            RoomSourceType::Setlist => "setlist",
-        }
+    fn user_record_id(user_id: &str) -> RecordId {
+        RecordId::new("user", user_id.to_string())
     }
 
-    fn source_type_from_db(value: Option<&str>) -> Result<Option<RoomSourceType>, AppError> {
-        match value {
-            None => Ok(None),
-            Some("song") => Ok(Some(RoomSourceType::Song)),
-            Some("collection") => Ok(Some(RoomSourceType::Collection)),
-            Some("setlist") => Ok(Some(RoomSourceType::Setlist)),
-            _ => Err(AppError::database("invalid room source type")),
-        }
+    fn participant_record_id(room_id: &str, participant_id: &str) -> RecordId {
+        RecordId::new(
+            "player_room_participant",
+            format!("{room_id}:{participant_id}"),
+        )
     }
 
     fn mode_to_db(mode: RoomMode) -> &'static str {
@@ -377,43 +355,37 @@ impl RoomService {
         let Some(item) = content.items.get(state.item_index) else {
             return Err(AppError::invalid_request("room item index is out of range"));
         };
-        match item {
-            PlayerItem::Blob(_) if state.language.is_some() || state.transposition.is_some() => {
-                Err(AppError::invalid_request(
-                    "blob items do not accept language or transposition",
-                ))
-            }
-            PlayerItem::Chords(chords) => {
-                if let Some(language) = state.language.as_deref()
-                    && !Self::effective_language_is_available(&chords.song.data, language)
-                {
-                    return Err(AppError::invalid_request(
-                        "language is unavailable for this item",
-                    ));
-                }
-                if state
-                    .transposition
-                    .as_ref()
-                    .is_some_and(|key| key.trim().is_empty() || key.len() > 16)
-                {
-                    return Err(AppError::invalid_request("invalid transposition"));
-                }
-                Ok(())
-            }
-            _ => Ok(()),
+        if let Some(language) = state.language.as_deref()
+            && !Self::effective_language_is_available(&item.song.data, language)
+        {
+            return Err(AppError::invalid_request(
+                "language is unavailable for this item",
+            ));
         }
+        if state
+            .transposition
+            .as_ref()
+            .is_some_and(|key| key.trim().is_empty() || key.len() > 16)
+        {
+            return Err(AppError::invalid_request("invalid transposition"));
+        }
+        Ok(())
     }
 
     fn normalize_initial_language(content: &RoomContent, state: &mut RoomMusicalState) {
         let Some(language) = state.language.as_deref() else {
             return;
         };
-        let Some(PlayerItem::Chords(chords)) = content.items.get(state.item_index) else {
+        let Some(chords) = content.items.get(state.item_index) else {
             return;
         };
         if !Self::effective_language_is_available(&chords.song.data, language) {
             state.language = None;
         }
+    }
+
+    fn normalize_queue_item(item: &mut RoomQueueItem) {
+        *item.song = RoomContent::normalize_song((*item.song).clone());
     }
 
     fn validate_projection(projection: &RoomProjectionPayload) -> Result<(), AppError> {
@@ -432,22 +404,6 @@ impl RoomService {
             return Err(AppError::invalid_request("invalid projection screen state"));
         }
         Ok(())
-    }
-
-    fn collect_media(content: &RoomContent) -> HashSet<String> {
-        let mut ids = HashSet::new();
-        for item in &content.items {
-            match item {
-                PlayerItem::Blob(blob) => {
-                    ids.insert(blob.blob_id.clone());
-                }
-                PlayerItem::Chords(chords) => {
-                    ids.extend(chords.song.blobs.iter().map(|blob| blob.id.clone()));
-                }
-                PlayerItem::Media(_) => {}
-            }
-        }
-        ids
     }
 
     fn is_active(room: &RoomRecord) -> bool {
@@ -473,29 +429,37 @@ impl RoomService {
             anonymous: participant.anonymous,
             connected: participant.connected && Self::participant_is_active(participant),
             is_host: Self::participant_is_host(room, participant),
-            is_av_host: room.av_participant_id.as_deref()
-                == Some(participant.participant_id.as_str())
+            is_av_host: room.av_participant_id.as_ref() == Some(&participant.id)
                 && Self::participant_is_active(participant),
         })
     }
 
     fn participant_is_host(room: &RoomRecord, participant: &ParticipantRecord) -> bool {
-        room.host_user_id.as_deref().map_or_else(
-            || participant.participant_id == room.host_participant_id,
-            |host_user_id| participant.user_id.as_deref() == Some(host_user_id),
+        room.host_user_id.as_ref().map_or_else(
+            || participant.id == room.host_participant_id,
+            |host_user_id| {
+                participant
+                    .user_id
+                    .as_deref()
+                    .is_some_and(|user_id| host_user_id == &Self::user_record_id(user_id))
+            },
         )
     }
 
     fn host_user_id<'a>(
         room: &'a RoomRecord,
         participants: &'a [ParticipantRecord],
-    ) -> Option<&'a str> {
-        room.host_user_id.as_deref().or_else(|| {
-            participants
-                .iter()
-                .find(|participant| participant.participant_id == room.host_participant_id)
-                .and_then(|participant| participant.user_id.as_deref())
-        })
+    ) -> Option<String> {
+        room.host_user_id
+            .as_ref()
+            .map(record_id_string)
+            .or_else(|| {
+                participants
+                    .iter()
+                    .find(|participant| participant.id == room.host_participant_id)
+                    .and_then(|participant| participant.user_id.as_deref())
+                    .map(str::to_string)
+            })
     }
 
     fn summary_from_room(
@@ -506,18 +470,14 @@ impl RoomService {
             .iter()
             .filter(|participant| Self::participant_is_active(participant))
             .collect::<Vec<_>>();
-        let av_occupied = room.av_participant_id.as_ref().is_some_and(|id| {
-            active
-                .iter()
-                .any(|participant| participant.participant_id == *id)
-        });
+        let av_occupied = room
+            .av_participant_id
+            .as_ref()
+            .is_some_and(|id| active.iter().any(|participant| participant.id == *id));
         Ok(RoomSummary {
             id: record_id_string(&room.id),
             name: room.name.clone(),
             team_id: record_id_string(&room.owner),
-            source_type: Self::source_type_from_db(room.source_type.as_deref())?,
-            source_id: room.source_id.clone(),
-            source_title: room.source_title.clone(),
             open: room.open,
             host_email: room.host_email.clone(),
             can_close: false,
@@ -622,13 +582,13 @@ impl RoomService {
             .db
             .query(
                 r#"
-SELECT id, owner, source_type, source_id, source_title, name, host_user_id, host_email,
+SELECT id, owner, name, host_user_id, host_email,
        musical_state_json, queue_json, queue_votes_json, projection_json, revision, open,
-       invite_hash, host_participant_id, av_participant_id, media_ids,
+       invite_hash, host_participant_id, av_participant_id,
        created_at, host_lease_expires_at, closed_at, guests_allowed, locked
 FROM ONLY type::record('player_room', $room_id);
 SELECT content_json FROM ONLY type::record('player_room_snapshot', $room_id);
-SELECT participant_id, user_id, display_name, avatar_url, anonymous, mode,
+SELECT id, participant_id, user_id, display_name, avatar_url, anonymous, mode,
        hide_chords, resume_hash, connected, lease_expires_at
 FROM player_room_participant
 WHERE room = type::record('player_room', $room_id);
@@ -645,12 +605,18 @@ WHERE room = type::record('player_room', $room_id);
             .take::<Option<SnapshotRecord>>(1)?
             .ok_or_else(|| AppError::Internal("room snapshot is missing".into()))?;
         let participants = response.take::<Vec<ParticipantRecord>>(2)?;
-        let content = serde_json::from_str(&snapshot.content_json)
+        let mut content: RoomContent = serde_json::from_str(&snapshot.content_json)
             .map_err(|e| AppError::internal_from_err("room.snapshot.decode", e))?;
+        for item in &mut content.items {
+            *item = RoomContent::normalize_song(item.clone());
+        }
         let musical_state = serde_json::from_str(&room.musical_state_json)
             .map_err(|e| AppError::internal_from_err("room.musical.decode", e))?;
-        let queue = serde_json::from_str(&room.queue_json)
+        let mut queue: Vec<RoomQueueItem> = serde_json::from_str(&room.queue_json)
             .map_err(|e| AppError::internal_from_err("room.queue.decode", e))?;
+        for item in &mut queue {
+            Self::normalize_queue_item(item);
+        }
         let queue_votes = serde_json::from_str(&room.queue_votes_json)
             .map_err(|e| AppError::internal_from_err("room.queue_votes.decode", e))?;
         let projection = room
@@ -659,7 +625,6 @@ WHERE room = type::record('player_room', $room_id);
             .map(serde_json::from_str)
             .transpose()
             .map_err(|e| AppError::internal_from_err("room.projection.decode", e))?;
-        let open = room.open;
         Ok(Some(RoomAggregate {
             room,
             content,
@@ -667,7 +632,6 @@ WHERE room = type::record('player_room', $room_id);
             queue_votes,
             musical_state,
             projection,
-            open,
             participants,
         }))
     }
@@ -704,6 +668,12 @@ WHERE room = type::record('player_room', $room_id);
     }
 
     pub async fn create(&self, mut input: CreateRoomInput) -> Result<CreatedRoom, AppError> {
+        for item in &mut input.content.items {
+            *item = RoomContent::normalize_song(item.clone());
+        }
+        for item in &mut input.initial_queue {
+            Self::normalize_queue_item(item);
+        }
         Self::normalize_initial_language(&input.content, &mut input.musical_state);
         if !input.content.items.is_empty() {
             Self::validate_state(&input.content, &input.musical_state)?;
@@ -724,6 +694,7 @@ WHERE room = type::record('player_room', $room_id);
         let now = Utc::now();
         let room_id = Uuid::new_v4().to_string();
         let participant_id = Uuid::new_v4().to_string();
+        let participant_row_id = format!("{room_id}:{participant_id}");
         let invite_secret = Self::secret()?;
         let resume_credential = Self::secret()?;
         let connection_ticket = Self::secret()?;
@@ -740,12 +711,6 @@ WHERE room = type::record('player_room', $room_id);
             .map(serde_json::to_string)
             .transpose()
             .map_err(|e| AppError::internal_from_err("room.projection.encode", e))?;
-        let media_ids = Self::collect_media(&input.content)
-            .into_iter()
-            .chain(input.initial_queue.iter().flat_map(Self::queue_media_ids))
-            .collect::<HashSet<_>>();
-        let mut media_ids = media_ids.into_iter().collect::<Vec<_>>();
-        media_ids.sort();
         let name = input
             .name
             .take()
@@ -763,13 +728,12 @@ WHERE room = type::record('player_room', $room_id);
                 r#"
 BEGIN TRANSACTION;
 CREATE type::record('player_room', $room_id) CONTENT {
-    owner: type::record('team', $team_id), source_type: $source_type,
-    source_id: $source_id, source_title: $source_title, name: $name,
-    host_user_id: $host_user_id, host_email: $host_email, snapshot_json: NONE, state_json: NONE,
+    owner: type::record('team', $team_id), name: $name,
+    host_user_id: $host_user_id, host_email: $host_email,
     musical_state_json: $musical_json, queue_json: $queue_json, queue_votes_json: "{}", projection_json: $projection_json,
     open: false,
-    revision: 1, invite_hash: $invite_hash, host_participant_id: $participant_id,
-    av_participant_id: $av_participant_id, media_ids: $media_ids,
+    revision: 1, invite_hash: $invite_hash, host_participant_id: $host_participant_id,
+    av_participant_id: $av_participant_id,
     created_at: $now, host_lease_expires_at: $lease, closed_at: NONE,
     guests_allowed: false, locked: false
 };
@@ -792,17 +756,8 @@ COMMIT TRANSACTION;
             )
             .bind(("room_id", room_id.clone()))
             .bind(("team_id", input.team_id.clone()))
-            .bind((
-                "source_type",
-                input
-                    .source_type
-                    .map(Self::source_type_to_db)
-                    .map(str::to_string),
-            ))
-            .bind(("source_id", input.source_id.clone()))
-            .bind(("source_title", input.source_title.clone()))
             .bind(("name", name.clone()))
-            .bind(("host_user_id", input.host_user_id.clone()))
+            .bind(("host_user_id", Self::user_record_id(&input.host_user_id)))
             .bind(("host_email", input.host_email.clone()))
             .bind(("snapshot_json", snapshot_json))
             .bind(("queue_json", queue_json))
@@ -811,13 +766,17 @@ COMMIT TRANSACTION;
             .bind(("invite_hash", Self::hash(&invite_secret)))
             .bind(("participant_id", participant_id.clone()))
             .bind((
-                "av_participant_id",
-                (input.host_mode == RoomMode::Av).then(|| participant_id.clone()),
+                "host_participant_id",
+                Self::participant_record_id(&room_id, &participant_id),
             ))
-            .bind(("media_ids", media_ids))
+            .bind((
+                "av_participant_id",
+                (input.host_mode == RoomMode::Av)
+                    .then(|| Self::participant_record_id(&room_id, &participant_id)),
+            ))
             .bind(("now", now))
             .bind(("lease", lease))
-            .bind(("participant_row_id", format!("{room_id}:{participant_id}")))
+            .bind(("participant_row_id", participant_row_id))
             .bind(("user_id", Some(input.host_user_id)))
             .bind(("display_name", input.host_email.clone()))
             .bind(("avatar_url", input.host_avatar_url))
@@ -833,9 +792,6 @@ COMMIT TRANSACTION;
             id: room_id.clone(),
             name,
             team_id: input.team_id,
-            source_type: input.source_type,
-            source_id: input.source_id,
-            source_title: input.source_title,
             open: false,
             host_email: input.host_email,
             can_close: true,
@@ -872,7 +828,7 @@ COMMIT TRANSACTION;
             .db
             .query(
                 r#"
-SELECT id, owner, source_type, source_id, source_title, open, name, host_email,
+SELECT id, owner, open, name, host_email,
        host_user_id, av_participant_id, created_at
 FROM player_room
 WHERE owner IN $owners AND closed_at = NONE
@@ -891,12 +847,13 @@ ORDER BY created_at DESC;
             .db
             .db
             .query(
-                "SELECT room, participant_id FROM player_room_participant WHERE room IN $rooms AND lease_expires_at > time::now()",
+                "SELECT id, room, participant_id FROM player_room_participant WHERE room IN $rooms AND lease_expires_at > time::now()",
             )
             .bind(("rooms", room_ids))
             .await?;
         #[derive(Deserialize, SurrealValue)]
         struct ActiveParticipant {
+            id: RecordId,
             room: RecordId,
             participant_id: String,
         }
@@ -909,31 +866,24 @@ ORDER BY created_at DESC;
                 .iter()
                 .filter(|participant| participant.room == room.id)
                 .collect::<Vec<_>>();
-            let haystack = format!(
-                "{} {} {}",
-                room.name,
-                room.source_title.as_deref().unwrap_or_default(),
-                room.host_email
-            )
-            .to_lowercase();
+            let haystack = format!("{} {}", room.name, room.host_email).to_lowercase();
             if !needle.is_empty() && !haystack.contains(&needle) {
                 continue;
             }
-            let av_occupied = room.av_participant_id.as_ref().is_some_and(|id| {
-                participants
-                    .iter()
-                    .any(|participant| participant.participant_id == *id)
-            });
+            let av_occupied = room
+                .av_participant_id
+                .as_ref()
+                .is_some_and(|id| participants.iter().any(|participant| participant.id == *id));
             summaries.push(RoomSummary {
                 id: room_id,
                 name: room.name,
                 team_id: record_id_string(&room.owner),
-                source_type: Self::source_type_from_db(room.source_type.as_deref())?,
-                source_id: room.source_id,
-                source_title: room.source_title,
                 open: room.open,
                 host_email: room.host_email,
-                can_close: room.host_user_id.as_deref() == Some(user_id)
+                can_close: room
+                    .host_user_id
+                    .as_ref()
+                    .is_some_and(|id| record_id_string(id) == user_id)
                     || closable_teams.contains(&record_id_string(&room.owner)),
                 participant_count: participants.len(),
                 av_occupied,
@@ -1009,7 +959,7 @@ ORDER BY created_at DESC;
         }
 
         let host_account = user_id.is_some_and(|user_id| {
-            Self::host_user_id(&aggregate.room, &aggregate.participants) == Some(user_id)
+            Self::host_user_id(&aggregate.room, &aggregate.participants).as_deref() == Some(user_id)
         });
         let resume_hash = resume.map(Self::hash);
         let resumed = resume_hash.as_ref().and_then(|hash| {
@@ -1039,10 +989,9 @@ ORDER BY created_at DESC;
 
         if mode == RoomMode::Av
             && aggregate.room.av_participant_id.as_ref().is_some_and(|id| {
-                id != &participant_id
+                id != &Self::participant_record_id(room_id, &participant_id)
                     && aggregate.participants.iter().any(|participant| {
-                        participant.participant_id == *id
-                            && Self::participant_is_active(participant)
+                        participant.id == *id && Self::participant_is_active(participant)
                     })
             })
         {
@@ -1052,6 +1001,7 @@ ORDER BY created_at DESC;
         let now = Utc::now();
         let lease = now + Duration::seconds(LEASE_SECONDS);
         let ticket = Self::secret()?;
+        let participant_record_id = Self::participant_record_id(room_id, &participant_id);
         let mut response = self
             .db
             .db
@@ -1068,7 +1018,7 @@ UPSERT type::record('player_room_participant', $participant_row_id) MERGE {
 UPDATE type::record('player_room', $room_id)
 SET revision += 1,
     host_user_id = IF host_user_id = NONE THEN $host_user_id ELSE host_user_id END,
-    av_participant_id = IF $claim_av THEN $participant_id ELSE av_participant_id END;
+    av_participant_id = IF $claim_av THEN $participant_record_id ELSE av_participant_id END;
 CREATE type::record('player_room_ticket', $ticket_id) CONTENT {
     room: type::record('player_room', $room_id), participant_id: $participant_id,
     ticket_hash: $ticket_hash, expires_at: $ticket_expires_at, consumed_at: NONE
@@ -1090,8 +1040,9 @@ COMMIT TRANSACTION;
             .bind(("joined_at", now))
             .bind((
                 "host_user_id",
-                host_account.then(|| user_id.unwrap().to_string()),
+                host_account.then(|| Self::user_record_id(user_id.unwrap())),
             ))
+            .bind(("participant_record_id", participant_record_id))
             .bind(("claim_av", mode == RoomMode::Av))
             .bind(("ticket_id", Uuid::new_v4().to_string()))
             .bind(("ticket_hash", Self::hash(&ticket)))
@@ -1214,7 +1165,7 @@ COMMIT TRANSACTION;
         if aggregate.room.closed_at.is_some() {
             return Ok(());
         }
-        if Self::host_user_id(&aggregate.room, &aggregate.participants) != Some(user_id)
+        if Self::host_user_id(&aggregate.room, &aggregate.participants).as_deref() != Some(user_id)
             && !closable_teams.contains(&owner)
         {
             return Err(AppError::forbidden());
@@ -1327,13 +1278,6 @@ SET revision += 1;
         aggregate.queue.iter().any(|item| item.song_id == song_id)
     }
 
-    fn queue_media_ids(item: &RoomQueueItem) -> HashSet<String> {
-        Self::collect_media(&RoomContent {
-            items: vec![PlayerItem::Chords(item.song.clone())],
-            toc: Vec::new(),
-        })
-    }
-
     pub async fn ensure_queue_additions_allowed(
         &self,
         room_id: &str,
@@ -1345,7 +1289,7 @@ SET revision += 1;
         if !teams.contains(&owner) || !Self::participant_is_active_member(&aggregate, user_id) {
             return Err(AppError::unauthorized());
         }
-        if !aggregate.open {
+        if !aggregate.room.open {
             return Err(AppError::conflict("room_queue_additions_disabled"));
         }
         Ok(())
@@ -1388,14 +1332,15 @@ SET revision += 1;
         let aggregate = self.load_active_aggregate(room_id).await?;
         let owner = record_id_string(&aggregate.room.owner);
         if !teams.contains(&owner)
-            || Self::host_user_id(&aggregate.room, &aggregate.participants) != Some(user_id)
+            || Self::host_user_id(&aggregate.room, &aggregate.participants).as_deref()
+                != Some(user_id)
         {
             return Err(AppError::forbidden());
         }
         if aggregate.room.revision.max(0) as u64 != revision {
             return Err(AppError::conflict("revision_conflict"));
         }
-        if aggregate.open == open {
+        if aggregate.room.open == open {
             return Ok(());
         }
         let mut response = self
@@ -1448,9 +1393,11 @@ SET revision += 1;
         if !teams.contains(&owner) || !Self::participant_is_active_member(&aggregate, user_id) {
             return Err(AppError::unauthorized());
         }
-        if !aggregate.open {
+        if !aggregate.room.open {
             return Err(AppError::conflict("room_queue_additions_disabled"));
         }
+        let mut item = item;
+        Self::normalize_queue_item(&mut item);
         if item.song_id.trim().is_empty() || item.song.song.id != item.song_id {
             return Err(AppError::invalid_request("invalid room queue song"));
         }
@@ -1464,7 +1411,6 @@ SET revision += 1;
             .find(|participant| participant.user_id.as_deref() == Some(user_id))
             .map(|participant| participant.display_name.clone())
             .unwrap_or_else(|| item.added_by.clone());
-        let mut item = item;
         item.added_by = participant_name;
         item.played = false;
         item.upvotes = 0;
@@ -1473,19 +1419,14 @@ SET revision += 1;
         Self::rank_queue(&mut queue);
         let queue_json = serde_json::to_string(&queue)
             .map_err(|e| AppError::internal_from_err("room.queue.encode", e))?;
-        let mut media_ids = aggregate.room.media_ids.clone();
-        media_ids.extend(Self::queue_media_ids(&item));
-        media_ids.sort();
-        media_ids.dedup();
         let mut response = self
             .db
             .db
             .query(
-                "UPDATE type::record('player_room', $room_id) SET queue_json = $queue_json, media_ids = $media_ids, revision += 1 WHERE revision = $revision AND closed_at = NONE RETURN AFTER",
+                "UPDATE type::record('player_room', $room_id) SET queue_json = $queue_json, revision += 1 WHERE revision = $revision AND closed_at = NONE RETURN AFTER",
             )
             .bind(("room_id", room_id.to_string()))
             .bind(("queue_json", queue_json))
-            .bind(("media_ids", media_ids))
             .bind(("revision", revision))
             .await?;
         surreal_take_errors("room.queue.add", &mut response)?;
@@ -1508,7 +1449,8 @@ SET revision += 1;
         let aggregate = self.load_active_aggregate(room_id).await?;
         let owner = record_id_string(&aggregate.room.owner);
         if !teams.contains(&owner)
-            || Self::host_user_id(&aggregate.room, &aggregate.participants) != Some(user_id)
+            || Self::host_user_id(&aggregate.room, &aggregate.participants).as_deref()
+                != Some(user_id)
         {
             return Err(AppError::forbidden());
         }
@@ -1685,9 +1627,7 @@ SET revision += 1;
         } else {
             let mut content = aggregate.content.clone();
             let item_index = content.items.len();
-            content
-                .items
-                .push(PlayerItem::Chords(queue_item.song.clone()));
+            content.items.push((*queue_item.song).clone());
             content.toc.push(TocItem {
                 idx: item_index,
                 title: queue_item.title.clone(),
@@ -1712,10 +1652,7 @@ SET revision += 1;
                     .content
                     .items
                     .get(aggregate.musical_state.item_index)
-                    .and_then(|item| match item {
-                        PlayerItem::Chords(song) => Some(song.song.id.clone()),
-                        _ => None,
-                    })
+                    .map(|item| item.song.id.clone())
             })
             .flatten();
         let mut requeued_item = queue_item.clone();
@@ -1747,10 +1684,6 @@ SET revision += 1;
             .map_err(|e| AppError::internal_from_err("room.queue_votes.encode", e))?;
         let musical_json = serde_json::to_string(&musical_state)
             .map_err(|e| AppError::internal_from_err("room.musical.encode", e))?;
-        let mut media_ids = aggregate.room.media_ids;
-        media_ids.extend(Self::queue_media_ids(&queue_item));
-        media_ids.sort();
-        media_ids.dedup();
         let mut response = self
             .db
             .db
@@ -1759,7 +1692,7 @@ SET revision += 1;
 BEGIN TRANSACTION;
 UPDATE type::record('player_room', $room_id)
 SET queue_json = $queue_json, queue_votes_json = $queue_votes_json, musical_state_json = $musical_json,
-    media_ids = $media_ids, revision += 1
+    revision += 1
 WHERE revision = $revision AND closed_at = NONE RETURN AFTER;
 UPDATE type::record('player_room_snapshot', $room_id)
 SET content_json = $content_json
@@ -1771,7 +1704,6 @@ COMMIT TRANSACTION;
             .bind(("queue_json", queue_json))
             .bind(("queue_votes_json", queue_votes_json))
             .bind(("musical_json", musical_json))
-            .bind(("media_ids", media_ids))
             .bind(("content_json", content_json))
             .bind(("revision", revision))
             .bind(("next_revision", revision + 1))
@@ -1802,7 +1734,8 @@ COMMIT TRANSACTION;
         let aggregate = self.load_active_aggregate(room_id).await?;
         let owner = record_id_string(&aggregate.room.owner);
         if !teams.contains(&owner)
-            || Self::host_user_id(&aggregate.room, &aggregate.participants) != Some(user_id)
+            || Self::host_user_id(&aggregate.room, &aggregate.participants).as_deref()
+                != Some(user_id)
         {
             return Err(AppError::forbidden());
         }
@@ -1939,12 +1872,15 @@ UPDATE type::record('player_room_participant', $row_id)
 SET connected = false, lease_expires_at = time::now();
 UPDATE type::record('player_room', $room_id)
 SET revision += 1,
-    av_participant_id = IF av_participant_id = $participant_id THEN NONE ELSE av_participant_id END;
+    av_participant_id = IF av_participant_id = $participant_record_id THEN NONE ELSE av_participant_id END;
 "#,
                     )
                     .bind(("row_id", format!("{room_id}:{participant_id}")))
                     .bind(("room_id", room_id.to_string()))
-                    .bind(("participant_id", participant_id.to_string()))
+                    .bind((
+                        "participant_record_id",
+                        Self::participant_record_id(room_id, participant_id),
+                    ))
                     .await?;
                 surreal_take_errors("room.leave", &mut response)?;
                 let refreshed = self.load_active_aggregate(room_id).await?;
@@ -2021,7 +1957,9 @@ SET revision += 1,
                 command_id,
                 projection,
             } => {
-                if aggregate.room.av_participant_id.as_deref() != Some(participant_id) {
+                if aggregate.room.av_participant_id.as_ref()
+                    != Some(&Self::participant_record_id(room_id, participant_id))
+                {
                     return Ok(Some(ServerEvent::CommandRejected {
                         command_id,
                         reason: "av_host_required".into(),
@@ -2270,12 +2208,15 @@ UPDATE type::record('player_room_participant', $row_id)
 SET connected = false, lease_expires_at = time::now();
 UPDATE type::record('player_room', $room_id)
 SET revision += 1,
-    av_participant_id = IF av_participant_id = $participant_id THEN NONE ELSE av_participant_id END;
+    av_participant_id = IF av_participant_id = $participant_record_id THEN NONE ELSE av_participant_id END;
 "#,
             )
             .bind(("row_id", format!("{room_id}:{participant_id}")))
             .bind(("room_id", room_id.to_string()))
-            .bind(("participant_id", participant_id.to_string()))
+            .bind((
+                "participant_record_id",
+                Self::participant_record_id(room_id, participant_id),
+            ))
             .await
         {
             Ok(response) => response,
@@ -2288,36 +2229,6 @@ SET revision += 1,
             let _ = self.publish_participants(room_id, &aggregate).await;
         }
     }
-
-    pub async fn authorize_media(
-        &self,
-        room_id: &str,
-        resume: &str,
-        blob_id: &str,
-    ) -> Result<String, AppError> {
-        let aggregate = self.load_active_aggregate(room_id).await?;
-        if !aggregate.room.media_ids.iter().any(|id| id == blob_id)
-            || !aggregate.participants.iter().any(|participant| {
-                participant.resume_hash == Self::hash(resume)
-                    && Self::participant_is_active(participant)
-            })
-        {
-            return Err(AppError::NotFound("room media not found".into()));
-        }
-        let (table, id) = crate::resources::common::resource_id("blob", blob_id)?;
-        let mut response = self
-            .db
-            .db
-            .query("SELECT owner FROM type::record($table, $id)")
-            .bind(("table", table))
-            .bind(("id", id))
-            .await?;
-        surreal_take_errors("room.media_owner", &mut response)?;
-        let blob = response
-            .take::<Option<BlobOwnerRecord>>(0)?
-            .ok_or_else(|| AppError::NotFound("room media not found".into()))?;
-        Ok(record_id_string(&blob.owner))
-    }
 }
 
 #[cfg(test)]
@@ -2325,7 +2236,7 @@ mod tests {
     use super::*;
     use chordlib::types::{Line, Part, Section, Song as SongData};
     use shared::blob::BlobLink;
-    use shared::player::{PlayerBlobItem, PlayerChordsItem, PlayerItem};
+    use shared::player::PlayerChordsItem;
 
     #[derive(Debug, Deserialize, SurrealValue)]
     struct PersistedRoomState {
@@ -2339,6 +2250,17 @@ mod tests {
     }
 
     async fn create_room(service: &RoomService) -> CreatedRoom {
+        let song = shared::song::Song {
+            id: "song-1".into(),
+            data: SongData {
+                titles: vec!["Song".into()],
+                ..SongData::default()
+            },
+            blobs: vec![BlobLink {
+                id: "blob-1".into(),
+            }],
+            ..shared::song::Song::default()
+        };
         service
             .create(CreateRoomInput {
                 team_id: "team-1".into(),
@@ -2346,13 +2268,12 @@ mod tests {
                 host_user_id: "user-1".into(),
                 host_email: "host@example.com".into(),
                 host_avatar_url: None,
-                source_type: Some(RoomSourceType::Song),
-                source_id: Some("song-1".into()),
-                source_title: Some("Song".into()),
                 content: RoomContent {
-                    items: vec![PlayerItem::Blob(PlayerBlobItem {
-                        blob_id: "blob-1".into(),
-                    })],
+                    items: vec![PlayerChordsItem {
+                        song,
+                        language: None,
+                        flow: None,
+                    }],
                     toc: vec![],
                 },
                 initial_queue: Vec::new(),
@@ -2391,34 +2312,43 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn captured_media_uses_blob_owner_across_teams_and_rejects_other_blobs() {
+    async fn rooms_strip_blob_references_from_content_and_queue() {
         let db = crate::test_helpers::test_db().await.unwrap();
-        db.db
-            .query(
-                "CREATE type::record('blob', 'blob-1') CONTENT { owner: type::record('team', 'source-team'), file_type: 'image/svg', width: 1, height: 1, ocr: '' }",
+        let service = service(db.clone());
+        let created = create_room(&service).await;
+        service
+            .set_queue_access(&created.room.id, "user-1", &["team-1".into()], true, 1)
+            .await
+            .unwrap();
+        service
+            .add_queue_item(
+                &created.room.id,
+                "user-1",
+                &["team-1".into()],
+                queued_song("song-2"),
+                2,
             )
             .await
             .unwrap();
-        let service = service(db);
-        let created = create_room(&service).await;
-        let credentials = service
-            .reconnect(&created.room.id, &created.credentials.resume_credential)
+
+        let snapshot = service
+            .snapshot_for_participant(&created.room.id, &created.credentials.participant_id)
             .await
             .unwrap();
+        assert!(snapshot.content.items[0].song.blobs.is_empty());
+        assert!(snapshot.queue[0].song.song.blobs.is_empty());
 
-        assert_eq!(
-            service
-                .authorize_media(&created.room.id, &credentials.resume_credential, "blob-1",)
-                .await
-                .unwrap(),
-            "source-team"
-        );
-        assert!(
-            service
-                .authorize_media(&created.room.id, &credentials.resume_credential, "blob-2",)
-                .await
-                .is_err()
-        );
+        let mut response = db
+            .db
+            .query("SELECT * FROM ONLY type::record('player_room', $room_id)")
+            .bind(("room_id", created.room.id))
+            .await
+            .unwrap();
+        let row: Option<serde_json::Value> = response.take(0).unwrap();
+        let row = row.unwrap();
+        assert!(row.get("media_ids").is_none());
+        assert!(row.get("snapshot_json").is_none());
+        assert!(row.get("state_json").is_none());
     }
 
     #[tokio::test]
@@ -2534,14 +2464,7 @@ mod tests {
         assert_eq!(queued.queue.len(), 2);
         assert_eq!(queued.queue[0].song_id, "song-2");
         assert!(queued.queue.iter().all(|item| !item.played));
-        assert!(
-            queued.queue[0]
-                .song
-                .song
-                .blobs
-                .iter()
-                .any(|blob| blob.id == "blob-song-2")
-        );
+        assert!(queued.queue[0].song.song.blobs.is_empty());
         service
             .update_queue_vote(
                 &created.room.id,
@@ -2648,11 +2571,8 @@ mod tests {
                 host_user_id: "user-1".into(),
                 host_email: "host@example.com".into(),
                 host_avatar_url: None,
-                source_type: Some(RoomSourceType::Setlist),
-                source_id: Some("setlist-1".into()),
-                source_title: Some("Setlist".into()),
                 content: RoomContent {
-                    items: vec![PlayerItem::Chords(current.song.clone())],
+                    items: vec![(*current.song).clone()],
                     toc: vec![TocItem {
                         idx: 0,
                         title: current.title.clone(),
@@ -2741,11 +2661,8 @@ mod tests {
                 host_user_id: "user-1".into(),
                 host_email: "host@example.com".into(),
                 host_avatar_url: None,
-                source_type: Some(RoomSourceType::Setlist),
-                source_id: Some("setlist-1".into()),
-                source_title: Some("Setlist".into()),
                 content: RoomContent {
-                    items: vec![PlayerItem::Chords(first.song.clone())],
+                    items: vec![(*first.song).clone()],
                     toc: vec![TocItem {
                         idx: 0,
                         title: first.title.clone(),
@@ -2805,11 +2722,8 @@ mod tests {
                 host_user_id: "user-1".into(),
                 host_email: "host@example.com".into(),
                 host_avatar_url: None,
-                source_type: Some(RoomSourceType::Setlist),
-                source_id: Some("setlist-1".into()),
-                source_title: Some("Setlist".into()),
                 content: RoomContent {
-                    items: vec![PlayerItem::Chords(current.song.clone())],
+                    items: vec![(*current.song).clone()],
                     toc: vec![TocItem {
                         idx: 0,
                         title: current.title.clone(),
@@ -3272,7 +3186,7 @@ mod tests {
     #[test]
     fn unavailable_initial_language_falls_back_to_default() {
         let content = RoomContent {
-            items: vec![PlayerItem::Chords(Box::new(PlayerChordsItem {
+            items: vec![PlayerChordsItem {
                 song: shared::song::Song {
                     data: SongData {
                         languages: vec!["English".into()],
@@ -3282,7 +3196,7 @@ mod tests {
                 },
                 language: None,
                 flow: None,
-            }))],
+            }],
             toc: vec![],
         };
         let mut state = RoomMusicalState {

@@ -22,7 +22,6 @@ import {
   joinRoom,
   listRooms,
   roomShortName,
-  roomSourceTypeLabel,
   useRoomElapsedSeconds,
   type RoomSummary,
 } from '@/lib/room'
@@ -61,8 +60,6 @@ function RoomListRow({
         <p className={HUB_LIST_TITLE_CLASS}>{roomShortName(room)}</p>
         <div className="flex min-w-0 items-baseline gap-2">
           <p className={cn(HUB_LIST_SUBTITLE_CLASS, 'min-w-0 flex-1 truncate')}>
-            {roomSourceTypeLabel(room.source_type, t)}
-            {' · '}
             {room.host_email}
             {' · '}
             {t('rooms.listParticipants', { count: room.participant_count })}

@@ -6,7 +6,6 @@ import type { RoomCredentials, RoomSnapshot } from '@/lib/room'
 import { RoomLivePage } from '@/components/room/RoomLivePage'
 
 const useRoom = vi.fn()
-const registerRoomMedia = vi.fn()
 let slideViewProps: Record<string, unknown> | null = null
 let playerBookProps: Record<string, unknown> | null = null
 let playerAvProps: Record<string, unknown> | null = null
@@ -21,10 +20,6 @@ vi.mock('@/lib/room', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/room')>()
   return { ...actual, useRoom: (...args: unknown[]) => useRoom(...args) }
 })
-
-vi.mock('@/lib/room-media', () => ({
-  registerRoomMedia: (...args: unknown[]) => registerRoomMedia(...args),
-}))
 
 vi.mock('@/hooks/useMediaQuery', () => ({
   useIsPhoneWidth: () => isPhoneViewport,
@@ -83,19 +78,17 @@ const projection = {
 function snapshotWithProjection(
   nextProjection: RoomSnapshot['projection'],
 ): RoomSnapshot {
+  const roomItem = { song: { id: 'song-1' }, language: null, flow: null } as RoomSnapshot['content']['items'][number]
   return {
     id: 'room-1',
     name: 'Room',
     team_id: 'team-1',
-    source_type: 'song',
-    source_id: 'song-1',
-    source_title: 'Song',
     host_email: 'host@example.com',
     participant_count: 1,
     av_occupied: true,
     created_at: new Date().toISOString(),
     locked: false,
-    content: { items: [{ type: 'blob', blob_id: 'blob-1' }], toc: [] },
+    content: { items: [roomItem], toc: [] },
     queue: [],
     voted_queue_ids: [],
     musical_state: { item_index: 0, started: false, language: null, transposition: null },
@@ -137,7 +130,6 @@ beforeEach(() => {
   roomQueuePanelProps = null
   isPhoneViewport = false
   useRoom.mockReset()
-  registerRoomMedia.mockReset().mockReturnValue(vi.fn())
 })
 
 describe('RoomLivePage slide mode', () => {
@@ -249,9 +241,6 @@ describe('RoomLivePage responsive player layout', () => {
 describe('RoomLivePage empty room', () => {
   it('renders a purposeful Sheet empty state with host controls reachable', () => {
     const emptySnapshot = snapshotWithProjection(null)
-    emptySnapshot.source_type = null
-    emptySnapshot.source_id = null
-    emptySnapshot.source_title = null
     emptySnapshot.content = { items: [], toc: [] }
     emptySnapshot.participants[0] = {
       ...emptySnapshot.participants[0],
