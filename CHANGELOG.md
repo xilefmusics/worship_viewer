@@ -41,6 +41,6 @@ All notable changes to Worship Viewer are documented here. The format follows [K
 
 1. Move `[Unreleased]` items into a dated version section (`## [x.y.z] - YYYY-MM-DD`).
 2. Tag the release in Git (`git tag vX.Y.Z`).
-3. Docker images for `main` and tags are published by [Backend CI](../.github/workflows/backend-ci.yml).
+3. Docker images for `main` and tags are published by [Backend CI](.github/workflows/backend-ci.yml).
 
 Until automated releases exist, version numbers track the backend crate (`backend/Cargo.toml`) and OpenAPI `info.version`.

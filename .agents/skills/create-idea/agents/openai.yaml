@@ -1,4 +1,0 @@
-interface:
-  display_name: "Create Idea"
-  short_description: "Create and index a scored idea document"
-  default_prompt: "Use $create-idea to turn this text into a scored idea document and index it."

@@ -1,6 +1,6 @@
 # AI agent instructions
 
-This file is for **AI coding agents** (Cursor, Copilot, Codex, etc.). Human contributors should follow [CONTRIBUTING.md](CONTRIBUTING.md); agents must follow **both** documents.
+This file is for **AI coding agents** (Cursor, Copilot, Codex, etc.). Human contributors should follow [CONTRIBUTING.md](CONTRIBUTING.md); agents must follow **both** documents. User requests and higher-priority system instructions take precedence over this file.
 
 ## Non-negotiable rules
 
@@ -16,10 +16,10 @@ Run these steps **in order** for each area you modified. Re-run after fixes unti
 
 ### 1. Autoformat
 
-| Area touched | Apply formatting |
-|--------------|------------------|
+| Area touched                                                    | Apply formatting                                |
+| --------------------------------------------------------------- | ----------------------------------------------- |
 | `backend/`, `cli/`, `shared/`, `frontend/crates/chordlib-wasm/` | `cargo fmt` in each crate directory you changed |
-| `frontend/` (TypeScript/CSS/JS) | `pnpm --filter app exec eslint . --fix` |
+| `frontend/` (TypeScript/CSS/JS)                                 | `pnpm -C frontend exec eslint . --fix`          |
 
 Rust CI enforces `cargo fmt --check`. Frontend CI enforces ESLint (`pnpm -C frontend lint`); use `--fix` for auto-fixable issues.
 
@@ -89,13 +89,14 @@ This is the authoritative local gate: fmt, audit, backend test/clippy, OpenAPI t
 
 ## Quick reference by path
 
-| Paths changed | Minimum commands before commit |
-|---------------|--------------------------------|
-| `backend/`, `shared/`, `cli/` | `cargo fmt` → `cargo clippy -- -D warnings` → `cargo test` (in affected crates) |
-| `frontend/app/`, `frontend/packages/` | `eslint . --fix` → `pnpm -C frontend lint` → `pnpm -C frontend typecheck` → `pnpm -C frontend test` |
-| `frontend/crates/chordlib-wasm/` | `cargo fmt` → `pnpm -C frontend build:wasm` → frontend lint/typecheck/test |
-| `docs/openapi.json`, backend OpenAPI | Regenerate OpenAPI (see CONTRIBUTING) → `./scripts/verify-ci.sh` OpenAPI steps |
-| `backend/db-migrations/` | `cargo test database::migrations::tests` in `backend/` |
+| Paths changed                         | Minimum commands before commit                                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `backend/`, `shared/`, `cli/`         | `cargo fmt` → `cargo clippy -- -D warnings` → `cargo test` (in affected crates)                                                |
+| `frontend/app/`, `frontend/packages/` | `pnpm -C frontend exec eslint . --fix` → `pnpm -C frontend lint` → `pnpm -C frontend typecheck` → `pnpm -C frontend test`      |
+| `frontend/crates/chordlib-wasm/`      | `cargo fmt` → `pnpm -C frontend build:wasm` → frontend lint/typecheck/test                                                     |
+| `docs/openapi.json`, backend OpenAPI  | Regenerate OpenAPI (see CONTRIBUTING) → `./scripts/verify-ci.sh` OpenAPI steps                                                 |
+| `backend/db-migrations/`              | `cargo test database::migrations::tests` in `backend/`                                                                         |
+| Root Markdown or documentation only   | Verify edited links, headings, lists, tables, and code blocks; no code gates unless generated or executable files also changed |
 
 ## What not to run by default
 

@@ -6,12 +6,12 @@ Thank you for helping improve Worship Viewer. This document covers the workflows
 
 ## Prerequisites
 
-| Stack | Version / tool |
-|-------|----------------|
-| Rust | **1.98.1** (`rust-toolchain.toml`) |
-| Node.js | **24** |
-| pnpm | **10.34.5** (via Corepack) |
-| wasm-pack | For chordlib WASM builds |
+| Stack     | Version / tool                     |
+| --------- | ---------------------------------- |
+| Rust      | **1.98.1** (`rust-toolchain.toml`) |
+| Node.js   | **24**                             |
+| pnpm      | **10.34.5** (via Corepack)         |
+| wasm-pack | For chordlib WASM builds           |
 
 There is **no root `Cargo.toml`**. Rust crates are standalone:
 
@@ -34,7 +34,7 @@ pnpm -C frontend install
 pnpm -C frontend dev
 ```
 
-See [README.md](README.md) for production-like single-process runs, Playwright e2e (port **8788** for bundled backend), and Docker.
+See [README.md](README.md) for production-like single-process runs, Playwright e2e (port **8788** for the bundled backend), and Docker.
 
 ### One-shot CI parity (recommended before PR)
 
@@ -63,7 +63,11 @@ Explain why the selector is needed, what behavior changed, and any follow-up wor
 
 ## Before opening a PR
 
-Run checks in this order: **format → lint/typecheck → unit tests → build**. Apply fixes and re-run until clean. The one-shot script `./scripts/verify-ci.sh` runs the full CI-equivalent gate (recommended).
+Run checks in this order: **format → lint/typecheck → unit tests → build**. Apply fixes and re-run until clean. The one-shot script `./scripts/verify-ci.sh` runs the full CI-equivalent gate and is recommended before opening a PR.
+
+### Documentation-only changes
+
+For changes limited to Markdown or other documentation, check every edited relative link and verify the rendered headings, lists, tables, and code blocks. Code-formatting, lint, and test gates are not required unless the documentation change also updates generated or executable files.
 
 ### Backend / shared / CLI
 
@@ -98,7 +102,7 @@ in the same PR and add/update HTTP/API tests for the public contract.
 ### Frontend
 
 ```bash
-pnpm -C frontend install
+pnpm -C frontend install --frozen-lockfile
 
 # 1. Format (auto-fix ESLint issues where possible)
 pnpm --filter app exec eslint . --fix
@@ -142,11 +146,11 @@ CI fails if the three copies diverge or if `openapi_snapshot_matches_committed_f
 
 ## CI overview
 
-| Workflow | When | What |
-|----------|------|------|
-| [Backend CI](.github/workflows/backend-ci.yml) | PRs to `main`; pushes to non-`main` branches | `cargo test`, clippy, fmt, Spectral, OpenAPI tri-copy, `cargo audit` (backend, cli, shared, `chordlib-wasm`) |
-| [Frontend CI](.github/workflows/frontend-ci.yml) | PRs / pushes touching `frontend/` | Vitest, lint, typecheck, OpenAPI `schema.d.ts` drift, build, `pnpm audit` |
-| GHCR publish | Push to `main` matching build paths; all tag pushes | Build and publish `ghcr.io/xilefmusics/worshipviewer` (backend + frontend); **Venom** integration tests run in the `tester` stage |
+| Workflow                                                    | Trigger                                                | Coverage                                                                                                        |
+| ----------------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| [Backend CI](.github/workflows/backend-ci.yml) — validation | PRs to `main`; pushes to non-`main` branches           | `cargo test`, clippy, fmt, Spectral, OpenAPI tri-copy, `cargo audit` (backend, cli, shared, `chordlib-wasm`)    |
+| [Frontend CI](.github/workflows/frontend-ci.yml)            | PRs to `main`; pushes to `main` that touch `frontend/` | Vitest, flow lint, typecheck, OpenAPI `schema.d.ts` drift, lint, build, `pnpm audit`                            |
+| [Backend CI](.github/workflows/backend-ci.yml) — publish    | Pushes to `main` or a tag matching build paths         | Builds and publishes `ghcr.io/xilefmusics/worshipviewer`; **Venom** integration tests run in the `tester` stage |
 
 Validation jobs cancel superseded runs for the same PR/ref. Publishing is excluded
 from cancellation. Frontend CI caches Rust/WASM build artifacts and builds WASM
@@ -177,7 +181,7 @@ The workflow does not change package visibility automatically.
 
 ### Integration checks
 
-**Playwright e2e** (`pnpm test:e2e` in `frontend/`) is **local-only** — intentionally not in CI (see action plan §2.1 deferral). Run against real backend on port 8788 before release.
+**Playwright e2e** (`pnpm test:e2e` in `frontend/`) is **local-only** and intentionally not part of CI. Run it against the real backend on port 8788 before release.
 
 **Supply chain:** `pnpm audit --audit-level=high` and `cargo audit` on all Rust manifests including `frontend/crates/chordlib-wasm`. The frontend pins `serialize-javascript` ≥7.0.5 via pnpm overrides (build-time transitive from `vite-plugin-pwa`).
 
@@ -196,7 +200,7 @@ docker build --target tester .
 
 ## Release notes
 
-Record user-visible changes in [CHANGELOG.md](CHANGELOG.md) under `[Unreleased]` when your PR merges.
+Record user-visible changes in [CHANGELOG.md](CHANGELOG.md) under `[Unreleased]` before your PR is merged.
 
 ## License
 
