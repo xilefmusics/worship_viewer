@@ -93,7 +93,7 @@ test('D5: import songs (files)', async ({ page, seed, context }) => {
 })
 
 // Flow: D6
-test('D6: add a song to a setlist (context menu)', async ({ page, seed, context }) => {
+test('D6: add a song to a setlist (actions menu)', async ({ page, seed, context }) => {
   const token = uniqueToken('d6')
   const coll = await seed.createCollection({ title: `${token}-c` })
   await seed.createSong({ collection: coll.id, title: `${token}-song` })

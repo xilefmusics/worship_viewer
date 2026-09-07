@@ -9,59 +9,45 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LogoutRouteImport } from './routes/logout'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as JoinRouteImport } from './routes/join'
-import { Route as HubRouteImport } from './routes/_hub'
-import { Route as SplatRouteImport } from './routes/$'
-import { Route as PlayerRouteRouteImport } from './routes/player/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SplatRouteImport } from './routes/$'
+import { Route as HubRouteImport } from './routes/_hub'
+import { Route as JoinRouteImport } from './routes/join'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as LogoutRouteImport } from './routes/logout'
+import { Route as PlayerRouteRouteImport } from './routes/player/route'
+import { Route as HubAboutRouteImport } from './routes/_hub/about'
+import { Route as HubAdminRouteImport } from './routes/_hub/admin'
+import { Route as HubCollectionsRouteImport } from './routes/_hub/collections'
+import { Route as HubMediaRouteImport } from './routes/_hub/media'
+import { Route as HubPlayerRoomsRouteImport } from './routes/_hub/player-rooms'
+import { Route as HubPrivacyRouteImport } from './routes/_hub/privacy'
+import { Route as HubSessionsRouteImport } from './routes/_hub/sessions'
+import { Route as HubSetlistsRouteImport } from './routes/_hub/setlists'
+import { Route as HubSettingsRouteImport } from './routes/_hub/settings'
+import { Route as HubSongsRouteImport } from './routes/_hub/songs'
+import { Route as HubTeamsRouteImport } from './routes/_hub/teams'
+import { Route as HubTermsRouteImport } from './routes/_hub/terms'
+import { Route as HubUgcRouteImport } from './routes/_hub/ugc'
+import { Route as PlayerRoomsInviteRouteImport } from './routes/player-rooms.invite'
 import { Route as PlayerIndexRouteImport } from './routes/player/index'
 import { Route as PlayerOutputRouteImport } from './routes/player/output'
-import { Route as PlayerRoomsInviteRouteImport } from './routes/player-rooms.invite'
-import { Route as HubUgcRouteImport } from './routes/_hub/ugc'
-import { Route as HubTermsRouteImport } from './routes/_hub/terms'
-import { Route as HubTeamsRouteImport } from './routes/_hub/teams'
-import { Route as HubSongsRouteImport } from './routes/_hub/songs'
-import { Route as HubSettingsRouteImport } from './routes/_hub/settings'
-import { Route as HubSetlistsRouteImport } from './routes/_hub/setlists'
-import { Route as HubSessionsRouteImport } from './routes/_hub/sessions'
-import { Route as HubPrivacyRouteImport } from './routes/_hub/privacy'
-import { Route as HubPlayerRoomsRouteImport } from './routes/_hub/player-rooms'
-import { Route as HubMediaRouteImport } from './routes/_hub/media'
-import { Route as HubCollectionsRouteImport } from './routes/_hub/collections'
-import { Route as HubAdminRouteImport } from './routes/_hub/admin'
-import { Route as HubAboutRouteImport } from './routes/_hub/about'
-import { Route as PlayerRoomsInviteIndexRouteImport } from './routes/player-rooms.invite.index'
 import { Route as HubAdminIndexRouteImport } from './routes/_hub/admin.index'
-import { Route as PlayerRoomRoomIdRouteImport } from './routes/player/room.$roomId'
-import { Route as PlayerMediaMediaIdRouteImport } from './routes/player/media.$mediaId'
-import { Route as PlayerRoomsInviteRoomIdRouteImport } from './routes/player-rooms.invite.$roomId'
-import { Route as HubTeamsTeamIdRouteImport } from './routes/_hub/teams.$teamId'
-import { Route as HubSongsSongIdRouteImport } from './routes/_hub/songs.$songId'
-import { Route as HubSetlistsSetlistIdRouteImport } from './routes/_hub/setlists.$setlistId'
-import { Route as HubMediaMediaIdRouteImport } from './routes/_hub/media.$mediaId'
-import { Route as HubCollectionsCollectionIdRouteImport } from './routes/_hub/collections.$collectionId'
-import { Route as HubAdminUsersRouteImport } from './routes/_hub/admin.users'
 import { Route as HubAdminMetricsRouteImport } from './routes/_hub/admin.metrics'
+import { Route as HubAdminUsersRouteImport } from './routes/_hub/admin.users'
+import { Route as HubCollectionsCollectionIdRouteImport } from './routes/_hub/collections.$collectionId'
+import { Route as HubMediaMediaIdRouteImport } from './routes/_hub/media.$mediaId'
+import { Route as HubSetlistsSetlistIdRouteImport } from './routes/_hub/setlists.$setlistId'
+import { Route as HubSongsSongIdRouteImport } from './routes/_hub/songs.$songId'
+import { Route as HubTeamsTeamIdRouteImport } from './routes/_hub/teams.$teamId'
+import { Route as PlayerRoomsInviteIndexRouteImport } from './routes/player-rooms.invite.index'
+import { Route as PlayerRoomsInviteRoomIdRouteImport } from './routes/player-rooms.invite.$roomId'
+import { Route as PlayerMediaMediaIdRouteImport } from './routes/player/media.$mediaId'
+import { Route as PlayerRoomRoomIdRouteImport } from './routes/player/room.$roomId'
 
-const LogoutRoute = LogoutRouteImport.update({
-  id: '/logout',
-  path: '/logout',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const JoinRoute = JoinRouteImport.update({
-  id: '/join',
-  path: '/join',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HubRoute = HubRouteImport.update({
-  id: '/_hub',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SplatRoute = SplatRouteImport.update({
@@ -69,14 +55,98 @@ const SplatRoute = SplatRouteImport.update({
   path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HubRoute = HubRouteImport.update({
+  id: '/_hub',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JoinRoute = JoinRouteImport.update({
+  id: '/join',
+  path: '/join',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LogoutRoute = LogoutRouteImport.update({
+  id: '/logout',
+  path: '/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlayerRouteRoute = PlayerRouteRouteImport.update({
   id: '/player',
   path: '/player',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const HubAboutRoute = HubAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubAdminRoute = HubAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubCollectionsRoute = HubCollectionsRouteImport.update({
+  id: '/collections',
+  path: '/collections',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubMediaRoute = HubMediaRouteImport.update({
+  id: '/media',
+  path: '/media',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubPlayerRoomsRoute = HubPlayerRoomsRouteImport.update({
+  id: '/player-rooms',
+  path: '/player-rooms',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubPrivacyRoute = HubPrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubSessionsRoute = HubSessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubSetlistsRoute = HubSetlistsRouteImport.update({
+  id: '/setlists',
+  path: '/setlists',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubSettingsRoute = HubSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubSongsRoute = HubSongsRouteImport.update({
+  id: '/songs',
+  path: '/songs',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubTeamsRoute = HubTeamsRouteImport.update({
+  id: '/teams',
+  path: '/teams',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubTermsRoute = HubTermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => HubRoute,
+} as any)
+const HubUgcRoute = HubUgcRouteImport.update({
+  id: '/ugc',
+  path: '/ugc',
+  getParentRoute: () => HubRoute,
+} as any)
+const PlayerRoomsInviteRoute = PlayerRoomsInviteRouteImport.update({
+  id: '/player-rooms/invite',
+  path: '/player-rooms/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlayerIndexRoute = PlayerIndexRouteImport.update({
@@ -89,120 +159,20 @@ const PlayerOutputRoute = PlayerOutputRouteImport.update({
   path: '/output',
   getParentRoute: () => PlayerRouteRoute,
 } as any)
-const PlayerRoomsInviteRoute = PlayerRoomsInviteRouteImport.update({
-  id: '/player-rooms/invite',
-  path: '/player-rooms/invite',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HubUgcRoute = HubUgcRouteImport.update({
-  id: '/ugc',
-  path: '/ugc',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubTermsRoute = HubTermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubTeamsRoute = HubTeamsRouteImport.update({
-  id: '/teams',
-  path: '/teams',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubSongsRoute = HubSongsRouteImport.update({
-  id: '/songs',
-  path: '/songs',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubSettingsRoute = HubSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubSetlistsRoute = HubSetlistsRouteImport.update({
-  id: '/setlists',
-  path: '/setlists',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubSessionsRoute = HubSessionsRouteImport.update({
-  id: '/sessions',
-  path: '/sessions',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubPrivacyRoute = HubPrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubPlayerRoomsRoute = HubPlayerRoomsRouteImport.update({
-  id: '/player-rooms',
-  path: '/player-rooms',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubMediaRoute = HubMediaRouteImport.update({
-  id: '/media',
-  path: '/media',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubCollectionsRoute = HubCollectionsRouteImport.update({
-  id: '/collections',
-  path: '/collections',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubAdminRoute = HubAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => HubRoute,
-} as any)
-const HubAboutRoute = HubAboutRouteImport.update({
-  id: '/about',
-  path: '/about',
-  getParentRoute: () => HubRoute,
-} as any)
-const PlayerRoomsInviteIndexRoute = PlayerRoomsInviteIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PlayerRoomsInviteRoute,
-} as any)
 const HubAdminIndexRoute = HubAdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => HubAdminRoute,
 } as any)
-const PlayerRoomRoomIdRoute = PlayerRoomRoomIdRouteImport.update({
-  id: '/room/$roomId',
-  path: '/room/$roomId',
-  getParentRoute: () => PlayerRouteRoute,
+const HubAdminMetricsRoute = HubAdminMetricsRouteImport.update({
+  id: '/metrics',
+  path: '/metrics',
+  getParentRoute: () => HubAdminRoute,
 } as any)
-const PlayerMediaMediaIdRoute = PlayerMediaMediaIdRouteImport.update({
-  id: '/media/$mediaId',
-  path: '/media/$mediaId',
-  getParentRoute: () => PlayerRouteRoute,
-} as any)
-const PlayerRoomsInviteRoomIdRoute = PlayerRoomsInviteRoomIdRouteImport.update({
-  id: '/$roomId',
-  path: '/$roomId',
-  getParentRoute: () => PlayerRoomsInviteRoute,
-} as any)
-const HubTeamsTeamIdRoute = HubTeamsTeamIdRouteImport.update({
-  id: '/$teamId',
-  path: '/$teamId',
-  getParentRoute: () => HubTeamsRoute,
-} as any)
-const HubSongsSongIdRoute = HubSongsSongIdRouteImport.update({
-  id: '/$songId',
-  path: '/$songId',
-  getParentRoute: () => HubSongsRoute,
-} as any)
-const HubSetlistsSetlistIdRoute = HubSetlistsSetlistIdRouteImport.update({
-  id: '/$setlistId',
-  path: '/$setlistId',
-  getParentRoute: () => HubSetlistsRoute,
-} as any)
-const HubMediaMediaIdRoute = HubMediaMediaIdRouteImport.update({
-  id: '/$mediaId',
-  path: '/$mediaId',
-  getParentRoute: () => HubMediaRoute,
+const HubAdminUsersRoute = HubAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => HubAdminRoute,
 } as any)
 const HubCollectionsCollectionIdRoute =
   HubCollectionsCollectionIdRouteImport.update({
@@ -210,15 +180,45 @@ const HubCollectionsCollectionIdRoute =
     path: '/$collectionId',
     getParentRoute: () => HubCollectionsRoute,
   } as any)
-const HubAdminUsersRoute = HubAdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => HubAdminRoute,
+const HubMediaMediaIdRoute = HubMediaMediaIdRouteImport.update({
+  id: '/$mediaId',
+  path: '/$mediaId',
+  getParentRoute: () => HubMediaRoute,
 } as any)
-const HubAdminMetricsRoute = HubAdminMetricsRouteImport.update({
-  id: '/metrics',
-  path: '/metrics',
-  getParentRoute: () => HubAdminRoute,
+const HubSetlistsSetlistIdRoute = HubSetlistsSetlistIdRouteImport.update({
+  id: '/$setlistId',
+  path: '/$setlistId',
+  getParentRoute: () => HubSetlistsRoute,
+} as any)
+const HubSongsSongIdRoute = HubSongsSongIdRouteImport.update({
+  id: '/$songId',
+  path: '/$songId',
+  getParentRoute: () => HubSongsRoute,
+} as any)
+const HubTeamsTeamIdRoute = HubTeamsTeamIdRouteImport.update({
+  id: '/$teamId',
+  path: '/$teamId',
+  getParentRoute: () => HubTeamsRoute,
+} as any)
+const PlayerRoomsInviteIndexRoute = PlayerRoomsInviteIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlayerRoomsInviteRoute,
+} as any)
+const PlayerRoomsInviteRoomIdRoute = PlayerRoomsInviteRoomIdRouteImport.update({
+  id: '/$roomId',
+  path: '/$roomId',
+  getParentRoute: () => PlayerRoomsInviteRoute,
+} as any)
+const PlayerMediaMediaIdRoute = PlayerMediaMediaIdRouteImport.update({
+  id: '/media/$mediaId',
+  path: '/media/$mediaId',
+  getParentRoute: () => PlayerRouteRoute,
+} as any)
+const PlayerRoomRoomIdRoute = PlayerRoomRoomIdRouteImport.update({
+  id: '/room/$roomId',
+  path: '/room/$roomId',
+  getParentRoute: () => PlayerRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -450,32 +450,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/logout': {
-      id: '/logout'
-      path: '/logout'
-      fullPath: '/logout'
-      preLoaderRoute: typeof LogoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/join': {
-      id: '/join'
-      path: '/join'
-      fullPath: '/join'
-      preLoaderRoute: typeof JoinRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_hub': {
-      id: '/_hub'
-      path: ''
+    '/': {
+      id: '/'
+      path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof HubRouteImport
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$': {
@@ -485,6 +464,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_hub': {
+      id: '/_hub'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof HubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/join': {
+      id: '/join'
+      path: '/join'
+      fullPath: '/join'
+      preLoaderRoute: typeof JoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/logout': {
+      id: '/logout'
+      path: '/logout'
+      fullPath: '/logout'
+      preLoaderRoute: typeof LogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/player': {
       id: '/player'
       path: '/player'
@@ -492,11 +499,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayerRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/_hub/about': {
+      id: '/_hub/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof HubAboutRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/admin': {
+      id: '/_hub/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof HubAdminRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/collections': {
+      id: '/_hub/collections'
+      path: '/collections'
+      fullPath: '/collections'
+      preLoaderRoute: typeof HubCollectionsRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/media': {
+      id: '/_hub/media'
+      path: '/media'
+      fullPath: '/media'
+      preLoaderRoute: typeof HubMediaRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/player-rooms': {
+      id: '/_hub/player-rooms'
+      path: '/player-rooms'
+      fullPath: '/player-rooms'
+      preLoaderRoute: typeof HubPlayerRoomsRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/privacy': {
+      id: '/_hub/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof HubPrivacyRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/sessions': {
+      id: '/_hub/sessions'
+      path: '/sessions'
+      fullPath: '/sessions'
+      preLoaderRoute: typeof HubSessionsRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/setlists': {
+      id: '/_hub/setlists'
+      path: '/setlists'
+      fullPath: '/setlists'
+      preLoaderRoute: typeof HubSetlistsRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/settings': {
+      id: '/_hub/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof HubSettingsRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/songs': {
+      id: '/_hub/songs'
+      path: '/songs'
+      fullPath: '/songs'
+      preLoaderRoute: typeof HubSongsRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/teams': {
+      id: '/_hub/teams'
+      path: '/teams'
+      fullPath: '/teams'
+      preLoaderRoute: typeof HubTeamsRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/terms': {
+      id: '/_hub/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof HubTermsRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/_hub/ugc': {
+      id: '/_hub/ugc'
+      path: '/ugc'
+      fullPath: '/ugc'
+      preLoaderRoute: typeof HubUgcRouteImport
+      parentRoute: typeof HubRoute
+    }
+    '/player-rooms/invite': {
+      id: '/player-rooms/invite'
+      path: '/player-rooms/invite'
+      fullPath: '/player-rooms/invite'
+      preLoaderRoute: typeof PlayerRoomsInviteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/player/': {
@@ -513,179 +611,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayerOutputRouteImport
       parentRoute: typeof PlayerRouteRoute
     }
-    '/player-rooms/invite': {
-      id: '/player-rooms/invite'
-      path: '/player-rooms/invite'
-      fullPath: '/player-rooms/invite'
-      preLoaderRoute: typeof PlayerRoomsInviteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_hub/ugc': {
-      id: '/_hub/ugc'
-      path: '/ugc'
-      fullPath: '/ugc'
-      preLoaderRoute: typeof HubUgcRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/terms': {
-      id: '/_hub/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof HubTermsRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/teams': {
-      id: '/_hub/teams'
-      path: '/teams'
-      fullPath: '/teams'
-      preLoaderRoute: typeof HubTeamsRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/songs': {
-      id: '/_hub/songs'
-      path: '/songs'
-      fullPath: '/songs'
-      preLoaderRoute: typeof HubSongsRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/settings': {
-      id: '/_hub/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof HubSettingsRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/setlists': {
-      id: '/_hub/setlists'
-      path: '/setlists'
-      fullPath: '/setlists'
-      preLoaderRoute: typeof HubSetlistsRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/sessions': {
-      id: '/_hub/sessions'
-      path: '/sessions'
-      fullPath: '/sessions'
-      preLoaderRoute: typeof HubSessionsRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/privacy': {
-      id: '/_hub/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof HubPrivacyRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/player-rooms': {
-      id: '/_hub/player-rooms'
-      path: '/player-rooms'
-      fullPath: '/player-rooms'
-      preLoaderRoute: typeof HubPlayerRoomsRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/media': {
-      id: '/_hub/media'
-      path: '/media'
-      fullPath: '/media'
-      preLoaderRoute: typeof HubMediaRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/collections': {
-      id: '/_hub/collections'
-      path: '/collections'
-      fullPath: '/collections'
-      preLoaderRoute: typeof HubCollectionsRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/admin': {
-      id: '/_hub/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof HubAdminRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/_hub/about': {
-      id: '/_hub/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof HubAboutRouteImport
-      parentRoute: typeof HubRoute
-    }
-    '/player-rooms/invite/': {
-      id: '/player-rooms/invite/'
-      path: '/'
-      fullPath: '/player-rooms/invite/'
-      preLoaderRoute: typeof PlayerRoomsInviteIndexRouteImport
-      parentRoute: typeof PlayerRoomsInviteRoute
-    }
     '/_hub/admin/': {
       id: '/_hub/admin/'
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof HubAdminIndexRouteImport
-      parentRoute: typeof HubAdminRoute
-    }
-    '/player/room/$roomId': {
-      id: '/player/room/$roomId'
-      path: '/room/$roomId'
-      fullPath: '/player/room/$roomId'
-      preLoaderRoute: typeof PlayerRoomRoomIdRouteImport
-      parentRoute: typeof PlayerRouteRoute
-    }
-    '/player/media/$mediaId': {
-      id: '/player/media/$mediaId'
-      path: '/media/$mediaId'
-      fullPath: '/player/media/$mediaId'
-      preLoaderRoute: typeof PlayerMediaMediaIdRouteImport
-      parentRoute: typeof PlayerRouteRoute
-    }
-    '/player-rooms/invite/$roomId': {
-      id: '/player-rooms/invite/$roomId'
-      path: '/$roomId'
-      fullPath: '/player-rooms/invite/$roomId'
-      preLoaderRoute: typeof PlayerRoomsInviteRoomIdRouteImport
-      parentRoute: typeof PlayerRoomsInviteRoute
-    }
-    '/_hub/teams/$teamId': {
-      id: '/_hub/teams/$teamId'
-      path: '/$teamId'
-      fullPath: '/teams/$teamId'
-      preLoaderRoute: typeof HubTeamsTeamIdRouteImport
-      parentRoute: typeof HubTeamsRoute
-    }
-    '/_hub/songs/$songId': {
-      id: '/_hub/songs/$songId'
-      path: '/$songId'
-      fullPath: '/songs/$songId'
-      preLoaderRoute: typeof HubSongsSongIdRouteImport
-      parentRoute: typeof HubSongsRoute
-    }
-    '/_hub/setlists/$setlistId': {
-      id: '/_hub/setlists/$setlistId'
-      path: '/$setlistId'
-      fullPath: '/setlists/$setlistId'
-      preLoaderRoute: typeof HubSetlistsSetlistIdRouteImport
-      parentRoute: typeof HubSetlistsRoute
-    }
-    '/_hub/media/$mediaId': {
-      id: '/_hub/media/$mediaId'
-      path: '/$mediaId'
-      fullPath: '/media/$mediaId'
-      preLoaderRoute: typeof HubMediaMediaIdRouteImport
-      parentRoute: typeof HubMediaRoute
-    }
-    '/_hub/collections/$collectionId': {
-      id: '/_hub/collections/$collectionId'
-      path: '/$collectionId'
-      fullPath: '/collections/$collectionId'
-      preLoaderRoute: typeof HubCollectionsCollectionIdRouteImport
-      parentRoute: typeof HubCollectionsRoute
-    }
-    '/_hub/admin/users': {
-      id: '/_hub/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof HubAdminUsersRouteImport
       parentRoute: typeof HubAdminRoute
     }
     '/_hub/admin/metrics': {
@@ -694,6 +624,76 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/metrics'
       preLoaderRoute: typeof HubAdminMetricsRouteImport
       parentRoute: typeof HubAdminRoute
+    }
+    '/_hub/admin/users': {
+      id: '/_hub/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof HubAdminUsersRouteImport
+      parentRoute: typeof HubAdminRoute
+    }
+    '/_hub/collections/$collectionId': {
+      id: '/_hub/collections/$collectionId'
+      path: '/$collectionId'
+      fullPath: '/collections/$collectionId'
+      preLoaderRoute: typeof HubCollectionsCollectionIdRouteImport
+      parentRoute: typeof HubCollectionsRoute
+    }
+    '/_hub/media/$mediaId': {
+      id: '/_hub/media/$mediaId'
+      path: '/$mediaId'
+      fullPath: '/media/$mediaId'
+      preLoaderRoute: typeof HubMediaMediaIdRouteImport
+      parentRoute: typeof HubMediaRoute
+    }
+    '/_hub/setlists/$setlistId': {
+      id: '/_hub/setlists/$setlistId'
+      path: '/$setlistId'
+      fullPath: '/setlists/$setlistId'
+      preLoaderRoute: typeof HubSetlistsSetlistIdRouteImport
+      parentRoute: typeof HubSetlistsRoute
+    }
+    '/_hub/songs/$songId': {
+      id: '/_hub/songs/$songId'
+      path: '/$songId'
+      fullPath: '/songs/$songId'
+      preLoaderRoute: typeof HubSongsSongIdRouteImport
+      parentRoute: typeof HubSongsRoute
+    }
+    '/_hub/teams/$teamId': {
+      id: '/_hub/teams/$teamId'
+      path: '/$teamId'
+      fullPath: '/teams/$teamId'
+      preLoaderRoute: typeof HubTeamsTeamIdRouteImport
+      parentRoute: typeof HubTeamsRoute
+    }
+    '/player-rooms/invite/': {
+      id: '/player-rooms/invite/'
+      path: '/'
+      fullPath: '/player-rooms/invite/'
+      preLoaderRoute: typeof PlayerRoomsInviteIndexRouteImport
+      parentRoute: typeof PlayerRoomsInviteRoute
+    }
+    '/player-rooms/invite/$roomId': {
+      id: '/player-rooms/invite/$roomId'
+      path: '/$roomId'
+      fullPath: '/player-rooms/invite/$roomId'
+      preLoaderRoute: typeof PlayerRoomsInviteRoomIdRouteImport
+      parentRoute: typeof PlayerRoomsInviteRoute
+    }
+    '/player/media/$mediaId': {
+      id: '/player/media/$mediaId'
+      path: '/media/$mediaId'
+      fullPath: '/player/media/$mediaId'
+      preLoaderRoute: typeof PlayerMediaMediaIdRouteImport
+      parentRoute: typeof PlayerRouteRoute
+    }
+    '/player/room/$roomId': {
+      id: '/player/room/$roomId'
+      path: '/room/$roomId'
+      fullPath: '/player/room/$roomId'
+      preLoaderRoute: typeof PlayerRoomRoomIdRouteImport
+      parentRoute: typeof PlayerRouteRoute
     }
   }
 }

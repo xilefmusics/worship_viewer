@@ -26,7 +26,7 @@ Cross-cutting rules used throughout:
 - [E. Setlists — create & manage](#e-setlists--create--manage)
 - [F. Moving / adding songs between containers](#f-moving--adding-songs-between-containers)
 - [G. Editors (song / collection / setlist)](#g-editors)
-- [H. Player — Normal mode](#h-player--normal-mode)
+- [H. Player — Sheet mode](#h-player--sheet-mode)
 - [I. Player — AV mode & projection](#i-player--av-mode--projection)
 - [J. Settings & preferences](#j-settings--preferences)
 - [K. Sessions](#k-sessions)
@@ -541,17 +541,17 @@ flowchart TD
 
 ---
 
-## H. Player — Normal mode
+## H. Player — Sheet mode
 
 ### H1. Open the player & navigate items
 
 ```mermaid
 flowchart TD
     entry{Open from}
-    entry -->|List row tap| def["mode = stored default (Normal/AV)"]
-    entry -->|Context: Play in Normal mode| n["mode=normal"]
+    entry -->|List row tap| def["mode = stored default (Sheet/AV)"]
+    entry -->|Context: Show Sheets| n["mode=sheet"]
     entry -->|Editor: Play (setlist)| n
-    def --> book["/player Normal (PlayerBook)"]
+    def --> book["/player Sheet (PlayerBook)"]
     n --> book
     book --> nav{Navigate}
     nav -->|Right zone / swipe-left / →/Space/Enter/j / PageDown| next["Next item (URL index synced)"]
@@ -566,7 +566,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    book(["/player Normal"]) -->|"Center tap / m"| chrome(["Chrome header + TOC sidebar"])
+    book(["/player Sheet"]) -->|"Center tap / m"| chrome(["Chrome header + TOC sidebar"])
     chrome --> header["Header: Back, Title, '3 / 12', Transpose, Edit, Settings"]
     chrome --> toc["TOC sidebar: 'Contents'"]
     toc --> sort["Sort: Order / A–Z / Liked (syncs ?toc)"]
@@ -593,11 +593,11 @@ flowchart TD
     note["Transpose is per-item, persisted locally (not in URL)"]
 ```
 
-### H4. Other normal-mode controls (keyboard)
+### H4. Other sheet-mode controls (keyboard)
 
 ```mermaid
 flowchart TD
-    book(["/player Normal"]) --> k{Key / gesture}
+    book(["/player Sheet"]) --> k{Key / gesture}
     k -->|s| scroll["Cycle scroll mode: Sheet → Book → 2-col → 2-col+next → 3-col → 3-col+next"]
     k -->|n| fmt["Toggle chord format (Letters ↔ Nashville)"]
     k -->|l or double-tap center| like["Toggle like (online, chords item) + heart burst"]
@@ -716,7 +716,7 @@ flowchart TD
     opt -->|Language| lang["Use browser default / English / German → apply i18n"]
     opt -->|Appearance| appr["Use browser default / Light / Dark → apply theme"]
     opt -->|Collections layout| lay["Cards / List / Adaptive"]
-    opt -->|Default player mode| mode["Normal mode / AV mode (used by row tap)"]
+    opt -->|Default mode| mode["Sheet mode / AV mode (used by row tap)"]
     opt -->|Profile picture| pic["Upload new photo / Remove uploaded photo"]
     opt -->|Cache| cache["Clear local cache (keeps language/appearance)"]
     g --> account{Account}
@@ -726,11 +726,11 @@ flowchart TD
     g -->|Back| back["Back to library (/collections) or player return"]
 ```
 
-### J2. Player Default tab
+### J2. Player Sheet tab
 
 ```mermaid
 flowchart TD
-    p(["Settings → Player Default"]) --> opt{Preference}
+    p(["Settings → Player Sheet"]) --> opt{Preference}
     opt -->|Chord format| cf["Letters / Nashville"]
     opt -->|Sheet background| sb["White / App background"]
     sb --> inv["Checkbox: Invert images (app background only)"]
@@ -803,8 +803,8 @@ flowchart TD
     open -->|Right-click| ctx(["Context menu"])
     open -->|Long-press ~500ms| ctx
     ctx --> edit["Edit → editor route"]
-    ctx --> pn["Play in Normal mode"]
-    ctx --> pav["Play in AV mode"]
+    ctx --> pn["Show Sheets"]
+    ctx --> pav["Control AV Slides"]
     ctx --> dup["Duplicate (collections/setlists; online)"]
     ctx --> add["Add to setlist (songs, not not_a_song; online)"]
     ctx --> exp["Export ▸ ChordPro / Worship Pro / PDF (print)"]

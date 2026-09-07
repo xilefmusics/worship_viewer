@@ -16,7 +16,7 @@ test('player shell smoke on mobile rotation', async ({ page, seed }) => {
     const coll = await seed.createCollection({ title: `${token}-c` })
     const song = await seed.createSong({ collection: coll.id, title: `${token}-s` })
     await seed.patchCollection(coll.id, [song.id])
-    await gotoEn(page, `/player?type=collection&id=${coll.id}&index=0&mode=normal`)
+    await gotoEn(page, `/player?type=collection&id=${coll.id}&index=0&mode=sheet`)
     await expect(page.locator('[data-player-main], .player-book, main')).toBeVisible()
 
     await page.setViewportSize({ width: 844, height: 390 })

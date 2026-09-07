@@ -25,7 +25,7 @@ test('offline: collection player shows not-cached message', async ({ page, seed,
   await expect(page).toHaveURL(/\/player/)
 
   await setOffline(context, true)
-  await page.goto(`/player?type=collection&id=${coll.id}&mode=normal`)
+  await page.goto(`/player?type=collection&id=${coll.id}&mode=sheet`)
   await expect(page.getByText(/isn't available offline|offline nicht verfügbar/i)).toBeVisible({
     timeout: 15_000,
   })
@@ -60,6 +60,6 @@ test('offline: save for offline then play without prior open', async ({ page, se
   })
 
   await setOffline(context, true)
-  await page.goto(`/player?type=setlist&id=${setlist.id}&mode=normal`)
+  await page.goto(`/player?type=setlist&id=${setlist.id}&mode=sheet`)
   await expect(page.locator('[data-player-main], .player-book, main')).toBeVisible({ timeout: 20_000 })
 })

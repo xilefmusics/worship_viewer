@@ -37,7 +37,7 @@ Global: `serviceWorkers: 'block'` — PWA install/update path **not** covered (*
 | E1–E6 | Setlists | `setlists.spec.ts` | E4 desktop-only; E5 key picker |
 | F1–F2 | Move / add songs | `move-songs.spec.ts` | F1 failure toast |
 | G1–G2 | Song editor | `editors.spec.ts` | Offline paused |
-| H1–H4 | Player normal | `player-normal.spec.ts` | H3/H4 smoke-level keys |
+| H1–H4 | Player sheet | `player-sheet.spec.ts` | H3/H4 smoke-level keys |
 | I1–I3 | Player AV | `player-av.spec.ts` | Projection window |
 | J1–J3 | Settings | `settings.spec.ts` | Round-trip persistence test |
 | K1 | Sessions | `sessions.spec.ts` | Pagination |

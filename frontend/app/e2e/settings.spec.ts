@@ -19,7 +19,7 @@ test('J1: General tab', async ({ page }) => {
 })
 
 // Flow: J2 — e2e smoke; detailed options in component test
-test('J2: Player Default tab', async ({ page }) => {
+test('J2: Player Sheet tab', async ({ page }) => {
   const settings = new SettingsPage(page)
   await settings.goto('player')
   await expect(page.getByText(/chord format|player layout/i).first()).toBeVisible()

@@ -506,9 +506,9 @@ export function SettingsView({
   const defaultPlayerModeOptions = useMemo<SettingsOption<PlayerMode>[]>(
     () => [
       {
-        value: 'normal',
-        label: t('settings.defaultPlayerMode.normal'),
-        description: t('settings.defaultPlayerMode.normalDescription'),
+        value: 'sheet',
+        label: t('settings.defaultPlayerMode.sheet'),
+        description: t('settings.defaultPlayerMode.sheetDescription'),
       },
       {
         value: 'av',

@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
-import { motion, useReducedMotion } from 'motion/react'
+import * as Dialog from '@radix-ui/react-dialog'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   memo,
   useCallback,
@@ -9,21 +10,28 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
-  type ReactElement,
+  type ReactNode,
 } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { ArrowRightLeftIcon } from '@/components/icons/arrow-right-left-icon'
-import { PencilIcon } from '@/components/icons/lucide-animated/pencil-icon'
+import { CopyIcon } from '@/components/icons/lucide-animated/copy-icon'
+import { DownloadIcon } from '@/components/icons/lucide-animated/download-icon'
+import { EllipsisIcon } from '@/components/icons/lucide-animated/ellipsis-icon'
+import { FileStackIcon } from '@/components/icons/lucide-animated/file-stack-icon'
+import { FileTextIcon } from '@/components/icons/lucide-animated/file-text-icon'
+import { FolderXIcon } from '@/components/icons/lucide-animated/folder-x-icon'
 import { ListMusicIcon } from '@/components/icons/lucide-animated/list-music-icon'
-import { PlayIcon } from '@/components/icons/play-icon'
+import { OutputIcon } from '@/components/icons/lucide-animated/output-icon'
+import { PencilIcon } from '@/components/icons/lucide-animated/pencil-icon'
+import { PrinterIcon } from '@/components/icons/lucide-animated/printer-icon'
+import { ProjectorIcon } from '@/components/icons/lucide-animated/projector-icon'
 import { TrashIcon } from '@/components/icons/lucide-animated/trash-icon'
+import { XIcon } from '@/components/icons/lucide-animated/x-icon'
 import { AddSongToSetlistDialog } from '@/components/hub/AddSongToSetlistDialog'
 import { SetlistItemCounts } from '@/components/hub/SetlistItemCounts'
 import {
   HUB_LIST_AVATAR_CLASS,
-  HUB_LIST_META_CLASS,
   HUB_LIST_ROW_BORDER_CLASS,
   HUB_LIST_ROW_INSET_LAST_CLASS,
   HUB_LIST_ROW_SHELL_CLASS,
@@ -44,20 +52,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu'
 import { useChordFormatPreference } from '@/hooks/useChordFormatPreference'
 import { useHideChordsPreference } from '@/hooks/useHideChordsPreference'
 import { useHubSearch } from '@/hooks/useHubSearch'
 import { useCoverImageSrc } from '@/hooks/useCoverImageSrc'
 import { useDeleteHubEntity, HubDeleteConflictError } from '@/hooks/useDeleteHubEntity'
 import { useInfiniteHubList } from '@/hooks/useInfiniteHubList'
-import { useLongPress } from '@/hooks/useLongPress'
 import { downloadPlayerForOffline, removeOfflinePlayerCopy } from '@/lib/offline/download-player-offline'
 import { useOnline } from '@/hooks/use-online'
 import { useSession } from '@/hooks/useSession'
@@ -94,9 +94,9 @@ function songTitle(song: Song): string {
   return t?.trim() ? t : '—'
 }
 
-function songSubtitle(song: Song): string {
+function songSubtitle(song: Song, unknownArtist: string): string {
   const a = (song.data.artists ?? []).filter(Boolean).join(', ')
-  return a || '\u2014'
+  return a || unknownArtist
 }
 
 const tapFeedback = { scale: 0.985 }
@@ -474,75 +474,101 @@ export function EntityListView({ entity }: EntityListViewProps) {
 type DeleteTarget = { id: string; label: string; songCount?: number }
 type DeleteReq = (target: DeleteTarget) => void
 
-function dispatchContextMenuFromPointer(target: HTMLElement, clientX: number, clientY: number) {
-  target.dispatchEvent(
-    new MouseEvent('contextmenu', {
-      bubbles: true,
-      cancelable: true,
-      clientX,
-      clientY,
-      view: window,
-    }),
-  )
-}
-
-/** Primary tap / Enter opens `/player`; long-press opens the row context menu. */
+/** Primary tap / Enter opens `/player`. */
 function useHubListItemPlayerTap(entity: HubEntity, itemId: string) {
   const navigate = useNavigate()
   const playType = hubEntityToPlayerType(entity)
-  const suppressNextClickRef = useRef(false)
-  const baseLongPress = useLongPress((_e, target) => {
-    suppressNextClickRef.current = true
-    dispatchContextMenuFromPointer(target, _e.clientX, _e.clientY)
-  })
-
-  const openPlayer = useCallback(
-    (mode?: 'normal' | 'av') => {
-      void navigate({
-        to: '/player',
-        search: buildPlayerSearch({
-          type: playType,
-          id: itemId,
-          mode: mode ?? readPlayerDefaultMode(),
-        }),
-      })
-    },
-    [navigate, playType, itemId],
-  )
-
-  const listPointerProps = {
-    onPointerDown: baseLongPress.onPointerDown,
-    onPointerUp: baseLongPress.onPointerUp,
-    onPointerCancel: baseLongPress.onPointerCancel,
-    onPointerLeave: baseLongPress.onPointerLeave,
-  }
 
   const onClick = useCallback(() => {
-    if (suppressNextClickRef.current) {
-      suppressNextClickRef.current = false
-      return
-    }
-    openPlayer()
-  }, [openPlayer])
-
-  const onContextMenu = useCallback(() => {
-    suppressNextClickRef.current = true
-  }, [])
+    void navigate({
+      to: '/player',
+      search: buildPlayerSearch({
+        type: playType,
+        id: itemId,
+        mode: readPlayerDefaultMode(),
+      }),
+    })
+  }, [navigate, playType, itemId])
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent<HTMLElement>) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
-        openPlayer()
+        onClick()
       }
     },
-    [openPlayer],
+    [onClick],
   )
 
-  return { listPointerProps, onClick, onContextMenu, onKeyDown }
+  return { onClick, onKeyDown }
 }
 
-function HubItemContextMenu({
+function HubActionItem({
+  children,
+  disabled,
+  title,
+  destructive,
+  onSelect,
+  onHoverChange,
+}: {
+  children: ReactNode
+  disabled?: boolean
+  title?: string
+  destructive?: boolean
+  onSelect?: () => void
+  onHoverChange?: (hot: boolean) => void
+}) {
+  return (
+    <Dialog.Close asChild>
+      <button
+        type="button"
+        role="menuitem"
+        disabled={disabled}
+        data-disabled={disabled ? 'true' : undefined}
+        title={title}
+        className={cn(
+          'relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-2 text-left text-sm outline-none',
+          'hover:bg-[var(--color-muted)] focus:bg-[var(--color-muted)]',
+          'disabled:pointer-events-none disabled:opacity-50',
+          destructive && 'text-[var(--color-danger)] focus:text-[var(--color-danger)]',
+        )}
+        onClick={() => {
+          if (disabled) return
+          onSelect?.()
+        }}
+        onMouseEnter={() => onHoverChange?.(true)}
+        onMouseLeave={() => onHoverChange?.(false)}
+        onFocus={() => onHoverChange?.(true)}
+        onBlur={() => onHoverChange?.(false)}
+      >
+        {children}
+      </button>
+    </Dialog.Close>
+  )
+}
+
+function HubActionSeparator() {
+  return <div className="my-1 h-px bg-[var(--color-border)]" role="separator" />
+}
+
+const actionIconClass = 'shrink-0 text-[var(--color-foreground)]'
+
+type HubActionHot =
+  | 'edit'
+  | 'showSheets'
+  | 'controlAvSlides'
+  | 'saveOffline'
+  | 'removeOffline'
+  | 'duplicate'
+  | 'addToSetlist'
+  | 'exportChordpro'
+  | 'exportWorshipPro'
+  | 'exportSongBeamer'
+  | 'exportProPresenter'
+  | 'exportPdf'
+  | 'delete'
+
+function HubItemActionsMenu({
   entity,
   itemId,
   itemLabel,
@@ -550,7 +576,7 @@ function HubItemContextMenu({
   onDeleteRequest,
   networkOnline,
   hubSong,
-  children,
+  variant = 'row',
 }: {
   entity: HubEntity
   itemId: string
@@ -560,19 +586,18 @@ function HubItemContextMenu({
   networkOnline: boolean
   /** When set (songs hub), enables “Add to setlist”. */
   hubSong?: Song
-  children: ReactElement
+  variant?: 'row' | 'card'
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const chordFormat = useChordFormatPreference()
   const hideChords = useHideChordsPreference()
-  const [editHot, setEditHot] = useState(false)
-  const [playHot, setPlayHot] = useState(false)
-  const [addToSetlistHot, setAddToSetlistHot] = useState(false)
-  const [duplicateHot, setDuplicateHot] = useState(false)
-  const [deleteHot, setDeleteHot] = useState(false)
+  const [menuHot, setMenuHot] = useState(false)
+  const [closeHot, setCloseHot] = useState(false)
+  const [itemHot, setItemHot] = useState<HubActionHot | null>(null)
   const [addToSetlistOpen, setAddToSetlistOpen] = useState(false)
+  const hover = (key: HubActionHot) => (hot: boolean) => setItemHot(hot ? key : null)
 
   const playType = hubEntityToPlayerType(entity)
   const [playerCached, setPlayerCached] = useState(false)
@@ -707,230 +732,331 @@ function HubItemContextMenu({
     toast.success(t('hub.actions.removeOfflineSuccess'))
   }, [itemId, playType, t])
 
+  const [open, setOpen] = useState(false)
+  const shouldReduceMotion = useReducedMotion()
+  const [dragOffset, setDragOffset] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const pointerStartX = useRef<number | null>(null)
+  const pointerStartY = useRef<number | null>(null)
+  const dragSessionActive = useRef(false)
+  const dragOffsetRef = useRef(0)
+
+  const resetDrawerDrag = useCallback(() => {
+    dragSessionActive.current = false
+    pointerStartX.current = null
+    pointerStartY.current = null
+    dragOffsetRef.current = 0
+    setIsDragging(false)
+    setDragOffset(0)
+  }, [])
+
+  const onDrawerOpenChange = useCallback(
+    (next: boolean) => {
+      if (!next) resetDrawerDrag()
+      setOpen(next)
+    },
+    [resetDrawerDrag],
+  )
+
   return (
     <>
-      <ContextMenu>
-        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem
-            className="gap-2"
-            onSelect={() => {
-              if (entity === 'setlists') {
-                void navigate({
-                  to: '/setlists/$setlistId',
-                  params: { setlistId: itemId },
-                  search: emptyEditorReturnSearch(),
-                })
-              } else if (entity === 'collections') {
-                void navigate({
-                  to: '/collections/$collectionId',
-                  params: { collectionId: itemId },
-                  search: emptyEditorReturnSearch(),
-                })
-              } else if (entity === 'songs') {
-                void navigate({
-                  to: '/songs/$songId',
-                  params: { songId: itemId },
-                  search: emptyEditorReturnSearch(),
-                })
-              } else {
-                void navigate({
-                  to: '/$',
-                  params: { _splat: hubEntityEditSplat(entity, itemId) },
-                })
-              }
-            }}
-            onMouseEnter={() => setEditHot(true)}
-            onMouseLeave={() => setEditHot(false)}
-            onFocus={() => setEditHot(true)}
-            onBlur={() => setEditHot(false)}
-          >
-            <PencilIcon isHovered={editHot} size={16} className="shrink-0 text-[var(--color-foreground)]" />
-            {t('hub.actions.edit')}
-          </ContextMenuItem>
-          <ContextMenuItem
-            className="gap-2"
-            onSelect={() => {
-              void navigate({
-                to: '/player',
-                search: buildPlayerSearch({ type: playType, id: itemId, mode: 'normal' }),
-              })
-            }}
-            onMouseEnter={() => setPlayHot(true)}
-            onMouseLeave={() => setPlayHot(false)}
-            onFocus={() => setPlayHot(true)}
-            onBlur={() => setPlayHot(false)}
-          >
-            <PlayIcon size={16} className={cn('shrink-0 text-[var(--color-foreground)]', playHot && 'opacity-90')} />
-            {t('hub.actions.playNormal')}
-          </ContextMenuItem>
-          <ContextMenuItem
-            className="gap-2"
-            onSelect={() => {
-              void navigate({
-                to: '/player',
-                search: buildPlayerSearch({ type: playType, id: itemId, mode: 'av' }),
-              })
-            }}
-          >
-            <PlayIcon size={16} className="shrink-0 text-[var(--color-foreground)]" />
-            {t('hub.actions.playAv')}
-          </ContextMenuItem>
-          {playerCached ? (
-            <ContextMenuItem
-              className="gap-2"
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className={
+          variant === 'card'
+            ? 'size-8 rounded-full bg-[var(--color-surface)]/80 text-[var(--color-foreground)] shadow-sm backdrop-blur-sm hover:bg-[var(--color-surface)]'
+            : 'size-8 shrink-0 text-[var(--color-muted-foreground)]'
+        }
+        aria-label={t('hub.actions.menuAria', { title: itemLabel })}
+        onClick={() => onDrawerOpenChange(true)}
+        onMouseEnter={() => setMenuHot(true)}
+        onMouseLeave={() => setMenuHot(false)}
+        onFocus={() => setMenuHot(true)}
+        onBlur={() => setMenuHot(false)}
+      >
+        <EllipsisIcon isHovered={menuHot} size={16} className="shrink-0" />
+      </Button>
+      <Dialog.Root open={open} onOpenChange={onDrawerOpenChange}>
+        <Dialog.Portal forceMount>
+          <AnimatePresence>
+            {open ? (
+              <>
+                <Dialog.Overlay forceMount asChild>
+                  <motion.div
+                    className="fixed inset-0 z-50 bg-black/40"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: shouldReduceMotion ? 0 : 0.18 }}
+                  />
+                </Dialog.Overlay>
+                <Dialog.Content forceMount asChild aria-describedby={undefined}>
+                  <motion.div
+                    className={cn(
+                      'fixed inset-y-0 right-0 z-50 flex w-[min(22rem,90vw)] flex-row border-l border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-foreground)] shadow-[var(--shadow-elevated)]',
+                      'rounded-l-2xl pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]',
+                    )}
+                    initial={{ x: shouldReduceMotion ? 0 : '100%' }}
+                    animate={isDragging ? { x: dragOffset } : { x: 0 }}
+                    exit={{ x: shouldReduceMotion ? 0 : '100%' }}
+                    transition={
+                      isDragging
+                        ? { duration: 0 }
+                        : { type: 'spring', stiffness: 420, damping: 36, mass: 0.9 }
+                    }
+                    onPointerDown={(event) => {
+                      pointerStartX.current = event.clientX
+                      pointerStartY.current = event.clientY
+                    }}
+                    onPointerMove={(event) => {
+                      if (pointerStartX.current == null || pointerStartY.current == null) return
+                      const dx = event.clientX - pointerStartX.current
+                      const dy = event.clientY - pointerStartY.current
+                      if (!dragSessionActive.current) {
+                        if (Math.hypot(dx, dy) < 8) return
+                        if (dx < 10 || Math.abs(dy) >= dx) {
+                          pointerStartX.current = null
+                          pointerStartY.current = null
+                          return
+                        }
+                        dragSessionActive.current = true
+                        setIsDragging(true)
+                        try {
+                          event.currentTarget.setPointerCapture(event.pointerId)
+                        } catch {
+                          /* capture may fail if the pointer already released */
+                        }
+                      }
+                      const next = Math.max(0, dx)
+                      dragOffsetRef.current = next
+                      setDragOffset(next)
+                    }}
+                    onPointerUp={() => {
+                      if (!dragSessionActive.current) {
+                        pointerStartX.current = null
+                        pointerStartY.current = null
+                        return
+                      }
+                      const offset = dragOffsetRef.current
+                      resetDrawerDrag()
+                      if (offset > 90) onDrawerOpenChange(false)
+                    }}
+                    onPointerCancel={() => {
+                      resetDrawerDrag()
+                    }}
+                  >
+                    <div
+                      className="flex w-8 shrink-0 items-center justify-center"
+                      aria-hidden
+                    >
+                      <div className="h-12 w-1.5 rounded-full bg-[var(--color-muted)]" />
+                    </div>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                    <div className="flex items-center gap-2 border-b border-[var(--color-border)] py-3 pr-3">
+                      <Dialog.Title className="min-w-0 flex-1 truncate text-base font-semibold">
+                        {itemLabel}
+                      </Dialog.Title>
+                      <Dialog.Close asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 shrink-0"
+                          aria-label={t('hub.actions.closeAria')}
+                          onMouseEnter={() => setCloseHot(true)}
+                          onMouseLeave={() => setCloseHot(false)}
+                          onFocus={() => setCloseHot(true)}
+                          onBlur={() => setCloseHot(false)}
+                        >
+                          <XIcon isHovered={closeHot} size={16} className="shrink-0" />
+                        </Button>
+                      </Dialog.Close>
+                    </div>
+                    <nav
+                      className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3"
+                      role="menu"
+                      aria-label={t('hub.actions.menuAria', { title: itemLabel })}
+                    >
+            <div role="group" aria-label={t('hub.actions.general')}>
+              <div className="px-2 pb-1 text-xs font-semibold text-[var(--color-muted-foreground)]">
+                {t('hub.actions.general')}
+              </div>
+            <HubActionItem
               onSelect={() => {
-                void onRemoveOffline()
+                if (entity === 'setlists') {
+                  void navigate({
+                    to: '/setlists/$setlistId',
+                    params: { setlistId: itemId },
+                    search: emptyEditorReturnSearch(),
+                  })
+                } else if (entity === 'collections') {
+                  void navigate({
+                    to: '/collections/$collectionId',
+                    params: { collectionId: itemId },
+                    search: emptyEditorReturnSearch(),
+                  })
+                } else if (entity === 'songs') {
+                  void navigate({
+                    to: '/songs/$songId',
+                    params: { songId: itemId },
+                    search: emptyEditorReturnSearch(),
+                  })
+                } else {
+                  void navigate({
+                    to: '/$',
+                    params: { _splat: hubEntityEditSplat(entity, itemId) },
+                  })
+                }
               }}
+              onHoverChange={hover('edit')}
             >
-              {t('hub.actions.removeOffline')}
-            </ContextMenuItem>
-          ) : (
-            <ContextMenuItem
-              className="gap-2"
-              disabled={!networkOnline}
-              title={!networkOnline ? t('hub.createOfflineHint') : undefined}
+              <PencilIcon isHovered={itemHot === 'edit'} size={16} className={actionIconClass} />
+              {t('hub.actions.edit')}
+            </HubActionItem>
+            <HubActionItem
               onSelect={() => {
-                void onSaveOffline()
+                void navigate({
+                  to: '/player',
+                  search: buildPlayerSearch({ type: playType, id: itemId, mode: 'sheet' }),
+                })
               }}
+              onHoverChange={hover('showSheets')}
             >
-              {t('hub.actions.saveOffline')}
-            </ContextMenuItem>
-          )}
-          {showDuplicate ? (
-            <ContextMenuItem
-              className="gap-2"
+              <FileTextIcon isHovered={itemHot === 'showSheets'} size={16} className={actionIconClass} />
+              {t('hub.actions.showSheets')}
+            </HubActionItem>
+            <HubActionItem
+              onSelect={() => {
+                void navigate({
+                  to: '/player',
+                  search: buildPlayerSearch({ type: playType, id: itemId, mode: 'av' }),
+                })
+              }}
+              onHoverChange={hover('controlAvSlides')}
+            >
+              <OutputIcon isHovered={itemHot === 'controlAvSlides'} size={16} className={actionIconClass} />
+              {t('hub.actions.controlAvSlides')}
+            </HubActionItem>
+            {playerCached ? (
+              <HubActionItem onSelect={() => void onRemoveOffline()} onHoverChange={hover('removeOffline')}>
+                <FolderXIcon isHovered={itemHot === 'removeOffline'} size={16} className={actionIconClass} />
+                {t('hub.actions.removeOffline')}
+              </HubActionItem>
+            ) : (
+              <HubActionItem
+                disabled={!networkOnline}
+                title={!networkOnline ? t('hub.createOfflineHint') : undefined}
+                onSelect={() => void onSaveOffline()}
+                onHoverChange={hover('saveOffline')}
+              >
+                <DownloadIcon isHovered={itemHot === 'saveOffline'} size={16} className={actionIconClass} />
+                {t('hub.actions.saveOffline')}
+              </HubActionItem>
+            )}
+            {showDuplicate ? (
+              <HubActionItem
+                disabled={!networkOnline}
+                title={!networkOnline ? t('hub.actions.deleteOfflineHint') : undefined}
+                onSelect={() => {
+                  if (!networkOnline) return
+                  void onDuplicate()
+                }}
+                onHoverChange={hover('duplicate')}
+              >
+                <CopyIcon isHovered={itemHot === 'duplicate'} size={16} className={actionIconClass} />
+                {t('hub.actions.duplicate')}
+              </HubActionItem>
+            ) : null}
+            {showAddToSetlist ? (
+              <HubActionItem
+                disabled={!networkOnline}
+                title={!networkOnline ? t('hub.createOfflineHint') : undefined}
+                onSelect={() => {
+                  if (!networkOnline) return
+                  setAddToSetlistOpen(true)
+                }}
+                onHoverChange={hover('addToSetlist')}
+              >
+                <ListMusicIcon isHovered={itemHot === 'addToSetlist'} size={16} className={actionIconClass} />
+                {t('hub.actions.addToSetlist')}
+              </HubActionItem>
+            ) : null}
+            </div>
+            {showSongExport || showOrderedExport ? (
+              <>
+                <HubActionSeparator />
+                <div role="group" aria-label={t('hub.actions.export')}>
+                  <div className="px-2 pb-1 pt-2 text-xs font-semibold text-[var(--color-muted-foreground)]">
+                    {t('hub.actions.export')}
+                  </div>
+                  <HubActionItem
+                    onSelect={() => void (showSongExport ? onSongExport('chordpro') : onOrderedExport('chordpro'))}
+                    onHoverChange={hover('exportChordpro')}
+                  >
+                    <FileTextIcon isHovered={itemHot === 'exportChordpro'} size={16} className={actionIconClass} />
+                    {t('hub.actions.exportChordPro')}
+                  </HubActionItem>
+                  <HubActionItem
+                    onSelect={() => void (showSongExport ? onSongExport('worshippro') : onOrderedExport('worshippro'))}
+                    onHoverChange={hover('exportWorshipPro')}
+                  >
+                    <FileStackIcon isHovered={itemHot === 'exportWorshipPro'} size={16} className={actionIconClass} />
+                    {t('hub.actions.exportWorshipPro')}
+                  </HubActionItem>
+                  <HubActionItem
+                    onSelect={() => void (showSongExport ? onSongExport('songbeamer') : onOrderedExport('songbeamer'))}
+                    onHoverChange={hover('exportSongBeamer')}
+                  >
+                    <ProjectorIcon isHovered={itemHot === 'exportSongBeamer'} size={16} className={actionIconClass} />
+                    {t('hub.actions.exportSongBeamer')}
+                  </HubActionItem>
+                  <HubActionItem
+                    onSelect={() => void (showSongExport ? onSongExport('propresenter') : onOrderedExport('propresenter'))}
+                    onHoverChange={hover('exportProPresenter')}
+                  >
+                    <OutputIcon isHovered={itemHot === 'exportProPresenter'} size={16} className={actionIconClass} />
+                    {t('hub.actions.exportProPresenter')}
+                  </HubActionItem>
+                  <HubActionItem
+                    title={hubExportPdfHint}
+                    onSelect={() => void (showSongExport ? onSongExport('pdf') : onOrderedExport('pdf'))}
+                    onHoverChange={hover('exportPdf')}
+                  >
+                    <PrinterIcon isHovered={itemHot === 'exportPdf'} size={16} className={actionIconClass} />
+                    {t('hub.actions.exportPdf')}
+                  </HubActionItem>
+                </div>
+              </>
+            ) : null}
+            <HubActionSeparator />
+            <HubActionItem
+              destructive
               disabled={!networkOnline}
               title={!networkOnline ? t('hub.actions.deleteOfflineHint') : undefined}
               onSelect={() => {
                 if (!networkOnline) return
-                void onDuplicate()
+                onDeleteRequest({
+                  id: itemId,
+                  label: itemLabel,
+                  ...(itemSongCount != null ? { songCount: itemSongCount } : {}),
+                })
               }}
-              onMouseEnter={() => setDuplicateHot(true)}
-              onMouseLeave={() => setDuplicateHot(false)}
-              onFocus={() => setDuplicateHot(true)}
-              onBlur={() => setDuplicateHot(false)}
+              onHoverChange={hover('delete')}
             >
-              <ArrowRightLeftIcon
-                size={16}
-                className={cn('shrink-0 text-[var(--color-foreground)]', duplicateHot && 'opacity-90')}
-              />
-              {t('hub.actions.duplicate')}
-            </ContextMenuItem>
-          ) : null}
-          {showAddToSetlist ? (
-            <ContextMenuItem
-              className="gap-2"
-              disabled={!networkOnline}
-              title={!networkOnline ? t('hub.createOfflineHint') : undefined}
-              onSelect={() => {
-                if (!networkOnline) return
-                setAddToSetlistOpen(true)
-              }}
-              onMouseEnter={() => setAddToSetlistHot(true)}
-              onMouseLeave={() => setAddToSetlistHot(false)}
-              onFocus={() => setAddToSetlistHot(true)}
-              onBlur={() => setAddToSetlistHot(false)}
-            >
-              <ListMusicIcon isHovered={addToSetlistHot} size={16} className="shrink-0 text-[var(--color-foreground)]" />
-              {t('hub.actions.addToSetlist')}
-            </ContextMenuItem>
-          ) : null}
-          {showSongExport ? (
-            <>
-              <ContextMenuSeparator />
-              <ContextMenuItem
-                className="gap-2"
-                onSelect={() => void onSongExport('chordpro')}
-              >
-                {t('hub.actions.export')} — {t('hub.actions.exportChordPro')}
-              </ContextMenuItem>
-              <ContextMenuItem
-                className="gap-2"
-                onSelect={() => void onSongExport('worshippro')}
-              >
-                {t('hub.actions.export')} — {t('hub.actions.exportWorshipPro')}
-              </ContextMenuItem>
-              <ContextMenuItem
-                className="gap-2"
-                onSelect={() => void onSongExport('songbeamer')}
-              >
-                {t('hub.actions.export')} — {t('hub.actions.exportSongBeamer')}
-              </ContextMenuItem>
-              <ContextMenuItem
-                className="gap-2"
-                onSelect={() => void onSongExport('propresenter')}
-              >
-                {t('hub.actions.export')} — {t('hub.actions.exportProPresenter')}
-              </ContextMenuItem>
-              <ContextMenuItem
-                className="gap-2"
-                title={hubExportPdfHint}
-                onSelect={() => void onSongExport('pdf')}
-              >
-                {t('hub.actions.export')} — {t('hub.actions.exportPdf')}
-              </ContextMenuItem>
-            </>
-          ) : null}
-          {showOrderedExport ? (
-            <>
-              <ContextMenuSeparator />
-              <ContextMenuItem
-                className="gap-2"
-                onSelect={() => void onOrderedExport('chordpro')}
-              >
-                {t('hub.actions.export')} — {t('hub.actions.exportChordPro')}
-              </ContextMenuItem>
-              <ContextMenuItem
-                className="gap-2"
-                onSelect={() => void onOrderedExport('worshippro')}
-              >
-                {t('hub.actions.export')} — {t('hub.actions.exportWorshipPro')}
-              </ContextMenuItem>
-              <ContextMenuItem
-                className="gap-2"
-                onSelect={() => void onOrderedExport('songbeamer')}
-              >
-                {t('hub.actions.export')} — {t('hub.actions.exportSongBeamer')}
-              </ContextMenuItem>
-              <ContextMenuItem
-                className="gap-2"
-                onSelect={() => void onOrderedExport('propresenter')}
-              >
-                {t('hub.actions.export')} — {t('hub.actions.exportProPresenter')}
-              </ContextMenuItem>
-              <ContextMenuItem
-                className="gap-2"
-                title={hubExportPdfHint}
-                onSelect={() => void onOrderedExport('pdf')}
-              >
-                {t('hub.actions.export')} — {t('hub.actions.exportPdf')}
-              </ContextMenuItem>
-            </>
-          ) : null}
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            className="gap-2 text-[var(--color-danger)] focus:text-[var(--color-danger)]"
-            disabled={!networkOnline}
-            title={!networkOnline ? t('hub.actions.deleteOfflineHint') : undefined}
-            onSelect={() => {
-              if (!networkOnline) return
-              onDeleteRequest({
-                id: itemId,
-                label: itemLabel,
-                ...(itemSongCount != null ? { songCount: itemSongCount } : {}),
-              })
-            }}
-            onMouseEnter={() => setDeleteHot(true)}
-            onMouseLeave={() => setDeleteHot(false)}
-            onFocus={() => setDeleteHot(true)}
-            onBlur={() => setDeleteHot(false)}
-          >
-            <TrashIcon isHovered={deleteHot} size={16} className="shrink-0" />
-            {t('hub.actions.delete')}
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+              <TrashIcon isHovered={itemHot === 'delete'} size={16} className="shrink-0" />
+              {t('hub.actions.delete')}
+            </HubActionItem>
+                    </nav>
+                    </div>
+                  </motion.div>
+                </Dialog.Content>
+              </>
+            ) : null}
+          </AnimatePresence>
+        </Dialog.Portal>
+      </Dialog.Root>
       {showAddToSetlist && hubSong ? (
         <AddSongToSetlistDialog open={addToSetlistOpen} onOpenChange={setAddToSetlistOpen} song={hubSong} />
       ) : null}
@@ -948,28 +1074,17 @@ const CollectionCard = memo(function CollectionCard({
   networkOnline: boolean
 }) {
   const reduceMotion = useReducedMotion()
-  const { listPointerProps, onClick, onContextMenu, onKeyDown } = useHubListItemPlayerTap(
-    'collections',
-    collection.id,
-  )
+  const { onClick, onKeyDown } = useHubListItemPlayerTap('collections', collection.id)
   const { src: coverSrc, onImageError: onCoverError } = useCoverImageSrc(collection.cover)
 
   return (
-    <HubItemContextMenu
-      entity="collections"
-      itemId={collection.id}
-      itemLabel={collection.title}
-      itemSongCount={collection.songs.length}
-      onDeleteRequest={onDeleteRequest}
-      networkOnline={networkOnline}
-    >
+    <div className="relative">
       <motion.div
         className="flex cursor-pointer flex-col gap-1.5 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] sm:gap-2"
-        {...listPointerProps}
         onClick={onClick}
-        onContextMenu={onContextMenu}
         role="button"
         tabIndex={0}
+        aria-label={collection.title}
         whileTap={reduceMotion ? undefined : tapFeedback}
         transition={tapTransition}
         onKeyDown={onKeyDown}
@@ -990,7 +1105,18 @@ const CollectionCard = memo(function CollectionCard({
           {collection.title}
         </p>
       </motion.div>
-    </HubItemContextMenu>
+      <div className="absolute right-1 top-1 z-10">
+        <HubItemActionsMenu
+          entity="collections"
+          itemId={collection.id}
+          itemLabel={collection.title}
+          itemSongCount={collection.songs.length}
+          onDeleteRequest={onDeleteRequest}
+          networkOnline={networkOnline}
+          variant="card"
+        />
+      </div>
+    </div>
   )
 })
 
@@ -1004,53 +1130,62 @@ const CollectionRow = memo(function CollectionRow({
   networkOnline: boolean
 }) {
   const { t } = useTranslation()
+  const { data: user } = useSession()
   const reduceMotion = useReducedMotion()
-  const { listPointerProps, onClick, onContextMenu, onKeyDown } = useHubListItemPlayerTap(
-    'collections',
-    collection.id,
-  )
+  const { onClick, onKeyDown } = useHubListItemPlayerTap('collections', collection.id)
   const { src: coverSrc, onImageError: onCoverError } = useCoverImageSrc(collection.cover)
+  const { data: ownerTeam, isPending: ownerTeamPending, isError: ownerTeamError } =
+    useTeamDetail(collection.owner)
+
+  const ownerLabel = useMemo(() => {
+    if (ownerTeamPending) return null
+    if (ownerTeamError || !ownerTeam) return t('setlists.editor.teamUnavailable')
+    return getTeamDisplayName(ownerTeam, user?.id, t)
+  }, [ownerTeam, ownerTeamError, ownerTeamPending, t, user?.id])
+
+  const songsCount = t('hub.meta.songsCount', { count: collection.songs.length })
+  const subtitle = ownerLabel ? `${songsCount}, ${ownerLabel}` : songsCount
 
   return (
-    <HubItemContextMenu
-      entity="collections"
-      itemId={collection.id}
-      itemLabel={collection.title}
-      itemSongCount={collection.songs.length}
-      onDeleteRequest={onDeleteRequest}
-      networkOnline={networkOnline}
-    >
-      <motion.div
-        className={cn(HUB_LIST_ROW_SHELL_CLASS, HUB_LIST_ROW_INSET_LAST_CLASS)}
-        {...listPointerProps}
-        onClick={onClick}
-        onContextMenu={onContextMenu}
-        role="button"
-        tabIndex={0}
-        whileTap={reduceMotion ? undefined : tapFeedback}
-        transition={tapTransition}
-        onKeyDown={onKeyDown}
-      >
-        <div className={HUB_LIST_AVATAR_CLASS}>
-          {coverSrc ? (
-            <img
-              src={coverSrc}
-              alt=""
-              draggable={false}
-              className="pointer-events-none size-full object-cover"
-              loading="lazy"
-              onError={onCoverError}
-            />
-          ) : null}
-        </div>
-        <div className={HUB_LIST_ROW_TEXT_COLUMN_CLASS}>
+    <div className={cn(HUB_LIST_ROW_SHELL_CLASS, HUB_LIST_ROW_INSET_LAST_CLASS, 'cursor-default')}>
+      <div className={HUB_LIST_AVATAR_CLASS}>
+        {coverSrc ? (
+          <img
+            src={coverSrc}
+            alt=""
+            draggable={false}
+            className="pointer-events-none size-full object-cover"
+            loading="lazy"
+            onError={onCoverError}
+          />
+        ) : null}
+      </div>
+      <div className={cn(HUB_LIST_ROW_TEXT_COLUMN_CLASS, 'flex-row items-center gap-1')}>
+        <motion.div
+          className="min-w-0 flex-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+          onClick={onClick}
+          role="button"
+          tabIndex={0}
+          aria-label={collection.title}
+          whileTap={reduceMotion ? undefined : tapFeedback}
+          transition={tapTransition}
+          onKeyDown={onKeyDown}
+        >
           <p className={HUB_LIST_TITLE_CLASS}>{collection.title}</p>
-          <p className={cn(HUB_LIST_SUBTITLE_CLASS, 'truncate')}>
-            {t('hub.meta.songsCount', { count: collection.songs.length })}
+          <p className={cn(HUB_LIST_SUBTITLE_CLASS, 'truncate')} title={subtitle}>
+            {subtitle}
           </p>
-        </div>
-      </motion.div>
-    </HubItemContextMenu>
+        </motion.div>
+        <HubItemActionsMenu
+          entity="collections"
+          itemId={collection.id}
+          itemLabel={collection.title}
+          itemSongCount={collection.songs.length}
+          onDeleteRequest={onDeleteRequest}
+          networkOnline={networkOnline}
+        />
+      </div>
+    </div>
   )
 })
 
@@ -1066,9 +1201,9 @@ const SongRow = memo(function SongRow({
   const { t } = useTranslation()
   const { data: user } = useSession()
   const reduceMotion = useReducedMotion()
-  const { listPointerProps, onClick, onContextMenu, onKeyDown } = useHubListItemPlayerTap('songs', song.id)
+  const { onClick, onKeyDown } = useHubListItemPlayerTap('songs', song.id)
   const title = songTitle(song)
-  const sub = songSubtitle(song)
+  const sub = songSubtitle(song, t('hub.meta.unknownArtist'))
   const { data: ownerTeam, isPending: ownerTeamPending, isError: ownerTeamError } =
     useTeamDetail(song.owner)
 
@@ -1078,45 +1213,36 @@ const SongRow = memo(function SongRow({
     return getTeamDisplayName(ownerTeam, user?.id, t)
   }, [ownerTeam, ownerTeamError, ownerTeamPending, t, user?.id])
 
+  const subtitle = ownerLabel ? `${sub}, ${ownerLabel}` : sub
+
   return (
-    <HubItemContextMenu
-      entity="songs"
-      itemId={song.id}
-      itemLabel={title}
-      onDeleteRequest={onDeleteRequest}
-      networkOnline={networkOnline}
-      hubSong={song}
-    >
+    <div className={cn('flex items-center', HUB_LIST_ROW_BORDER_CLASS)}>
       <motion.div
-        className={cn(HUB_LIST_ROW_SHELL_CLASS, HUB_LIST_ROW_BORDER_CLASS)}
-        {...listPointerProps}
+        className={cn(HUB_LIST_ROW_SHELL_CLASS, 'min-w-0 flex-1')}
         onClick={onClick}
-        onContextMenu={onContextMenu}
         role="button"
         tabIndex={0}
+        aria-label={title}
         whileTap={reduceMotion ? undefined : tapFeedback}
         transition={tapTransition}
         onKeyDown={onKeyDown}
       >
         <div className="flex min-w-0 flex-1 flex-col justify-center py-0.5">
           <p className={HUB_LIST_TITLE_CLASS}>{title}</p>
-          <div className="flex min-w-0 items-baseline gap-2">
-            <p className={cn(HUB_LIST_SUBTITLE_CLASS, 'min-w-0 flex-1 truncate')}>{sub}</p>
-            {ownerLabel ? (
-              <p
-                className={cn(
-                  HUB_LIST_META_CLASS,
-                  'max-w-[min(12rem,45%)] shrink-0 truncate text-right',
-                )}
-                title={ownerLabel}
-              >
-                {ownerLabel}
-              </p>
-            ) : null}
-          </div>
+          <p className={cn(HUB_LIST_SUBTITLE_CLASS, 'truncate')} title={subtitle}>
+            {subtitle}
+          </p>
         </div>
       </motion.div>
-    </HubItemContextMenu>
+      <HubItemActionsMenu
+        entity="songs"
+        itemId={song.id}
+        itemLabel={title}
+        onDeleteRequest={onDeleteRequest}
+        networkOnline={networkOnline}
+        hubSong={song}
+      />
+    </div>
   )
 })
 
@@ -1132,7 +1258,7 @@ const SetlistRow = memo(function SetlistRow({
   const { t } = useTranslation()
   const { data: user } = useSession()
   const reduceMotion = useReducedMotion()
-  const { listPointerProps, onClick, onContextMenu, onKeyDown } = useHubListItemPlayerTap('setlists', setlist.id)
+  const { onClick, onKeyDown } = useHubListItemPlayerTap('setlists', setlist.id)
   const { data: ownerTeam, isPending: ownerTeamPending, isError: ownerTeamError } =
     useTeamDetail(setlist.owner)
 
@@ -1143,44 +1269,32 @@ const SetlistRow = memo(function SetlistRow({
   }, [ownerTeam, ownerTeamError, ownerTeamPending, t, user?.id])
 
   return (
-    <HubItemContextMenu
-      entity="setlists"
-      itemId={setlist.id}
-      itemLabel={setlist.title}
-      onDeleteRequest={onDeleteRequest}
-      networkOnline={networkOnline}
-    >
+    <div className={cn('flex items-center', HUB_LIST_ROW_BORDER_CLASS)}>
       <motion.div
-        className={cn(HUB_LIST_ROW_SHELL_CLASS, HUB_LIST_ROW_BORDER_CLASS)}
-        {...listPointerProps}
+        className={cn(HUB_LIST_ROW_SHELL_CLASS, 'min-w-0 flex-1')}
         onClick={onClick}
-        onContextMenu={onContextMenu}
         role="button"
         tabIndex={0}
+        aria-label={setlist.title}
         whileTap={reduceMotion ? undefined : tapFeedback}
         transition={tapTransition}
         onKeyDown={onKeyDown}
       >
         <div className="min-w-0 flex-1 flex flex-col justify-center py-0.5">
           <p className={HUB_LIST_TITLE_CLASS}>{setlist.title}</p>
-          <div className="flex min-w-0 items-baseline gap-2">
-            <p className={cn(HUB_LIST_SUBTITLE_CLASS, 'min-w-0 flex-1 truncate')}>
-              <SetlistItemCounts items={setlist.items} />
-            </p>
-            {ownerLabel ? (
-              <p
-                className={cn(
-                  HUB_LIST_META_CLASS,
-                  'max-w-[min(12rem,45%)] shrink-0 truncate text-right',
-                )}
-                title={ownerLabel}
-              >
-                {ownerLabel}
-              </p>
-            ) : null}
-          </div>
+          <p className={cn(HUB_LIST_SUBTITLE_CLASS, 'truncate')}>
+            <SetlistItemCounts items={setlist.items} />
+            {ownerLabel ? `, ${ownerLabel}` : null}
+          </p>
         </div>
       </motion.div>
-    </HubItemContextMenu>
+      <HubItemActionsMenu
+        entity="setlists"
+        itemId={setlist.id}
+        itemLabel={setlist.title}
+        onDeleteRequest={onDeleteRequest}
+        networkOnline={networkOnline}
+      />
+    </div>
   )
 })

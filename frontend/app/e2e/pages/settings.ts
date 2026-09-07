@@ -11,7 +11,7 @@ export class SettingsPage {
   }
 
   generalTab = () => this.page.getByRole('tab', { name: /general/i })
-  playerTab = () => this.page.getByRole('tab', { name: /player default/i })
+  playerTab = () => this.page.getByRole('tab', { name: /player sheet/i })
   avTab = () => this.page.getByRole('tab', { name: /player av/i })
   logoutButton = () => this.page.getByRole('button', { name: 'Log out' })
   backButton = () => this.page.getByRole('button', { name: 'Back' })

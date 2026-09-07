@@ -158,13 +158,17 @@
       "mediaCount_one": "{{count}} Medium",
       "mediaCount_other": "{{count}} Medien",
       "songsCount_one": "{{count}} Lied",
-      "songsCount_other": "{{count}} Lieder"
+      "songsCount_other": "{{count}} Lieder",
+      "unknownArtist": "Unbekannt"
     },
     "actions": {
+      "menuAria": "Aktionen für {{title}}",
+      "closeAria": "Schließen",
+      "general": "Allgemein",
       "edit": "Bearbeiten",
       "play": "Abspielen",
-      "playNormal": "Im Normalmodus abspielen",
-      "playAv": "Im AV-Modus abspielen",
+      "showSheets": "Noten anzeigen",
+      "controlAvSlides": "AV-Folien steuern",
       "addToSetlist": "Zur Setliste hinzufügen",
       "duplicate": "Duplizieren",
       "duplicateSuccess": "„{{title}}“ erstellt.",
@@ -309,7 +313,7 @@
     "editCollection": "Sammlung bearbeiten",
     "openSettings": "Player-Einstellungen",
     "mode": {
-      "normal": "Normalmodus",
+      "sheet": "Notenmodus",
       "av": "AV-Modus"
     },
     "av": {
@@ -530,7 +534,7 @@
     "tabs": {
       "aria": "Einstellungsbereiche",
       "general": "Allgemein",
-      "player": "Player Default",
+      "player": "Player Noten",
       "playerRoles": "Player AV"
     },
     "language": {
@@ -554,10 +558,10 @@
       "darkDescription": "Verwendet immer das dunkle Design."
     },
     "defaultPlayerMode": {
-      "title": "Standard-Playermodus",
-      "description": "Tippen auf Songs, Setlisten und Sammlungen öffnet den Player in diesem Modus.",
-      "normal": "Normalmodus",
-      "normalDescription": "Buchmodus mit Akkordblättern und Anhängen.",
+      "title": "Standardmodus",
+      "description": "Lege fest, ob Tippen auf Songs, Setlisten und Sammlungen den Noten- oder AV-Modus öffnet.",
+      "sheet": "Notenmodus",
+      "sheetDescription": "Buchmodus mit Akkordblättern und Anhängen.",
       "av": "AV-Modus",
       "avDescription": "Lyrik-Projektion mit getrennten Inhalts- und Hintergrundebenen."
     },
@@ -587,7 +591,7 @@
     },
     "chordSongFontScale": {
       "title": "Schriftgröße für Akkordlieder",
-      "description": "Skaliert die Schrift von Akkordliedern im normalen Player auf diesem Gerät.",
+      "description": "Skaliert die Schrift von Akkordliedern im Noten-Player auf diesem Gerät.",
       "label": "Schriftskalierung"
     },
     "tocMultilingual": {

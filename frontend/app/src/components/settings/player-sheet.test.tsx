@@ -11,8 +11,8 @@ import {
 } from '@/lib/chord-format'
 import { readHideChordsPreference } from '@/lib/hide-chords-preference'
 
-// Flow: J2 — Player Default tab option surfaces
-describe('J2: Player Default tab options', () => {
+// Flow: J2 — Player Sheet tab option surfaces
+describe('J2: Player Sheet tab options', () => {
   it('J2: chord format options include Letters and Nashville', () => {
     expect(resolveChordFormatPreference('letters')).toBe('letters')
     expect(resolveChordFormatPreference('nashville')).toBe('nashville')
