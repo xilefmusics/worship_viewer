@@ -406,10 +406,10 @@ impl Settings {
             s.otp_allow_self_signup =
                 !(v == "0" || v.eq_ignore_ascii_case("false") || v.eq_ignore_ascii_case("no"));
         }
-        if std::env::var("ROOMS_V2_ENABLED").is_err() {
-            if let Ok(v) = std::env::var("VITE_ROOMS_V2_ENABLED") {
-                s.rooms_v2_enabled = v == "true";
-            }
+        if std::env::var("ROOMS_V2_ENABLED").is_err()
+            && let Ok(v) = std::env::var("VITE_ROOMS_V2_ENABLED")
+        {
+            s.rooms_v2_enabled = v == "true";
         }
         Ok(s)
     }
