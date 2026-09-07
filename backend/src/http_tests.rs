@@ -4383,7 +4383,9 @@ mod spa_fallback_guard {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("index.html"), "<html>spa</html>").unwrap();
         let static_path = dir.path().to_string_lossy().into_owned();
-        let app = test::init_service(App::new().service(frontend::rest::scope(&static_path, false))).await;
+        let app =
+            test::init_service(App::new().service(frontend::rest::scope(&static_path, false)))
+                .await;
 
         for uri in [
             "/api/v1/definitely/not/a/route",
@@ -4418,12 +4420,17 @@ mod spa_fallback_guard {
         let static_path = dir.path().to_string_lossy().into_owned();
 
         let disabled =
-            test::init_service(App::new().service(frontend::rest::scope(&static_path, false))).await;
-        let req = test::TestRequest::get().uri("/runtime-config.js").to_request();
+            test::init_service(App::new().service(frontend::rest::scope(&static_path, false)))
+                .await;
+        let req = test::TestRequest::get()
+            .uri("/runtime-config.js")
+            .to_request();
         let resp = test::call_service(&disabled, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
         assert_eq!(
-            resp.headers().get("cache-control").and_then(|h| h.to_str().ok()),
+            resp.headers()
+                .get("cache-control")
+                .and_then(|h| h.to_str().ok()),
             Some("no-store")
         );
         let body = test::read_body(resp).await;
@@ -4431,7 +4438,9 @@ mod spa_fallback_guard {
 
         let enabled =
             test::init_service(App::new().service(frontend::rest::scope(&static_path, true))).await;
-        let req = test::TestRequest::get().uri("/runtime-config.js").to_request();
+        let req = test::TestRequest::get()
+            .uri("/runtime-config.js")
+            .to_request();
         let resp = test::call_service(&enabled, req).await;
         let body = test::read_body(resp).await;
         assert!(String::from_utf8_lossy(&body).contains("\"roomsV2Enabled\":true"));
@@ -4442,7 +4451,9 @@ mod spa_fallback_guard {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("index.html"), "<html>spa</html>").unwrap();
         let static_path = dir.path().to_string_lossy().into_owned();
-        let app = test::init_service(App::new().service(frontend::rest::scope(&static_path, false))).await;
+        let app =
+            test::init_service(App::new().service(frontend::rest::scope(&static_path, false)))
+                .await;
 
         let req = test::TestRequest::get().uri("/app/deep/link").to_request();
         let resp = test::call_service(&app, req).await;
@@ -4460,7 +4471,9 @@ mod spa_fallback_guard {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("index.html"), "<html>spa</html>").unwrap();
         let static_path = dir.path().to_string_lossy().into_owned();
-        let app = test::init_service(App::new().service(frontend::rest::scope(&static_path, false))).await;
+        let app =
+            test::init_service(App::new().service(frontend::rest::scope(&static_path, false)))
+                .await;
 
         let req = test::TestRequest::get()
             .uri("/player/output?s=shared")
@@ -4483,7 +4496,9 @@ mod spa_fallback_guard {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("index.html"), "<html/>").unwrap();
         let static_path = dir.path().to_string_lossy().into_owned();
-        let app = test::init_service(App::new().service(frontend::rest::scope(&static_path, false))).await;
+        let app =
+            test::init_service(App::new().service(frontend::rest::scope(&static_path, false)))
+                .await;
         let req = test::TestRequest::get().uri("/api/missing").to_request();
         let resp = test::call_service(&app, req).await;
         assert!(resp.headers().get("content-security-policy").is_none());
@@ -4494,7 +4509,9 @@ mod spa_fallback_guard {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("index.html"), "<html/>").unwrap();
         let static_path = dir.path().to_string_lossy().into_owned();
-        let app = test::init_service(App::new().service(frontend::rest::scope(&static_path, false))).await;
+        let app =
+            test::init_service(App::new().service(frontend::rest::scope(&static_path, false)))
+                .await;
         let req = test::TestRequest::get().uri("/api/missing").to_request();
         let resp = test::call_service(&app, req).await;
         let expected = AppError::NotFound("not found".into()).error_response();

@@ -277,7 +277,10 @@ async fn main() -> AnyResult<()> {
                 settings.api_rate_limit_rps,
                 settings.api_rate_limit_burst,
             ))
-            .service(frontend::rest::scope(&static_dir, settings.rooms_v2_enabled))
+            .service(frontend::rest::scope(
+                &static_dir,
+                settings.rooms_v2_enabled,
+            ))
     })
     .bind((settings.host.clone(), settings.port))?
     .run()
