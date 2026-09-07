@@ -25,7 +25,6 @@ import { usePlayerLayoutPreference } from '@/hooks/usePlayerScrollPreference'
 import { useOnline } from '@/hooks/use-online'
 import { usePlayerIndexSearchSync } from '@/hooks/usePlayerIndexSearchSync'
 import { useTocMultilingualPreference } from '@/hooks/useTocMultilingualPreference'
-import { useSetlistEvictionWatch } from '@/hooks/useSetlistEvictionWatch'
 import { useResolvedSongWithFlow } from '@/lib/player/apply-song-flow'
 import { getChordEngine } from '@/lib/chord-engine'
 import { chordFormatToRepresentation, writeChordFormatPreference } from '@/lib/chord-format'
@@ -411,8 +410,7 @@ export function PlayerBook({
   const tocRow = tocEntryForIndex(displayToc, nav.index)
   const showToc = !embedded && (tocSidebar != null || displayToc.length > 0)
   const showChordsControls = hasChordsItems(player.items)
-  const evicted = useSetlistEvictionWatch(type === 'setlist' ? id : undefined, type === 'setlist')
-  const navBlocked = evicted || Boolean(roomMusicalState && !canControlRoomMusicalState)
+  const navBlocked = Boolean(roomMusicalState && !canControlRoomMusicalState)
 
   const dispatch = useCallback(
     (action: Parameters<typeof nextPlayerState>[1]) => {
@@ -1067,16 +1065,6 @@ export function PlayerBook({
   return (
     <LayoutGroup>
       <div className="relative flex h-dvh flex-col overflow-hidden bg-[var(--color-bg)] text-[var(--color-foreground)]">
-        {evicted ? (
-          <p
-            className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-[var(--color-danger)]/10 px-4 py-2 text-center text-xs text-[var(--color-danger)]"
-            role="status"
-            aria-live="polite"
-          >
-            {t('player.evicted')}
-          </p>
-        ) : null}
-
         <AnimatePresence initial={false}>
           {chromeVisible ? (
             <motion.header

@@ -4,7 +4,8 @@
   overscroll-behavior: contain;
   padding: 0.5rem 0;
   list-style: none;
-  touch-action: pan-y;
+  /* Allow horizontal room-panel swipes to bubble out of the scrollable TOC. */
+  touch-action: pan-x pan-y;
 }
 
 .player-outline-list--fill {

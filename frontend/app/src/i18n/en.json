@@ -260,7 +260,6 @@
     "untitled": "Untitled",
     "mainAria": "Player — {{title}}",
     "itemAnnounce": "Item {{current}} of {{total}} — {{title}}",
-    "evicted": "This setlist is no longer cached. Reconnect to continue.",
     "setlistDeleted": "This setlist was removed by the team — playing local cache for the last time.",
     "toc": {
       "title": "Contents",

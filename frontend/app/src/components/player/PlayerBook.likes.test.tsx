@@ -97,9 +97,6 @@ vi.mock('@/hooks/usePlayerScrollPreference', () => ({
     },
   }),
 }))
-vi.mock('@/hooks/useSetlistEvictionWatch', () => ({
-  useSetlistEvictionWatch: () => false,
-}))
 vi.mock('@/hooks/useTocMultilingualPreference', () => ({
   useTocMultilingualPreference: () => false,
 }))

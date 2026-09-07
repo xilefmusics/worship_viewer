@@ -12,7 +12,6 @@ const closeSync = vi.fn()
 const writeSessionState = vi.fn()
 const writePreferences = vi.fn()
 const setIndexSearchSync = vi.fn()
-const setEvictionWatch = vi.fn()
 const readSessionState = vi.fn()
 const readPreferences = vi.fn()
 const readViewState = vi.fn()
@@ -40,13 +39,6 @@ vi.mock('@/hooks/useMediaQuery', () => ({
 
 vi.mock('@/hooks/usePlayerIndexSearchSync', () => ({
   usePlayerIndexSearchSync: (...args: unknown[]) => setIndexSearchSync(...args),
-}))
-
-vi.mock('@/hooks/useSetlistEvictionWatch', () => ({
-  useSetlistEvictionWatch: (setlistId: string | undefined, enabled: boolean) => {
-    setEvictionWatch(setlistId, enabled)
-    return false
-  },
 }))
 
 let bilingualEnabled = false
@@ -328,7 +320,6 @@ beforeEach(() => {
   writeSessionState.mockReset()
   writePreferences.mockReset()
   setIndexSearchSync.mockReset()
-  setEvictionWatch.mockReset()
   readSessionState.mockReset().mockReturnValue({
     itemIndex: 0,
     slideIndex: 0,
@@ -673,19 +664,6 @@ describe('PlayerAv', () => {
       },
     ],
   } as Player
-
-  it('does not watch media setlists for offline mirror eviction', () => {
-    render(
-      <PlayerAv
-        type="setlist"
-        id="setlist-with-media"
-        player={mixedPlayer}
-        allowNetworkFetch={false}
-      />,
-    )
-
-    expect(setEvictionWatch).toHaveBeenLastCalledWith(undefined, false)
-  })
 
   it('I3: warns when a page is projected with no ready output', async () => {
     const user = userEvent.setup()
