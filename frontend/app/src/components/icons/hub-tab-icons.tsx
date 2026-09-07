@@ -6,6 +6,7 @@ import { ChevronLeftIcon } from '@/components/icons/lucide-animated/chevron-left
 import { LayersIcon } from '@/components/icons/lucide-animated/layers-icon'
 import { ListMusicIcon } from '@/components/icons/lucide-animated/list-music-icon'
 import { PlusIcon } from '@/components/icons/lucide-animated/plus-icon'
+import { RoomIcon } from '@/components/icons/lucide-animated/room-icon'
 import { SessionsIcon } from '@/components/icons/lucide-animated/sessions-icon'
 import { SettingsIcon } from '@/components/icons/lucide-animated/settings-icon'
 import { UsersIcon } from '@/components/icons/lucide-animated/users-icon'
@@ -68,10 +69,10 @@ export function IconHubSettings({ className, isHovered, ...rest }: HubTabIconPro
   )
 }
 
-/** Teams — `users` */
-export function IconHubTeams({ className, isHovered, ...rest }: HubTabIconProps) {
+/** Rooms — an animated room/door icon */
+export function IconHubRooms({ className, isHovered, ...rest }: HubTabIconProps) {
   return (
-    <UsersIcon
+    <RoomIcon
       className={cn('inline-flex shrink-0', className)}
       isHovered={isHovered}
       size={HUB_TAB_ICON_PX}

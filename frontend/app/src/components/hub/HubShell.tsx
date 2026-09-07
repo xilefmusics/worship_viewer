@@ -58,6 +58,7 @@ import { useSongDetailQuery } from '@/hooks/useSongDetailQuery'
 import { useMediaDetailQuery } from '@/hooks/useMediaDetailQuery'
 import { useWritableTeams } from '@/hooks/useWritableTeams'
 import { listenToMediaQuery } from '@/lib/browser-apis'
+import { isRoomsV2Enabled } from '@/lib/feature-flags'
 import { getTeamDisplayName, isPersonalTeamName } from '@/lib/team-display-name'
 import {
   buildPlayerReturnSearch,
@@ -86,7 +87,7 @@ function hubSearchSectionKey(pathname: string): string | null {
     seg === 'songs' ||
     seg === 'setlists' ||
     seg === 'media' ||
-    seg === 'player-rooms' ||
+    seg === 'rooms' ||
     seg === 'teams' ||
     seg === 'sessions'
   )
@@ -107,7 +108,7 @@ function OfflineBanner() {
 }
 
 function isLibraryListPath(pathname: string): boolean {
-  return pathname === '/collections' || pathname === '/songs' || pathname === '/setlists' || pathname === '/media' || pathname === '/player-rooms'
+  return pathname === '/collections' || pathname === '/songs' || pathname === '/setlists' || pathname === '/media' || pathname === '/rooms'
 }
 
 const ADMIN_QUICK_RANGES: AdminMetricsRangeId[] = ['7d', '30d', '90d', 'mtd', 'prev-month']
@@ -370,6 +371,11 @@ function HubChrome({
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { teams: writableMediaTeams } = useWritableTeams('mediaHubFab', pathname === '/media')
+  const roomsV2Enabled = isRoomsV2Enabled()
+  const { teams: writableRoomTeams } = useWritableTeams(
+    'roomCreate',
+    pathname === '/rooms' && roomsV2Enabled,
+  )
   const locationSearch = useRouterState({ select: (s) => s.location.search })
   const isTeamsList = pathname === '/teams'
   const isTeamDetail = pathname.startsWith('/teams/') && pathname !== '/teams'
@@ -399,7 +405,7 @@ function HubChrome({
       formatAdminDateInputValue(quick.end) === adminEndDate
     )
   }) ?? null
-  const showLibraryFilters = isLibraryListPath(pathname)
+  const showLibraryFilters = isLibraryListPath(pathname) && (pathname !== '/rooms' || roomsV2Enabled)
   const songEditorPlayerReturn = isSongDetail
     ? parsePlayerEditorReturnSearch(locationSearch as Record<string, unknown>)
     : null
@@ -429,7 +435,8 @@ function HubChrome({
     isCollectionDetail ||
     isSongDetail ||
     isMediaDetail ||
-    (pathname === '/media' && writableMediaTeams.length === 0)
+    (pathname === '/media' && writableMediaTeams.length === 0) ||
+    (pathname === '/rooms' && (!roomsV2Enabled || writableRoomTeams.length === 0))
   const showFooter =
     !isTeamDetail &&
     !isSetlistDetail &&
@@ -1000,6 +1007,19 @@ function HubChrome({
                 </div>
               </div>
             </>
+          ) : pathname === '/rooms' && !roomsV2Enabled ? (
+            <div ref={searchAnchorRef} className="group relative my-[0.36rem] min-w-0 flex-1">
+              <div className={cn(HUB_SEARCH_INPUT_CLASS, 'pointer-events-none flex min-w-0 items-center justify-center')}>
+                <p
+                  className={cn(
+                    'w-full truncate px-5 text-center font-medium text-[var(--color-foreground)]',
+                    HUB_SEARCH_PILL_TEXT_CLASS,
+                  )}
+                >
+                  {t('rooms.title')}
+                </p>
+              </div>
+            </div>
           ) : showLibraryFilters ? (
             <HubLibrarySearchField
               searchAnchorRef={searchAnchorRef}
@@ -1113,6 +1133,8 @@ function HubChrome({
                       void navigate({ to: '/songs', search: { new: '1' } })
                     } else if (pathname === '/media') {
                       void navigate({ to: '/media', search: { new: '1' } })
+                    } else if (pathname === '/rooms') {
+                      void navigate({ to: '/rooms', search: { new: '1' } })
                     }
                   }}
                   className={cn(
@@ -1133,6 +1155,8 @@ function HubChrome({
                             ? t('hub.createSongAria')
                             : pathname === '/media'
                               ? t('media.actions.createAria')
+                            : pathname === '/rooms'
+                              ? t('rooms.createAria')
                             : t('hub.createAria')
                   }
                 >

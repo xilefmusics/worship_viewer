@@ -31,7 +31,18 @@ pub mod rest {
             .map_err(|err| AppError::NotFound(err.to_string()))
     }
 
-    pub fn scope(static_dir: &str) -> Scope {
+    fn runtime_config_js(rooms_v2_enabled: bool) -> HttpResponse {
+        let body = format!(
+            "window.__WORSHIP_RUNTIME__={};",
+            serde_json::json!({ "roomsV2Enabled": rooms_v2_enabled })
+        );
+        HttpResponse::Ok()
+            .content_type("application/javascript; charset=utf-8")
+            .insert_header((header::CACHE_CONTROL, "no-store"))
+            .body(body)
+    }
+
+    pub fn scope(static_dir: &str, rooms_v2_enabled: bool) -> Scope {
         let static_dir = static_dir.to_owned();
 
         let spa_fallback = {
@@ -41,7 +52,10 @@ pub mod rest {
                 async move {
                     let path = req.path().to_owned();
                     let (http_req, _) = req.into_parts();
-                    if path.starts_with("/api/") || path.starts_with("/auth/") {
+                    if path.starts_with("/api/")
+                        || path.starts_with("/auth/")
+                        || path == "/runtime-config.js"
+                    {
                         let response = AppError::NotFound("not found".into()).error_response();
                         return Ok(ServiceResponse::new(http_req, response));
                     }
@@ -52,10 +66,15 @@ pub mod rest {
             }
         };
 
-        web::scope("").service(
-            Files::new("/", static_dir)
-                .index_file("index.html")
-                .default_handler(fn_service(spa_fallback)),
-        )
+        web::scope("")
+            .route(
+                "/runtime-config.js",
+                web::get().to(move || async move { runtime_config_js(rooms_v2_enabled) }),
+            )
+            .service(
+                Files::new("/", static_dir)
+                    .index_file("index.html")
+                    .default_handler(fn_service(spa_fallback)),
+            )
     }
 }

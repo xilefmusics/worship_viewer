@@ -6,10 +6,14 @@ All notable changes to Worship Viewer are documented here. The format follows [K
 
 ### Added
 
+- Empty, team-owned Rooms can be created directly from the Rooms hub and entered in Sheet view.
+- `ROOMS_V2_ENABLED` runtime flag for the Rooms hub UI (`docker run -e ROOMS_V2_ENABLED=true`).
 - Spotify track and playlist Media items with external playback controls in the AV player.
 - Independent grayscale text controls for primary and translated AV lyrics.
 - Two Zeltlager background presets for AV-mode lyric projection.
-- Player Rooms for synchronized Sheet, AV, and Slide participants across devices, including anonymous invite links and reconnecting presence.
+- Rooms for synchronized Sheet, AV, and Slide participants across devices, including anonymous invite links and reconnecting presence.
+- Three-panel Rooms with a shared next-song queue, authenticated participant song sharing, and host queue management.
+- Played-state sections in Room queues, with re-upvoted songs returning to the upcoming ranking.
 - `./scripts/verify-ci.sh` — one-shot local run of CI-equivalent checks (fmt, audit, tests, OpenAPI, frontend build).
 - `backend/.cargo/audit.toml` — documents ignored transitive `rsa` advisory (no upstream fix).
 - `pnpm audit` gate in frontend CI; `serialize-javascript` ≥7.0.5 via pnpm overrides.
@@ -21,6 +25,7 @@ All notable changes to Worship Viewer are documented here. The format follows [K
 
 ### Changed
 
+- Room queue browsing now uses the current queue for order, A–Z, and personal Liked views; hosts control whether members may add new library songs.
 - Admin Users and Metrics now use the same hub chrome as collections and songs: a bottom tab bar with Leave, hub-style user rows, and the shared right-hand actions drawer. Impersonation starts immediately from that drawer.
 - `openapi-sync.mjs` resolves canonical OpenAPI from repo root (`docs/openapi.json`).
 - Backend CI `cargo audit` runs per-crate (`cd … && cargo audit`) — compatible with cargo-audit 0.22+.

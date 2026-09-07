@@ -55,9 +55,6 @@ vi.mock('@/components/player/PlayerLikeHeartBurst', () => ({
     <div data-testid="like-feedback" data-liked={liked} />
   ),
 }))
-vi.mock('@/components/player-room/StartPlayerRoomButton', () => ({
-  StartPlayerRoomButton: () => null,
-}))
 vi.mock('@/components/player/PlayerTocSidebar', () => ({
   PlayerTocSidebar: ({ toc }: { toc: components['schemas']['TocItem'][] }) => (
     <div data-testid="liked-toc">
@@ -147,7 +144,12 @@ function player(): Player {
   }
 }
 
-function renderPlayer(value: Player, roomSidebar: React.ReactNode = <div>room</div>) {
+function renderPlayer(
+  value: Player,
+  roomSidebar: React.ReactNode = <div>room</div>,
+  tocSidebar?: React.ReactNode,
+  embedded = false,
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
@@ -156,7 +158,9 @@ function renderPlayer(value: Player, roomSidebar: React.ReactNode = <div>room</d
         id="setlist-1"
         player={value}
         allowNetworkFetch
+        embedded={embedded}
         roomSidebar={roomSidebar}
+        tocSidebar={tocSidebar}
       />
     </QueryClientProvider>,
   )
@@ -171,6 +175,47 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('PlayerBook likes', () => {
+  it('renders a supplied TOC sidebar in the player chrome', () => {
+    renderPlayer(
+      player(),
+      <div data-testid="room-sidebar-slot">room</div>,
+      <div data-testid="toc-sidebar-slot">queue</div>,
+    )
+
+    expect(screen.getByTestId('toc-sidebar-slot')).toBeInTheDocument()
+    expect(screen.getByTestId('room-sidebar-slot')).toBeInTheDocument()
+    expect(screen.queryByTestId('liked-toc')).not.toBeInTheDocument()
+  })
+
+  it('keeps keyboard and click-zone navigation with supplied room sidebars', () => {
+    const queueClick = vi.fn()
+    renderPlayer(
+      player(),
+      <div data-testid="room-sidebar-slot">room</div>,
+      <button type="button" onClick={queueClick}>queue</button>,
+    )
+
+    const main = screen.getByRole('main')
+    vi.spyOn(main, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: 0, width: 100, height: 100 }),
+    )
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(screen.getByText('song-1')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'queue' }))
+    expect(queueClick).toHaveBeenCalledOnce()
+    expect(screen.getByText('song-1')).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'm' })
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(screen.getByText('song-2')).toBeInTheDocument()
+
+    fireEvent.click(main, { clientX: 1, clientY: 50, detail: 1 })
+    expect(screen.getByText('song-1')).toBeInTheDocument()
+  })
+
   it('pinches only the chord surface without navigating', () => {
     renderPlayer(player(), null)
     const main = screen.getByRole('main')
@@ -213,6 +258,20 @@ describe('PlayerBook likes', () => {
 
     expect(within(main).getByText('song-2')).toBeInTheDocument()
     expect(window.localStorage.getItem('wv_chord_song_font_scale')).toBeNull()
+  })
+
+  it('leaves one-finger swipe navigation to the room shell when embedded', () => {
+    renderPlayer(player(), null, undefined, true)
+    const main = screen.getByRole('main')
+    const start = { clientX: 100, clientY: 50 }
+    const end = { clientX: 0, clientY: 50 }
+
+    fireEvent.touchStart(main, { touches: [start] })
+    fireEvent.touchEnd(main, { changedTouches: [end] })
+    fireEvent.touchStart(main, { touches: [start] })
+    fireEvent.touchEnd(main, { changedTouches: [end] })
+
+    expect(within(main).queryByText('song-2')).not.toBeInTheDocument()
   })
 
   it('unlikes exactly once for a native mouse double-click', async () => {

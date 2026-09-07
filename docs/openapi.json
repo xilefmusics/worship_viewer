@@ -31,6 +31,23 @@
         ],
         "type": "object"
       },
+      "AddRoomQueueItem": {
+        "properties": {
+          "revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "song_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "song_id",
+          "revision"
+        ],
+        "type": "object"
+      },
       "Blob": {
         "example": {
           "file_type": "image/png",
@@ -365,36 +382,36 @@
           }
         ]
       },
-      "CreatePlayerRoom": {
+      "CreateRoom": {
         "properties": {
-          "host_mode": {
-            "$ref": "#/components/schemas/PlayerRoomMode"
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
-          "musical_state": {
-            "$ref": "#/components/schemas/PlayerRoomMusicalState"
+          "source_id": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
-          "projection": {
+          "source_type": {
             "oneOf": [
               {
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/PlayerRoomProjectionPayload"
+                "$ref": "#/components/schemas/RoomSourceType"
               }
             ]
           },
-          "source_id": {
+          "team_id": {
             "type": "string"
-          },
-          "source_type": {
-            "$ref": "#/components/schemas/PlayerRoomSourceType"
           }
         },
         "required": [
-          "source_type",
-          "source_id",
-          "host_mode",
-          "musical_state"
+          "team_id"
         ],
         "type": "object"
       },
@@ -537,16 +554,16 @@
         ],
         "type": "object"
       },
-      "CreatedPlayerRoom": {
+      "CreatedRoom": {
         "properties": {
           "credentials": {
-            "$ref": "#/components/schemas/PlayerRoomCredentials"
+            "$ref": "#/components/schemas/RoomCredentials"
           },
           "invite_secret": {
             "type": "string"
           },
           "room": {
-            "$ref": "#/components/schemas/PlayerRoomSummary"
+            "$ref": "#/components/schemas/RoomSummary"
           }
         },
         "required": [
@@ -741,7 +758,7 @@
         ],
         "type": "object"
       },
-      "InspectPlayerRoomInvite": {
+      "InspectRoomInvite": {
         "properties": {
           "invite_secret": {
             "type": "string"
@@ -752,13 +769,13 @@
         ],
         "type": "object"
       },
-      "JoinPlayerRoom": {
+      "JoinRoom": {
         "properties": {
           "hide_chords": {
             "type": "boolean"
           },
           "mode": {
-            "$ref": "#/components/schemas/PlayerRoomMode"
+            "$ref": "#/components/schemas/RoomMode"
           },
           "resume_credential": {
             "type": [
@@ -772,7 +789,7 @@
         ],
         "type": "object"
       },
-      "JoinPlayerRoomInvite": {
+      "JoinRoomInvite": {
         "properties": {
           "display_name": {
             "type": "string"
@@ -784,7 +801,7 @@
             "type": "string"
           },
           "mode": {
-            "$ref": "#/components/schemas/PlayerRoomMode"
+            "$ref": "#/components/schemas/RoomMode"
           },
           "resume_credential": {
             "type": [
@@ -1927,309 +1944,6 @@
         ],
         "type": "object"
       },
-      "PlayerRoomContent": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/PlayerItem"
-            },
-            "type": "array"
-          },
-          "toc": {
-            "items": {
-              "$ref": "#/components/schemas/TocItem"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "items",
-          "toc"
-        ],
-        "type": "object"
-      },
-      "PlayerRoomCredentials": {
-        "properties": {
-          "connection_ticket": {
-            "type": "string"
-          },
-          "mode": {
-            "$ref": "#/components/schemas/PlayerRoomMode"
-          },
-          "participant_id": {
-            "type": "string"
-          },
-          "resume_credential": {
-            "type": "string"
-          },
-          "room_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "room_id",
-          "participant_id",
-          "mode",
-          "resume_credential",
-          "connection_ticket"
-        ],
-        "type": "object"
-      },
-      "PlayerRoomInviteInfo": {
-        "properties": {
-          "av_occupied": {
-            "type": "boolean"
-          },
-          "guests_allowed": {
-            "type": "boolean"
-          },
-          "host_email": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "room_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "room_id",
-          "name",
-          "host_email",
-          "av_occupied"
-        ],
-        "type": "object"
-      },
-      "PlayerRoomMode": {
-        "enum": [
-          "sheet",
-          "av",
-          "slide"
-        ],
-        "type": "string"
-      },
-      "PlayerRoomMusicalState": {
-        "properties": {
-          "item_index": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "language": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "transposition": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "item_index"
-        ],
-        "type": "object"
-      },
-      "PlayerRoomParticipant": {
-        "properties": {
-          "anonymous": {
-            "type": "boolean"
-          },
-          "avatar_url": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "connected": {
-            "type": "boolean"
-          },
-          "display_name": {
-            "type": "string"
-          },
-          "hide_chords": {
-            "type": "boolean"
-          },
-          "id": {
-            "type": "string"
-          },
-          "is_av_host": {
-            "type": "boolean"
-          },
-          "is_host": {
-            "type": "boolean"
-          },
-          "mode": {
-            "$ref": "#/components/schemas/PlayerRoomMode"
-          }
-        },
-        "required": [
-          "id",
-          "mode",
-          "display_name",
-          "anonymous",
-          "connected",
-          "is_host",
-          "is_av_host"
-        ],
-        "type": "object"
-      },
-      "PlayerRoomProjectionPayload": {
-        "properties": {
-          "background_layer": {
-            "type": "object"
-          },
-          "content_layer": {
-            "type": "object"
-          },
-          "content_lines": {
-            "type": [
-              "object",
-              "null"
-            ]
-          },
-          "content_text": {
-            "type": "string"
-          },
-          "item_title": {
-            "type": "string"
-          },
-          "next_preview": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "screen_state": {
-            "type": "string"
-          },
-          "transition": {
-            "type": "object"
-          }
-        },
-        "required": [
-          "content_text",
-          "content_layer",
-          "background_layer",
-          "transition",
-          "screen_state",
-          "item_title"
-        ],
-        "type": "object"
-      },
-      "PlayerRoomSnapshot": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/PlayerRoomSummary"
-          },
-          {
-            "properties": {
-              "content": {
-                "$ref": "#/components/schemas/PlayerRoomContent"
-              },
-              "guests_allowed": {
-                "type": "boolean"
-              },
-              "host_lease_expires_at": {
-                "format": "date-time",
-                "type": "string"
-              },
-              "musical_state": {
-                "$ref": "#/components/schemas/PlayerRoomMusicalState"
-              },
-              "participants": {
-                "items": {
-                  "$ref": "#/components/schemas/PlayerRoomParticipant"
-                },
-                "type": "array"
-              },
-              "projection": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/PlayerRoomProjectionPayload"
-                  }
-                ]
-              },
-              "revision": {
-                "format": "int64",
-                "minimum": 0,
-                "type": "integer"
-              }
-            },
-            "required": [
-              "content",
-              "musical_state",
-              "participants",
-              "revision",
-              "host_lease_expires_at"
-            ],
-            "type": "object"
-          }
-        ]
-      },
-      "PlayerRoomSourceType": {
-        "enum": [
-          "song",
-          "collection",
-          "setlist"
-        ],
-        "type": "string"
-      },
-      "PlayerRoomSummary": {
-        "properties": {
-          "av_occupied": {
-            "type": "boolean"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "host_email": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "participant_count": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "source_id": {
-            "type": "string"
-          },
-          "source_title": {
-            "type": "string"
-          },
-          "source_type": {
-            "$ref": "#/components/schemas/PlayerRoomSourceType"
-          },
-          "team_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "team_id",
-          "source_type",
-          "source_id",
-          "source_title",
-          "host_email",
-          "participant_count",
-          "av_occupied",
-          "created_at"
-        ],
-        "type": "object"
-      },
       "Problem": {
         "description": "[RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem document (`application/problem+json`).\n\nCanonical error body for HTTP 4xx/5xx responses (Problem Details; obsoletes RFC 7807). Extension members include `code`.",
         "properties": {
@@ -2315,12 +2029,434 @@
         "title": "ProblemDetails",
         "type": "object"
       },
+      "ReorderRoomQueue": {
+        "properties": {
+          "queue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "queue_ids",
+          "revision"
+        ],
+        "type": "object"
+      },
       "Role": {
         "enum": [
           "default",
           "admin"
         ],
         "type": "string"
+      },
+      "RoomContent": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerItem"
+            },
+            "type": "array"
+          },
+          "toc": {
+            "items": {
+              "$ref": "#/components/schemas/TocItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "toc"
+        ],
+        "type": "object"
+      },
+      "RoomCredentials": {
+        "properties": {
+          "connection_ticket": {
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RoomMode"
+          },
+          "participant_id": {
+            "type": "string"
+          },
+          "resume_credential": {
+            "type": "string"
+          },
+          "room_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "room_id",
+          "participant_id",
+          "mode",
+          "resume_credential",
+          "connection_ticket"
+        ],
+        "type": "object"
+      },
+      "RoomInviteInfo": {
+        "properties": {
+          "av_occupied": {
+            "type": "boolean"
+          },
+          "guests_allowed": {
+            "type": "boolean"
+          },
+          "host_email": {
+            "type": "string"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "room_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "room_id",
+          "name",
+          "host_email",
+          "av_occupied"
+        ],
+        "type": "object"
+      },
+      "RoomMode": {
+        "enum": [
+          "sheet",
+          "av",
+          "slide"
+        ],
+        "type": "string"
+      },
+      "RoomMusicalState": {
+        "properties": {
+          "item_index": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "started": {
+            "type": "boolean"
+          },
+          "transposition": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "item_index"
+        ],
+        "type": "object"
+      },
+      "RoomParticipant": {
+        "properties": {
+          "anonymous": {
+            "type": "boolean"
+          },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "hide_chords": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_av_host": {
+            "type": "boolean"
+          },
+          "is_host": {
+            "type": "boolean"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RoomMode"
+          }
+        },
+        "required": [
+          "id",
+          "mode",
+          "display_name",
+          "anonymous",
+          "connected",
+          "is_host",
+          "is_av_host"
+        ],
+        "type": "object"
+      },
+      "RoomProjectionPayload": {
+        "properties": {
+          "background_layer": {
+            "type": "object"
+          },
+          "content_layer": {
+            "type": "object"
+          },
+          "content_lines": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "content_text": {
+            "type": "string"
+          },
+          "item_title": {
+            "type": "string"
+          },
+          "next_preview": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "screen_state": {
+            "type": "string"
+          },
+          "transition": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "content_text",
+          "content_layer",
+          "background_layer",
+          "transition",
+          "screen_state",
+          "item_title"
+        ],
+        "type": "object"
+      },
+      "RoomQueueItem": {
+        "properties": {
+          "added_by": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "played": {
+            "type": "boolean"
+          },
+          "song": {
+            "$ref": "#/components/schemas/PlayerChordsItem"
+          },
+          "song_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "upvotes": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "song_id",
+          "title",
+          "song",
+          "added_by"
+        ],
+        "type": "object"
+      },
+      "RoomQueueLikes": {
+        "properties": {
+          "song_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "song_ids"
+        ],
+        "type": "object"
+      },
+      "RoomQueueRevision": {
+        "properties": {
+          "revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "type": "object"
+      },
+      "RoomSnapshot": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RoomSummary"
+          },
+          {
+            "properties": {
+              "content": {
+                "$ref": "#/components/schemas/RoomContent"
+              },
+              "guests_allowed": {
+                "type": "boolean"
+              },
+              "host_lease_expires_at": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "locked": {
+                "type": "boolean"
+              },
+              "musical_state": {
+                "$ref": "#/components/schemas/RoomMusicalState"
+              },
+              "participants": {
+                "items": {
+                  "$ref": "#/components/schemas/RoomParticipant"
+                },
+                "type": "array"
+              },
+              "projection": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RoomProjectionPayload"
+                  }
+                ]
+              },
+              "queue": {
+                "items": {
+                  "$ref": "#/components/schemas/RoomQueueItem"
+                },
+                "type": "array"
+              },
+              "revision": {
+                "format": "int64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "voted_queue_ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "content",
+              "musical_state",
+              "participants",
+              "revision",
+              "host_lease_expires_at"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RoomSourceType": {
+        "enum": [
+          "song",
+          "collection",
+          "setlist"
+        ],
+        "type": "string"
+      },
+      "RoomSummary": {
+        "properties": {
+          "av_occupied": {
+            "type": "boolean"
+          },
+          "can_close": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "host_email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "open": {
+            "type": "boolean"
+          },
+          "participant_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_type": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RoomSourceType"
+              }
+            ]
+          },
+          "team_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "team_id",
+          "host_email",
+          "participant_count",
+          "av_occupied",
+          "created_at"
+        ],
+        "type": "object"
       },
       "RootSpellingHint": {
         "description": "Accidental spelling hint from the parsed root token (`#` vs `b`).",
@@ -3268,6 +3404,23 @@
         },
         "required": [
           "title"
+        ],
+        "type": "object"
+      },
+      "UpdateRoomQueueAccess": {
+        "properties": {
+          "open": {
+            "type": "boolean"
+          },
+          "revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "open",
+          "revision"
         ],
         "type": "object"
       },
@@ -6814,7 +6967,7 @@
         ]
       }
     },
-    "/api/v1/player-rooms": {
+    "/api/v1/rooms": {
       "get": {
         "operationId": "list_rooms",
         "parameters": [
@@ -6861,7 +7014,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/PlayerRoomSummary"
+                    "$ref": "#/components/schemas/RoomSummary"
                   },
                   "type": "array"
                 }
@@ -6879,7 +7032,7 @@
           }
         ],
         "tags": [
-          "Player Rooms"
+          "Rooms"
         ]
       },
       "post": {
@@ -6888,7 +7041,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreatePlayerRoom"
+                "$ref": "#/components/schemas/CreateRoom"
               }
             }
           },
@@ -6899,7 +7052,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreatedPlayerRoom"
+                  "$ref": "#/components/schemas/CreatedRoom"
                 }
               }
             },
@@ -6915,18 +7068,18 @@
           }
         ],
         "tags": [
-          "Player Rooms"
+          "Rooms"
         ]
       }
     },
-    "/api/v1/player-rooms/invite/inspect": {
+    "/api/v1/rooms/invite/inspect": {
       "post": {
         "operationId": "inspect_invite",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/InspectPlayerRoomInvite"
+                "$ref": "#/components/schemas/InspectRoomInvite"
               }
             }
           },
@@ -6937,7 +7090,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlayerRoomInviteInfo"
+                  "$ref": "#/components/schemas/RoomInviteInfo"
                 }
               }
             },
@@ -6945,18 +7098,18 @@
           }
         },
         "tags": [
-          "Player Rooms"
+          "Rooms"
         ]
       }
     },
-    "/api/v1/player-rooms/invite/join": {
+    "/api/v1/rooms/invite/join": {
       "post": {
         "operationId": "join_invite",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JoinPlayerRoomInvite"
+                "$ref": "#/components/schemas/JoinRoomInvite"
               }
             }
           },
@@ -6967,7 +7120,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlayerRoomCredentials"
+                  "$ref": "#/components/schemas/RoomCredentials"
                 }
               }
             },
@@ -6975,25 +7128,17 @@
           }
         },
         "tags": [
-          "Player Rooms"
+          "Rooms"
         ]
       }
     },
-    "/api/v1/player-rooms/{id}": {
+    "/api/v1/rooms/{id}": {
       "delete": {
         "operationId": "close_room",
         "parameters": [
           {
             "in": "path",
             "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Player-Room-Credential",
             "required": true,
             "schema": {
               "type": "string"
@@ -7014,7 +7159,7 @@
           }
         ],
         "tags": [
-          "Player Rooms"
+          "Rooms"
         ]
       },
       "get": {
@@ -7034,7 +7179,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlayerRoomSnapshot"
+                  "$ref": "#/components/schemas/RoomSnapshot"
                 }
               }
             },
@@ -7050,11 +7195,11 @@
           }
         ],
         "tags": [
-          "Player Rooms"
+          "Rooms"
         ]
       }
     },
-    "/api/v1/player-rooms/{id}/join": {
+    "/api/v1/rooms/{id}/join": {
       "post": {
         "operationId": "join_room",
         "parameters": [
@@ -7071,7 +7216,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JoinPlayerRoom"
+                "$ref": "#/components/schemas/JoinRoom"
               }
             }
           },
@@ -7082,7 +7227,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlayerRoomCredentials"
+                  "$ref": "#/components/schemas/RoomCredentials"
                 }
               }
             },
@@ -7098,11 +7243,460 @@
           }
         ],
         "tags": [
-          "Player Rooms"
+          "Rooms"
         ]
       }
     },
-    "/api/v1/player-rooms/{id}/reconnect": {
+    "/api/v1/rooms/{id}/queue": {
+      "post": {
+        "operationId": "add_queue_item",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddRoomQueueItem"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Rooms"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/queue-access": {
+      "put": {
+        "operationId": "update_queue_access",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoomQueueAccess"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Rooms"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/queue/likes": {
+      "get": {
+        "operationId": "get_queue_likes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomQueueLikes"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Rooms"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/queue/order": {
+      "put": {
+        "operationId": "reorder_queue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderRoomQueue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Rooms"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/queue/{queue_id}": {
+      "delete": {
+        "operationId": "remove_queue_item",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "queue_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Rooms"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/queue/{queue_id}/promote": {
+      "post": {
+        "operationId": "promote_queue_item",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "queue_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoomQueueRevision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "SessionToken": []
+          }
+        ],
+        "tags": [
+          "Rooms"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/reconnect": {
       "post": {
         "operationId": "reconnect_room",
         "parameters": [
@@ -7119,7 +7713,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JoinPlayerRoom"
+                "$ref": "#/components/schemas/JoinRoom"
               }
             }
           },
@@ -7130,7 +7724,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlayerRoomCredentials"
+                  "$ref": "#/components/schemas/RoomCredentials"
                 }
               }
             },
@@ -7138,11 +7732,11 @@
           }
         },
         "tags": [
-          "Player Rooms"
+          "Rooms"
         ]
       }
     },
-    "/api/v1/player-rooms/{room_id}/media/{blob_id}": {
+    "/api/v1/rooms/{room_id}/media/{blob_id}": {
       "get": {
         "operationId": "room_media",
         "parameters": [
@@ -7180,7 +7774,7 @@
           }
         },
         "tags": [
-          "Player Rooms"
+          "Rooms"
         ]
       }
     },
@@ -7900,7 +8494,7 @@
             }
           },
           {
-            "description": "Hydration mode. `book` (default) omits Media for Book/sheet/offline/Player Room snapshots. `av` includes Ready readable Media as one tagged item per setlist slot.",
+            "description": "Hydration mode. `book` (default) omits Media for Book/sheet/offline/Room snapshots. `av` includes Ready readable Media as one tagged item per setlist slot.",
             "in": "query",
             "name": "view",
             "required": false,
@@ -12653,9 +13247,9 @@
       "description": "Persisted cross-device player sessions, invitations, scoped media, and realtime synchronization.",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
-        "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/player-room.md"
+        "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/room.md"
       },
-      "name": "Player Rooms"
+      "name": "Rooms"
     }
   ]
 }
