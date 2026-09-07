@@ -95,8 +95,9 @@ describe('rooms', () => {
   })
 
   it('adapts content snapshots without importing host layout state', () => {
-    const snapshot = { id: 'r1', name: 'Room', team_id: 't1', source_type: 'song', source_id: 's1', source_title: 'Song', host_email: 'h@example.com', participant_count: 1, av_occupied: false, created_at: new Date().toISOString(), locked: false, content: { items: [{ type: 'blob', blob_id: 'b1' }], toc: [] }, queue: [], voted_queue_ids: [], musical_state: { item_index: 0, started: false, language: null, transposition: null }, projection: null, participants: [], revision: 1, host_lease_expires_at: new Date().toISOString() } as RoomSnapshot
-    expect(playerFromRoom(snapshot)).toMatchObject({ index: 0, scroll_type: 'one_page', orientation: 'portrait', items: snapshot.content.items })
+    const item = { song: { id: 's1' }, language: null, flow: null } as RoomSnapshot['content']['items'][number]
+    const snapshot = { id: 'r1', name: 'Room', team_id: 't1', host_email: 'h@example.com', participant_count: 1, av_occupied: false, created_at: new Date().toISOString(), locked: false, content: { items: [item], toc: [] }, queue: [], voted_queue_ids: [], musical_state: { item_index: 0, started: false, language: null, transposition: null }, projection: null, participants: [], revision: 1, host_lease_expires_at: new Date().toISOString() } as RoomSnapshot
+    expect(playerFromRoom(snapshot)).toMatchObject({ index: 0, scroll_type: 'one_page', orientation: 'portrait', items: [{ type: 'chords', ...item }] })
   })
 
   it('redacts credentials from room event diagnostics', () => {
@@ -114,7 +115,7 @@ describe('rooms', () => {
   it('applies a contiguous room delta without replacing immutable content', () => {
     const current = {
       id: 'r1',
-      content: { items: [{ type: 'blob', blob_id: 'b1' }], toc: [] },
+      content: { items: [], toc: [] },
       musical_state: { item_index: 0, started: false, language: null, transposition: null },
       revision: 4,
     } as unknown as RoomSnapshot

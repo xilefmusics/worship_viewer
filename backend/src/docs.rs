@@ -244,8 +244,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         crate::resources::room::rest::reorder_queue,
         crate::resources::room::rest::inspect_invite,
         crate::resources::room::rest::join_invite,
-        crate::resources::room::rest::reconnect_room,
-        crate::resources::room::rest::room_media
+        crate::resources::room::rest::reconnect_room
     ),
     components(
         schemas(
@@ -373,7 +372,7 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
         (name = "Blobs", description = "Binary image assets: metadata, byte upload/download with cache headers."),
         (name = "Setlists", description = "Ordered songs and Media items, plus player payloads for services."),
         (name = "Teams", description = "Team membership, roles, and invitations (nested under `/teams/{id}/invitations`)."),
-        (name = "Rooms", description = "Persisted cross-device player sessions, invitations, scoped media, and realtime synchronization.")
+        (name = "Rooms", description = "Persisted cross-device chord-song sessions, invitations, and realtime synchronization.")
     ),
     modifiers(&SessionSecurity)
 )]

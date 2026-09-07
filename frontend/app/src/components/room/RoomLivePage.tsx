@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PlayerBook } from '@/components/player/PlayerBook'
@@ -20,7 +20,6 @@ import {
   type RoomProjection,
 } from '@/lib/room'
 import type { AvProjectionPayload } from '@/lib/player/av-preferences'
-import { registerRoomMedia } from '@/lib/room-media'
 
 function projectionToWire(payload: AvProjectionPayload): RoomProjection {
   return {
@@ -73,26 +72,13 @@ export function RoomLivePage({ credentials }: { credentials: RoomCredentials }) 
   const currentSongId = useMemo(() => {
     if (!snapshot?.musical_state.started) return null
     const item = snapshot?.content.items[snapshot.musical_state.item_index]
-    return item?.type === 'chords' ? item.song.id : null
+    return item?.song.id ?? null
   }, [snapshot])
   const promoteQueueTop = useCallback(() => {
     const first = snapshot?.queue[0]
     if (!first || !participant?.is_host || !snapshot) return
     void promoteRoomQueueItem(snapshot.id, first.id, snapshot.revision)
   }, [participant?.is_host, snapshot])
-  useEffect(() => {
-    if (!snapshot) return
-    const contentIds = snapshot.content.items.flatMap((item) =>
-      item.type === 'blob'
-        ? [item.blob_id]
-        : item.type === 'chords'
-          ? item.song.blobs.map((blob) => blob.id)
-          : [],
-    )
-    const queueIds = snapshot.queue.flatMap((item) => item.song.song.blobs.map((blob) => blob.id))
-    return registerRoomMedia(snapshot.id, credentials.resume_credential, [...new Set([...contentIds, ...queueIds])])
-  }, [credentials.resume_credential, snapshot])
-
   if (room.status === 'ended') {
     return (
       <main className="flex min-h-dvh items-center justify-center p-6 text-center">
@@ -181,13 +167,13 @@ export function RoomLivePage({ credentials }: { credentials: RoomCredentials }) 
   }
 
   const shared = {
-    type: snapshot.source_type ?? 'song',
+    type: 'song' as const,
     id: `room-${snapshot.id}`,
     player: roomPlayer,
     initialIndex: snapshot.musical_state.item_index,
     allowNetworkFetch: true,
     allowLibraryActions: false,
-    resourceTitle: snapshot.source_title ?? snapshot.name,
+    resourceTitle: snapshot.name,
     roomMusicalState: snapshot.musical_state,
     roomStateRevision: snapshot.revision,
     canControlRoomMusicalState: participant.is_host,

@@ -2060,7 +2060,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/PlayerItem"
+              "$ref": "#/components/schemas/PlayerChordsItem"
             },
             "type": "array"
           },
@@ -2420,28 +2420,6 @@
           "participant_count": {
             "minimum": 0,
             "type": "integer"
-          },
-          "source_id": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "source_title": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "source_type": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/RoomSourceType"
-              }
-            ]
           },
           "team_id": {
             "type": "string"
@@ -7727,48 +7705,6 @@
                   "$ref": "#/components/schemas/RoomCredentials"
                 }
               }
-            },
-            "description": ""
-          }
-        },
-        "tags": [
-          "Rooms"
-        ]
-      }
-    },
-    "/api/v1/rooms/{room_id}/media/{blob_id}": {
-      "get": {
-        "operationId": "room_media",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "room_id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "blob_id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "Authorization",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/octet-stream": {}
             },
             "description": ""
           }
@@ -13244,7 +13180,7 @@
       "name": "Teams"
     },
     {
-      "description": "Persisted cross-device player sessions, invitations, scoped media, and realtime synchronization.",
+      "description": "Persisted cross-device chord-song sessions, invitations, and realtime synchronization.",
       "externalDocs": {
         "description": "Business logic constraints (markdown in repository).",
         "url": "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/room.md"

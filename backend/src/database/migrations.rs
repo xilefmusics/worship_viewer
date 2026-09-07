@@ -346,8 +346,10 @@ async fn release_migration_lock(db: &Surreal<Any>, holder: &str) {
 mod tests {
     use std::fs;
 
+    use surrealdb::types::RecordId;
+
     use super::*;
-    use crate::database::Database;
+    use crate::database::{Database, record_id_string};
 
     #[tokio::test]
     async fn migrations_apply_on_fresh_database() {
@@ -406,7 +408,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rooms_v2_migration_backfills_v1_rooms_without_dropping_state() {
+    async fn room_migrations_backfill_v1_rooms_and_remove_legacy_fields() {
         let address = format!("mem://{}", uuid::Uuid::new_v4());
         let db = Database::connect(&address, "test", "test", None, None)
             .await
@@ -419,7 +421,13 @@ mod tests {
             if !entry.path().is_file() {
                 continue;
             }
-            if entry.file_name() == "20260907120000_rooms_v2.surql" {
+            if matches!(
+                entry.file_name().to_str(),
+                Some("20260907120000_rooms_v2.surql")
+                    | Some("20260907130000_rooms_chord_only.surql")
+                    | Some("20260907140000_remove_player_room_source_metadata.surql")
+                    | Some("20260907150000_player_room_id_links.surql")
+            ) {
                 continue;
             }
             fs::copy(entry.path(), legacy_dir.path().join(entry.file_name()))
@@ -430,13 +438,22 @@ mod tests {
             .expect("legacy migrations");
         db.db
             .query(
+                "DEFINE FIELD OVERWRITE host_user_id ON player_room TYPE none | string PERMISSIONS FULL;",
+            )
+            .await
+            .expect("define legacy host user field")
+            .check()
+            .expect("legacy host user field state");
+        db.db
+            .query(
                 "CREATE type::record('player_room', 'legacy-room') CONTENT {
                     owner: type::record('team', 'team-1'),
                     source_type: 'song', source_id: 'song-1', source_title: 'Legacy',
                     name: 'Legacy', snapshot_json: '{}', state_json: NONE,
                     musical_state_json: '{}', projection_json: NONE, revision: 7,
-                    invite_hash: 'invite', host_participant_id: 'participant',
-                    av_participant_id: NONE, media_ids: ['blob-1'],
+                    invite_hash: 'invite', host_user_id: 'legacy-user',
+                    host_participant_id: 'participant', av_participant_id: 'participant',
+                    media_ids: ['blob-1'],
                     host_email: 'host@example.com',
                     host_lease_expires_at: time::now() + 1h,
                     closed_at: NONE, guests_allowed: true
@@ -456,17 +473,64 @@ mod tests {
             .expect("read migrated room");
         let rows: Vec<serde_json::Value> = response.take(0).expect("decode migrated room");
         let room = rows.first().expect("migrated room row");
-        assert_eq!(room["source_type"], "song");
-        assert_eq!(room["source_id"], "song-1");
+        assert!(room.get("source_type").is_none());
+        assert!(room.get("source_id").is_none());
+        assert!(room.get("source_title").is_none());
         assert_eq!(room["open"], true);
         assert_eq!(room["locked"], false);
         assert_eq!(room["queue_json"], "[]");
         assert_eq!(room["queue_votes_json"], "{}");
-        assert_eq!(room["media_ids"], serde_json::json!(["blob-1"]));
+        assert!(room.get("media_ids").is_none());
+        assert!(room.get("snapshot_json").is_none());
+        assert!(room.get("state_json").is_none());
         assert_eq!(room["guests_allowed"], true);
         assert!(room["closed_at"].is_null());
-        assert!(room["host_user_id"].is_null());
+        #[derive(Deserialize, SurrealValue)]
+        struct RoomLinks {
+            host_user_id: Option<RecordId>,
+            host_participant_id: RecordId,
+            av_participant_id: Option<RecordId>,
+        }
+        let links: RoomLinks = db
+            .db
+            .select(("player_room", "legacy-room"))
+            .await
+            .expect("decode migrated room links")
+            .expect("migrated room links");
+        assert_eq!(
+            record_id_string(links.host_user_id.as_ref().expect("host user link")),
+            "legacy-user"
+        );
+        assert_eq!(
+            record_id_string(&links.host_participant_id),
+            "legacy-room:participant"
+        );
+        assert_eq!(
+            record_id_string(
+                links
+                    .av_participant_id
+                    .as_ref()
+                    .expect("av participant link")
+            ),
+            "legacy-room:participant"
+        );
         assert!(room.get("song_pool_json").is_none());
+
+        let mut response = db
+            .db
+            .query("INFO FOR TABLE player_room")
+            .await
+            .expect("inspect migrated room schema");
+        let info: Option<serde_json::Value> =
+            response.take(0).expect("decode migrated room schema");
+        let info = info.expect("player_room schema info");
+        let fields = info
+            .get("fields")
+            .and_then(serde_json::Value::as_object)
+            .expect("player_room fields");
+        assert!(!fields.contains_key("source_type"));
+        assert!(!fields.contains_key("source_id"));
+        assert!(!fields.contains_key("source_title"));
     }
 
     #[tokio::test]

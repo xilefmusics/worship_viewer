@@ -581,22 +581,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/rooms/{room_id}/media/{blob_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["room_media"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/setlists": {
         parameters: {
             query?: never;
@@ -1891,7 +1875,7 @@ export interface components {
         /** @enum {string} */
         Role: "default" | "admin";
         RoomContent: {
-            items: components["schemas"]["PlayerItem"][];
+            items: components["schemas"]["PlayerChordsItem"][];
             toc: components["schemas"]["TocItem"][];
         };
         RoomCredentials: {
@@ -1981,9 +1965,6 @@ export interface components {
             name: string;
             open?: boolean;
             participant_count: number;
-            source_id?: string | null;
-            source_title?: string | null;
-            source_type?: null | components["schemas"]["RoomSourceType"];
             team_id: string;
         };
         /**
@@ -5337,30 +5318,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoomCredentials"];
-                };
-            };
-        };
-    };
-    room_media: {
-        parameters: {
-            query?: never;
-            header: {
-                Authorization: string;
-            };
-            path: {
-                room_id: string;
-                blob_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/octet-stream": unknown;
                 };
             };
         };
