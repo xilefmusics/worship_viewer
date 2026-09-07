@@ -360,6 +360,43 @@ beforeEach(() => {
 })
 
 describe('PlayerAv', () => {
+  it('renders a supplied TOC sidebar in the player body', () => {
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={player}
+        allowNetworkFetch={false}
+        tocSidebar={<div data-testid="custom-toc-sidebar">Queue</div>}
+      />,
+    )
+
+    expect(screen.getByTestId('custom-toc-sidebar')).toBeInTheDocument()
+    expect(screen.queryByTestId('toc-current-language')).not.toBeInTheDocument()
+  })
+
+  it('keeps AV item keyboard navigation with supplied room sidebars', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <PlayerAv
+        type="setlist"
+        id="setlist-1"
+        player={twoItemPlayer}
+        allowNetworkFetch={false}
+        tocSidebar={<button type="button">Queue</button>}
+        roomSidebar={<div data-testid="room-sidebar">Room</div>}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Queue' })).toBeInTheDocument()
+    expect(screen.getByTestId('room-sidebar')).toBeInTheDocument()
+
+    await user.keyboard('n')
+
+    expect(screen.getByText('Second Song')).toBeInTheDocument()
+  })
+
   it('shows the header language switcher and updates AV content from it', async () => {
     viewState = { transposeByItem: {}, languageByItem: { 0: 0 } }
     readViewState.mockReturnValue(viewState)
@@ -565,7 +602,7 @@ describe('PlayerAv', () => {
         id="setlist-1"
         player={twoItemPlayer}
         allowNetworkFetch={false}
-        roomMusicalState={{ item_index: 0, language: 'de', transposition: null }}
+        roomMusicalState={{ item_index: 0, started: true, language: 'de', transposition: null }}
         canControlRoomProjection
         canControlRoomMusicalState={false}
         onRoomProjectionChange={onRoomProjectionChange}
@@ -667,7 +704,7 @@ describe('PlayerAv', () => {
     })
   })
 
-  it('projects a selected deck page as a tagged command and not through Player Rooms', async () => {
+  it('projects a selected deck page as a tagged command and not through Rooms', async () => {
     const user = userEvent.setup()
     const onRoomProjectionChange = vi.fn()
     render(

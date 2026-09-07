@@ -344,6 +344,8 @@ async fn release_migration_lock(db: &Surreal<Any>, holder: &str) {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use super::*;
     use crate::database::Database;
 
@@ -401,6 +403,70 @@ mod tests {
         let err = run(&db.db, path).await.expect_err("checksum mismatch");
         let msg = err.to_string();
         assert!(msg.contains("checksum mismatch"), "unexpected error: {msg}");
+    }
+
+    #[tokio::test]
+    async fn rooms_v2_migration_backfills_v1_rooms_without_dropping_state() {
+        let address = format!("mem://{}", uuid::Uuid::new_v4());
+        let db = Database::connect(&address, "test", "test", None, None)
+            .await
+            .expect("connect");
+        let migration_path =
+            std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/db-migrations"));
+        let legacy_dir = tempfile::tempdir().expect("legacy migration directory");
+        for entry in fs::read_dir(migration_path).expect("read migrations") {
+            let entry = entry.expect("migration entry");
+            if !entry.path().is_file() {
+                continue;
+            }
+            if entry.file_name() == "20260907120000_rooms_v2.surql" {
+                continue;
+            }
+            fs::copy(entry.path(), legacy_dir.path().join(entry.file_name()))
+                .expect("copy legacy migration");
+        }
+        db.migrate(legacy_dir.path().to_str().expect("legacy path"))
+            .await
+            .expect("legacy migrations");
+        db.db
+            .query(
+                "CREATE type::record('player_room', 'legacy-room') CONTENT {
+                    owner: type::record('team', 'team-1'),
+                    source_type: 'song', source_id: 'song-1', source_title: 'Legacy',
+                    name: 'Legacy', snapshot_json: '{}', state_json: NONE,
+                    musical_state_json: '{}', projection_json: NONE, revision: 7,
+                    invite_hash: 'invite', host_participant_id: 'participant',
+                    av_participant_id: NONE, media_ids: ['blob-1'],
+                    host_email: 'host@example.com',
+                    host_lease_expires_at: time::now() + 1h,
+                    closed_at: NONE, guests_allowed: true
+                };",
+            )
+            .await
+            .expect("create legacy room")
+            .check()
+            .expect("legacy room state");
+
+        let current_path = migration_path.to_str().expect("current path");
+        db.migrate(current_path).await.expect("current migrations");
+        let mut response = db
+            .db
+            .query("SELECT * FROM type::record('player_room', 'legacy-room')")
+            .await
+            .expect("read migrated room");
+        let rows: Vec<serde_json::Value> = response.take(0).expect("decode migrated room");
+        let room = rows.first().expect("migrated room row");
+        assert_eq!(room["source_type"], "song");
+        assert_eq!(room["source_id"], "song-1");
+        assert_eq!(room["open"], true);
+        assert_eq!(room["locked"], false);
+        assert_eq!(room["queue_json"], "[]");
+        assert_eq!(room["queue_votes_json"], "{}");
+        assert_eq!(room["media_ids"], serde_json::json!(["blob-1"]));
+        assert_eq!(room["guests_allowed"], true);
+        assert!(room["closed_at"].is_null());
+        assert!(room["host_user_id"].is_null());
+        assert!(room.get("song_pool_json").is_none());
     }
 
     #[tokio::test]

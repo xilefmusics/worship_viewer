@@ -14,7 +14,6 @@ import { PlayerBookSpread } from '@/components/player/PlayerBookSpread'
 import { PlayerLikeHeartBurst } from '@/components/player/PlayerLikeHeartBurst'
 import { PlayerTocSidebar } from '@/components/player/PlayerTocSidebar'
 import { ChevronLeftIcon } from '@/components/icons/lucide-animated/chevron-left-icon'
-import { StartPlayerRoomButton } from '@/components/player-room/StartPlayerRoomButton'
 import { PlayerEditMenu } from '@/components/player/PlayerEditMenu'
 import { SettingsIcon } from '@/components/icons/lucide-animated/settings-icon'
 import { Button } from '@/components/ui/button'
@@ -76,6 +75,7 @@ import {
 } from '@/lib/player/player-view-state'
 import {
   PLAYER_HEADER_ICON_SIZE,
+  PLAYER_TOC_WIDTH_CLASS,
   PLAYER_TOC_WIDTH_PX,
   playerHeaderIconButtonClass,
   playerHeaderIconClass,
@@ -258,13 +258,16 @@ type PlayerBookProps = {
   initialIndex?: number
   mode?: PlayerMode
   allowNetworkFetch: boolean
+  embedded?: boolean
   resourceTitle?: string
   deletedReconciled?: boolean
-  roomMusicalState?: { item_index: number; language: string | null; transposition: string | null }
+  roomMusicalState?: { item_index: number; started: boolean; language: string | null; transposition: string | null }
   roomStateRevision?: number
   canControlRoomMusicalState?: boolean
-  onRoomMusicalStateChange?: (state: { item_index: number; language: string | null; transposition: string | null }) => void
+  onRoomMusicalStateChange?: (state: { item_index: number; started: boolean; language: string | null; transposition: string | null }) => void
+  onRoomQueueNext?: () => void
   allowLibraryActions?: boolean
+  tocSidebar?: ReactNode
   roomSidebar?: ReactNode
 }
 
@@ -275,13 +278,16 @@ export function PlayerBook({
   initialIndex,
   mode = 'sheet',
   allowNetworkFetch,
+  embedded = false,
   resourceTitle,
   deletedReconciled,
   roomMusicalState,
   roomStateRevision,
   canControlRoomMusicalState = false,
   onRoomMusicalStateChange,
+  onRoomQueueNext,
   allowLibraryActions = true,
+  tocSidebar,
   roomSidebar,
 }: PlayerBookProps) {
   const { t } = useTranslation()
@@ -300,7 +306,7 @@ export function PlayerBook({
   const chromeTransition = reduceMotion ? { duration: 0 } : { duration: 0.22, ease: PLAYER_CHROME_EASE }
   const [keyPopoverOpen, setKeyPopoverOpen] = useState(false)
   const [languagePopoverOpen, setLanguagePopoverOpen] = useState(false)
-  const [chromeVisible, setChromeVisible] = useState(() => roomSidebar != null)
+  const [chromeVisible, setChromeVisible] = useState(() => tocSidebar != null || roomSidebar != null)
 
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const pinchStartRef = useRef<{ distance: number; fontScale: number } | null>(null)
@@ -403,7 +409,7 @@ export function PlayerBook({
     [player.toc, likedBySongId],
   )
   const tocRow = tocEntryForIndex(displayToc, nav.index)
-  const showToc = displayToc.length > 0
+  const showToc = !embedded && (tocSidebar != null || displayToc.length > 0)
   const showChordsControls = hasChordsItems(player.items)
   const evicted = useSetlistEvictionWatch(type === 'setlist' ? id : undefined, type === 'setlist')
   const navBlocked = evicted || Boolean(roomMusicalState && !canControlRoomMusicalState)
@@ -411,9 +417,19 @@ export function PlayerBook({
   const dispatch = useCallback(
     (action: Parameters<typeof nextPlayerState>[1]) => {
       if (navBlocked) return
-      setNav((state) => nextPlayerState(state, action, navConfig))
+      const next = nextPlayerState(nav, action, navConfig)
+      if (
+        action.type === 'next' &&
+        onRoomQueueNext &&
+        next.index === nav.index &&
+        next.pageOffset === nav.pageOffset
+      ) {
+        onRoomQueueNext()
+        return
+      }
+      setNav(next)
     },
-    [navBlocked, navConfig, setNav],
+    [nav, navBlocked, navConfig, onRoomQueueNext, setNav],
   )
 
   usePlayerIndexSearchSync(type, id, nav.index, mode)
@@ -611,12 +627,13 @@ export function PlayerBook({
   const lastRoomStateRef = useRef('')
   useEffect(() => {
     if (!canControlRoomMusicalState || !onRoomMusicalStateChange) return
-    const state = { item_index: nav.index, language: currentItem?.type === 'chords' && currentLanguageOptions.length > 0 ? currentLanguageLabel : null, transposition: currentItem?.type === 'chords' ? displayKey : null }
-    const serialized = JSON.stringify(state)
+    const stateWithoutStarted = { item_index: nav.index, language: currentItem?.type === 'chords' && currentLanguageOptions.length > 0 ? currentLanguageLabel : null, transposition: currentItem?.type === 'chords' ? displayKey : null }
+    const serialized = JSON.stringify(stateWithoutStarted)
     if (serialized === lastRoomStateRef.current) return
+    const wasPreviouslySynced = lastRoomStateRef.current !== ''
     lastRoomStateRef.current = serialized
-    onRoomMusicalStateChange(state)
-  }, [canControlRoomMusicalState, currentItem, currentLanguageLabel, currentLanguageOptions.length, displayKey, nav.index, onRoomMusicalStateChange])
+    onRoomMusicalStateChange({ ...stateWithoutStarted, started: roomMusicalState?.started === true || wasPreviouslySynced })
+  }, [canControlRoomMusicalState, currentItem, currentLanguageLabel, currentLanguageOptions.length, displayKey, nav.index, onRoomMusicalStateChange, roomMusicalState?.started])
 
   const handleTocSelect = useCallback(
     (sourceIdx: number, languageIndex: number | null) => {
@@ -997,7 +1014,7 @@ export function PlayerBook({
     if (isSwipe) {
       touchMovedRef.current = false
       suppressClicksUntilRef.current = performance.now() + TOUCH_CLICK_SUPPRESSION_MS
-      if (navBlocked || chromeVisible) return
+      if (embedded || navBlocked || chromeVisible) return
       if (dx > 0) dispatch({ type: 'prev' })
       else dispatch({ type: 'next' })
       return
@@ -1193,9 +1210,6 @@ export function PlayerBook({
                   onEditSong={navigateToSongEditor}
                   onEditResource={navigateToResourceEditor}
                 /> : null}
-                {!roomMusicalState ? (
-                  <StartPlayerRoomButton type={type} id={id} mode={mode} player={player} />
-                ) : null}
                 <Button
                   type="button"
                   variant="outline"
@@ -1281,19 +1295,24 @@ export function PlayerBook({
             {chromeVisible && showToc ? (
               <motion.div
                 key="player-chrome-toc"
-                className="pointer-events-auto absolute inset-y-0 left-0 z-10 flex overflow-hidden"
+                className={cn(
+                  'pointer-events-auto absolute inset-y-0 left-0 z-10 flex overflow-hidden',
+                  tocSidebar ? PLAYER_TOC_WIDTH_CLASS : undefined,
+                )}
                 initial={reduceMotion ? false : { x: '-100%' }}
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
                 transition={chromeTransition}
               >
-                <PlayerTocSidebar
-                  toc={displayToc}
-                  items={player.items}
-                  currentSourceIdx={nav.index}
-                  currentLanguageIndex={currentLanguageIndex}
-                  onSelect={handleTocSelect}
-                />
+                {tocSidebar ?? (
+                  <PlayerTocSidebar
+                    toc={displayToc}
+                    items={player.items}
+                    currentSourceIdx={nav.index}
+                    currentLanguageIndex={currentLanguageIndex}
+                    onSelect={handleTocSelect}
+                  />
+                )}
               </motion.div>
             ) : null}
           </AnimatePresence>
@@ -1301,7 +1320,7 @@ export function PlayerBook({
           <AnimatePresence initial={false}>
             {chromeVisible && roomSidebar ? (
               <motion.div
-                key="player-room-sidebar"
+                key="room-sidebar"
                 className="pointer-events-auto absolute inset-y-0 right-0 z-10 flex overflow-hidden"
                 initial={reduceMotion ? false : { x: '100%' }}
                 animate={{ x: 0 }}

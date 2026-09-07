@@ -9,7 +9,6 @@ import { AvOutlinePanel } from '@/components/player/av/AvOutlinePanel'
 import { AvSectionShortcuts } from '@/components/player/av/AvSectionShortcuts'
 import { AvSlideView } from '@/components/player/av/AvSlideView'
 import { AvSlidesPanel } from '@/components/player/av/AvSlidesPanel'
-import { StartPlayerRoomButton } from '@/components/player-room/StartPlayerRoomButton'
 import { UsersIcon } from '@/components/icons/lucide-animated/users-icon'
 import { LayersIcon } from '@/components/icons/lucide-animated/layers-icon'
 import { PlayerEditMenu } from '@/components/player/PlayerEditMenu'
@@ -122,16 +121,17 @@ type PlayerAvProps = {
   player: Player
   initialIndex?: number
   allowNetworkFetch: boolean
+  embedded?: boolean
   resourceTitle?: string
   deletedReconciled?: boolean
-  roomMusicalState?: { item_index: number; language: string | null; transposition: string | null }
+  roomMusicalState?: { item_index: number; started: boolean; language: string | null; transposition: string | null }
   roomStateRevision?: number
   canControlRoomMusicalState?: boolean
   canControlRoomProjection?: boolean
-  onRoomMusicalStateChange?: (state: { item_index: number; language: string | null; transposition: string | null }) => void
+  onRoomMusicalStateChange?: (state: { item_index: number; started: boolean; language: string | null; transposition: string | null }) => void
   onRoomProjectionChange?: (payload: import('@/lib/player/av-preferences').AvProjectionPayload) => void
   allowLibraryActions?: boolean
-  allowPlayerRoomActions?: boolean
+  tocSidebar?: ReactNode
   backToOverride?: '/media'
   backAriaKeyOverride?: string
   watchSetlistEviction?: boolean
@@ -175,6 +175,7 @@ export function PlayerAv({
   id,
   player,
   initialIndex,
+  embedded = false,
   resourceTitle,
   roomMusicalState,
   roomStateRevision,
@@ -183,7 +184,7 @@ export function PlayerAv({
   onRoomMusicalStateChange,
   onRoomProjectionChange,
   allowLibraryActions = true,
-  allowPlayerRoomActions = true,
+  tocSidebar,
   backToOverride,
   backAriaKeyOverride,
   watchSetlistEviction = true,
@@ -209,7 +210,7 @@ export function PlayerAv({
     const startSlide = initialIndex != null ? 0 : saved.slideIndex
     return { ...saved, itemIndex: startItem, slideIndex: startSlide }
   })
-  const [tocVisible] = useState(true)
+  const tocVisible = !embedded
   const [rightPanel, setRightPanel] = useState<'av' | 'room'>(() => (roomSidebar ? 'room' : 'av'))
   const [languagePopoverOpen, setLanguagePopoverOpen] = useState(false)
   const resolveLanguageIndexForItem = useCallback(
@@ -241,7 +242,7 @@ export function PlayerAv({
     resourceTitle || tocRow?.title,
     resolveLanguageIndexForItem,
   )
-  const showToc = player.toc.length > 0
+  const showToc = !embedded && (tocSidebar != null || player.toc.length > 0)
   const containsMedia = player.items.some((item) => item.type === 'media')
   const watchSetlistMirrorEviction =
     type === 'setlist' && watchSetlistEviction && !containsMedia
@@ -432,12 +433,13 @@ export function PlayerAv({
   const lastRoomMusicalStateRef = useRef('')
   useEffect(() => {
     if (!canControlRoomMusicalState || !onRoomMusicalStateChange) return
-    const state = { item_index: session.itemIndex, language: rawItem?.type === 'chords' && currentLanguageOptions.length > 0 ? currentLanguageLabel : null, transposition: roomMusicalState?.transposition ?? null }
-    const serialized = JSON.stringify(state)
+    const stateWithoutStarted = { item_index: session.itemIndex, language: rawItem?.type === 'chords' && currentLanguageOptions.length > 0 ? currentLanguageLabel : null, transposition: roomMusicalState?.transposition ?? null }
+    const serialized = JSON.stringify(stateWithoutStarted)
     if (serialized === lastRoomMusicalStateRef.current) return
+    const wasPreviouslySynced = lastRoomMusicalStateRef.current !== ''
     lastRoomMusicalStateRef.current = serialized
-    onRoomMusicalStateChange(state)
-  }, [canControlRoomMusicalState, currentLanguageLabel, currentLanguageOptions.length, onRoomMusicalStateChange, rawItem, roomMusicalState?.transposition, session.itemIndex])
+    onRoomMusicalStateChange({ ...stateWithoutStarted, started: roomMusicalState?.started === true || wasPreviouslySynced })
+  }, [canControlRoomMusicalState, currentLanguageLabel, currentLanguageOptions.length, onRoomMusicalStateChange, rawItem, roomMusicalState?.started, roomMusicalState?.transposition, session.itemIndex])
 
   const navigateToSongEditor = useCallback(() => {
     const item = player.items[session.itemIndex]
@@ -910,7 +912,7 @@ export function PlayerAv({
     currentItem.kind,
   ])
 
-  const showAvRightPanel = !roomSidebar || rightPanel === 'av'
+  const showAvRightPanel = !embedded && (!roomSidebar || rightPanel === 'av')
   const showRoomSidebar = Boolean(roomSidebar) && rightPanel === 'room'
   const outputSummaryLabel =
     outputSummary.total === 0
@@ -1046,16 +1048,13 @@ export function PlayerAv({
             onEditMedia={navigateToMediaEditor}
             onEditResource={navigateToResourceEditor}
           /> : null}
-          {!roomMusicalState && allowPlayerRoomActions ? (
-            <StartPlayerRoomButton type={type} id={id} mode="av" player={player} />
-          ) : null}
           {roomSidebar ? (
             <Button
               type="button"
               variant="outline"
               size="icon"
               className={playerHeaderIconButtonClass}
-              aria-label={showRoomSidebar ? t('player.av.showAvPanel') : t('playerRooms.togglePanel')}
+              aria-label={showRoomSidebar ? t('player.av.showAvPanel') : t('rooms.togglePanel')}
               aria-pressed={showRoomSidebar}
               onClick={() => setRightPanel((panel) => (panel === 'room' ? 'av' : 'room'))}
             >
@@ -1086,19 +1085,21 @@ export function PlayerAv({
 
       <div className="player-av__body flex min-h-0 flex-1">
         {tocVisible && showToc ? (
-          <div className="player-av__toc shrink-0">
-            <PlayerTocSidebar
-              toc={player.toc}
-              items={player.items}
-              currentSourceIdx={session.itemIndex}
-              currentLanguageIndex={currentLanguageIndex}
-              onSelect={(idx, languageIndex) => {
-                if (tocMultilingualEnabled && languageIndex != null) {
-                  setViewState((state) => setLanguageForItem(state, idx, languageIndex))
-                }
-                goToItem(idx)
-              }}
-            />
+          <div className={cn('player-av__toc shrink-0', tocSidebar ? PLAYER_TOC_WIDTH_CLASS : undefined)}>
+            {tocSidebar ?? (
+              <PlayerTocSidebar
+                toc={player.toc}
+                items={player.items}
+                currentSourceIdx={session.itemIndex}
+                currentLanguageIndex={currentLanguageIndex}
+                onSelect={(idx, languageIndex) => {
+                  if (tocMultilingualEnabled && languageIndex != null) {
+                    setViewState((state) => setLanguageForItem(state, idx, languageIndex))
+                  }
+                  goToItem(idx)
+                }}
+              />
+            )}
           </div>
         ) : null}
 
@@ -1180,11 +1181,12 @@ export function PlayerAv({
           </div>
         </div>
 
-        <aside className={cn('player-av__right shrink-0', PLAYER_TOC_WIDTH_CLASS)}>
-          {showRoomSidebar ? (
-            roomSidebar
-          ) : showAvRightPanel ? (
-            <>
+        {!embedded ? (
+          <aside className={cn('player-av__right shrink-0', PLAYER_TOC_WIDTH_CLASS)}>
+            {showRoomSidebar ? (
+              roomSidebar
+            ) : showAvRightPanel ? (
+              <>
               <div className="player-av__preview">
                 <AvSlideView
                   preview
@@ -1207,9 +1209,10 @@ export function PlayerAv({
                 rows={outlineRows}
                 onSelectSlide={(slideIndex) => goToSlide(slideIndex)}
               />
-            </>
-          ) : null}
-        </aside>
+              </>
+            ) : null}
+          </aside>
+        ) : null}
       </div>
     </div>
   )

@@ -86,7 +86,7 @@ function hubSearchSectionKey(pathname: string): string | null {
     seg === 'songs' ||
     seg === 'setlists' ||
     seg === 'media' ||
-    seg === 'player-rooms' ||
+    seg === 'rooms' ||
     seg === 'teams' ||
     seg === 'sessions'
   )
@@ -107,7 +107,7 @@ function OfflineBanner() {
 }
 
 function isLibraryListPath(pathname: string): boolean {
-  return pathname === '/collections' || pathname === '/songs' || pathname === '/setlists' || pathname === '/media' || pathname === '/player-rooms'
+  return pathname === '/collections' || pathname === '/songs' || pathname === '/setlists' || pathname === '/media' || pathname === '/rooms'
 }
 
 const ADMIN_QUICK_RANGES: AdminMetricsRangeId[] = ['7d', '30d', '90d', 'mtd', 'prev-month']
@@ -370,6 +370,10 @@ function HubChrome({
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { teams: writableMediaTeams } = useWritableTeams('mediaHubFab', pathname === '/media')
+  const { teams: writableRoomTeams } = useWritableTeams(
+    'roomCreate',
+    pathname === '/rooms',
+  )
   const locationSearch = useRouterState({ select: (s) => s.location.search })
   const isTeamsList = pathname === '/teams'
   const isTeamDetail = pathname.startsWith('/teams/') && pathname !== '/teams'
@@ -429,7 +433,8 @@ function HubChrome({
     isCollectionDetail ||
     isSongDetail ||
     isMediaDetail ||
-    (pathname === '/media' && writableMediaTeams.length === 0)
+    (pathname === '/media' && writableMediaTeams.length === 0) ||
+    (pathname === '/rooms' && writableRoomTeams.length === 0)
   const showFooter =
     !isTeamDetail &&
     !isSetlistDetail &&
@@ -1113,6 +1118,8 @@ function HubChrome({
                       void navigate({ to: '/songs', search: { new: '1' } })
                     } else if (pathname === '/media') {
                       void navigate({ to: '/media', search: { new: '1' } })
+                    } else if (pathname === '/rooms') {
+                      void navigate({ to: '/rooms', search: { new: '1' } })
                     }
                   }}
                   className={cn(
@@ -1133,6 +1140,8 @@ function HubChrome({
                             ? t('hub.createSongAria')
                             : pathname === '/media'
                               ? t('media.actions.createAria')
+                            : pathname === '/rooms'
+                              ? t('rooms.createAria')
                             : t('hub.createAria')
                   }
                 >
