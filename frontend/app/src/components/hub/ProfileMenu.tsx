@@ -1,3 +1,4 @@
+import * as Dialog from '@radix-ui/react-dialog'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -8,25 +9,23 @@ import {
   IconAbout,
   IconInstall,
   IconLogout,
+  IconMedia,
   IconSettings,
   IconTutorials,
   IconUsers,
 } from '@/components/icons/profile-menu-icons'
-import { Button } from '@/components/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  HubActionItem,
+  HubActionSeparator,
+  HubRightDrawer,
+} from '@/components/hub/HubActionsDrawer'
+import { Button } from '@/components/ui/button'
 import { useSongEditorNavigationBridge } from '@/context/SongEditorNavigationBridgeContext'
 import { useUserAvatarDisplay } from '@/hooks/useUserAvatarDisplay'
+import { cn } from '@/lib/utils'
 import { performLogout } from '@/lib/logout-queue'
 import { usePwaInstall } from '@/pwa/pwa-install-context'
 import { Route as RootRoute } from '@/routes/__root'
-import { cn } from '@/lib/utils'
 
 const TUTORIALS_URL = 'https://www.worshipviewer.com/tutorials'
 
@@ -44,7 +43,7 @@ export function ProfileMenu({ user, offline = false }: ProfileMenuProps) {
   const songEditorNavigationBridge = useSongEditorNavigationBridge()
   const { imageSrc, onImageError, initials } = useUserAvatarDisplay(user)
   const [hoveredRow, setHoveredRow] = useState<
-    'teams' | 'settings' | 'admin' | 'about' | 'tutorials' | 'install' | 'logout' | null
+    'teams' | 'media' | 'settings' | 'admin' | 'about' | 'tutorials' | 'install' | 'logout' | null
   >(null)
 
   async function leaveSongEditorIfNeeded(): Promise<boolean> {
@@ -58,8 +57,10 @@ export function ProfileMenu({ user, offline = false }: ProfileMenuProps) {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <HubRightDrawer
+      title={user.email}
+      triggerAriaLabel={offline ? t('hub.profile.openMenuOffline') : t('hub.profile.openMenu')}
+      trigger={
         <Button
           type="button"
           variant="outline"
@@ -82,111 +83,112 @@ export function ProfileMenu({ user, offline = false }: ProfileMenuProps) {
             <span className="leading-none">{initials}</span>
           )}
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="w-56 overflow-hidden"
-        style={{
-          transformOrigin: 'var(--radix-dropdown-menu-content-transform-origin, right top)',
-        }}
+      }
+    >
+      {offline ? (
+        <div className="mb-2 border-b border-[var(--color-border)] px-2 pb-2">
+          <p className="text-sm font-medium text-[var(--color-danger)]">{t('hub.profile.offline')}</p>
+        </div>
+      ) : null}
+      <HubActionItem
+        onSelect={() => void navigate({ to: '/teams' })}
+        onHoverChange={(hot) => setHoveredRow(hot ? 'teams' : null)}
       >
-        {offline ? (
-          <div className="border-b border-[var(--color-border)] px-2 py-2">
-            <p className="text-sm font-medium text-[var(--color-danger)]">{t('hub.profile.offline')}</p>
-          </div>
-        ) : null}
-        <DropdownMenuLabel className="font-normal">
-          <span className="block truncate text-sm text-[var(--color-foreground)]">{user.email}</span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={() => void navigate({ to: '/teams' })}
-          onMouseEnter={() => setHoveredRow('teams')}
-          onMouseLeave={() => setHoveredRow(null)}
-        >
-          <IconUsers isHovered={hoveredRow === 'teams'} />
-          {t('hub.profile.teams')}
-        </DropdownMenuItem>
-        <DropdownMenuItem
+        <IconUsers isHovered={hoveredRow === 'teams'} />
+        {t('hub.profile.teams')}
+      </HubActionItem>
+      <HubActionItem
+        onSelect={() => {
+          void (async () => {
+            if (!(await leaveSongEditorIfNeeded())) return
+            void navigate({ to: '/media' })
+          })()
+        }}
+        onHoverChange={(hot) => setHoveredRow(hot ? 'media' : null)}
+      >
+        <IconMedia isHovered={hoveredRow === 'media'} />
+        {t('hub.profile.media')}
+      </HubActionItem>
+      <HubActionItem
+        onSelect={() => {
+          void (async () => {
+            if (!(await leaveSongEditorIfNeeded())) return
+            void navigate({ to: '/settings' })
+          })()
+        }}
+        onHoverChange={(hot) => setHoveredRow(hot ? 'settings' : null)}
+      >
+        <IconSettings isHovered={hoveredRow === 'settings'} />
+        {t('hub.profile.settings')}
+      </HubActionItem>
+      {user.role === 'admin' ? (
+        <HubActionItem
           onSelect={() => {
             void (async () => {
               if (!(await leaveSongEditorIfNeeded())) return
-              void navigate({ to: '/settings' })
+              void navigate({
+                to: '/admin/users',
+              })
             })()
           }}
-          onMouseEnter={() => setHoveredRow('settings')}
-          onMouseLeave={() => setHoveredRow(null)}
+          onHoverChange={(hot) => setHoveredRow(hot ? 'admin' : null)}
         >
-          <IconSettings isHovered={hoveredRow === 'settings'} />
-          {t('hub.profile.settings')}
-        </DropdownMenuItem>
-        {user.role === 'admin' ? (
-          <DropdownMenuItem
-            onSelect={() => {
-              void (async () => {
-                if (!(await leaveSongEditorIfNeeded())) return
-                void navigate({
-                  to: '/admin/users',
-                })
-              })()
-            }}
-            onMouseEnter={() => setHoveredRow('admin')}
-            onMouseLeave={() => setHoveredRow(null)}
-          >
-            <IconAdminDashboard isHovered={hoveredRow === 'admin'} />
-            {t('hub.profile.admin')}
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem
-          onSelect={() => {
-            void (async () => {
-              if (!(await leaveSongEditorIfNeeded())) return
-              void navigate({ to: '/about' })
-            })()
-          }}
-          onMouseEnter={() => setHoveredRow('about')}
-          onMouseLeave={() => setHoveredRow(null)}
-        >
-          <IconAbout isHovered={hoveredRow === 'about'} />
-          {t('hub.profile.about')}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          asChild
+          <IconAdminDashboard isHovered={hoveredRow === 'admin'} />
+          {t('hub.profile.admin')}
+        </HubActionItem>
+      ) : null}
+      <HubActionItem
+        onSelect={() => {
+          void (async () => {
+            if (!(await leaveSongEditorIfNeeded())) return
+            void navigate({ to: '/about' })
+          })()
+        }}
+        onHoverChange={(hot) => setHoveredRow(hot ? 'about' : null)}
+      >
+        <IconAbout isHovered={hoveredRow === 'about'} />
+        {t('hub.profile.about')}
+      </HubActionItem>
+      <Dialog.Close asChild>
+        <a
+          href={TUTORIALS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          role="menuitem"
+          className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-2 text-left text-sm outline-none hover:bg-[var(--color-muted)] focus:bg-[var(--color-muted)]"
           onMouseEnter={() => setHoveredRow('tutorials')}
           onMouseLeave={() => setHoveredRow(null)}
+          onFocus={() => setHoveredRow('tutorials')}
+          onBlur={() => setHoveredRow(null)}
         >
-          <a href={TUTORIALS_URL} target="_blank" rel="noopener noreferrer">
-            <IconTutorials isHovered={hoveredRow === 'tutorials'} />
-            {t('hub.profile.tutorials')}
-          </a>
-        </DropdownMenuItem>
-        {canShowInstall ? (
-          <DropdownMenuItem
-            onSelect={() => {
-              openInstall()
-            }}
-            onMouseEnter={() => setHoveredRow('install')}
-            onMouseLeave={() => setHoveredRow(null)}
-          >
-            <IconInstall isHovered={hoveredRow === 'install'} />
-            {t('hub.profile.install')}
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
+          <IconTutorials isHovered={hoveredRow === 'tutorials'} />
+          {t('hub.profile.tutorials')}
+        </a>
+      </Dialog.Close>
+      {canShowInstall ? (
+        <HubActionItem
           onSelect={() => {
-            void (async () => {
-              if (!(await leaveSongEditorIfNeeded())) return
-              await onLogout()
-            })()
+            openInstall()
           }}
-          onMouseEnter={() => setHoveredRow('logout')}
-          onMouseLeave={() => setHoveredRow(null)}
+          onHoverChange={(hot) => setHoveredRow(hot ? 'install' : null)}
         >
-          <IconLogout isHovered={hoveredRow === 'logout'} />
-          {t('hub.profile.logout')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <IconInstall isHovered={hoveredRow === 'install'} />
+          {t('hub.profile.install')}
+        </HubActionItem>
+      ) : null}
+      <HubActionSeparator />
+      <HubActionItem
+        onSelect={() => {
+          void (async () => {
+            if (!(await leaveSongEditorIfNeeded())) return
+            await onLogout()
+          })()
+        }}
+        onHoverChange={(hot) => setHoveredRow(hot ? 'logout' : null)}
+      >
+        <IconLogout isHovered={hoveredRow === 'logout'} />
+        {t('hub.profile.logout')}
+      </HubActionItem>
+    </HubRightDrawer>
   )
 }

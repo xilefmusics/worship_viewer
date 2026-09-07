@@ -72,9 +72,6 @@ export function MediaListView() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col pb-4">
-      <div className="mb-2 flex justify-end">
-        <Button type="button" size="sm" variant="ghost" disabled={query.isRefetching} onClick={() => void query.refetch()} aria-label={t('media.actions.refresh')}>{query.isRefetching ? t('hub.refresh.refreshing') : t('media.actions.refresh')}</Button>
-      </div>
       {query.isPending ? <MediaSkeleton /> : null}
       {query.isError ? <div className="flex flex-col items-center gap-3 py-12 text-center"><p className="text-sm text-[var(--color-muted-foreground)]">{t('media.list.error')}</p><Button variant="outline" onClick={() => void query.refetch()}>{t('hub.error.retry')}</Button></div> : null}
       {!query.isPending && !query.isError && items.length === 0 ? (

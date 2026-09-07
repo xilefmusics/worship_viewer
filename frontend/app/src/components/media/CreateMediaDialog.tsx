@@ -1,14 +1,23 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { createUploadedMedia } from '@/api/media-upload'
-import { createMedia, mediaListRootKey, type Media } from '@/api/media'
+import { createMedia, mediaDetailKey, mediaListRootKey, type Media } from '@/api/media'
+import { MediaUploadDropZone } from '@/components/media/MediaUploadDropZone'
 import { MediaFields } from '@/components/media/MediaFields'
 import { Button } from '@/components/ui/button'
 import { useWritableTeams } from '@/hooks/useWritableTeams'
-import { sniffAssetUploadKind, isCreateMediaKind, isUploadMediaKind, isValidUrlMediaInput, type CreateMediaKind, urlContent } from '@/lib/media-display'
+import {
+  sniffAssetUploadKind,
+  isCreateMediaKind,
+  isUploadMediaKind,
+  isValidUrlMediaInput,
+  type CreateMediaKind,
+  urlContent,
+} from '@/lib/media-display'
 
 // Flow: M1 — create a slide deck from mixed PNG/JPEG/SVG/PDF files
 
@@ -27,9 +36,13 @@ export function CreateMediaDialog({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const shouldReduceMotion = useReducedMotion()
+  const [dragOffset, setDragOffset] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const pointerStartY = useRef<number | null>(null)
   const { teams, user, isPending: teamsPending } = useWritableTeams('mediaCreate', open)
   const [title, setTitle] = useState('')
-  const [kind, setKind] = useState<CreateMediaKind>('youtube')
+  const [kind, setKind] = useState<CreateMediaKind>('slide_deck')
   const [url, setUrl] = useState('')
   const [owner, setOwner] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -45,7 +58,33 @@ export function CreateMediaDialog({
   }, [defaultOwner, open, owner, teams])
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (quickFiles?: File[]) => {
+      if (quickFiles) {
+        if (!owner) throw new Error(t('media.validation.noWritableTeam'))
+        const kinds = quickFiles.map(sniffAssetUploadKind)
+        const uploadKind =
+          kinds.length > 0 &&
+          kinds.every((value) => value === 'image' || value === 'pdf' || value === 'svg')
+            ? 'slide_deck'
+            : kinds.length === 1 && (kinds[0] === 'audio' || kinds[0] === 'video')
+              ? kinds[0]
+              : null
+        if (!uploadKind) throw new Error(t('setlists.editor.mediaQuickUploadUnsupported'))
+        setKind(uploadKind)
+        setFile(quickFiles[0])
+        setFiles(quickFiles)
+        setUploadProgress(0)
+        return createUploadedMedia({
+          kind: uploadKind,
+          title:
+            title.trim() ||
+            quickFiles[0].name.replace(/\.[^.]+$/, '').trim() ||
+            t('media.create.title'),
+          owner,
+          files: quickFiles,
+          onProgress: setUploadProgress,
+        })
+      }
       if (!title.trim()) throw new Error(t('media.validation.titleRequired'))
       if (!owner) throw new Error(t('media.validation.noWritableTeam'))
       if (isUploadMediaKind(kind)) {
@@ -58,11 +97,23 @@ export function CreateMediaDialog({
             }
           }
           setUploadProgress(0)
-          return createUploadedMedia({ kind, title: title.trim(), owner, files, onProgress: setUploadProgress })
+          return createUploadedMedia({
+            kind,
+            title: title.trim(),
+            owner,
+            files,
+            onProgress: setUploadProgress,
+          })
         }
         if (!file) throw new Error(t('media.validation.fileRequired'))
         setUploadProgress(0)
-        return createUploadedMedia({ kind, title: title.trim(), owner, files: [file], onProgress: setUploadProgress })
+        return createUploadedMedia({
+          kind,
+          title: title.trim(),
+          owner,
+          files: [file],
+          onProgress: setUploadProgress,
+        })
       }
       if (!isValidUrlMediaInput(kind, url)) throw new Error(t('media.validation.invalidUrl'))
       return createMedia(queryClient, {
@@ -71,8 +122,10 @@ export function CreateMediaDialog({
         content: urlContent(kind, url.trim()),
       })
     },
-    onSuccess: (created) => {
-      void queryClient.invalidateQueries({ queryKey: mediaListRootKey })
+    onSuccess: async (created) => {
+      queryClient.setQueryData(mediaDetailKey(created.id), created)
+      setUploadProgress(null)
+      await queryClient.invalidateQueries({ queryKey: mediaListRootKey })
       onCreated(created.id, created)
     },
     onError: (cause: Error) => {
@@ -85,10 +138,11 @@ export function CreateMediaDialog({
   })
 
   function close(next: boolean) {
+    if (mutation.isPending) return
     onOpenChange(next)
     if (!next) {
       setTitle('')
-      setKind('youtube')
+      setKind('slide_deck')
       setUrl('')
       setOwner('')
       setFile(null)
@@ -103,47 +157,159 @@ export function CreateMediaDialog({
 
   return (
     <Dialog.Root open={open} onOpenChange={close}>
-      <Dialog.Portal>
-        <Dialog.Overlay className={`fixed inset-0 bg-black/40 ${elevated ? 'z-[70]' : 'z-50'}`} />
-        <Dialog.Content className={`fixed left-1/2 top-1/2 grid max-h-[90dvh] w-[min(32rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-elevated)] ${elevated ? 'z-[71]' : 'z-50'}`}>
-          <div className="grid gap-1.5">
-            <Dialog.Title className="text-lg font-semibold">{t('media.create.title')}</Dialog.Title>
-            <Dialog.Description className="text-sm text-[var(--color-muted-foreground)]">{t('media.create.description')}</Dialog.Description>
-          </div>
-          <MediaFields
-            title={title}
-            kind={kind}
-            url={url}
-            owner={owner}
-            teams={teams}
-            userId={user?.id}
-            showTeam={teams.length > 1}
-            disabled={busy}
-            uploadFileName={kind === 'slide_deck' ? files.map((item) => item.name).join(', ') : file?.name}
-            onTitleChange={setTitle}
-            onKindChange={(value) => {
-              if (isCreateMediaKind(value)) setKind(value)
-            }}
-            onUrlChange={setUrl}
-            onOwnerChange={setOwner}
-            onFileChange={setFile}
-            onFilesChange={setFiles}
-          />
-          {uploading ? (
-            <div role="status" className="grid gap-1">
-              <span className="text-sm">{t('media.upload.progress', { percent: Math.round(uploadProgress * 100) })}</span>
-              <div className="h-2 rounded-full bg-[var(--color-muted)]">
-                <div className="h-2 rounded-full bg-[var(--color-primary)] transition-[width]" style={{ width: `${Math.round(uploadProgress * 100)}%` }} />
-              </div>
-            </div>
+      <Dialog.Portal forceMount>
+        <AnimatePresence>
+          {open ? (
+            <>
+              <Dialog.Overlay forceMount asChild>
+                <motion.div
+                  className={`fixed inset-0 bg-black/40 ${elevated ? 'z-[70]' : 'z-50'}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: shouldReduceMotion ? 0 : 0.18 }}
+                />
+              </Dialog.Overlay>
+              <Dialog.Content forceMount asChild>
+                <motion.div
+                  className={`fixed inset-x-0 bottom-0 box-border flex max-h-[88dvh] w-auto min-w-0 max-w-[100vw] flex-col gap-4 overflow-x-hidden rounded-t-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-[var(--color-foreground)] shadow-[var(--shadow-elevated)] ${elevated ? 'z-[71]' : 'z-50'}`}
+                  initial={{ y: shouldReduceMotion ? 0 : '100%' }}
+                  animate={isDragging ? { y: dragOffset } : { y: 0 }}
+                  exit={{ y: shouldReduceMotion ? 0 : '100%' }}
+                  transition={
+                    isDragging
+                      ? { duration: 0 }
+                      : {
+                          type: 'spring',
+                          stiffness: 420,
+                          damping: 36,
+                          mass: 0.9,
+                        }
+                  }
+                >
+                  <div
+                    className="mx-auto h-1.5 w-12 shrink-0 rounded-full bg-[var(--color-muted)]"
+                    style={{ touchAction: 'none' }}
+                    onPointerDown={(event) => {
+                      if (busy) return
+                      event.currentTarget.setPointerCapture(event.pointerId)
+                      pointerStartY.current = event.clientY
+                      setIsDragging(true)
+                      setDragOffset(0)
+                    }}
+                    onPointerMove={(event) => {
+                      if (!isDragging || pointerStartY.current === null) return
+                      setDragOffset(Math.max(0, event.clientY - pointerStartY.current))
+                    }}
+                    onPointerUp={() => {
+                      if (!isDragging) return
+                      setIsDragging(false)
+                      pointerStartY.current = null
+                      if (dragOffset > 90) close(false)
+                      setDragOffset(0)
+                    }}
+                    onPointerCancel={() => {
+                      setIsDragging(false)
+                      pointerStartY.current = null
+                      setDragOffset(0)
+                    }}
+                  />
+                  <div className="grid gap-1.5">
+                    <Dialog.Title className="text-base font-semibold">
+                      {t('media.create.title')}
+                    </Dialog.Title>
+                    <Dialog.Description className="text-sm text-[var(--color-muted-foreground)]">
+                      {t('media.create.description')}
+                    </Dialog.Description>
+                  </div>
+                  <div className="grid min-h-0 gap-4 overflow-y-auto pb-1">
+                    <MediaFields
+                      uploadInput={
+                        <MediaUploadDropZone
+                          disabled={busy || teamsPending || !owner}
+                          pending={busy && uploading}
+                          progress={uploadProgress}
+                          onFiles={(nextFiles) => {
+                            setError('')
+                            mutation.mutate(nextFiles)
+                          }}
+                        />
+                      }
+                      title={title}
+                      kind={kind}
+                      url={url}
+                      owner={owner}
+                      teams={teams}
+                      userId={user?.id}
+                      showTeam={teams.length > 1}
+                      disabled={busy}
+                      uploadFileName={
+                        kind === 'slide_deck'
+                          ? files.map((item) => item.name).join(', ')
+                          : file?.name
+                      }
+                      onTitleChange={setTitle}
+                      onKindChange={(value) => {
+                        if (isCreateMediaKind(value)) setKind(value)
+                      }}
+                      onUrlChange={setUrl}
+                      onOwnerChange={setOwner}
+                      onFileChange={setFile}
+                      onFilesChange={setFiles}
+                    />
+                    {uploading ? (
+                      <div role="status" className="grid gap-1">
+                        <span className="text-sm">
+                          {t('media.upload.progress', {
+                            percent: Math.round(uploadProgress * 100),
+                          })}
+                        </span>
+                        <div className="h-2 rounded-full bg-[var(--color-muted)]">
+                          <div
+                            className="h-2 rounded-full bg-[var(--color-primary)] transition-[width]"
+                            style={{
+                              width: `${Math.round(uploadProgress * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                    {error ? (
+                      <p role="alert" className="text-sm text-[var(--color-destructive)]">
+                        {error}
+                      </p>
+                    ) : null}
+                    {!teamsPending && teams.length === 0 ? (
+                      <p role="status" className="text-sm text-[var(--color-muted-foreground)]">
+                        {t('media.validation.noWritableTeam')}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 justify-end gap-2 pb-[env(safe-area-inset-bottom)]">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => close(false)}
+                      disabled={busy}
+                    >
+                      {t('common.cancel')}
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={busy || teamsPending || teams.length === 0}
+                      onClick={() => {
+                        setError('')
+                        mutation.mutate()
+                      }}
+                    >
+                      {busy ? t('common.load') : t('media.actions.create')}
+                    </Button>
+                  </div>
+                </motion.div>
+              </Dialog.Content>
+            </>
           ) : null}
-          {error ? <p role="alert" className="text-sm text-[var(--color-destructive)]">{error}</p> : null}
-          {!teamsPending && teams.length === 0 ? <p role="status" className="text-sm text-[var(--color-muted-foreground)]">{t('media.validation.noWritableTeam')}</p> : null}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => close(false)} disabled={busy}>{t('common.cancel')}</Button>
-            <Button type="button" disabled={busy || teamsPending || teams.length === 0} onClick={() => { setError(''); mutation.mutate() }}>{busy ? t('common.load') : t('media.actions.create')}</Button>
-          </div>
-        </Dialog.Content>
+        </AnimatePresence>
       </Dialog.Portal>
     </Dialog.Root>
   )

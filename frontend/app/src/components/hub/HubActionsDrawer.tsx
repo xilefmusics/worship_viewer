@@ -58,20 +58,19 @@ export function HubActionSeparator() {
   return <div className="my-1 h-px bg-[var(--color-border)]" role="separator" />
 }
 
-export function HubActionsDrawer({
+export function HubRightDrawer({
   title,
   triggerAriaLabel,
-  triggerClassName,
+  trigger,
   children,
 }: {
   title: string
   triggerAriaLabel: string
-  triggerClassName?: string
+  trigger: ReactNode
   children: ReactNode
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
-  const [menuHot, setMenuHot] = useState(false)
   const [closeHot, setCloseHot] = useState(false)
   const shouldReduceMotion = useReducedMotion()
   const [dragOffset, setDragOffset] = useState(0)
@@ -100,20 +99,14 @@ export function HubActionsDrawer({
 
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className={triggerClassName ?? 'size-8 shrink-0 text-[var(--color-muted-foreground)]'}
-        aria-label={triggerAriaLabel}
-        onClick={() => onDrawerOpenChange(true)}
-        onMouseEnter={() => setMenuHot(true)}
-        onMouseLeave={() => setMenuHot(false)}
-        onFocus={() => setMenuHot(true)}
-        onBlur={() => setMenuHot(false)}
+      <span
+        className="contents"
+        onClick={(event) => {
+          if (!event.defaultPrevented) onDrawerOpenChange(true)
+        }}
       >
-        <EllipsisIcon isHovered={menuHot} size={16} className="shrink-0" />
-      </Button>
+        {trigger}
+      </span>
       <Dialog.Root open={open} onOpenChange={onDrawerOpenChange}>
         <Dialog.Portal forceMount>
           <AnimatePresence>
@@ -223,5 +216,43 @@ export function HubActionsDrawer({
         </Dialog.Portal>
       </Dialog.Root>
     </>
+  )
+}
+
+export function HubActionsDrawer({
+  title,
+  triggerAriaLabel,
+  triggerClassName,
+  children,
+}: {
+  title: string
+  triggerAriaLabel: string
+  triggerClassName?: string
+  children: ReactNode
+}) {
+  const [menuHot, setMenuHot] = useState(false)
+
+  return (
+    <HubRightDrawer
+      title={title}
+      triggerAriaLabel={triggerAriaLabel}
+      trigger={
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={triggerClassName ?? 'size-8 shrink-0 text-[var(--color-muted-foreground)]'}
+          aria-label={triggerAriaLabel}
+          onMouseEnter={() => setMenuHot(true)}
+          onMouseLeave={() => setMenuHot(false)}
+          onFocus={() => setMenuHot(true)}
+          onBlur={() => setMenuHot(false)}
+        >
+          <EllipsisIcon isHovered={menuHot} size={16} className="shrink-0" />
+        </Button>
+      }
+    >
+      {children}
+    </HubRightDrawer>
   )
 }

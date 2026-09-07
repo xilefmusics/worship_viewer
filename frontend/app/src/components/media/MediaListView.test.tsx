@@ -48,16 +48,14 @@ describe('MediaListView', () => {
     expect(screen.queryByRole('button', { name: /Actions for/ })).not.toBeInTheDocument()
   })
 
-  it('renders empty, error/retry, and refresh states', async () => {
+  it('renders empty and error/retry states', async () => {
     const user = userEvent.setup()
     const { rerender } = render(<MediaListView />)
     expect(screen.getByText('media.list.empty')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'media.actions.refresh' }))
-    expect(refetch).toHaveBeenCalled()
     queryResult = { ...queryResult, isError: true }
     rerender(<MediaListView />)
     expect(screen.getByText('media.list.error')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'hub.error.retry' }))
-    expect(refetch).toHaveBeenCalledTimes(2)
+    expect(refetch).toHaveBeenCalledOnce()
   })
 })
