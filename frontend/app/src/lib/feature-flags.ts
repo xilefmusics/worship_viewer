@@ -3,7 +3,6 @@ export type WorshipRuntimeConfig = {
 }
 
 declare global {
-  // eslint-disable-next-line no-var -- attach runtime config from /runtime-config.js
   var __WORSHIP_RUNTIME__: WorshipRuntimeConfig | undefined
 }
 

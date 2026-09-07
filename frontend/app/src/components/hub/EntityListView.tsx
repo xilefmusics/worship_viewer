@@ -802,7 +802,7 @@ function HubItemActionsMenu({
                 }}
                 onHoverChange={hover('createRoom')}
               >
-                <RoomIcon isHovered={itemHot === 'createRoom'} size={16} className={actionIconClass} />
+                <RoomIcon isHovered={itemHot === 'createRoom'} size={16} className={HUB_ACTION_ICON_CLASS} />
                 {t('rooms.createTitle')}
               </HubActionItem>
             ) : null}
