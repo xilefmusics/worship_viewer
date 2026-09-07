@@ -139,6 +139,6 @@ export function PlayerRoomLivePage({ credentials }: { credentials: PlayerRoomCre
       onRoomProjectionChange={sendRoomProjection}
     />
   ) : (
-    <PlayerBook {...shared} mode="normal" />
+    <PlayerBook {...shared} mode="sheet" />
   )
 }

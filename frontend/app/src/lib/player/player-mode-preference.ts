@@ -7,7 +7,7 @@ export function readPlayerDefaultMode(
   storage: Pick<Storage, 'getItem'> | null = getLocalStorage(),
 ): PlayerMode {
   const raw = safeGetItem(PLAYER_DEFAULT_MODE_STORAGE_KEY, storage)
-  return raw === 'av' ? 'av' : 'normal'
+  return raw === 'av' ? 'av' : 'sheet'
 }
 
 export function writePlayerDefaultMode(

@@ -14,7 +14,7 @@ async function openPlayer(page: import('@playwright/test').Page, seed: import('.
     },
   })
   await seed.patchCollection(coll.id, [song.id])
-  await gotoEn(page, `/player?type=collection&id=${coll.id}&index=0&mode=normal`)
+  await gotoEn(page, `/player?type=collection&id=${coll.id}&index=0&mode=sheet`)
   return { coll, song }
 }
 
@@ -56,7 +56,7 @@ test('H3: transpose current song', async ({ page, seed }) => {
 })
 
 // Flow: H4
-test('H4: other normal-mode keyboard controls', async ({ page, seed }) => {
+test('H4: other sheet-mode keyboard controls', async ({ page, seed }) => {
   const token = uniqueToken('h4')
   await openPlayer(page, seed, token)
   await page.keyboard.press('s')

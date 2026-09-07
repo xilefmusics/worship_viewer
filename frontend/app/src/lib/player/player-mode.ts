@@ -1,4 +1,4 @@
-export type PlayerMode = 'normal' | 'av'
+export type PlayerMode = 'sheet' | 'av'
 
 export type PlayerModeDefinition = {
   id: PlayerMode
@@ -7,12 +7,12 @@ export type PlayerModeDefinition = {
 
 /** Extension contract for future role variants (click/pad/service-operator). */
 export const PLAYER_MODES: readonly PlayerModeDefinition[] = [
-  { id: 'normal', labelKey: 'player.mode.normal' },
+  { id: 'sheet', labelKey: 'player.mode.sheet' },
   { id: 'av', labelKey: 'player.mode.av' },
 ] as const
 
 export function isPlayerMode(raw: unknown): raw is PlayerMode {
-  return raw === 'normal' || raw === 'av'
+  return raw === 'sheet' || raw === 'av'
 }
 
 export function parsePlayerMode(raw: unknown): PlayerMode | undefined {

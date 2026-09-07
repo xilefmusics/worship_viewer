@@ -16,7 +16,7 @@ import {
 } from '@/hooks/usePlayerIndexSearchSync'
 
 function RoomHarness() {
-  usePlayerIndexSearchSync('song', 'room-song', 0, 'normal')
+  usePlayerIndexSearchSync('song', 'room-song', 0, 'sheet')
   const toc = usePlayerTocSearchSync()
   return (
     <button type="button" onClick={() => toc.setMode('alphabetical')}>

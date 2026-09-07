@@ -12,7 +12,10 @@ export class HubPage {
   searchbox = () => this.page.getByRole('searchbox', { name: 'Search library' })
   createFab = (label: string | RegExp) => this.page.getByRole('button', { name: label })
   tab = (name: string) => this.page.getByRole('link', { name })
-  row = (name: string | RegExp) => this.page.getByRole('button', { name })
+  row = (name: string | RegExp) =>
+    typeof name === 'string'
+      ? this.page.getByRole('button', { name, exact: true })
+      : this.page.getByRole('button', { name: new RegExp(`^${name.source}$`, name.flags) })
   menuItem = (name: string | RegExp) => this.page.getByRole('menuitem', { name })
   profileButton = () => this.page.getByRole('button', { name: /profile|account|menu/i }).first()
 

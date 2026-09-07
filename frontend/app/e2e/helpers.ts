@@ -32,9 +32,13 @@ export async function readClipboard(page: Page): Promise<string> {
   return page.evaluate(() => navigator.clipboard.readText())
 }
 
-/** Right-click a list row to open the hub context menu. */
+/** Open the hub row 3-dot actions menu. */
 export async function openContextMenu(page: Page, name: string | RegExp): Promise<void> {
-  await page.getByRole('button', { name }).click({ button: 'right' })
+  const actionsName =
+    typeof name === 'string'
+      ? `Actions for ${name}`
+      : new RegExp(`Actions for (?:${name.source})`, name.flags)
+  await page.getByRole('button', { name: actionsName }).click()
 }
 
 /** Open the Add (+) FAB for the current hub list route. */

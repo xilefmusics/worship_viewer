@@ -251,5 +251,5 @@ export function buildAvProjectionPayload(input: {
   }
 }
 
-/** Settings tab writes default player mode via player-mode-preference; re-export for convenience. */
+/** Settings tab writes the default Sheet/AV selection via player-mode-preference; re-export for convenience. */
 export type { PlayerMode }

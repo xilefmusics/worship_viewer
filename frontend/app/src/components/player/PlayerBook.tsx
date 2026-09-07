@@ -273,7 +273,7 @@ export function PlayerBook({
   id,
   player,
   initialIndex,
-  mode = 'normal',
+  mode = 'sheet',
   allowNetworkFetch,
   resourceTitle,
   deletedReconciled,

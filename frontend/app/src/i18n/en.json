@@ -158,13 +158,17 @@
       "mediaCount_one": "{{count}} media item",
       "mediaCount_other": "{{count}} media items",
       "songsCount_one": "{{count}} song",
-      "songsCount_other": "{{count}} songs"
+      "songsCount_other": "{{count}} songs",
+      "unknownArtist": "Unknown"
     },
     "actions": {
+      "menuAria": "Actions for {{title}}",
+      "closeAria": "Close",
+      "general": "General",
       "edit": "Edit",
       "play": "Play",
-      "playNormal": "Play in Normal mode",
-      "playAv": "Play in AV mode",
+      "showSheets": "Show Sheets",
+      "controlAvSlides": "Control AV Slides",
       "addToSetlist": "Add to setlist",
       "duplicate": "Duplicate",
       "duplicateSuccess": "Created “{{title}}”.",
@@ -309,7 +313,7 @@
     "editCollection": "Edit collection",
     "openSettings": "Player settings",
     "mode": {
-      "normal": "Normal mode",
+      "sheet": "Sheet mode",
       "av": "AV mode"
     },
     "av": {
@@ -530,7 +534,7 @@
     "tabs": {
       "aria": "Settings sections",
       "general": "General",
-      "player": "Player Default",
+      "player": "Player Sheet",
       "playerRoles": "Player AV"
     },
     "language": {
@@ -554,10 +558,10 @@
       "darkDescription": "Always use the dark theme."
     },
     "defaultPlayerMode": {
-      "title": "Default player mode",
-      "description": "Primary tap on songs, setlists, and collections opens the player in this mode.",
-      "normal": "Normal mode",
-      "normalDescription": "Book-mode chord sheets and attachments.",
+      "title": "Default mode",
+      "description": "Choose whether primary taps open Sheet mode or AV mode.",
+      "sheet": "Sheet mode",
+      "sheetDescription": "Book-mode chord sheets and attachments.",
       "av": "AV mode",
       "avDescription": "Lyric projection with separate content and background layers."
     },
@@ -587,7 +591,7 @@
     },
     "chordSongFontScale": {
       "title": "Chord-song font size",
-      "description": "Scale chord-song type in the normal player on this device.",
+      "description": "Scale chord-song type in the sheet player on this device.",
       "label": "Font scale"
     },
     "tocMultilingual": {

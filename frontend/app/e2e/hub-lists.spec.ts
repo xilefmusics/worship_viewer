@@ -39,7 +39,7 @@ test('L1: list rows remain visible when toggled offline', async ({ page, seed, c
 })
 
 // Flow: L2
-test('L2: open row / open context menu', async ({ page, seed }) => {
+test('L2: open row / open actions menu', async ({ page, seed }) => {
   const token = uniqueToken('l2')
   await seed.createCollection({ title: `${token}-row` })
   const hub = new HubPage(page)
@@ -51,10 +51,16 @@ test('L2: open row / open context menu', async ({ page, seed }) => {
   await hub.goto('/collections')
   await hub.search(`${token}-row`)
   await openContextMenu(page, `${token}-row`)
+  await expect(page.getByText('General', { exact: true })).toBeVisible()
   await expect(hub.menuItem('Edit')).toBeVisible()
-  await expect(hub.menuItem('Play in Normal mode')).toBeVisible()
-  await expect(hub.menuItem('Play in AV mode')).toBeVisible()
+  await expect(hub.menuItem('Show Sheets')).toBeVisible()
+  await expect(hub.menuItem('Control AV Slides')).toBeVisible()
   await expect(hub.menuItem('Duplicate')).toBeVisible()
+  await expect(page.getByText('Export', { exact: true })).toBeVisible()
+  await expect(hub.menuItem('ChordPro')).toBeVisible()
+  await expect(hub.menuItem('Worship Pro')).toBeVisible()
+  await expect(hub.menuItem('PDF (print)')).toBeVisible()
+  await expect(hub.menuItem(/^Export/)).toHaveCount(0)
   await expect(hub.menuItem('Delete')).toBeVisible()
 })
 

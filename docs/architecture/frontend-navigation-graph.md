@@ -45,7 +45,7 @@ graph TD
     sessions["/sessions"]
     settings["/settings"]
     about["/about"]
-    playerNormal["/player (Normal)"]
+    playerSheet["/player (Sheet)"]
     playerAv["/player (AV)"]
     playerOutput["/player/output"]
 
@@ -70,14 +70,14 @@ graph TD
     collections -.->|"Add FAB"| createCollectionDialog(["Create collection"])
     createCollectionDialog -->|"Create"| collectionDetail
     createCollectionDialog -.->|"Cancel (close)"| collections
-    collections -->|"row tap"| playerNormal
+    collections -->|"row tap"| playerSheet
     collections -.->|"right-click / long-press"| ctxMenu(["List context menu"])
     ctxMenu -->|"Edit / Duplicate"| collectionDetail
-    ctxMenu -->|"Play Normal"| playerNormal
-    ctxMenu -->|"Play AV"| playerAv
+    ctxMenu -->|"Show Sheets"| playerSheet
+    ctxMenu -->|"Control AV Slides"| playerAv
     ctxMenu -.->|"Delete"| deleteAlert(["Delete confirm"])
     collectionDetail -->|"Back"| collections
-    collectionDetail -->|"Back (player return)"| playerNormal
+    collectionDetail -->|"Back (player return)"| playerSheet
     collectionDetail -.->|"Move / swipe-left"| moveSongDialog(["Move song dialog"])
 
     %% ---- Songs ----
@@ -85,19 +85,19 @@ graph TD
     songChooser -.->|"New song"| createSongDialog(["Create song"])
     songChooser -.->|"Import files"| importSongsDialog(["Import songs"])
     createSongDialog -->|"Create"| songDetail
-    songs -->|"row tap"| playerNormal
+    songs -->|"row tap"| playerSheet
     songs -.->|"context menu"| ctxMenu
     songs -.->|"Add to setlist"| addToSetlist(["Add to setlist dialog"])
     songDetail -->|"Back"| songs
-    songDetail -->|"Back (player return)"| playerNormal
+    songDetail -->|"Back (player return)"| playerSheet
 
     %% ---- Setlists ----
     setlists -.->|"Add FAB"| createSetlistDialog(["Create setlist"])
     createSetlistDialog -->|"Create"| setlistDetail
-    setlists -->|"row tap"| playerNormal
+    setlists -->|"row tap"| playerSheet
     setlists -.->|"context menu"| ctxMenu
     ctxMenu -->|"Edit / Duplicate (setlist)"| setlistDetail
-    setlistDetail -->|"Play"| playerNormal
+    setlistDetail -->|"Play"| playerSheet
     setlistDetail -->|"Back"| setlists
     setlistDetail -.->|"Add songs"| pickerSheet(["Song picker sheet"])
     pickerSheet -.->|"Song row tap (insert + close)"| setlistDetail
@@ -115,25 +115,25 @@ graph TD
 
     %% ---- Settings ----
     settings -->|"Back to library"| collections
-    settings -->|"Back (player return)"| playerNormal
+    settings -->|"Back (player return)"| playerSheet
     settings -->|"Teams"| teams
     settings -->|"Sessions"| sessions
     settings -->|"Log out"| login
 
     %% ---- About ----
     about -->|"Back to library"| collections
-    about -->|"Back (player return)"| playerNormal
+    about -->|"Back (player return)"| playerSheet
 
-    %% ---- Player (Normal) ----
-    playerNormal -->|"Back to list (collection) / Esc"| collections
-    playerNormal -->|"Back to list (song) / Esc"| songs
-    playerNormal -->|"Back to list (setlist) / Esc"| setlists
-    playerNormal -->|"settings gear"| settings
-    playerNormal -->|"Edit song (e)"| songDetail
-    playerNormal -->|"Edit setlist"| setlistDetail
-    playerNormal -->|"Edit collection"| collectionDetail
-    playerNormal -.->|"center tap / m"| playerChrome(["Player chrome + TOC"])
-    playerNormal -.->|"Transpose / A-G"| transposePopover(["Transpose popover"])
+    %% ---- Player (Sheet) ----
+    playerSheet -->|"Back to list (collection) / Esc"| collections
+    playerSheet -->|"Back to list (song) / Esc"| songs
+    playerSheet -->|"Back to list (setlist) / Esc"| setlists
+    playerSheet -->|"settings gear"| settings
+    playerSheet -->|"Edit song (e)"| songDetail
+    playerSheet -->|"Edit setlist"| setlistDetail
+    playerSheet -->|"Edit collection"| collectionDetail
+    playerSheet -.->|"center tap / m"| playerChrome(["Player chrome + TOC"])
+    playerSheet -.->|"Transpose / A-G"| transposePopover(["Transpose popover"])
 
     %% ---- Player (AV) ----
     playerAv -->|"Back / Esc"| collections
@@ -183,7 +183,7 @@ graph TD
 | `sessions` | `/sessions` | `routes/_hub/sessions.tsx` |
 | `settings` | `/settings` | `routes/_hub/settings.tsx` |
 | `about` | `/about` | `routes/_hub/about.tsx` |
-| `playerNormal` | `/player?mode=normal` | `components/player/PlayerBook.tsx` |
+| `playerSheet` | `/player?mode=sheet` | `components/player/PlayerBook.tsx` |
 | `playerAv` | `/player?mode=av` | `components/player/av/PlayerAv.tsx` |
 | `playerOutput` | `/player/output` | `routes/player/output.tsx` |
 | `playerRooms` | `/player-rooms` | `routes/_hub/player-rooms.tsx` |
@@ -224,7 +224,7 @@ graph TD
 - Hub chrome (Profile menu, Command palette) is rendered on every `/_hub/*` screen via `HubShell`; edges from `profileMenu`/`commandPalette` therefore apply from any hub screen.
 - Command palette opens with Cmd/Ctrl+K and only on `pointer:fine` devices.
 - Footer Add FAB is hidden on `/sessions`, `/settings`, and all detail/editor routes.
-- `playerNormal` and `playerAv` are the same `/player` route; the active surface is chosen by the `mode` search param.
+- `playerSheet` and `playerAv` are the same `/player` route; the active surface is chosen by the `mode` search param.
 - Player Rooms are opened from the profile menu or a source player. Public invite routes remain outside both authenticated route guards.
 - Auth: any protected route redirects to `/login?return_to=<path>` when there is no session; an API 401 hard-redirects to `/login`.
 - `SongEditorActionsMenu` exists in the codebase but is not currently wired into `SongEditorScreen`, so it is omitted from the live graph.

@@ -33,11 +33,11 @@ describe('buildPlayerSearch', () => {
   })
 
   it('includes index zero for first item', () => {
-    expect(buildPlayerSearch({ type: 'setlist', id: 'set-1', index: 0, mode: 'normal' })).toEqual({
+    expect(buildPlayerSearch({ type: 'setlist', id: 'set-1', index: 0, mode: 'sheet' })).toEqual({
       type: 'setlist',
       id: 'set-1',
       index: 0,
-      mode: 'normal',
+      mode: 'sheet',
       toc: undefined,
       tocLang: undefined,
       tocTags: undefined,
