@@ -260,7 +260,6 @@
     "untitled": "Ohne Titel",
     "mainAria": "Player — {{title}}",
     "itemAnnounce": "Element {{current}} von {{total}} — {{title}}",
-    "evicted": "Diese Setliste ist nicht mehr im Cache. Verbinde dich erneut, um fortzufahren.",
     "setlistDeleted": "Diese Setliste wurde vom Team entfernt — lokaler Cache wird ein letztes Mal abgespielt.",
     "toc": {
       "title": "Inhalt",

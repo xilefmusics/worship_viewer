@@ -22,7 +22,6 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { usePlayerIndexSearchSync } from '@/hooks/usePlayerIndexSearchSync'
 import { useTocMultilingualPreference } from '@/hooks/useTocMultilingualPreference'
 import { useAvBilingualPreference } from '@/hooks/useAvBilingualPreference'
-import { useSetlistEvictionWatch } from '@/hooks/useSetlistEvictionWatch'
 import { useResolvedPlayerItemChordData } from '@/lib/player/apply-song-flow'
 import {
   avItemTitle,
@@ -134,7 +133,6 @@ type PlayerAvProps = {
   tocSidebar?: ReactNode
   backToOverride?: '/media'
   backAriaKeyOverride?: string
-  watchSetlistEviction?: boolean
   roomSidebar?: ReactNode
 }
 
@@ -187,7 +185,6 @@ export function PlayerAv({
   tocSidebar,
   backToOverride,
   backAriaKeyOverride,
-  watchSetlistEviction = true,
   roomSidebar,
 }: PlayerAvProps) {
   const { t } = useTranslation()
@@ -243,14 +240,7 @@ export function PlayerAv({
     resolveLanguageIndexForItem,
   )
   const showToc = !embedded && (tocSidebar != null || player.toc.length > 0)
-  const containsMedia = player.items.some((item) => item.type === 'media')
-  const watchSetlistMirrorEviction =
-    type === 'setlist' && watchSetlistEviction && !containsMedia
-  const evicted = useSetlistEvictionWatch(
-    watchSetlistMirrorEviction ? id : undefined,
-    watchSetlistMirrorEviction,
-  )
-  const navBlocked = evicted || Boolean(roomMusicalState && !canControlRoomMusicalState)
+  const navBlocked = Boolean(roomMusicalState && !canControlRoomMusicalState)
   const backTo = backToOverride ?? hubPathForPlayerType(type)
 
   usePlayerIndexSearchSync(type, id, session.itemIndex, 'av')
@@ -833,12 +823,11 @@ export function PlayerAv({
 
       if (action === 'prev') {
         e.preventDefault()
-        if (!evicted) goPrev()
+        goPrev()
         return
       }
       if (action === 'next') {
         e.preventDefault()
-        if (evicted) return
         if (isTimedAvKind(currentItem.kind) && (e.key === ' ' || e.key === 'Enter')) {
           toggleAvTransport()
           return
@@ -848,12 +837,12 @@ export function PlayerAv({
       }
       if (action === 'home') {
         e.preventDefault()
-        if (!evicted) goToSlide(0)
+        goToSlide(0)
         return
       }
       if (action === 'end') {
         e.preventDefault()
-        if (!evicted) goToSlide(slideCount - 1)
+        goToSlide(slideCount - 1)
         return
       }
       if (action === 'escape') {
@@ -899,7 +888,6 @@ export function PlayerAv({
     goPrevItem,
     goToSlide,
     jumpToSection,
-    evicted,
     navBlocked,
     navigate,
     openOutputWindow,
@@ -937,11 +925,7 @@ export function PlayerAv({
 
   return (
     <div className="player-av relative flex h-dvh flex-col overflow-hidden bg-[var(--color-bg)] text-[var(--color-foreground)]">
-      {evicted ? (
-        <p className="player-av-warning" role="status" aria-live="polite">
-          {t('player.evicted')}
-        </p>
-      ) : missingOutputWarning ? (
+      {missingOutputWarning ? (
         <p className="player-av-warning" role="status" aria-live="polite">
           {t(
             missingOutputReason === 'play'
