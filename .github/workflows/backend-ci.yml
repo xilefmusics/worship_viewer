@@ -131,6 +131,8 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64
+          provenance: false
+          sbom: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
