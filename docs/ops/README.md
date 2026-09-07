@@ -1,6 +1,6 @@
 # Operations runbooks
 
-Abbreviated procedures for deploy verification, rollback, and incident triage. Expand with environment-specific details (Cloud Run, Docker Hub, SurrealDB host).
+Abbreviated procedures for deploy verification, rollback, and incident triage. Expand with environment-specific details (Cloud Run, GHCR, SurrealDB host).
 
 ## Deploy verification
 

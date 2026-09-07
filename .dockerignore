@@ -12,6 +12,8 @@ target
 # Ignore Node dependencies and frontend build output
 **/node_modules
 frontend/app/dist
+frontend/packages/chordlib-wasm/pkg
+**/*.tsbuildinfo
 
 # Ignore documentation files
 docs
