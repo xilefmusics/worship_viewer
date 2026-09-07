@@ -11,6 +11,7 @@ use tracing_actix_web::TracingLogger;
 use backend::auth;
 use backend::auth::oidc;
 use backend::database;
+use backend::demodata;
 use backend::docs;
 use backend::frontend;
 use backend::mail::MailService;
@@ -47,12 +48,16 @@ async fn main() -> AnyResult<()> {
         );
     }
 
+    let demodata_scenario = demodata::Scenario::parse(settings.demodata.as_deref())?;
+    demodata::validate_environment(production, demodata_scenario)?;
+
     let static_dir = std::fs::canonicalize(settings.static_dir.as_str())
         .with_context(|| format!("static_dir {:?} could not be resolved", settings.static_dir))?
         .to_string_lossy()
         .into_owned();
 
     let cookie_config = Data::new(settings.cookie_config());
+    let impersonation_config = Data::new(settings.impersonation_config());
     let otp_config = Data::new(settings.otp_config());
 
     let mail_service = MailService::new(
@@ -81,11 +86,22 @@ async fn main() -> AnyResult<()> {
             db.migrate(settings.db_migration_path.as_str())
                 .await
                 .context("database migration failed")?;
+            if !settings.impersonation_enabled {
+                backend::auth::impersonation::purge_all(db.as_ref())
+                    .await
+                    .map_err(|e| anyhow::anyhow!("impersonation cleanup failed: {e}"))?;
+            }
             Result::<_, anyhow::Error>::Ok(db)
         },
         oidc::build_clients(&settings)
     )?;
     let oidc_clients_arc = Arc::new(oidc_inner);
+
+    if let Some(scenario) = demodata_scenario {
+        demodata::seed(db.as_ref(), scenario)
+            .await
+            .context("demodata seeding failed")?;
+    }
 
     let user_service = UserServiceHandle::build(db.clone());
     let session_service = SessionServiceHandle::build(db.clone());
@@ -146,6 +162,7 @@ async fn main() -> AnyResult<()> {
         port = settings.port,
         cookie_secure = settings.cookie_secure,
         session_ttl_seconds = settings.session_ttl_seconds,
+        impersonation_enabled = settings.impersonation_enabled,
         otp_ttl_seconds = settings.otp_ttl_seconds,
         otp_allow_self_signup = settings.otp_allow_self_signup,
         otp_max_attempts = settings.otp_max_attempts,
@@ -246,6 +263,7 @@ async fn main() -> AnyResult<()> {
             .app_data(Data::new(session_service.clone()))
             .app_data(oidc_clients.clone())
             .app_data(cookie_config.clone())
+            .app_data(impersonation_config.clone())
             .app_data(otp_config.clone())
             .service(auth::rest::scope(
                 settings.auth_rate_limit_rps,

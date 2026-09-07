@@ -12,6 +12,13 @@ pub struct CookieConfig {
 }
 
 #[derive(Clone, Debug)]
+pub struct ImpersonationConfig {
+    pub enabled: bool,
+    pub cookie_name: String,
+    pub secure: bool,
+}
+
+#[derive(Clone, Debug)]
 pub struct OtpConfig {
     pub ttl_seconds: u64,
     pub pepper: String,
@@ -29,6 +36,7 @@ pub struct Settings {
     pub cookie_name: String,
     pub cookie_secure: bool,
     pub session_ttl_seconds: u64,
+    pub impersonation_enabled: bool,
 
     pub otp_ttl_seconds: u64,
     pub otp_pepper: String,
@@ -52,6 +60,10 @@ pub struct Settings {
 
     pub initial_admin_user_email: Option<String>,
     pub initial_admin_user_test_session: bool,
+
+    /// Optional startup demodata scenario, for example `generic`.
+    #[serde(default)]
+    pub demodata: Option<String>,
 
     pub gmail_app_password: String,
     pub gmail_from: String,
@@ -123,6 +135,7 @@ impl fmt::Debug for Settings {
             .field("cookie_name", &self.cookie_name)
             .field("cookie_secure", &self.cookie_secure)
             .field("session_ttl_seconds", &self.session_ttl_seconds)
+            .field("impersonation_enabled", &self.impersonation_enabled)
             .field("otp_ttl_seconds", &self.otp_ttl_seconds)
             .field("otp_pepper", &"<redacted>")
             .field("otp_max_attempts", &self.otp_max_attempts)
@@ -145,6 +158,7 @@ impl fmt::Debug for Settings {
             .field("oidc_redirect_url", &self.oidc_redirect_url)
             .field("oidc_scopes", &self.oidc_scopes)
             .field("initial_admin_user_email", &self.initial_admin_user_email)
+            .field("demodata", &self.demodata)
             .field(
                 "initial_admin_user_test_session",
                 &self.initial_admin_user_test_session,
@@ -205,6 +219,7 @@ impl Default for Settings {
             cookie_name: "sso_session".into(),
             cookie_secure: false,
             session_ttl_seconds: 31536000,
+            impersonation_enabled: false,
             otp_ttl_seconds: 300,
             otp_pepper: "changeme".into(),
             otp_max_attempts: 5,
@@ -222,6 +237,7 @@ impl Default for Settings {
             oidc_scopes: vec!["openid".into(), "profile".into(), "email".into()],
             initial_admin_user_email: None,
             initial_admin_user_test_session: false,
+            demodata: None,
             gmail_app_password: String::new(),
             gmail_from: String::new(),
             static_dir: "static".into(),
@@ -393,6 +409,14 @@ impl Settings {
             secure: self.cookie_secure,
             session_ttl_seconds: self.session_ttl_seconds,
             post_login_path: self.post_login_path.clone(),
+        }
+    }
+
+    pub fn impersonation_config(&self) -> ImpersonationConfig {
+        ImpersonationConfig {
+            enabled: self.impersonation_enabled,
+            cookie_name: "wv_impersonation".into(),
+            secure: self.cookie_secure,
         }
     }
 
