@@ -21,6 +21,7 @@ All notable changes to Worship Viewer are documented here. The format follows [K
 
 ### Changed
 
+- Admin Users and Metrics now use the same hub chrome as collections and songs: a bottom tab bar with Leave, hub-style user rows, and the shared right-hand actions drawer. Impersonation starts immediately from that drawer.
 - `openapi-sync.mjs` resolves canonical OpenAPI from repo root (`docs/openapi.json`).
 - Backend CI `cargo audit` runs per-crate (`cd … && cargo audit`) — compatible with cargo-audit 0.22+.
 - OpenAPI Problem type documentation references [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) (successor to RFC 7807).

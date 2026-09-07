@@ -1,6 +1,8 @@
 import type { HTMLAttributes } from 'react'
 
 import { AudioLinesIcon } from '@/components/icons/lucide-animated/audio-lines-icon'
+import { ChartLineIcon } from '@/components/icons/lucide-animated/chart-line-icon'
+import { ChevronLeftIcon } from '@/components/icons/lucide-animated/chevron-left-icon'
 import { LayersIcon } from '@/components/icons/lucide-animated/layers-icon'
 import { ListMusicIcon } from '@/components/icons/lucide-animated/list-music-icon'
 import { PlusIcon } from '@/components/icons/lucide-animated/plus-icon'
@@ -94,6 +96,42 @@ export function IconHubSessions({ className, isHovered, ...rest }: HubTabIconPro
 export function IconHubPlus({ className, isHovered, ...rest }: HubTabIconProps) {
   return (
     <PlusIcon
+      className={cn('inline-flex shrink-0', className)}
+      isHovered={isHovered}
+      size={HUB_TAB_ICON_PX}
+      {...rest}
+    />
+  )
+}
+
+/** Leave admin — back chevron at hub tab size */
+export function IconHubAdminLeave({ className, isHovered, ...rest }: HubTabIconProps) {
+  return (
+    <ChevronLeftIcon
+      className={cn('inline-flex shrink-0', className)}
+      isHovered={isHovered}
+      size={HUB_TAB_ICON_PX}
+      {...rest}
+    />
+  )
+}
+
+/** Admin users directory */
+export function IconHubAdminUsers({ className, isHovered, ...rest }: HubTabIconProps) {
+  return (
+    <UsersIcon
+      className={cn('inline-flex shrink-0', className)}
+      isHovered={isHovered}
+      size={HUB_TAB_ICON_PX}
+      {...rest}
+    />
+  )
+}
+
+/** Admin metrics dashboard */
+export function IconHubAdminMetrics({ className, isHovered, ...rest }: HubTabIconProps) {
+  return (
+    <ChartLineIcon
       className={cn('inline-flex shrink-0', className)}
       isHovered={isHovered}
       size={HUB_TAB_ICON_PX}

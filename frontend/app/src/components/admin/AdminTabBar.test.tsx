@@ -1,9 +1,8 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import type { AnchorHTMLAttributes, ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { AdminLayout, AdminMobileNav } from '@/components/admin/AdminNavigation'
+import { AdminTabBar } from '@/components/admin/AdminTabBar'
 
 vi.mock('@tanstack/react-router', async () => {
   const { forwardRef } = await import('react')
@@ -40,23 +39,20 @@ vi.mock('@tanstack/react-router', async () => {
 })
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 
-describe('Admin navigation', () => {
-  it('marks the users destination active in the desktop sidebar', () => {
-    render(<AdminLayout><p>Content</p></AdminLayout>)
-    const navLinks = screen.getByRole('navigation', { name: 'adminNav.aria' }).querySelectorAll('a')
-    expect(navLinks[0]).toHaveTextContent('adminNav.users')
+describe('Admin tab bar', () => {
+  it('puts leave first, matches hub tab sizing, and marks the users destination active', () => {
+    render(<AdminTabBar />)
+    const nav = screen.getByRole('navigation', { name: 'adminNav.aria' })
+    const navLinks = nav.querySelectorAll('a')
+    expect(navLinks).toHaveLength(3)
+    expect(navLinks[0]).toHaveTextContent('adminNav.leave')
+    expect(screen.getByRole('link', { name: 'adminNav.leave' })).toHaveAttribute('href', '/collections')
+    expect(screen.getByRole('link', { name: 'adminNav.leave' })).not.toHaveAttribute('aria-current')
     expect(screen.getByRole('link', { name: 'adminNav.users' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'adminNav.metrics' })).toHaveAttribute('href', '/admin/metrics')
     expect(screen.getByRole('link', { name: 'adminNav.metrics' })).not.toHaveAttribute('aria-current')
-    expect(screen.getByRole('link', { name: 'adminNav.back' })).toHaveAttribute('href', '/collections')
-  })
-
-  it('opens the mobile drawer and closes it after navigation', async () => {
-    const user = userEvent.setup()
-    render(<AdminMobileNav />)
-    await user.click(screen.getByRole('button', { name: 'adminNav.open' }))
-    const usersLink = screen.getByRole('link', { name: 'adminNav.users' })
-    expect(usersLink).toBeVisible()
-    await user.click(usersLink)
-    await vi.waitFor(() => expect(screen.queryByRole('link', { name: 'adminNav.users' })).not.toBeInTheDocument())
+    for (const link of navLinks) {
+      expect(link).toHaveClass('[aspect-ratio:var(--hub-tab-aspect)]')
+    }
   })
 })

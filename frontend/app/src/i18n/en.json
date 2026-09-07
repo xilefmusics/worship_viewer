@@ -488,51 +488,25 @@
     }
   },
   "adminNav": {
-    "kicker": "Administration",
-    "title": "Admin",
     "aria": "Admin navigation",
+    "leave": "Leave",
     "metrics": "Metrics",
-    "users": "Users",
-    "back": "Back to library",
-    "open": "Open admin navigation"
+    "users": "Users"
   },
   "adminUsers": {
-    "title": "Users",
-    "description": "Browse all user accounts registered with Worship Viewer.",
     "searchPlaceholder": "Search users...",
     "searchAria": "Search users by email or ID",
-    "columns": {
-      "email": "Email",
-      "id": "User ID",
-      "role": "Role",
-      "created": "Created",
-      "actions": "Actions"
-    },
     "actionsAria": "Actions for {{email}}",
     "roles": {
       "admin": "Admin",
       "default": "User"
     },
-    "loading": "Loading users...",
-    "errorTitle": "Could not load users",
-    "errorBody": "Try again in a moment.",
-    "retry": "Try again",
     "emptyTitle": "No users yet",
     "emptyBody": "User accounts will appear here after they register.",
     "noResultsTitle": "No matching users",
     "noResultsBody": "Try a different email address or user ID.",
-    "clearSearch": "Clear search",
     "impersonate": "Impersonate",
-    "impersonateTitle": "Impersonate this user?",
-    "impersonateBody": "You will act as {{email}} with their normal permissions. A visible banner will let you stop and return to your admin session.",
-    "impersonateConfirm": "Start impersonation",
-    "impersonateFailed": "Could not start impersonation.",
-    "pagination": {
-      "range": "Showing {{first}}–{{last}} of {{total}} users",
-      "rangeUnknown": "Showing {{first}}–{{last}} users",
-      "previous": "Previous",
-      "next": "Next"
-    }
+    "impersonateFailed": "Could not start impersonation."
   },
   "settings": {
     "title": "Settings",

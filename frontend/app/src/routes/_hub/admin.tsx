@@ -1,6 +1,5 @@
 import { Outlet, createFileRoute } from '@tanstack/react-router'
 
-import { AdminLayout } from '@/components/admin/AdminNavigation'
 import { requireAdminSession } from '@/lib/auth-guard'
 
 export const Route = createFileRoute('/_hub/admin')({
@@ -11,9 +10,5 @@ export const Route = createFileRoute('/_hub/admin')({
 })
 
 function AdminLayoutRoute() {
-  return (
-    <AdminLayout>
-      <Outlet />
-    </AdminLayout>
-  )
+  return <Outlet />
 }

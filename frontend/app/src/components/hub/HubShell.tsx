@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CommandPalette } from '@/components/hub/CommandPalette'
-import { AdminMobileNav } from '@/components/admin/AdminNavigation'
+import { AdminTabBar } from '@/components/admin/AdminTabBar'
 import { SessionLoadingFallback } from '@/components/SessionLoadingFallback'
 import { SessionUnavailableScreen } from '@/components/SessionUnavailableScreen'
 import { SetlistPaletteRegistrarProvider } from '@/context/SetlistPaletteBridgeContext'
@@ -141,6 +141,7 @@ function HubLibrarySearchField({
   onSearchMouseLeave,
   placeholder,
   ariaLabel,
+  showTeamFilter = true,
 }: {
   searchAnchorRef: RefObject<HTMLDivElement | null>
   searchInputRef: RefObject<HTMLInputElement | null>
@@ -154,6 +155,7 @@ function HubLibrarySearchField({
   onSearchMouseLeave: () => void
   placeholder?: string
   ariaLabel?: string
+  showTeamFilter?: boolean
 }) {
   const { t } = useTranslation()
   const { selectedTeamId } = useHubSearch()
@@ -191,32 +193,39 @@ function HubLibrarySearchField({
           placeholder={placeholder ?? t('hub.searchPlaceholder')}
           aria-label={ariaLabel ?? t('hub.searchAria')}
           tabIndex={paletteOpen ? -1 : 0}
-          className="h-full min-w-0 flex-1 rounded-full border-0 bg-transparent pl-2 pr-1 shadow-none focus-visible:outline-none"
-        />
-        <button
-          type="button"
-          aria-label={filtersOpen ? t('hub.filters.closeAria') : t('hub.filters.openAria')}
-          aria-pressed={filtersOpen}
-          onClick={() => setFiltersOpen((open) => !open)}
-          onMouseEnter={() => setFilterHovered(true)}
-          onMouseLeave={() => setFilterHovered(false)}
           className={cn(
-            'mr-1 flex size-10 shrink-0 items-center justify-center rounded-full text-[var(--color-muted-foreground)] outline-none transition-colors',
-            'hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)]',
-            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]',
-            filterActive && 'bg-[var(--color-muted)] text-[var(--color-foreground)]',
+            'h-full min-w-0 flex-1 rounded-full border-0 bg-transparent pl-2 shadow-none focus-visible:outline-none',
+            showTeamFilter ? 'pr-1' : 'pr-4',
           )}
-        >
-          <FilterIcon isHovered={filterHovered} size={18} />
-        </button>
-        {filtersOpen ? (
+        />
+        {showTeamFilter ? (
           <>
-            <div className="h-8 w-px shrink-0 bg-[var(--color-border)]" aria-hidden />
-            <HubTeamFilterSelect
-              id="hub-team-filter-inline"
-              className="mr-2 w-[min(12rem,42vw)] shrink-0"
-              triggerClassName="h-9 border-0 bg-transparent px-2 shadow-none"
-            />
+            <button
+              type="button"
+              aria-label={filtersOpen ? t('hub.filters.closeAria') : t('hub.filters.openAria')}
+              aria-pressed={filtersOpen}
+              onClick={() => setFiltersOpen((open) => !open)}
+              onMouseEnter={() => setFilterHovered(true)}
+              onMouseLeave={() => setFilterHovered(false)}
+              className={cn(
+                'mr-1 flex size-10 shrink-0 items-center justify-center rounded-full text-[var(--color-muted-foreground)] outline-none transition-colors',
+                'hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)]',
+                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]',
+                filterActive && 'bg-[var(--color-muted)] text-[var(--color-foreground)]',
+              )}
+            >
+              <FilterIcon isHovered={filterHovered} size={18} />
+            </button>
+            {filtersOpen ? (
+              <>
+                <div className="h-8 w-px shrink-0 bg-[var(--color-border)]" aria-hidden />
+                <HubTeamFilterSelect
+                  id="hub-team-filter-inline"
+                  className="mr-2 w-[min(12rem,42vw)] shrink-0"
+                  triggerClassName="h-9 border-0 bg-transparent px-2 shadow-none"
+                />
+              </>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -428,7 +437,6 @@ function HubChrome({
     !isSongDetail &&
     !isMediaDetail &&
     !isSettings &&
-    !isAdminArea &&
     !isSessions &&
     !isAbout
   const reduceMotion = useReducedMotion()
@@ -890,41 +898,36 @@ function HubChrome({
               </div>
             </>
           ) : isAdmin ? (
-            <>
-              <AdminMobileNav />
-              <AdminDateRangeField
-                searchAnchorRef={searchAnchorRef}
-                paletteOpen={paletteOpen}
-                startDate={adminStartDate}
-                endDate={adminEndDate}
-                maxDate={adminMaxDate}
-                onStartDateChange={handleAdminStartDateChange}
-                onEndDateChange={handleAdminEndDateChange}
-                onQuickRangeChange={handleAdminQuickRangeChange}
-                activeQuickRange={activeAdminQuickRange}
-                searchIconActive={searchIconActive}
-                onSearchMouseEnter={() => setSearchFieldHovered(true)}
-                onSearchMouseLeave={() => setSearchFieldHovered(false)}
-              />
-            </>
+            <AdminDateRangeField
+              searchAnchorRef={searchAnchorRef}
+              paletteOpen={paletteOpen}
+              startDate={adminStartDate}
+              endDate={adminEndDate}
+              maxDate={adminMaxDate}
+              onStartDateChange={handleAdminStartDateChange}
+              onEndDateChange={handleAdminEndDateChange}
+              onQuickRangeChange={handleAdminQuickRangeChange}
+              activeQuickRange={activeAdminQuickRange}
+              searchIconActive={searchIconActive}
+              onSearchMouseEnter={() => setSearchFieldHovered(true)}
+              onSearchMouseLeave={() => setSearchFieldHovered(false)}
+            />
           ) : isAdminUsers ? (
-            <>
-              <AdminMobileNav />
-              <HubLibrarySearchField
-                searchAnchorRef={searchAnchorRef}
-                searchInputRef={searchInputRef}
-                paletteOpen={paletteOpen}
-                qInput={qInput}
-                setQInput={setQInput}
-                searchIconActive={searchIconActive}
-                onSearchFocus={() => setSearchFocused(true)}
-                onSearchBlur={() => setSearchFocused(false)}
-                onSearchMouseEnter={() => setSearchFieldHovered(true)}
-                onSearchMouseLeave={() => setSearchFieldHovered(false)}
-                placeholder={t('adminUsers.searchPlaceholder')}
-                ariaLabel={t('adminUsers.searchAria')}
-              />
-            </>
+            <HubLibrarySearchField
+              searchAnchorRef={searchAnchorRef}
+              searchInputRef={searchInputRef}
+              paletteOpen={paletteOpen}
+              qInput={qInput}
+              setQInput={setQInput}
+              searchIconActive={searchIconActive}
+              onSearchFocus={() => setSearchFocused(true)}
+              onSearchBlur={() => setSearchFocused(false)}
+              onSearchMouseEnter={() => setSearchFieldHovered(true)}
+              onSearchMouseLeave={() => setSearchFieldHovered(false)}
+              placeholder={t('adminUsers.searchPlaceholder')}
+              ariaLabel={t('adminUsers.searchAria')}
+              showTeamFilter={false}
+            />
           ) : isSessions ? (
             <>
               <Button
@@ -1089,7 +1092,7 @@ function HubChrome({
                 HUB_FOOTER_CHROME_MB_CLASS,
               )}
             >
-              <HubTabBar />
+              {isAdminArea ? <AdminTabBar /> : <HubTabBar />}
               {!hideHubPlus ? (
                 <Button
                   type="button"
