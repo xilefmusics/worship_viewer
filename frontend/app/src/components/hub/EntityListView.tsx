@@ -1,7 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
-import * as Dialog from '@radix-ui/react-dialog'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import {
   memo,
   useCallback,
@@ -10,14 +9,12 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
-  type ReactNode,
 } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { CopyIcon } from '@/components/icons/lucide-animated/copy-icon'
 import { DownloadIcon } from '@/components/icons/lucide-animated/download-icon'
-import { EllipsisIcon } from '@/components/icons/lucide-animated/ellipsis-icon'
 import { FileStackIcon } from '@/components/icons/lucide-animated/file-stack-icon'
 import { FileTextIcon } from '@/components/icons/lucide-animated/file-text-icon'
 import { FolderXIcon } from '@/components/icons/lucide-animated/folder-x-icon'
@@ -27,8 +24,13 @@ import { PencilIcon } from '@/components/icons/lucide-animated/pencil-icon'
 import { PrinterIcon } from '@/components/icons/lucide-animated/printer-icon'
 import { ProjectorIcon } from '@/components/icons/lucide-animated/projector-icon'
 import { TrashIcon } from '@/components/icons/lucide-animated/trash-icon'
-import { XIcon } from '@/components/icons/lucide-animated/x-icon'
 import { AddSongToSetlistDialog } from '@/components/hub/AddSongToSetlistDialog'
+import {
+  HUB_ACTION_ICON_CLASS,
+  HubActionItem,
+  HubActionSeparator,
+  HubActionsDrawer,
+} from '@/components/hub/HubActionsDrawer'
 import { SetlistItemCounts } from '@/components/hub/SetlistItemCounts'
 import {
   HUB_LIST_AVATAR_CLASS,
@@ -503,56 +505,6 @@ function useHubListItemPlayerTap(entity: HubEntity, itemId: string) {
   return { onClick, onKeyDown }
 }
 
-function HubActionItem({
-  children,
-  disabled,
-  title,
-  destructive,
-  onSelect,
-  onHoverChange,
-}: {
-  children: ReactNode
-  disabled?: boolean
-  title?: string
-  destructive?: boolean
-  onSelect?: () => void
-  onHoverChange?: (hot: boolean) => void
-}) {
-  return (
-    <Dialog.Close asChild>
-      <button
-        type="button"
-        role="menuitem"
-        disabled={disabled}
-        data-disabled={disabled ? 'true' : undefined}
-        title={title}
-        className={cn(
-          'relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-2 text-left text-sm outline-none',
-          'hover:bg-[var(--color-muted)] focus:bg-[var(--color-muted)]',
-          'disabled:pointer-events-none disabled:opacity-50',
-          destructive && 'text-[var(--color-danger)] focus:text-[var(--color-danger)]',
-        )}
-        onClick={() => {
-          if (disabled) return
-          onSelect?.()
-        }}
-        onMouseEnter={() => onHoverChange?.(true)}
-        onMouseLeave={() => onHoverChange?.(false)}
-        onFocus={() => onHoverChange?.(true)}
-        onBlur={() => onHoverChange?.(false)}
-      >
-        {children}
-      </button>
-    </Dialog.Close>
-  )
-}
-
-function HubActionSeparator() {
-  return <div className="my-1 h-px bg-[var(--color-border)]" role="separator" />
-}
-
-const actionIconClass = 'shrink-0 text-[var(--color-foreground)]'
-
 type HubActionHot =
   | 'edit'
   | 'showSheets'
@@ -593,8 +545,6 @@ function HubItemActionsMenu({
   const queryClient = useQueryClient()
   const chordFormat = useChordFormatPreference()
   const hideChords = useHideChordsPreference()
-  const [menuHot, setMenuHot] = useState(false)
-  const [closeHot, setCloseHot] = useState(false)
   const [itemHot, setItemHot] = useState<HubActionHot | null>(null)
   const [addToSetlistOpen, setAddToSetlistOpen] = useState(false)
   const hover = (key: HubActionHot) => (hot: boolean) => setItemHot(hot ? key : null)
@@ -732,153 +682,17 @@ function HubItemActionsMenu({
     toast.success(t('hub.actions.removeOfflineSuccess'))
   }, [itemId, playType, t])
 
-  const [open, setOpen] = useState(false)
-  const shouldReduceMotion = useReducedMotion()
-  const [dragOffset, setDragOffset] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const pointerStartX = useRef<number | null>(null)
-  const pointerStartY = useRef<number | null>(null)
-  const dragSessionActive = useRef(false)
-  const dragOffsetRef = useRef(0)
-
-  const resetDrawerDrag = useCallback(() => {
-    dragSessionActive.current = false
-    pointerStartX.current = null
-    pointerStartY.current = null
-    dragOffsetRef.current = 0
-    setIsDragging(false)
-    setDragOffset(0)
-  }, [])
-
-  const onDrawerOpenChange = useCallback(
-    (next: boolean) => {
-      if (!next) resetDrawerDrag()
-      setOpen(next)
-    },
-    [resetDrawerDrag],
-  )
-
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className={
+      <HubActionsDrawer
+        title={itemLabel}
+        triggerAriaLabel={t('hub.actions.menuAria', { title: itemLabel })}
+        triggerClassName={
           variant === 'card'
             ? 'size-8 rounded-full bg-[var(--color-surface)]/80 text-[var(--color-foreground)] shadow-sm backdrop-blur-sm hover:bg-[var(--color-surface)]'
-            : 'size-8 shrink-0 text-[var(--color-muted-foreground)]'
+            : undefined
         }
-        aria-label={t('hub.actions.menuAria', { title: itemLabel })}
-        onClick={() => onDrawerOpenChange(true)}
-        onMouseEnter={() => setMenuHot(true)}
-        onMouseLeave={() => setMenuHot(false)}
-        onFocus={() => setMenuHot(true)}
-        onBlur={() => setMenuHot(false)}
       >
-        <EllipsisIcon isHovered={menuHot} size={16} className="shrink-0" />
-      </Button>
-      <Dialog.Root open={open} onOpenChange={onDrawerOpenChange}>
-        <Dialog.Portal forceMount>
-          <AnimatePresence>
-            {open ? (
-              <>
-                <Dialog.Overlay forceMount asChild>
-                  <motion.div
-                    className="fixed inset-0 z-50 bg-black/40"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: shouldReduceMotion ? 0 : 0.18 }}
-                  />
-                </Dialog.Overlay>
-                <Dialog.Content forceMount asChild aria-describedby={undefined}>
-                  <motion.div
-                    className={cn(
-                      'fixed inset-y-0 right-0 z-50 flex w-[min(22rem,90vw)] flex-row border-l border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-foreground)] shadow-[var(--shadow-elevated)]',
-                      'rounded-l-2xl pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]',
-                    )}
-                    initial={{ x: shouldReduceMotion ? 0 : '100%' }}
-                    animate={isDragging ? { x: dragOffset } : { x: 0 }}
-                    exit={{ x: shouldReduceMotion ? 0 : '100%' }}
-                    transition={
-                      isDragging
-                        ? { duration: 0 }
-                        : { type: 'spring', stiffness: 420, damping: 36, mass: 0.9 }
-                    }
-                    onPointerDown={(event) => {
-                      pointerStartX.current = event.clientX
-                      pointerStartY.current = event.clientY
-                    }}
-                    onPointerMove={(event) => {
-                      if (pointerStartX.current == null || pointerStartY.current == null) return
-                      const dx = event.clientX - pointerStartX.current
-                      const dy = event.clientY - pointerStartY.current
-                      if (!dragSessionActive.current) {
-                        if (Math.hypot(dx, dy) < 8) return
-                        if (dx < 10 || Math.abs(dy) >= dx) {
-                          pointerStartX.current = null
-                          pointerStartY.current = null
-                          return
-                        }
-                        dragSessionActive.current = true
-                        setIsDragging(true)
-                        try {
-                          event.currentTarget.setPointerCapture(event.pointerId)
-                        } catch {
-                          /* capture may fail if the pointer already released */
-                        }
-                      }
-                      const next = Math.max(0, dx)
-                      dragOffsetRef.current = next
-                      setDragOffset(next)
-                    }}
-                    onPointerUp={() => {
-                      if (!dragSessionActive.current) {
-                        pointerStartX.current = null
-                        pointerStartY.current = null
-                        return
-                      }
-                      const offset = dragOffsetRef.current
-                      resetDrawerDrag()
-                      if (offset > 90) onDrawerOpenChange(false)
-                    }}
-                    onPointerCancel={() => {
-                      resetDrawerDrag()
-                    }}
-                  >
-                    <div
-                      className="flex w-8 shrink-0 items-center justify-center"
-                      aria-hidden
-                    >
-                      <div className="h-12 w-1.5 rounded-full bg-[var(--color-muted)]" />
-                    </div>
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                    <div className="flex items-center gap-2 border-b border-[var(--color-border)] py-3 pr-3">
-                      <Dialog.Title className="min-w-0 flex-1 truncate text-base font-semibold">
-                        {itemLabel}
-                      </Dialog.Title>
-                      <Dialog.Close asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 shrink-0"
-                          aria-label={t('hub.actions.closeAria')}
-                          onMouseEnter={() => setCloseHot(true)}
-                          onMouseLeave={() => setCloseHot(false)}
-                          onFocus={() => setCloseHot(true)}
-                          onBlur={() => setCloseHot(false)}
-                        >
-                          <XIcon isHovered={closeHot} size={16} className="shrink-0" />
-                        </Button>
-                      </Dialog.Close>
-                    </div>
-                    <nav
-                      className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3"
-                      role="menu"
-                      aria-label={t('hub.actions.menuAria', { title: itemLabel })}
-                    >
             <div role="group" aria-label={t('hub.actions.general')}>
               <div className="px-2 pb-1 text-xs font-semibold text-[var(--color-muted-foreground)]">
                 {t('hub.actions.general')}
@@ -912,7 +726,7 @@ function HubItemActionsMenu({
               }}
               onHoverChange={hover('edit')}
             >
-              <PencilIcon isHovered={itemHot === 'edit'} size={16} className={actionIconClass} />
+              <PencilIcon isHovered={itemHot === 'edit'} size={16} className={HUB_ACTION_ICON_CLASS} />
               {t('hub.actions.edit')}
             </HubActionItem>
             <HubActionItem
@@ -924,7 +738,7 @@ function HubItemActionsMenu({
               }}
               onHoverChange={hover('showSheets')}
             >
-              <FileTextIcon isHovered={itemHot === 'showSheets'} size={16} className={actionIconClass} />
+              <FileTextIcon isHovered={itemHot === 'showSheets'} size={16} className={HUB_ACTION_ICON_CLASS} />
               {t('hub.actions.showSheets')}
             </HubActionItem>
             <HubActionItem
@@ -936,12 +750,12 @@ function HubItemActionsMenu({
               }}
               onHoverChange={hover('controlAvSlides')}
             >
-              <OutputIcon isHovered={itemHot === 'controlAvSlides'} size={16} className={actionIconClass} />
+              <OutputIcon isHovered={itemHot === 'controlAvSlides'} size={16} className={HUB_ACTION_ICON_CLASS} />
               {t('hub.actions.controlAvSlides')}
             </HubActionItem>
             {playerCached ? (
               <HubActionItem onSelect={() => void onRemoveOffline()} onHoverChange={hover('removeOffline')}>
-                <FolderXIcon isHovered={itemHot === 'removeOffline'} size={16} className={actionIconClass} />
+                <FolderXIcon isHovered={itemHot === 'removeOffline'} size={16} className={HUB_ACTION_ICON_CLASS} />
                 {t('hub.actions.removeOffline')}
               </HubActionItem>
             ) : (
@@ -951,7 +765,7 @@ function HubItemActionsMenu({
                 onSelect={() => void onSaveOffline()}
                 onHoverChange={hover('saveOffline')}
               >
-                <DownloadIcon isHovered={itemHot === 'saveOffline'} size={16} className={actionIconClass} />
+                <DownloadIcon isHovered={itemHot === 'saveOffline'} size={16} className={HUB_ACTION_ICON_CLASS} />
                 {t('hub.actions.saveOffline')}
               </HubActionItem>
             )}
@@ -965,7 +779,7 @@ function HubItemActionsMenu({
                 }}
                 onHoverChange={hover('duplicate')}
               >
-                <CopyIcon isHovered={itemHot === 'duplicate'} size={16} className={actionIconClass} />
+                <CopyIcon isHovered={itemHot === 'duplicate'} size={16} className={HUB_ACTION_ICON_CLASS} />
                 {t('hub.actions.duplicate')}
               </HubActionItem>
             ) : null}
@@ -979,7 +793,7 @@ function HubItemActionsMenu({
                 }}
                 onHoverChange={hover('addToSetlist')}
               >
-                <ListMusicIcon isHovered={itemHot === 'addToSetlist'} size={16} className={actionIconClass} />
+                <ListMusicIcon isHovered={itemHot === 'addToSetlist'} size={16} className={HUB_ACTION_ICON_CLASS} />
                 {t('hub.actions.addToSetlist')}
               </HubActionItem>
             ) : null}
@@ -995,28 +809,28 @@ function HubItemActionsMenu({
                     onSelect={() => void (showSongExport ? onSongExport('chordpro') : onOrderedExport('chordpro'))}
                     onHoverChange={hover('exportChordpro')}
                   >
-                    <FileTextIcon isHovered={itemHot === 'exportChordpro'} size={16} className={actionIconClass} />
+                    <FileTextIcon isHovered={itemHot === 'exportChordpro'} size={16} className={HUB_ACTION_ICON_CLASS} />
                     {t('hub.actions.exportChordPro')}
                   </HubActionItem>
                   <HubActionItem
                     onSelect={() => void (showSongExport ? onSongExport('worshippro') : onOrderedExport('worshippro'))}
                     onHoverChange={hover('exportWorshipPro')}
                   >
-                    <FileStackIcon isHovered={itemHot === 'exportWorshipPro'} size={16} className={actionIconClass} />
+                    <FileStackIcon isHovered={itemHot === 'exportWorshipPro'} size={16} className={HUB_ACTION_ICON_CLASS} />
                     {t('hub.actions.exportWorshipPro')}
                   </HubActionItem>
                   <HubActionItem
                     onSelect={() => void (showSongExport ? onSongExport('songbeamer') : onOrderedExport('songbeamer'))}
                     onHoverChange={hover('exportSongBeamer')}
                   >
-                    <ProjectorIcon isHovered={itemHot === 'exportSongBeamer'} size={16} className={actionIconClass} />
+                    <ProjectorIcon isHovered={itemHot === 'exportSongBeamer'} size={16} className={HUB_ACTION_ICON_CLASS} />
                     {t('hub.actions.exportSongBeamer')}
                   </HubActionItem>
                   <HubActionItem
                     onSelect={() => void (showSongExport ? onSongExport('propresenter') : onOrderedExport('propresenter'))}
                     onHoverChange={hover('exportProPresenter')}
                   >
-                    <OutputIcon isHovered={itemHot === 'exportProPresenter'} size={16} className={actionIconClass} />
+                    <OutputIcon isHovered={itemHot === 'exportProPresenter'} size={16} className={HUB_ACTION_ICON_CLASS} />
                     {t('hub.actions.exportProPresenter')}
                   </HubActionItem>
                   <HubActionItem
@@ -1024,7 +838,7 @@ function HubItemActionsMenu({
                     onSelect={() => void (showSongExport ? onSongExport('pdf') : onOrderedExport('pdf'))}
                     onHoverChange={hover('exportPdf')}
                   >
-                    <PrinterIcon isHovered={itemHot === 'exportPdf'} size={16} className={actionIconClass} />
+                    <PrinterIcon isHovered={itemHot === 'exportPdf'} size={16} className={HUB_ACTION_ICON_CLASS} />
                     {t('hub.actions.exportPdf')}
                   </HubActionItem>
                 </div>
@@ -1048,15 +862,7 @@ function HubItemActionsMenu({
               <TrashIcon isHovered={itemHot === 'delete'} size={16} className="shrink-0" />
               {t('hub.actions.delete')}
             </HubActionItem>
-                    </nav>
-                    </div>
-                  </motion.div>
-                </Dialog.Content>
-              </>
-            ) : null}
-          </AnimatePresence>
-        </Dialog.Portal>
-      </Dialog.Root>
+      </HubActionsDrawer>
       {showAddToSetlist && hubSong ? (
         <AddSongToSetlistDialog open={addToSetlistOpen} onOpenChange={setAddToSetlistOpen} song={hubSong} />
       ) : null}

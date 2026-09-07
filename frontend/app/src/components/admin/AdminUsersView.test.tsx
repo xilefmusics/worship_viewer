@@ -1,6 +1,6 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AdminUsersView } from '@/components/admin/AdminUsersView'
 import { renderWithProviders } from '@/test/renderWithProviders'
@@ -30,6 +30,9 @@ vi.mock('@/lib/clear-local', () => ({ clearAllLocalData: mocks.clearAllLocalData
 vi.mock('@/hooks/useHubSearch', () => ({
   useHubSearch: () => ({ debouncedQ: mocks.q, setQInput: mocks.setQInput }),
 }))
+vi.mock('@/context/HubScrollContainerContext', () => ({
+  useHubScrollContainerRef: () => ({ current: null }),
+}))
 
 const admin = {
   id: 'user:admin',
@@ -47,18 +50,21 @@ beforeEach(() => {
   mocks.clearAllLocalData.mockReset().mockResolvedValue(undefined)
 })
 
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
 describe('AdminUsersView', () => {
-  it('renders user fields and moves between server pages', async () => {
+  it('renders hub-style rows and loads the next page', async () => {
     const user = userEvent.setup()
     const view = renderWithProviders(<AdminUsersView />)
 
-    expect(await screen.findAllByText('admin@example.com')).toHaveLength(2)
-    expect(screen.getAllByText('user:admin')).toHaveLength(2)
-    expect(screen.getAllByText('Admin')).toHaveLength(2)
-    expect(screen.getByText('Showing 1–1 of 51 users')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
+    expect(await screen.findByText('admin@example.com')).toBeInTheDocument()
+    expect(screen.getByText(/Admin/)).toBeInTheDocument()
+    expect(screen.queryByText('user:admin')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Load more' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await user.click(screen.getByRole('button', { name: 'Load more' }))
     await waitFor(() =>
       expect(mocks.fetchPage).toHaveBeenLastCalledWith(
         expect.anything(),
@@ -94,19 +100,22 @@ describe('AdminUsersView', () => {
 
     expect(await screen.findByText('Directory unavailable.')).toBeInTheDocument()
     mocks.fetchPage.mockResolvedValue({ items: [admin], total: 1 })
-    await user.click(screen.getByRole('button', { name: 'Try again' }))
-    expect(await screen.findAllByText('admin@example.com')).toHaveLength(2)
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByText('admin@example.com')).toBeInTheDocument()
   })
 
-  it('requires confirmation before starting impersonation', async () => {
+  it('starts impersonation from the actions drawer without a confirmation dialog', async () => {
+    const assign = vi.fn()
+    vi.stubGlobal('location', { ...window.location, assign })
     const user = userEvent.setup()
     renderWithProviders(<AdminUsersView />)
 
-    const menus = await screen.findAllByRole('button', { name: 'Actions for admin@example.com' })
-    await user.click(menus[0])
+    await user.click(await screen.findByRole('button', { name: 'Actions for admin@example.com' }))
+    expect(screen.getByRole('dialog', { name: 'admin@example.com' })).toBeInTheDocument()
     await user.click(await screen.findByRole('menuitem', { name: 'Impersonate' }))
-    expect(await screen.findByText('Impersonate this user?')).toBeInTheDocument()
-    expect(screen.getAllByText(/admin@example.com/).length).toBeGreaterThanOrEqual(3)
-    expect(mocks.startImpersonation).not.toHaveBeenCalled()
+    expect(screen.queryByText('Impersonate this user?')).not.toBeInTheDocument()
+    await waitFor(() => expect(mocks.startImpersonation).toHaveBeenCalledWith('user:admin'))
+    await waitFor(() => expect(mocks.clearAllLocalData).toHaveBeenCalled())
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/collections'))
   })
 })

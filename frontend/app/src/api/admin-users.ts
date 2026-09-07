@@ -4,10 +4,20 @@ import { api } from '@/api/client'
 import { problemMessageFromBody } from '@/api/problem'
 import type { components } from '@/api/schema'
 import { redirectToLoginAfterUnauthorized } from '@/lib/api-unauthorized'
-import { parseTotalCount } from '@/lib/list-pagination'
+import { getNextPageIndex, parseTotalCount } from '@/lib/list-pagination'
 
 export type AdminUser = components['schemas']['User']
 export const ADMIN_USERS_PAGE_SIZE = 50
+
+export function getAdminUsersNextPageParam(
+  lastPage: { items: unknown[]; total: number | undefined },
+  allPages: Array<{ items: unknown[]; total: number | undefined }>,
+): number | undefined {
+  const nextFromTotal = getNextPageIndex(allPages)
+  if (nextFromTotal !== undefined) return nextFromTotal
+  if (lastPage.total !== undefined) return undefined
+  return lastPage.items.length >= ADMIN_USERS_PAGE_SIZE ? allPages.length : undefined
+}
 
 export async function fetchAdminUsersPage(
   queryClient: QueryClient,

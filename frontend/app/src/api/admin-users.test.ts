@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { api } from '@/api/client'
-import { fetchAdminUsersPage } from '@/api/admin-users'
+import { fetchAdminUsersPage, getAdminUsersNextPageParam } from '@/api/admin-users'
 
 vi.mock('@/api/client', () => ({ api: { GET: vi.fn() } }))
 vi.mock('@/lib/api-unauthorized', () => ({ redirectToLoginAfterUnauthorized: vi.fn() }))
@@ -54,5 +54,20 @@ describe('Admin users API', () => {
     await expect(fetchAdminUsersPage(queryClient, { page: 0, q: '' })).rejects.toThrow(
       'Directory unavailable.',
     )
+  })
+})
+
+describe('getAdminUsersNextPageParam', () => {
+  it('uses the total header when present', () => {
+    expect(getAdminUsersNextPageParam({ items: [user], total: 51 }, [{ items: [user], total: 51 }])).toBe(1)
+    expect(getAdminUsersNextPageParam({ items: [user], total: 1 }, [{ items: [user], total: 1 }])).toBeUndefined()
+  })
+
+  it('falls back to a full page when total is missing', () => {
+    const fullPage = { items: Array.from({ length: 50 }, (_, i) => i), total: undefined }
+    expect(getAdminUsersNextPageParam(fullPage, [fullPage])).toBe(1)
+    expect(
+      getAdminUsersNextPageParam({ items: [user], total: undefined }, [{ items: [user], total: undefined }]),
+    ).toBeUndefined()
   })
 })
