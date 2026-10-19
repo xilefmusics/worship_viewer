@@ -325,7 +325,7 @@ describe('PlayerBook likes', () => {
     expect(screen.queryByRole('banner')).not.toBeInTheDocument()
     fireEvent.click(main, { clientX: 50, detail: 1 })
     const toc = await screen.findByTestId('liked-toc')
-    expect(toc).toHaveClass('w-full', 'border-r-0')
+    expect(toc).toHaveClass('w-full', 'flex-1', 'min-h-0', 'h-auto', 'shrink', 'border-r-0')
     expect(toc.parentElement).toContainElement(screen.getByRole('banner'))
   })
 

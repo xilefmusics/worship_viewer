@@ -1969,7 +1969,7 @@ export function PlayerBook({
                       currentLanguageIndex={currentLanguageIndex}
                       onSelect={handleTocSelect}
                       primaryTitleOnly={type === 'library'}
-                      className={isPhoneViewport ? 'w-full border-r-0' : undefined}
+                      className={isPhoneViewport ? 'w-full flex-1 min-h-0 h-auto shrink border-r-0' : undefined}
                     />
                   )}
                 </div>

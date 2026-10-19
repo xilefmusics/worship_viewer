@@ -169,6 +169,38 @@ describe('PlayerTocSidebar', () => {
     expect(onSelect).toHaveBeenCalledWith(0, 1)
   })
 
+  it('keeps the last entry in a long mobile TOC reachable and selectable', async () => {
+    const longToc = Array.from({ length: 40 }, (_, index) => ({
+      idx: index,
+      nr: String(index + 1),
+      title: `Demo Song ${String(index + 1).padStart(3, '0')}`,
+      id: `song-${index + 1}`,
+      liked: false,
+    }))
+    const longItems = longToc.map((row) =>
+      chordPlayerItem(row.id, { titles: [row.title] }),
+    )
+    const onSelect = vi.fn()
+
+    render(
+      <PlayerTocSidebar
+        toc={longToc}
+        items={longItems}
+        currentSourceIdx={0}
+        currentLanguageIndex={null}
+        onSelect={onSelect}
+        className="w-full flex-1 min-h-0 h-auto shrink border-r-0"
+      />,
+    )
+
+    const navigation = screen.getByRole('navigation', { name: 'player.toc.title' })
+    expect(navigation).toHaveClass('flex-1', 'min-h-0', 'h-auto', 'shrink')
+    expect(navigation).not.toHaveClass('h-full', 'shrink-0')
+
+    await userEvent.click(screen.getByRole('option', { name: 'Demo Song 040' }))
+    expect(onSelect).toHaveBeenCalledWith(39, null)
+  })
+
   it('highlights only the exact source and language pair', () => {
     tocMultilingualEnabled = true
     tocMode = 'alphabetical'
