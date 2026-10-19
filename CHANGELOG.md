@@ -40,6 +40,7 @@ All notable changes to Worship Viewer are documented here. The format follows [K
 
 ### Fixed
 
+- Mobile player TOCs now scroll through their final entries below the fullscreen header.
 - Markdown rendering now uses the corrected `chordlib` 0.17.0 implementation.
 - Songs can no longer be linked to multiple collections, including during concurrent writes. Duplicating a collection now creates an empty copy with its title, owner, and cover.
 - Song editor key changes now preserve the selected transpose-or-keep chord behavior when autosaving.
