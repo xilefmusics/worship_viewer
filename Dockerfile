@@ -1,4 +1,4 @@
-FROM rust:1.98.1-slim AS toolchain
+FROM rust:1.99.1-slim AS toolchain
 
 RUN export CARGO_BUILD_JOBS=$(nproc) && \
     rustup target add wasm32-unknown-unknown && \
@@ -6,7 +6,7 @@ RUN export CARGO_BUILD_JOBS=$(nproc) && \
     apt-get install -y --no-install-recommends pkg-config libssl-dev build-essential ca-certificates curl && \
     curl -fsSL https://deb.nodesource.com/setup_26.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
-    npm install --global pnpm@12.6.0 && \
+    npm install --global pnpm@12.15.0 && \
     curl -fsSL https://rustwasm.github.io/wasm-pack/installer/init.sh | VERSION=0.15.0 sh
 
 FROM toolchain AS backend-builder

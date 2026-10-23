@@ -17,7 +17,7 @@
     "test:e2e": "pnpm --filter app test:e2e"
   },
   "devDependencies": {
-    "prettier": "^3.9.8"
+    "prettier": "^3.9.10"
   },
   "packageManager": "pnpm@12.6.0"
 }
