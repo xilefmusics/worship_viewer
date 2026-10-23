@@ -6,7 +6,16 @@ license = "AGPL-3.0-or-later"
 default-run = "backend"
 
 [dependencies]
-actix-web = { version = "4", default-features = true }
+actix-web = { version = "4", default-features = false, features = [
+    "macros",
+    "compress-brotli",
+    "compress-gzip",
+    "compress-zstd",
+    "cookies",
+    "unicode",
+    "compat",
+    "ws",
+] }
 actix-multipart = "0.8"
 anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = [
@@ -38,8 +47,8 @@ rand = { version = "0.10", features = ["std"] }
 envy = "0.4.2"
 dotenvy = "0.15"
 futures-util = "0.3"
-utoipa = { version = "5", features = ["chrono"] }
-utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
+utoipa = { version = "6", features = ["chrono"] }
+utoipa-swagger-ui = { version = "10", features = ["actix-web"] }
 surrealdb = { version = "3.2", default-features = false, features = [
     "kv-mem",
     "protocol-http",
@@ -57,7 +66,6 @@ actix-ws = "0.4"
 actix-governor = "0.10"
 shared = { path = "../shared", features = ["backend"] }
 chordlib = { version = "0.17.0", features = ["html"] }
-zip = "8.6.0"
 imagesize = "0.15"
 async-stream = "0.3"
 lopdf = { version = "0.44", default-features = false }

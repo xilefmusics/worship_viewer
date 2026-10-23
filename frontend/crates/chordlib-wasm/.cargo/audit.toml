@@ -1,0 +1,10 @@
+[advisories]
+# zip 8.6 is used transitively for ZIP entry reads only by chordlib's Office
+# document readers. They do not call the extraction APIs covered by these
+# advisories. Remove these exceptions when those upstream dependencies move to
+# zip 9 or later.
+ignore = [
+    "RUSTSEC-2026-0367",
+    "RUSTSEC-2026-0368",
+    "RUSTSEC-2026-0369",
+]

@@ -110,10 +110,10 @@
           "base": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/SimpleChord"
               },
               {
-                "$ref": "#/components/schemas/SimpleChord"
+                "type": "null"
               }
             ]
           },
@@ -136,11 +136,7 @@
             "type": "boolean"
           },
           "root_spelling_hint": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RootSpellingHint"
-              }
-            ]
+            "$ref": "#/components/schemas/RootSpellingHint"
           },
           "var": {
             "description": "Extensions and figures after the quality (e.g. `7`, `add9`, `sus4`).",
@@ -403,10 +399,10 @@
           "source_type": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/RoomSourceType"
               },
               {
-                "$ref": "#/components/schemas/RoomSourceType"
+                "type": "null"
               }
             ]
           },
@@ -752,10 +748,10 @@
           "subject": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/User"
               },
               {
-                "$ref": "#/components/schemas/User"
+                "type": "null"
               }
             ]
           }
@@ -889,10 +885,10 @@
           "pending_revision": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/MediaPendingRevision"
               },
               {
-                "$ref": "#/components/schemas/MediaPendingRevision"
+                "type": "null"
               }
             ]
           },
@@ -1515,10 +1511,10 @@
           "chord": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/Chord"
               },
               {
-                "$ref": "#/components/schemas/Chord"
+                "type": "null"
               }
             ]
           },
@@ -1547,10 +1543,10 @@
           "file_type": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/FileType"
               },
               {
-                "$ref": "#/components/schemas/FileType"
+                "type": "null"
               }
             ]
           },
@@ -1702,10 +1698,10 @@
           "key": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/SimpleChord"
               },
               {
-                "$ref": "#/components/schemas/SimpleChord"
+                "type": "null"
               }
             ]
           },
@@ -1862,11 +1858,11 @@
           "capo_shape": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/SimpleChord",
                 "description": "Saved capo playing shape from a setlist slot, if any."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -2375,10 +2371,10 @@
               "projection": {
                 "oneOf": [
                   {
-                    "type": "null"
+                    "$ref": "#/components/schemas/RoomProjectionPayload"
                   },
                   {
-                    "$ref": "#/components/schemas/RoomProjectionPayload"
+                    "type": "null"
                   }
                 ]
               },
@@ -2680,11 +2676,11 @@
           "capo_shape": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/SimpleChord",
                 "description": "Optional capo playing shape for this setlist slot. The player derives the fret from this shape and the sounding key."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -2705,11 +2701,11 @@
           "key": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/SimpleChord",
                 "description": "Transposition key for this slot (same `{ \"level\": … }` object as `Song.data.key`)."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -2864,11 +2860,11 @@
           "key": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/SimpleChord",
                 "description": "Tonic pitch class for the song (transposition / display reference)."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -2986,11 +2982,11 @@
           "key": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/SimpleChord",
                 "description": "Transposition key for this slot (same `{ \"level\": … }` object as `Song.data.key`)."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -3144,11 +3140,11 @@
           "owner": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/TeamUser",
                 "description": "When set, this team is that user's personal team (1:1, not deletable). Not listed in `members`."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -3298,11 +3294,11 @@
           "key": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/SimpleChord",
                 "description": "Optional slot key override from the editor row."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -3406,10 +3402,10 @@
           "content": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/CreateMediaContent"
               },
               {
-                "$ref": "#/components/schemas/CreateMediaContent"
+                "type": "null"
               }
             ]
           },
@@ -7068,7 +7064,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request succeeded."
           }
         },
         "security": [
@@ -7104,7 +7100,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The resource was created."
           }
         },
         "security": [
@@ -7142,7 +7138,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request succeeded."
           }
         },
         "tags": [
@@ -7172,7 +7168,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request succeeded."
           }
         },
         "tags": [
@@ -7195,7 +7191,7 @@
         ],
         "responses": {
           "204": {
-            "description": ""
+            "description": "The request succeeded with no response body."
           }
         },
         "security": [
@@ -7231,7 +7227,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request succeeded."
           }
         },
         "security": [
@@ -7279,7 +7275,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request succeeded."
           }
         },
         "security": [
@@ -7320,7 +7316,7 @@
         },
         "responses": {
           "204": {
-            "description": ""
+            "description": "The request succeeded with no response body."
           },
           "400": {
             "content": {
@@ -7330,7 +7326,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request is invalid."
           },
           "401": {
             "content": {
@@ -7340,7 +7336,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "Authentication is required or invalid."
           },
           "404": {
             "content": {
@@ -7350,7 +7346,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The requested resource was not found."
           },
           "409": {
             "content": {
@@ -7360,7 +7356,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request conflicts with the current resource state."
           }
         },
         "security": [
@@ -7401,7 +7397,7 @@
         },
         "responses": {
           "204": {
-            "description": ""
+            "description": "The request succeeded with no response body."
           },
           "403": {
             "content": {
@@ -7411,7 +7407,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The caller is not permitted to perform this action."
           },
           "404": {
             "content": {
@@ -7421,7 +7417,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The requested resource was not found."
           },
           "409": {
             "content": {
@@ -7431,7 +7427,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request conflicts with the current resource state."
           }
         },
         "security": [
@@ -7469,7 +7465,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request succeeded."
           },
           "401": {
             "content": {
@@ -7479,7 +7475,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "Authentication is required or invalid."
           },
           "404": {
             "content": {
@@ -7489,7 +7485,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The requested resource was not found."
           }
         },
         "security": [
@@ -7530,7 +7526,7 @@
         },
         "responses": {
           "204": {
-            "description": ""
+            "description": "The request succeeded with no response body."
           },
           "400": {
             "content": {
@@ -7540,7 +7536,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request is invalid."
           },
           "403": {
             "content": {
@@ -7550,7 +7546,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The caller is not permitted to perform this action."
           },
           "404": {
             "content": {
@@ -7560,7 +7556,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The requested resource was not found."
           },
           "409": {
             "content": {
@@ -7570,7 +7566,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request conflicts with the current resource state."
           }
         },
         "security": [
@@ -7619,7 +7615,7 @@
         ],
         "responses": {
           "204": {
-            "description": ""
+            "description": "The request succeeded with no response body."
           },
           "403": {
             "content": {
@@ -7629,7 +7625,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The caller is not permitted to perform this action."
           },
           "404": {
             "content": {
@@ -7639,7 +7635,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The requested resource was not found."
           },
           "409": {
             "content": {
@@ -7649,7 +7645,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request conflicts with the current resource state."
           }
         },
         "security": [
@@ -7698,7 +7694,7 @@
         },
         "responses": {
           "204": {
-            "description": ""
+            "description": "The request succeeded with no response body."
           },
           "403": {
             "content": {
@@ -7708,7 +7704,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The caller is not permitted to perform this action."
           },
           "404": {
             "content": {
@@ -7718,7 +7714,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The requested resource was not found."
           },
           "409": {
             "content": {
@@ -7728,7 +7724,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request conflicts with the current resource state."
           }
         },
         "security": [
@@ -7776,7 +7772,7 @@
                 }
               }
             },
-            "description": ""
+            "description": "The request succeeded."
           }
         },
         "tags": [
