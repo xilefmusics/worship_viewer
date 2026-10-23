@@ -10,6 +10,7 @@ import {
   mergeSongDataWithComposeSections,
   symbolToWireChord,
 } from '@/lib/song-editor-compose'
+import { songEditorFormatOptions } from '@/lib/song-editor-state'
 
 const pkgDir = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -17,6 +18,29 @@ const pkgDir = join(
 )
 
 describe('composeSectionsFromSongData wasm round-trip', () => {
+  it.skipIf(import.meta.env.VITEST_WASM !== '1')(
+    'keeps translated chords before their lyric after save and reopen',
+    async () => {
+      const wasmMod = await import('@worshipviewer/chordlib-wasm')
+      wasmMod.initSync(readFileSync(join(pkgDir, 'chordlib_wasm_bg.wasm')))
+      const engine = await createWasmChordEngine()
+      const source = ['{title: Test}', '{key: B}', 'x[1]a', '&[1]b'].join('\n')
+
+      const parsed = engine.parseChordPro(source)
+      const saved = engine.formatChordPro(parsed, songEditorFormatOptions('letters', parsed))
+      expect(saved).toContain('x[B]a')
+      expect(saved).toContain('&[B]b')
+
+      const reopened = engine.parseChordPro(saved)
+      const savedAgain = engine.formatChordPro(
+        reopened,
+        songEditorFormatOptions('letters', reopened),
+      )
+      expect(savedAgain).toContain('x[B]a')
+      expect(savedAgain).toContain('&[B]b')
+    },
+  )
+
   it.skipIf(import.meta.env.VITEST_WASM !== '1')(
     'preserves primary and translation chord positions through format and parse',
     async () => {
