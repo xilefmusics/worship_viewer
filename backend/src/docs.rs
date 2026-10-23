@@ -1,5 +1,7 @@
+use utoipa::openapi::RefOr;
 use utoipa::openapi::external_docs::ExternalDocs;
 use utoipa::openapi::info::ContactBuilder;
+use utoipa::openapi::path::Operation;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
@@ -76,6 +78,8 @@ const BLC_GITHUB_BASE: &str =
     "https://github.com/xilefmusics/worshipviewer/blob/main/docs/business-logic-constraints/";
 
 fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: &Settings) {
+    populate_missing_response_descriptions(doc);
+
     let tag_docs: &[(&str, &str)] = &[
         ("Auth", "authentication.md"),
         ("Monitoring", "monitoring.md"),
@@ -107,6 +111,54 @@ fn apply_openapi_runtime_metadata(doc: &mut utoipa::openapi::OpenApi, settings: 
             .url(settings.openapi_imprint_url.clone())
             .build();
         doc.info.contact = Some(contact);
+    }
+}
+
+/// Utoipa 6 omits empty response descriptions; OpenAPI requires every Response Object to have
+/// one. Fill only absent descriptions with a concise HTTP status summary.
+fn populate_missing_response_descriptions(doc: &mut utoipa::openapi::OpenApi) {
+    for path_item in doc.paths.paths.values_mut() {
+        for operation in [
+            path_item.get.as_mut(),
+            path_item.put.as_mut(),
+            path_item.post.as_mut(),
+            path_item.delete.as_mut(),
+            path_item.options.as_mut(),
+            path_item.head.as_mut(),
+            path_item.patch.as_mut(),
+            path_item.trace.as_mut(),
+            path_item.query.as_mut(),
+        ]
+        .into_iter()
+        .flatten()
+        .chain(path_item.additional_operations.values_mut())
+        {
+            populate_operation_response_descriptions(operation);
+        }
+    }
+}
+
+fn populate_operation_response_descriptions(operation: &mut Operation) {
+    for (status, response) in &mut operation.responses.responses {
+        let RefOr::T(response) = response else {
+            continue;
+        };
+        if !response.description.is_empty() {
+            continue;
+        }
+        response.description = match status.as_str() {
+            "200" => "The request succeeded.",
+            "201" => "The resource was created.",
+            "202" => "The request was accepted.",
+            "204" => "The request succeeded with no response body.",
+            "400" => "The request is invalid.",
+            "401" => "Authentication is required or invalid.",
+            "403" => "The caller is not permitted to perform this action.",
+            "404" => "The requested resource was not found.",
+            "409" => "The request conflicts with the current resource state.",
+            _ => "The server returned this HTTP status.",
+        }
+        .to_owned();
     }
 }
 
@@ -425,6 +477,27 @@ mod tests {
                 .expect("url")
                 .contains("monitoring.md")
         );
+    }
+
+    #[test]
+    fn openapi_response_objects_have_descriptions() {
+        let value =
+            serde_json::to_value(openapi_document(&Settings::default())).expect("openapi json");
+        for (path, item) in value["paths"].as_object().expect("paths") {
+            for (method, operation) in item.as_object().expect("path item") {
+                let Some(responses) = operation.get("responses").and_then(|v| v.as_object()) else {
+                    continue;
+                };
+                for (status, response) in responses {
+                    assert!(
+                        response["description"]
+                            .as_str()
+                            .is_some_and(|value| !value.is_empty()),
+                        "missing response description for {method} {path} {status}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]

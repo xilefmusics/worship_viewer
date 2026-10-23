@@ -1,10 +1,13 @@
-# cargo-audit config for backend (see CONTRIBUTING.md).
-# Transitive advisories with no upstream fix are ignored here; re-check on dependency upgrades.
-
 [advisories]
+# zip 8.6 is used transitively for ZIP entry reads only by chordlib's Office
+# document readers. They do not call the extraction APIs covered by these
+# advisories. Remove these exceptions when those upstream dependencies move to
+# zip 9 or later.
+# RSA is used to verify OIDC signatures only; the backend does not decrypt with
+# RSA private keys, which is the operation covered by the Marvin timing attack.
 ignore = [
-    # rsa via openidconnect + surrealdb/jsonwebtoken — no patched release (RUSTSEC-2023-0071)
+    "RUSTSEC-2026-0367",
+    "RUSTSEC-2026-0368",
+    "RUSTSEC-2026-0369",
     "RUSTSEC-2023-0071",
-    # h2 0.3 via actix-http — Actix does not yet support the patched h2 0.4 line
-    "RUSTSEC-2026-0258",
 ]

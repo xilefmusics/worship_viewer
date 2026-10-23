@@ -1236,7 +1236,7 @@ export interface components {
         };
         /** @description Structured chord attached to a lyric [`PartSchema`]. */
         Chord: {
-            base?: null | components["schemas"]["SimpleChord"];
+            base?: components["schemas"]["SimpleChord"] | null;
             /**
              * Format: int32
              * @description Duration in milliclicks (1000 per ChordPro click in `{chord:…:N}`).
@@ -1344,7 +1344,7 @@ export interface components {
         CreateRoom: {
             name?: string | null;
             source_id?: string | null;
-            source_type?: null | components["schemas"]["RoomSourceType"];
+            source_type?: components["schemas"]["RoomSourceType"] | null;
             team_id: string;
         };
         /**
@@ -1484,7 +1484,7 @@ export interface components {
             impersonation_id?: string | null;
             /** Format: date-time */
             started_at?: string | null;
-            subject?: null | components["schemas"]["User"];
+            subject?: components["schemas"]["User"] | null;
         };
         InspectRoomInvite: {
             invite_secret: string;
@@ -1520,7 +1520,7 @@ export interface components {
             id: string;
             is_background?: boolean;
             owner: string;
-            pending_revision?: null | components["schemas"]["MediaPendingRevision"];
+            pending_revision?: components["schemas"]["MediaPendingRevision"] | null;
             title: string;
         };
         /** @description Metadata for a media-owned asset (no filesystem paths). */
@@ -1719,7 +1719,7 @@ export interface components {
         };
         /** @description One lyric/chord fragment on a line. */
         Part: {
-            chord?: null | components["schemas"]["Chord"];
+            chord?: components["schemas"]["Chord"] | null;
             /** @description When true, `languages` holds a ChordPro comment line, not lyrics. */
             comment: boolean;
             /** @description Lyric text per language **track** (index aligns with song-level `languages`; not BCP 47 codes). */
@@ -1727,7 +1727,7 @@ export interface components {
         };
         /** @description Partial update for a blob. Absent fields are left unchanged. */
         PatchBlob: {
-            file_type?: null | components["schemas"]["FileType"];
+            file_type?: components["schemas"]["FileType"] | null;
             /** Format: int32 */
             height?: number | null;
             /** @description OCR or extracted text used for search (may be empty). */
@@ -1772,7 +1772,7 @@ export interface components {
         PatchSongData: {
             artists?: string[] | null;
             copyright?: string | null;
-            key?: null | components["schemas"]["SimpleChord"];
+            key?: components["schemas"]["SimpleChord"] | null;
             /** @description BCP 47 language tags (e.g. `en`, `de-CH`). */
             languages?: string[] | null;
             sections?: components["schemas"]["Section"][] | null;
@@ -1816,7 +1816,7 @@ export interface components {
         };
         /** @description ChordPro-backed song item in a player sequence (`type`: `"chords"`). */
         PlayerChordsItem: {
-            capo_shape?: null | components["schemas"]["SimpleChord"];
+            capo_shape?: components["schemas"]["SimpleChord"] | null;
             /** @description Custom flow override from the setlist slot, if any. */
             flow?: components["schemas"]["SongFlowItem"][] | null;
             /** @description Language override for this player item; `None` uses the song's default language. */
@@ -1954,7 +1954,7 @@ export interface components {
             host_lease_expires_at: string;
             musical_state: components["schemas"]["RoomMusicalState"];
             new_joins_locked?: boolean;
-            projection?: null | components["schemas"]["RoomProjectionPayload"];
+            projection?: components["schemas"]["RoomProjectionPayload"] | null;
             queue?: components["schemas"]["RoomQueueItem"][];
             /** Format: int64 */
             revision: number;
@@ -2059,12 +2059,12 @@ export interface components {
          */
         SetlistPlayerView: "book" | "av";
         SetlistSongLink: {
-            capo_shape?: null | components["schemas"]["SimpleChord"];
+            capo_shape?: components["schemas"]["SimpleChord"] | null;
             /** @description Custom section order and repeats for this setlist slot. */
             flow?: components["schemas"]["SongFlowItem"][] | null;
             /** @description Song record id. */
             id: string;
-            key?: null | components["schemas"]["SimpleChord"];
+            key?: components["schemas"]["SimpleChord"] | null;
             /** @description Language override for this slot; `None` inherits the song's default language. */
             language?: string | null;
             /** @description Optional display position in the parent list (e.g. `1`, `2a`). */
@@ -2148,7 +2148,7 @@ export interface components {
         SongDataSchema: {
             artists?: string[] | null;
             copyright?: string | null;
-            key?: null | components["schemas"]["SimpleChord"];
+            key?: components["schemas"]["SimpleChord"] | null;
             /**
              * @description BCP 47 language tags for lyric tracks (e.g. `en`, `de-CH`). Empty string when unset.
              * @example [
@@ -2202,7 +2202,7 @@ export interface components {
         SongLink: {
             /** @description Song record id. */
             id: string;
-            key?: null | components["schemas"]["SimpleChord"];
+            key?: components["schemas"]["SimpleChord"] | null;
             /** @description Language override for this slot; `None` inherits the song's default language. */
             language?: string | null;
             /** @description Optional display position in the parent list (e.g. `1`, `2a`). */
@@ -2276,7 +2276,7 @@ export interface components {
             /** @description Everyone except the personal-team owner (if any). */
             members: components["schemas"]["TeamMember"][];
             name: string;
-            owner?: null | components["schemas"]["TeamUser"];
+            owner?: components["schemas"]["TeamUser"] | null;
         };
         TeamInvitation: {
             /** Format: date-time */
@@ -2324,7 +2324,7 @@ export interface components {
          *     }
          */
         TransferCollectionSong: {
-            key?: null | components["schemas"]["SimpleChord"];
+            key?: components["schemas"]["SimpleChord"] | null;
             /** @description Optional slot number override from the editor row. */
             nr?: string | null;
             /** @description Destination collection id. */
@@ -2354,7 +2354,7 @@ export interface components {
             title: string;
         };
         UpdateMedia: {
-            content?: null | components["schemas"]["CreateMediaContent"];
+            content?: components["schemas"]["CreateMediaContent"] | null;
             /** @description Omit to preserve the current value. */
             is_background?: boolean | null;
             owner?: string | null;
@@ -4887,6 +4887,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description The request succeeded. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4910,6 +4911,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The resource was created. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -4933,6 +4935,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The request succeeded. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4956,6 +4959,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The request succeeded. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4977,6 +4981,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description The request succeeded. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4998,6 +5003,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description The request succeeded with no response body. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -5021,6 +5027,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The request succeeded. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5046,12 +5053,14 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The request succeeded with no response body. */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description The request is invalid. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -5060,6 +5069,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Authentication is required or invalid. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5068,6 +5078,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The requested resource was not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -5076,6 +5087,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The request conflicts with the current resource state. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5101,12 +5113,14 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The request succeeded with no response body. */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description The caller is not permitted to perform this action. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5115,6 +5129,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The requested resource was not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -5123,6 +5138,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The request conflicts with the current resource state. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5144,6 +5160,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description The request succeeded. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5152,6 +5169,7 @@ export interface operations {
                     "application/json": components["schemas"]["RoomQueueLikes"];
                 };
             };
+            /** @description Authentication is required or invalid. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5160,6 +5178,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The requested resource was not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -5185,12 +5204,14 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The request succeeded with no response body. */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description The request is invalid. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -5199,6 +5220,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The caller is not permitted to perform this action. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5207,6 +5229,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The requested resource was not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -5215,6 +5238,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The request conflicts with the current resource state. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5239,12 +5263,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description The request succeeded with no response body. */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description The caller is not permitted to perform this action. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5253,6 +5279,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The requested resource was not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -5261,6 +5288,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The request conflicts with the current resource state. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5287,12 +5315,14 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The request succeeded with no response body. */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description The caller is not permitted to perform this action. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5301,6 +5331,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The requested resource was not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -5309,6 +5340,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description The request conflicts with the current resource state. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5334,6 +5366,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The request succeeded. */
             200: {
                 headers: {
                     [name: string]: unknown;
